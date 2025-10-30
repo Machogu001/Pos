@@ -27,8 +27,21 @@
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title') - {{ Session::get('business.name') }}</title>
-
     @include('layouts.partials.css')
+
+    <!-- PWA manifest and theme -->
+    {{-- Prefer a per-business manifest when session business id is present to allow branding per tenant. 
+        Fallback to /manifest.json when no business context is available. --}}
+    <link rel="manifest" href="{{ session('business.id') ? '/manifest/' . session('business.id') . '.json' : '/manifest.json' }}">
+    <meta name="theme-color" content="{{ !empty(session('business.theme_color')) ? session('business.theme_color') : '#2b6cb0' }}">
+    <!-- iOS support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="{{ Session::get('business.name') }}">
+    {{-- Use an explicit 192px icon for iOS/apple-touch where possible; fallback to configured favicon. 
+        If you'd like local PNG icons, add them to public/icons/icon-192.png and icon-512.png. --}}
+    <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/{{ config('app.favicon', 'favicon.ico') }}">
     
 
     @include('layouts.partials.extracss')
@@ -128,6 +141,14 @@
         @endif
 
         @include('layouts.partials.javascripts')
+
+    {{-- Install prompt modal and registration (only included for authenticated users).
+         Avoid including the partial when server already knows the user installed or dismissed. --}}
+    @auth
+        @if (! (optional(auth()->user())->pwa_installed_at || optional(auth()->user())->pwa_install_dismissed_at))
+            @include('layouts.partials.install_prompt')
+        @endif
+    @endauth
 
         <div class="modal fade view_modal" tabindex="-1" role="dialog" aria-labelledby="gridSystemModalLabel"></div>
 
