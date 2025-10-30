@@ -79,6 +79,59 @@ use App\Http\Controllers\PaymentAccountController;
 
 include_once 'install_r.php';
 
+// Dynamic manifest route to include business name from session when available.
+// This helps show a branded name in the install prompt. If your webserver
+// serves the static `public/manifest.json` first, keep that as a fallback.
+Route::get('/manifest.json', function () {
+    // Keep fallback dynamic manifest that uses session business where available
+    $name = session('business.name') ?? config('app.name');
+    // Prefer business theme_color and logo from session when available
+    $theme_color = session('business.theme_color') ?? '#2b6cb0';
+    $icon192 = session('business.logo') ? asset(session('business.logo')) : asset('icons/icon-192.png');
+    $icon512 = session('business.logo') ? asset(session('business.logo')) : asset('icons/icon-512.png');
+
+    $manifest = [
+        'name' => $name,
+        'short_name' => 'POS',
+        'start_url' => url('/'),
+        'display' => 'standalone',
+        'background_color' => '#ffffff',
+        'theme_color' => $theme_color,
+        'description' => 'Point of sale application',
+        'icons' => [
+            [
+                'src' => $icon192,
+                'sizes' => '192x192',
+                'type' => 'image/png'
+            ],
+            [
+                'src' => $icon512,
+                'sizes' => '512x512',
+                'type' => 'image/png'
+            ],
+            // SVG fallback
+            [
+                'src' => asset('icons/icon-192.svg'),
+                'sizes' => '192x192',
+                'type' => 'image/svg+xml'
+            ],
+            [
+                'src' => asset('icons/icon-512.svg'),
+                'sizes' => '512x512',
+                'type' => 'image/svg+xml'
+            ]
+        ]
+    ];
+
+    return response()->json($manifest)->header('Content-Type', 'application/manifest+json');
+});
+
+// PWA endpoints to persist user install/dismissed state
+Route::middleware(['auth'])->group(function () {
+    Route::post('/pwa/installed', [\App\Http\Controllers\PwaController::class, 'markInstalled']);
+    Route::post('/pwa/dismissed', [\App\Http\Controllers\PwaController::class, 'markDismissed']);
+});
+
 Route::middleware(['setData'])->group(function () {
     Route::get('/', function () {
         return view('welcome');
