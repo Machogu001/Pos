@@ -1,0 +1,11 @@
+{
+    "name": "Stocktake",
+    "alias": "stocktake",
+    "description": "Stocktake module placeholder to register provider with modules loader",
+    "keywords": ["stocktake","inventory","stock"],
+    "version": "1.0",
+    "require": {},
+    "providers": [
+        "Modules\\Stocktake\\Providers\\StocktakeServiceProvider"
+    ]
+}

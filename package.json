@@ -1,0 +1,25 @@
+{
+  "name": "pos",
+  "version": "1.0.0",
+  "description": "nulled raz0r - nullcave.pro ## About Ultimate POS",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "laravel-vite-plugin": "^2.0.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.11",
+    "vite": "^7.0.5"
+  },
+  "dependencies": {
+    "sweetalert2": "^11.22.5"
+  }
+}

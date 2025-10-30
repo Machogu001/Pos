@@ -1,0 +1,11 @@
+{
+    "name": "Hrm",
+    "alias": "hrm",
+    "description": "Human Resource Management module",
+    "keywords": ["hr","hrm","human-resources"],
+    "version": "1.0",
+    "require": {},
+    "providers": [
+        "Modules\\Hrm\\Providers\\HrmServiceProvider"
+    ]
+}

@@ -1,0 +1,7 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Redirect everything to /pos/public
+    RewriteCond %{REQUEST_URI} !^/pos/public/
+    RewriteRule ^(.*)$ /pos/public/$1 [L,R=302]
+</IfModule>
