@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 
 Route::group([
     'module' => 'Hrm',
@@ -19,6 +20,53 @@ Route::group([
     Route::resource('/hrm/companies', \Modules\Hrm\Http\Controllers\CompanyController::class, [
         'as' => 'hrm'
     ]);
+
+    // Temporary debug endpoint to help diagnose POST/proxy issues.
+    // Logs request headers and body and returns JSON. Remove after debugging.
+    Route::post('/hrm/companies/debug', function (Request $request) {
+        // Log headers and body for inspection
+        try {
+            $headers = [];
+            if (function_exists('getallheaders')) {
+                $headers = getallheaders();
+            }
+        } catch (\Throwable $e) {
+            $headers = [];
+        }
+        logger()->info('HRM debug POST received', ['headers' => $headers, 'body' => $request->all()]);
+        return response()->json(['ok' => true, 'received' => $request->all()]);
+    })->name('hrm.companies.debug');
+
+    // Additional debug endpoints for other HRM resources (temporary)
+    Route::post('/hrm/departments/debug', function (Request $request) {
+        try { $headers = function_exists('getallheaders') ? getallheaders() : []; } catch (\Throwable $e) { $headers = []; }
+        logger()->info('HRM debug POST received - departments', ['headers' => $headers, 'body' => $request->all()]);
+        return response()->json(['ok' => true, 'received' => $request->all()]);
+    })->name('hrm.departments.debug');
+
+    Route::post('/hrm/designations/debug', function (Request $request) {
+        try { $headers = function_exists('getallheaders') ? getallheaders() : []; } catch (\Throwable $e) { $headers = []; }
+        logger()->info('HRM debug POST received - designations', ['headers' => $headers, 'body' => $request->all()]);
+        return response()->json(['ok' => true, 'received' => $request->all()]);
+    })->name('hrm.designations.debug');
+
+    Route::post('/hrm/office_shifts/debug', function (Request $request) {
+        try { $headers = function_exists('getallheaders') ? getallheaders() : []; } catch (\Throwable $e) { $headers = []; }
+        logger()->info('HRM debug POST received - office_shifts', ['headers' => $headers, 'body' => $request->all()]);
+        return response()->json(['ok' => true, 'received' => $request->all()]);
+    })->name('hrm.office_shifts.debug');
+
+    Route::post('/hrm/employees/debug', function (Request $request) {
+        try { $headers = function_exists('getallheaders') ? getallheaders() : []; } catch (\Throwable $e) { $headers = []; }
+        logger()->info('HRM debug POST received - employees', ['headers' => $headers, 'body' => $request->all()]);
+        return response()->json(['ok' => true, 'received' => $request->all()]);
+    })->name('hrm.employees.debug');
+
+    Route::post('/hrm/payrolls/debug', function (Request $request) {
+        try { $headers = function_exists('getallheaders') ? getallheaders() : []; } catch (\Throwable $e) { $headers = []; }
+        logger()->info('HRM debug POST received - payrolls', ['headers' => $headers, 'body' => $request->all()]);
+        return response()->json(['ok' => true, 'received' => $request->all()]);
+    })->name('hrm.payrolls.debug');
 
     // Designations
     Route::resource('/hrm/designations', \Modules\Hrm\Http\Controllers\DesignationsController::class, [
