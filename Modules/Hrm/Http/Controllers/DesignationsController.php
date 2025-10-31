@@ -75,13 +75,14 @@ class DesignationsController extends Controller
 
             $item['id'] = $designation->id;
             $item['designation'] = $designation->designation;
-            $item['company_name'] = $designation['company']->name;
-            $item['company_id'] = $designation['company']->id;
-            $item['department_name'] = $designation['department']->department;
-            $item['department_id'] = $designation['department']->id;
-            
+            $item['company_name'] = isset($designation['company']->name) ? $designation['company']->name : '';
+            $item['company_id'] = isset($designation['company']->id) ? $designation['company']->id : null;
+            $item['department_name'] = isset($designation['department']->department) ? $designation['department']->department : '';
+            $item['department_id'] = isset($designation['department']->id) ? $designation['department']->id : null;
             $data[] = $item;
         }
+        // Prepare a collection for the view
+        $designations_for_view = collect($data);
     
         if ($request->expectsJson()) {
             return response()->json([
@@ -90,9 +91,9 @@ class DesignationsController extends Controller
             ]);
         }
 
-        $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
-        $departments = Department::where('deleted_at', '=', null)->get(['id','department']);
-        return view('hrm::designations.index', compact('companies', 'departments'));
+    $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
+    $departments = Department::where('deleted_at', '=', null)->get(['id','department']);
+    return view('hrm::designations.index', compact('companies', 'departments', 'designations_for_view', 'totalRows', 'perPage', 'pageStart'));
     }
 
     public function create(Request $request)
