@@ -29,7 +29,8 @@ class CompanyController extends Controller
             if ($request->expectsJson()) {
                 return response()->json(['companies' => [], 'totalRows' => 0]);
             }
-            return view('hrm::companies.index');
+            // Table missing: render index with empty data to avoid view errors
+            return view('hrm::companies.index', ['companies' => [], 'totalRows' => 0, 'perPage' => 0, 'pageStart' => 1]);
         }
 
         // How many items do you want to display.
@@ -85,7 +86,8 @@ class CompanyController extends Controller
             ]);
         }
 
-        return view('hrm::companies.index');
+    // Pass computed data to the view so the HTML listing can render companies
+    return view('hrm::companies.index', compact('companies', 'totalRows', 'perPage', 'pageStart'));
     }
 
     //----------- Store new Company --------------\\
@@ -109,7 +111,7 @@ class CompanyController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect(url('/hrm/companies'))->with('success', 'Company created');
+    return redirect()->route('hrm.companies.index')->with('success', 'Company created');
     }
 
     //------------ function show -----------\\
@@ -165,7 +167,7 @@ class CompanyController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect(url('/hrm/companies'))->with('success', 'Company updated');
+    return redirect()->route('hrm.companies.index')->with('success', 'Company updated');
     }
 
     //----------- Delete  company --------------\\
@@ -183,7 +185,7 @@ class CompanyController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect(url('/hrm/companies'))->with('success', 'Company deleted');
+    return redirect()->route('hrm.companies.index')->with('success', 'Company deleted');
     }
 
     //-------------- Delete by selection  ---------------\\

@@ -3,7 +3,7 @@
 @section('content')
 <div class="container">
     <h2>Create Office Shift</h2>
-    <form action="/hrm/office_shifts" method="POST">
+    <form action="{{ route('hrm.office_shifts.store') }}" method="POST">
         {{ csrf_field() }}
 
         <div class="form-group">

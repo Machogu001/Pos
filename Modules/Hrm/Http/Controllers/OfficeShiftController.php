@@ -174,7 +174,7 @@ class OfficeShiftController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect(url('/hrm/office_shifts'))->with('success', 'Office shift created');
+    return redirect()->route('hrm.office_shifts.index')->with('success', 'Office shift created');
     }
 
     //------------ function show -----------\\
@@ -330,7 +330,7 @@ class OfficeShiftController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect(url('/hrm/office_shifts'))->with('success', 'Office shift updated');
+    return redirect()->route('hrm.office_shifts.index')->with('success', 'Office shift updated');
     }
 
     //----------- Delete  office_shift --------------\\
@@ -351,7 +351,7 @@ class OfficeShiftController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect(url('/hrm/office_shifts'))->with('success', 'Office shift deleted');
+    return redirect()->route('hrm.office_shifts.index')->with('success', 'Office shift deleted');
     }
 
     //-------------- Delete by selection  ---------------\\
