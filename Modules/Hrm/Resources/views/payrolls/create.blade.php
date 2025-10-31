@@ -79,3 +79,19 @@
     });
 </script>
 @endsection
+
+@push('scripts')
+<script>
+    // Debug AJAX POST for payrolls
+    (function(){
+        var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn btn-outline-primary mt-2'; btn.id = 'ajax-payrolls-debug'; btn.innerText = 'Send debug POST';
+        var container = document.querySelector('.container'); container.appendChild(btn);
+        var out = document.createElement('pre'); out.id = 'ajax-payrolls-result'; out.style.whiteSpace = 'pre-wrap'; container.appendChild(out);
+        btn.addEventListener('click', function(){
+            var form = document.querySelector('form'); var fd = new FormData(form);
+            fetch("{{ route('hrm.payrolls.debug') }}", { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }, body: fd })
+            .then(r=>r.json().catch(()=>r.text())).then(function(d){ out.textContent = JSON.stringify(d, null, 2); }).catch(function(e){ out.textContent = 'Error: '+e; });
+        });
+    })();
+</script>
+@endpush
