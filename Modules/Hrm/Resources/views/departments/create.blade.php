@@ -26,12 +26,15 @@
 
         <div class="form-group mb-3">
             <label for="department_head">Department Head (optional)</label>
-            <select name="department_head" id="department_head" class="form-control">
-                <option value="">-- None --</option>
-                @foreach($employees as $e)
-                    <option value="{{ $e->id }}" @if(old('department_head') == $e->id) selected @endif>{{ $e->username ?? $e->name }}</option>
-                @endforeach
-            </select>
+            <div class="d-flex gap-2">
+                <select name="department_head" id="department_head" class="form-control">
+                    <option value="">-- None --</option>
+                    @foreach($employees as $e)
+                        <option value="{{ $e->id }}" @if(old('department_head') == $e->id) selected @endif>{{ $e->username ?? $e->name }}</option>
+                    @endforeach
+                </select>
+                <a href="{{ route('hrm.employees.create') }}" class="btn btn-outline-secondary">Add Employee</a>
+            </div>
             @error('department_head')
                 <div class="text-danger small">{{ $message }}</div>
             @enderror
