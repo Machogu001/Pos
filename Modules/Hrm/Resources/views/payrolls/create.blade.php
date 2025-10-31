@@ -63,7 +63,7 @@
         var companyId = this.value;
         var employeeSelect = document.getElementById('employee_id');
         employeeSelect.innerHTML = '<option>Loading...</option>';
-        fetch('/hrm/employees/by-company?id=' + companyId)
+    fetch('{{ url("hrm/employees/by-company") }}?id=' + companyId)
             .then(r => r.json())
             .then(data => {
                 employeeSelect.innerHTML = '<option value="">-- Select Employee --</option>';

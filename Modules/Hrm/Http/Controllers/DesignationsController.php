@@ -134,7 +134,7 @@ class DesignationsController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect(url('/hrm/designations'))->with('success', 'Designation created');
+    return redirect()->route('hrm.designations.index')->with('success', 'Designation created');
     }
 
     //------------ function show -----------\\
@@ -186,7 +186,7 @@ class DesignationsController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect(url('/hrm/designations'))->with('success', 'Designation updated');
+    return redirect()->route('hrm.designations.index')->with('success', 'Designation updated');
     }
 
     //----------- Delete  designation --------------\\
@@ -207,7 +207,7 @@ class DesignationsController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect(url('/hrm/designations'))->with('success', 'Designation deleted');
+    return redirect()->route('hrm.designations.index')->with('success', 'Designation deleted');
     }
 
     //-------------- Delete by selection  ---------------\\

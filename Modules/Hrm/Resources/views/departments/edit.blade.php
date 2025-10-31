@@ -3,7 +3,7 @@
 @section('content')
 <div class="container">
     <h2>Edit Department</h2>
-    <form action="/hrm/departments/{{ $department->id }}" method="POST">
+    <form action="{{ route('hrm.departments.update', $department->id) }}" method="POST">
         {{ csrf_field() }}
         {{ method_field('PUT') }}
 
