@@ -3,7 +3,7 @@
 @section('content')
 <div class="container">
     <h2>Create Company</h2>
-    <form action="/hrm/companies" method="POST">
+    <form action="{{ route('hrm.companies.store') }}" method="POST">
         {{ csrf_field() }}
 
         <div class="form-group">
@@ -26,7 +26,7 @@
             <input type="text" name="country" id="country" class="form-control" placeholder="Country name" />
         </div>
 
-        <button class="btn btn-success">Create</button>
+    <button class="btn btn-success">Create</button>
     </form>
 </div>
 @endsection

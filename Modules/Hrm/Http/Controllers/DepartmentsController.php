@@ -139,7 +139,7 @@ class DepartmentsController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect(url('/hrm/departments'))->with('success', 'Department created');
+    return redirect()->route('hrm.departments.index')->with('success', 'Department created');
     }
 
     //------------ function show -----------\\
@@ -190,7 +190,7 @@ class DepartmentsController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect(url('/hrm/departments'))->with('success', 'Department updated');
+    return redirect()->route('hrm.departments.index')->with('success', 'Department updated');
     }
 
     //----------- Delete  department --------------\\
@@ -211,7 +211,7 @@ class DepartmentsController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect(url('/hrm/departments'))->with('success', 'Department deleted');
+    return redirect()->route('hrm.departments.index')->with('success', 'Department deleted');
     }
 
     //-------------- Delete by selection  ---------------\\

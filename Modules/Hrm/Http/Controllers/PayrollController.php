@@ -92,7 +92,7 @@ class PayrollController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect(url('/hrm/payrolls'))->with('success', 'Payroll created');
+    return redirect()->route('hrm.payrolls.index')->with('success', 'Payroll created');
     }
 
     public function show(Request $request, $id)

@@ -49,14 +49,14 @@
 <script>
 function restore(id) {
     if (!confirm('Restore this employee?')) return;
-    fetch("{{ url('/hrm/employees/') }}/" + id + '/restore', {
+    fetch("{{ url('hrm/employees') }}" + '/' + id + '/restore', {
         method: 'POST',
         headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
     }).then(r => r.json()).then(j => { if (j.success) location.reload(); else alert('Failed') });
 }
 function forceDelete(id) {
     if (!confirm('Permanently delete this employee? This cannot be undone.')) return;
-    fetch("{{ url('/hrm/employees/') }}/" + id + '/force-delete', {
+    fetch("{{ url('hrm/employees') }}" + '/' + id + '/force-delete', {
         method: 'DELETE',
         headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
     }).then(r => r.json()).then(j => { if (j.success) location.reload(); else alert('Failed') });

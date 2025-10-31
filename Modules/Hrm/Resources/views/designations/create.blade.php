@@ -3,7 +3,7 @@
 @section('content')
 <div class="container">
     <h2>Create Designation</h2>
-    <form action="/hrm/designations" method="POST">
+    <form action="{{ route('hrm.designations.store') }}" method="POST">
         {{ csrf_field() }}
 
         <div class="form-group">

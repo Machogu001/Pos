@@ -109,7 +109,7 @@ class CompanyController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect(url('/hrm/companies'))->with('success', 'Company created');
+    return redirect()->route('hrm.companies.index')->with('success', 'Company created');
     }
 
     //------------ function show -----------\\
@@ -165,7 +165,7 @@ class CompanyController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect(url('/hrm/companies'))->with('success', 'Company updated');
+    return redirect()->route('hrm.companies.index')->with('success', 'Company updated');
     }
 
     //----------- Delete  company --------------\\
@@ -183,7 +183,7 @@ class CompanyController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect(url('/hrm/companies'))->with('success', 'Company deleted');
+    return redirect()->route('hrm.companies.index')->with('success', 'Company deleted');
     }
 
     //-------------- Delete by selection  ---------------\\
