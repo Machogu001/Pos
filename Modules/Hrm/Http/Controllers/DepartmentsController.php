@@ -95,10 +95,11 @@ class DepartmentsController extends Controller
             ]);
         }
 
-        $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','name']);
-        $employees = Employee::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','username']);
+    $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','name']);
+    $employees = Employee::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','username']);
 
-        return view('hrm::departments.index', compact('companies', 'employees'));
+    // Pass the departments collection to the view so the list can be rendered
+    return view('hrm::departments.index', compact('companies', 'employees', 'departments', 'totalRows', 'perPage', 'pageStart'));
     }
 
     public function create(Request $request)
