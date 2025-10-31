@@ -21,13 +21,21 @@
         </div>
 
         <div class="form-group">
-            <label>Employee</label>
-            <select name="employee_id" id="employee_id" class="form-control">
-                <option value="">-- Select Employee --</option>
+            <label>Employee(s)</label>
+            <div class="d-flex gap-2 mb-2">
+                <div>
+                    <button type="button" id="select-all-employees" class="btn btn-sm btn-outline-secondary">Select all for company</button>
+                </div>
+                <div>
+                    <button type="button" id="clear-employees" class="btn btn-sm btn-outline-secondary">Clear selection</button>
+                </div>
+            </div>
+            <select name="employee_id[]" id="employee_id" class="form-control" multiple size="8">
                 @foreach($employees as $e)
-                    <option value="{{ $e->id }}">{{ $e->username }}</option>
+                    <option value="{{ $e->id }}">{{ $e->username ?? $e->name }}</option>
                 @endforeach
             </select>
+            <small class="form-text text-muted">Use Ctrl/Cmd+click to select multiple employees, or use the buttons above to select/clear.</small>
         </div>
 
         <div class="form-row">
@@ -59,24 +67,46 @@
 
 @section('javascript')
 <script>
-    document.getElementById('company_id').addEventListener('change', function() {
-        var companyId = this.value;
+    (function(){
+        var companySelect = document.getElementById('company_id');
         var employeeSelect = document.getElementById('employee_id');
-        employeeSelect.innerHTML = '<option>Loading...</option>';
-    fetch('{{ url("hrm/employees/by-company") }}?id=' + companyId)
+        var selectAllBtn = document.getElementById('select-all-employees');
+        var clearBtn = document.getElementById('clear-employees');
+
+        function loadEmployeesForCompany(companyId, selectAll) {
+            employeeSelect.innerHTML = '<option>Loading...</option>';
+            fetch('{{ url("hrm/employees/by-company") }}?id=' + companyId)
             .then(r => r.json())
             .then(data => {
-                employeeSelect.innerHTML = '<option value="">-- Select Employee --</option>';
+                employeeSelect.innerHTML = '';
                 (data || []).forEach(function(e){
                     var opt = document.createElement('option');
                     opt.value = e.id;
-                    opt.text = e.username;
+                    opt.text = e.username || e.name;
+                    if (selectAll) opt.selected = true;
                     employeeSelect.appendChild(opt);
                 });
             }).catch(()=>{
-                employeeSelect.innerHTML = '<option value="">-- Select Employee --</option>';
+                employeeSelect.innerHTML = '';
             });
-    });
+        }
+
+        companySelect.addEventListener('change', function() {
+            var companyId = this.value;
+            if (!companyId) { employeeSelect.innerHTML = ''; return; }
+            loadEmployeesForCompany(companyId, false);
+        });
+
+        selectAllBtn.addEventListener('click', function(){
+            var companyId = companySelect.value;
+            if (!companyId) { alert('Please select a company first'); return; }
+            loadEmployeesForCompany(companyId, true);
+        });
+
+        clearBtn.addEventListener('click', function(){
+            Array.from(employeeSelect.options).forEach(function(o){ o.selected = false; });
+        });
+    })();
 </script>
 @endsection
 
