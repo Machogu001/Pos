@@ -76,3 +76,39 @@
     {!! $__system_settings['additional_css'] !!}
 @endif
 
+
+<!-- Ensure main content shifts when the admin sidebar is present so it does not sit underneath it
+<style>
+	/* The sidebar width (Tailwind tw-w-64 = 16rem). We keep it for reference in case
+	   you want to use the full offset later, but default to a small visual gap so
+	   the main content doesn't shift too far. */
+	:root { --admin-sidebar-width: 16rem; --admin-sidebar-offset: 3.5rem; }
+
+	/* Desktop and larger: apply a small left gap between sidebar and main content
+	   instead of shifting the main area by the full sidebar width. This keeps the
+	   layout centered while avoiding overlap. */
+	@media (min-width: 992px) {
+		/* Small visual separation when sidebar is visible */
+		body:not(.sidebar-collapse) main {
+			margin-left: var(--admin-sidebar-offset);
+		}
+
+		/* If the sidebar becomes absolutely positioned (small-view active), keep main
+		   full-width and let the sidebar overlay without hiding content */
+		.side-bar.small-view-side-active + main,
+		.side-bar.small-view-side-active ~ main {
+			margin-left: 0;
+		}
+	}
+
+	/* When sidebar is collapsed, remove margin so content uses full width */
+	body.sidebar-collapse main {
+		margin-left: 0 !important;
+	}
+
+	/* Small screens: sidebar overlays content; remove offset */
+	@media (max-width: 991px) {
+		main { margin-left: 0 !important; }
+	}
+</style>
+ -->

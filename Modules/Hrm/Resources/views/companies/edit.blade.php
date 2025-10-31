@@ -27,6 +27,33 @@
             <input type="text" name="country" id="country" class="form-control" value="{{ $company->country }}" />
         </div>
 
+        <h4>Payroll settings (optional — leave empty to use global defaults)</h4>
+        <div class="form-row">
+            <div class="form-group col-md-4">
+                <label for="nssf_percent">NSSF (%)</label>
+                <input type="number" step="0.00001" min="0" name="nssf_percent" id="nssf_percent" class="form-control" value="{{ $company->nssf_percent ?? '' }}" />
+                <small class="form-text text-muted">Enter fraction as percent (e.g. 0.0048 for 0.48%)</small>
+            </div>
+            <div class="form-group col-md-4">
+                <label for="shif_percent">SHIF (%)</label>
+                <input type="number" step="0.00001" min="0" name="shif_percent" id="shif_percent" class="form-control" value="{{ $company->shif_percent ?? '' }}" />
+            </div>
+            <div class="form-group col-md-4">
+                <label for="housing_percent">Housing Levy (%)</label>
+                <input type="number" step="0.00001" min="0" name="housing_percent" id="housing_percent" class="form-control" value="{{ $company->housing_percent ?? '' }}" />
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group col-md-4">
+                <label for="tax_percent">Tax (%)</label>
+                <input type="number" step="0.00001" min="0" name="tax_percent" id="tax_percent" class="form-control" value="{{ $company->tax_percent ?? '' }}" />
+            </div>
+            <div class="form-group col-md-4">
+                <label for="personal_relief">Personal Relief (amount)</label>
+                <input type="number" step="0.01" min="0" name="personal_relief" id="personal_relief" class="form-control" value="{{ $company->personal_relief ?? '' }}" />
+            </div>
+        </div>
+
     <button class="btn btn-success">Update</button>
     </form>
 </div>

@@ -316,7 +316,13 @@ class AdminController extends Controller
             'yearly_price' => 'required|numeric|min:0',
             'registration_price' => 'nullable|numeric|min:0|max:10000',
             'grace_period_days' => 'required|integer|min:0',
-            'recent_limit' => 'required|integer|min:1|max:100'
+            'recent_limit' => 'required|integer|min:1|max:100',
+            'payroll_nssf_percent' => 'nullable|numeric',
+            'payroll_shif_percent' => 'nullable|numeric',
+            'payroll_housing_percent' => 'nullable|numeric',
+            'payroll_tax_percent' => 'nullable|numeric',
+            'payroll_personal_relief' => 'nullable|numeric',
+            'payroll_tax_bands' => 'nullable|string',
         ]);
 
         $settings = AdminSetting::first();
@@ -325,6 +331,22 @@ class AdminController extends Controller
             'registration_price',
             'auto_renewal', 'grace_period_days', 'recent_limit'
         ]));
+
+        // update payroll-related settings if present
+        $payrollKeys = ['payroll_nssf_percent','payroll_shif_percent','payroll_housing_percent','payroll_tax_percent','payroll_personal_relief'];
+        $updatePayroll = [];
+        foreach ($payrollKeys as $k) {
+            if ($request->has($k)) {
+                $updatePayroll[$k] = $request->input($k);
+            }
+        }
+        // allow saving payroll tax bands JSON
+        if ($request->has('payroll_tax_bands')) {
+            $updatePayroll['payroll_tax_bands'] = $request->input('payroll_tax_bands');
+        }
+        if (!empty($updatePayroll)) {
+            $settings->update($updatePayroll);
+        }
 
         return response()->json([
             'success' => true,
@@ -419,11 +441,11 @@ public function updateUserStatus(Request $request, User $user)
         return response()->json([
             'success' => true,
             'status' => $user->status,
-            'message' => 'User status updated successfully.',
+            'message' => 'User status updated successfully',
         ]);
     }
 
-    return back()->with('success', 'User status updated successfully.');
+    return back()->with('success', 'User status updated successfully');
 }
 
     // ============================
@@ -443,11 +465,11 @@ public function updateUserStatus(Request $request, User $user)
             return response()->json([
                 'success' => true,
                 'is_active' => $business->is_active,
-                'message' => 'Business status updated successfully.',
+                'message' => 'Business status updated successfully',
             ]);
         }
 
-        return back()->with('success', 'Business status updated successfully.');
+        return back()->with('success', 'Business status updated successfully');
     }
 
     // ============================
@@ -468,11 +490,11 @@ public function updateUserStatus(Request $request, User $user)
             return response()->json([
                 'success' => true,
                 'status' => $subscription->status,
-                'message' => 'Subscription status updated successfully.',
+                'message' => 'Subscription status updated successfully',
             ]);
         }
 
-        return back()->with('success', 'Subscription status updated successfully.');
+        return back()->with('success', 'Subscription status updated successfully');
     }
 
     // ============================
