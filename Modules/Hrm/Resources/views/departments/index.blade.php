@@ -26,7 +26,13 @@
                                 <td>{{ $dept->id }}</td>
                                 <td>{{ $dept->department ?? $dept->name ?? '-' }}</td>
                                 <td>{{ $dept->company_name ?? ($dept->company->name ?? '-') }}</td>
-                                <td>{{ $dept->employee_head ?? ($dept->employee->username ?? '-') }}</td>
+                                <td>
+                                    @php
+                                        $emp = $dept->employee ?? null;
+                                        $empName = $dept->employee_head ?? ($emp->username ?? (isset($emp->firstname) ? trim($emp->firstname . ' ' . ($emp->lastname ?? '')) : null));
+                                    @endphp
+                                    {{ $empName ?? '-' }}
+                                </td>
                                 <td class="text-end">
                                     <a href="{{ route('hrm.departments.edit', $dept->id) }}" class="btn btn-sm btn-secondary">Edit</a>
                                     <form action="{{ route('hrm.departments.destroy', $dept->id) }}" method="POST" style="display:inline-block">
