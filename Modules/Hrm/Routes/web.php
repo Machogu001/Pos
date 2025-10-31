@@ -15,6 +15,9 @@ Route::group([
     Route::resource('/hrm/departments', \Modules\Hrm\Http\Controllers\DepartmentsController::class, [
         'as' => 'hrm'
     ]);
+    // Department head management (set/remove head via AJAX or form)
+    Route::post('/hrm/departments/{department}/head', [\Modules\Hrm\Http\Controllers\DepartmentsController::class, 'setHead'])->name('hrm.departments.set_head');
+    Route::delete('/hrm/departments/{department}/head', [\Modules\Hrm\Http\Controllers\DepartmentsController::class, 'removeHead'])->name('hrm.departments.remove_head');
 
     // Companies
     Route::resource('/hrm/companies', \Modules\Hrm\Http\Controllers\CompanyController::class, [

@@ -96,7 +96,8 @@ class DepartmentsController extends Controller
         }
 
     $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','name']);
-    $employees = Employee::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','username']);
+    // include firstname/lastname for labels if username is missing
+    $employees = Employee::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','username','firstname','lastname']);
 
     // Pass the departments collection to the view so the list can be rendered
     return view('hrm::departments.index', compact('companies', 'employees', 'departments', 'totalRows', 'perPage', 'pageStart'));
@@ -106,8 +107,8 @@ class DepartmentsController extends Controller
     {
         $this->authorizeForUser($this->getAuthUser($request), 'create', Department::class);
 
-        $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','name']);
-        $employees = Employee::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','username']);
+    $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','name']);
+    $employees = Employee::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','username','firstname','lastname']);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -156,8 +157,8 @@ class DepartmentsController extends Controller
     {
         $this->authorizeForUser($this->getAuthUser($request), 'update', Department::class);
 
-        $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','name']);
-        $employees = Employee::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','username']);
+    $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','name']);
+    $employees = Employee::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','username','firstname','lastname']);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -192,6 +193,44 @@ class DepartmentsController extends Controller
         }
 
     return redirect()->route('hrm.departments.index')->with('success', 'Department updated');
+    }
+
+    //----------- Set department head (AJAX or form) --------------\
+    public function setHead(Request $request, $id)
+    {
+        $this->authorizeForUser($this->getAuthUser($request), 'update', Department::class);
+
+        $request->validate([
+            'department_head' => 'nullable|exists:employees,id'
+        ]);
+
+        $headId = $request->input('department_head') ?: null;
+
+        Department::whereId($id)->update([
+            'department_head' => $headId,
+        ]);
+
+        if ($request->expectsJson()) {
+            $employee = $headId ? Employee::find($headId) : null;
+            $label = $employee ? ($employee->username ?? trim(($employee->firstname ?? '') . ' ' . ($employee->lastname ?? ''))) : null;
+            return response()->json(['success' => true, 'department_head' => $headId, 'employee_name' => $label]);
+        }
+
+        return redirect()->route('hrm.departments.index')->with('success', 'Department head updated');
+    }
+
+    //----------- Remove department head --------------\
+    public function removeHead(Request $request, $id)
+    {
+        $this->authorizeForUser($this->getAuthUser($request), 'update', Department::class);
+
+        Department::whereId($id)->update(['department_head' => null]);
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
+
+        return redirect()->route('hrm.departments.index')->with('success', 'Department head removed');
     }
 
     //----------- Delete  department --------------\\
