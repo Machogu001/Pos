@@ -7,7 +7,7 @@ Route::group([
     'module' => 'Hrm',
     'namespace' => 'Modules\\Hrm\\Http\\Controllers',
     // Ensure HRM routes build the admin sidebar and have session/lang context
-    'middleware' => ['web', 'auth', 'SetSessionData', 'language', 'timezone', 'AdminSidebarMenu']
+    'middleware' => ['web', 'auth', 'SetSessionData', 'language', 'timezone', 'AdminSidebarMenu', 'subscription']
 ], function () {
     Route::get('/hrm', [\Modules\Hrm\Http\Controllers\HrmController::class, 'index']);
 

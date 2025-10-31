@@ -1,4 +1,3 @@
-@auth
 <!-- Install Prompt Modal -->
 <div id="pwa-install-modal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
@@ -35,6 +34,13 @@
     // These are rendered by Blade using the authenticated user's fields (if available).
     const serverPwaInstalled = @json(optional(auth()->user())->pwa_installed_at ? true : false);
     const serverPwaDismissed = @json(optional(auth()->user())->pwa_install_dismissed_at ? true : false);
+    // Endpoints (use url()/asset() so paths resolve correctly when app is in a subdirectory)
+    const PWA_ENDPOINTS = {
+        telemetry: "{{ url('pwa/telemetry-public') }}",
+        installed: "{{ url('pwa/installed') }}",
+        dismissed: "{{ url('pwa/dismissed') }}",
+        serviceWorker: "{{ asset('service-worker.js') }}"
+    };
 
     let deferredPrompt = null;
     const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
@@ -48,21 +54,52 @@
     // Show modal helper using bootstrap (both v4 & v5 compatible check)
     function showModal() {
         try {
-            // First, if server says user installed or dismissed already, don't show
-            if (serverPwaInstalled || serverPwaDismissed) {
+            // Developer/test bypass: if URL has ?pwa_test=1 force-show the modal regardless of saved state
+            const urlParams = new URLSearchParams(window.location.search);
+            const forceShow = urlParams.get('pwa_test') === '1' || urlParams.get('pwa_test') === 'true';
+
+            // First, if server says user installed or dismissed already, don't show (unless forced)
+            if (!forceShow && (serverPwaInstalled || serverPwaDismissed)) {
                 return;
             }
 
-            // Then, check local storage flags
-            if (localStorage.getItem('pwa-install-dismissed') === '1' || localStorage.getItem('pwa-installed') === '1') {
+            // Then, check local storage flags (unless forced)
+            if (!forceShow && (localStorage.getItem('pwa-install-dismissed') === '1' || localStorage.getItem('pwa-installed') === '1')) {
                 return;
             }
 
             if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
                 const modal = new bootstrap.Modal(installModal);
                 modal.show();
+                // Telemetry: modal shown
+                try {
+                    const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                    fetch(PWA_ENDPOINTS.telemetry, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': token,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ event: 'shown' })
+                    });
+                } catch (e) { /* noop */ }
             } else if (typeof $ !== 'undefined') {
                 $(installModal).modal('show');
+                try {
+                    const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                    fetch(PWA_ENDPOINTS.telemetry, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': token,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ event: 'shown' })
+                    });
+                } catch (e) { /* noop */ }
             }
         } catch (e) {
             console.warn('Could not show install modal', e);
@@ -103,9 +140,24 @@
             if (choiceResult && choiceResult.outcome === 'accepted') {
                 localStorage.setItem('pwa-installed', '1');
                 // Persist server-side
+                // Telemetry: accepted
                 try {
                     const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                    fetch('/pwa/installed', {
+                    fetch(PWA_ENDPOINTS.telemetry, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': token,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ event: 'accepted' })
+                    });
+                } catch (e) { /* noop */ }
+
+                try {
+                    const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                    fetch(PWA_ENDPOINTS.installed, {
                         method: 'POST',
                         credentials: 'same-origin',
                         headers: {
@@ -126,7 +178,21 @@
             // Persist server-side
             try {
                 const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                fetch('/pwa/dismissed', {
+                // Telemetry: dismissed
+                try {
+                    fetch(PWA_ENDPOINTS.telemetry, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': token,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ event: 'dismissed' })
+                    });
+                } catch (e) { /* noop */ }
+
+                fetch(PWA_ENDPOINTS.dismissed, {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: {
@@ -144,7 +210,21 @@
             // Persist server-side
             try {
                 const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                fetch('/pwa/dismissed', {
+                // Telemetry: dismissed
+                try {
+                    fetch(PWA_ENDPOINTS.telemetry, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': token,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ event: 'dismissed' })
+                    });
+                } catch (e) { /* noop */ }
+
+                fetch(PWA_ENDPOINTS.dismissed, {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: {
@@ -162,7 +242,7 @@
     // Register a simple service worker for offline + PWA install support
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('/service-worker.js').then(function(reg) {
+            navigator.serviceWorker.register(PWA_ENDPOINTS.serviceWorker).then(function(reg) {
                 // Registered
             }).catch(function(err) {
                 console.warn('Service worker registration failed: ', err);
@@ -177,7 +257,21 @@
             localStorage.setItem('pwa-install-dismissed', '1');
             try {
                 const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                fetch('/pwa/dismissed', {
+                // Telemetry: dismissed
+                try {
+                    fetch(PWA_ENDPOINTS.telemetry, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': token,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ event: 'dismissed' })
+                    });
+                } catch (e) { /* noop */ }
+
+                fetch(PWA_ENDPOINTS.dismissed, {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: {
@@ -202,4 +296,4 @@
     }
 })();
 </script>
-@endauth
+<!-- Install prompt partial rendered for all visitors (authenticated or not) -->

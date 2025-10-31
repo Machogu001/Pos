@@ -106,6 +106,58 @@
 <script src="{{ asset('js/app.js?v=' . $asset_v) }}"></script>
 <script src="{{ asset('js/help-tour.js?v=' . $asset_v) }}"></script>
 <script src="{{ asset('js/documents_and_note.js?v=' . $asset_v) }}"></script>
+<script src="{{ asset('js/ajax-forms.js?v=' . $asset_v) }}"></script>
+
+<script>
+    // Global toast helper using SweetAlert2 if available; falls back to native toast UI.
+    window.showToast = function(type, title) {
+        try {
+            if (typeof Swal !== 'undefined') {
+                const Toast = Swal.mixin({
+                    toast: true,
+                    position: 'top-end', // top-right corner
+                    showConfirmButton: false,
+                    timer: 4000,
+                    timerProgressBar: true,
+                    customClass: {
+                        popup: 'swal2-toast-custom'
+                    },
+                });
+
+                Toast.fire({
+                    icon: type,
+                    title: title,
+                    background: type === 'success' ? '#10b981' : (type === 'error' ? '#ef4444' : '#f59e0b'),
+                    color: '#ffffff',
+                    iconColor: '#ffffff'
+                });
+                return;
+            }
+        } catch (e) {
+            console.error('showToast error:', e);
+        }
+
+        // Fallback native toast
+        (function(){
+            const existing = document.querySelector('.native-toast');
+            if (existing) existing.remove();
+            const toast = document.createElement('div');
+            toast.className = `native-toast native-toast-${type}`;
+            toast.style.position = 'fixed';
+            toast.style.top = '1rem';
+            toast.style.right = '1rem';
+            toast.style.zIndex = 9999;
+            toast.style.padding = '0.75rem 1rem';
+            toast.style.borderRadius = '0.5rem';
+            toast.style.boxShadow = '0 6px 18px rgba(0,0,0,0.12)';
+            toast.style.background = type === 'success' ? '#10b981' : (type === 'error' ? '#ef4444' : '#f59e0b');
+            toast.style.color = '#fff';
+            toast.innerText = title;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 4000);
+        })();
+    };
+</script>
 
 <!-- TODO -->
 @if (file_exists(public_path('AdminLTE/plugins/select2/lang/' . session()->get('user.language', config('app.locale')) . '.js')))
@@ -208,7 +260,22 @@
         });
 
         $('.side-bar-collapse').click(function() {
-            $('.side-bar').toggle('slow');
+            // On small screens keep the slide toggle behavior
+            if ($(window).width() < 1024) {
+                $('.side-bar').toggle('slow');
+                return;
+            }
+
+            // On larger screens, toggle a body class so CSS can adjust the layout
+            var $body = $('body');
+            $body.toggleClass('sidebar-collapse');
+
+            // Persist collapse state in localStorage so it remains across reloads
+            if ($body.hasClass('sidebar-collapse')) {
+                localStorage.setItem('upos_sidebar_collapse', 'true');
+            } else {
+                localStorage.removeItem('upos_sidebar_collapse');
+            }
         });
 
         $('.dt-buttons.btn-group').find('a.btn').removeClass('btn-default');

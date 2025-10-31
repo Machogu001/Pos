@@ -21,6 +21,7 @@ use App\Models\Task;
 use App\Models\Training;
 use App\utils\helpers;
 use App\Business;
+use App\User;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Support\Facades\Schema;
@@ -562,9 +563,98 @@ class EmployeesController extends Controller
         $employees = Employee::where('company_id', $companyId)
             ->where('deleted_at', '=', null)
             ->orderBy('id', 'desc')
-            ->get(['id','username']);
+            ->get(['id','username','firstname','lastname','basic_salary'])
+            ->map(function($e){
+                $label = $e->username ?: trim((($e->firstname ?? '') . ' ' . ($e->lastname ?? '')));
+                return [
+                    'id' => $e->id,
+                    'username' => $e->username,
+                    'firstname' => $e->firstname,
+                    'lastname' => $e->lastname,
+                    'basic_salary' => $e->basic_salary ?? 0,
+                    'name' => $label ?: ('Employee #'.$e->id),
+                ];
+            });
 
-        return response()->json($employees);
+        // Add company metadata so frontend can use overrides/defaults
+        $companyMeta = null;
+        if (Schema::hasTable('companies')) {
+            $company = \App\Models\Company::where('id', $companyId)->first();
+            if ($company) {
+                $companyMeta = [
+                    'id' => $company->id,
+                    'name' => $company->name,
+                    'nssf_percent' => $company->nssf_percent ?? null,
+                    'shif_percent' => $company->shif_percent ?? null,
+                    'housing_percent' => $company->housing_percent ?? null,
+                    'tax_percent' => $company->tax_percent ?? null,
+                    'personal_relief' => $company->personal_relief ?? null,
+                ];
+            }
+        }
+
+        // Include business users attached to this business/company. For each user, ensure
+        // an Employee record exists (create a minimal one if missing) so the payroll UI
+        // can select them. This prevents duplicate names in the response.
+        if (Schema::hasTable('users')) {
+            $users = User::where('business_id', $companyId)
+                ->whereNull('deleted_at')
+                ->orderBy('id', 'desc')
+                ->get(['id', 'username', 'first_name', 'last_name', 'surname', 'email']);
+
+            foreach ($users as $u) {
+                // Try to find existing employee by email or username
+                $emp = null;
+                if (!empty($u->email)) {
+                    $emp = Employee::where('email', $u->email)->whereNull('deleted_at')->first();
+                }
+                if (!$emp && !empty($u->username)) {
+                    $emp = Employee::where('username', $u->username)->whereNull('deleted_at')->first();
+                }
+
+                if (! $emp) {
+                    // Create a minimal employee record mapped from user fields
+                    $firstname = $u->first_name ?? $u->surname ?? '';
+                    $lastname = $u->last_name ?? $u->surname ?? '';
+                    $username = $u->username ?: trim(($firstname . ' ' . $lastname));
+
+                    $emp = Employee::create([
+                        'firstname' => $firstname ?: 'User',
+                        'lastname' => $lastname ?: ('#' . $u->id),
+                        'username' => $username,
+                        'email' => $u->email,
+                        'company_id' => $companyId,
+                        'basic_salary' => 0,
+                    ]);
+                } else {
+                    // If employee exists but company_id empty, attach to this company
+                    if (empty($emp->company_id)) {
+                        $emp->company_id = $companyId;
+                        $emp->save();
+                    }
+                }
+
+                // Append to response if not already present
+                $exists = $employees->firstWhere('id', $emp->id);
+                if (! $exists) {
+                    $label = $emp->username ?: trim((($emp->firstname ?? '') . ' ' . ($emp->lastname ?? '')));
+                    $employees->push([
+                        'id' => $emp->id,
+                        'username' => $emp->username,
+                        'firstname' => $emp->firstname,
+                        'lastname' => $emp->lastname,
+                        'basic_salary' => $emp->basic_salary ?? 0,
+                        'name' => $label ?: ('Employee #'.$emp->id),
+                    ]);
+                }
+            }
+        }
+
+        // Return an object with employees array and company meta for frontend defaults
+        return response()->json([
+            'employees' => $employees,
+            'company' => $companyMeta,
+        ]);
     }
 
 

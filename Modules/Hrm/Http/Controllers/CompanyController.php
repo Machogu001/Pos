@@ -105,6 +105,11 @@ class CompanyController extends Controller
             'email'   => $request['email'],
             'phone'   => $request['phone'],
             'country' => $request['country'],
+            'nssf_percent' => $request->input('nssf_percent'),
+            'shif_percent' => $request->input('shif_percent'),
+            'housing_percent' => $request->input('housing_percent'),
+            'tax_percent' => $request->input('tax_percent'),
+            'personal_relief' => $request->input('personal_relief'),
         ]);
 
         if ($request->expectsJson()) {
@@ -161,6 +166,11 @@ class CompanyController extends Controller
             'email'   => $request['email'],
             'phone'   => $request['phone'],
             'country' => $request['country'],
+            'nssf_percent' => $request->input('nssf_percent'),
+            'shif_percent' => $request->input('shif_percent'),
+            'housing_percent' => $request->input('housing_percent'),
+            'tax_percent' => $request->input('tax_percent'),
+            'personal_relief' => $request->input('personal_relief'),
         ]);
 
         if ($request->expectsJson()) {

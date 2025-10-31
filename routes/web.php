@@ -130,7 +130,12 @@ Route::get('/manifest.json', function () {
 Route::middleware(['auth'])->group(function () {
     Route::post('/pwa/installed', [\App\Http\Controllers\PwaController::class, 'markInstalled']);
     Route::post('/pwa/dismissed', [\App\Http\Controllers\PwaController::class, 'markDismissed']);
+    // Telemetry endpoint: accepts events like 'shown','accepted','dismissed' for analytics.
+    Route::post('/pwa/telemetry', [\App\Http\Controllers\PwaTelemetryController::class, 'store']);
 });
+
+// Public telemetry endpoint: allow anonymous visitors to post telemetry (uses same store method)
+Route::post('/pwa/telemetry-public', [\App\Http\Controllers\PwaTelemetryController::class, 'store']);
 
 Route::middleware(['setData'])->group(function () {
     Route::get('/', function () {

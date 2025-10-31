@@ -1260,12 +1260,16 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         document.body.appendChild(loadingOverlay);
-        
+
+        // Ensure overlay is hidden by default (explicit style) to avoid flashes
+        // or cases where CSS isn't applied yet causing the overlay to be visible.
+        loadingOverlay.style.display = 'none';
+
         // Show loading overlay when payments are being processed
         window.showLoadingOverlay = function() {
             loadingOverlay.style.display = 'flex';
         };
-        
+
         window.hideLoadingOverlay = function() {
             loadingOverlay.style.display = 'none';
         };

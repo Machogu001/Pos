@@ -28,5 +28,30 @@
 
     <button class="btn btn-success">Create</button>
     </form>
+
+    <hr />
+    <h5>Debug: quick AJAX POST (does not replace normal form)</h5>
+    <button id="ajax-debug-btn" class="btn btn-outline-primary">Send debug POST</button>
+    <div id="ajax-debug-result" class="mt-2"></div>
+
+    @push('scripts')
+    <script>
+        document.getElementById('ajax-debug-btn').addEventListener('click', function() {
+            var form = document.querySelector('form');
+            var fd = new FormData(form);
+            // Use the debug named route
+            fetch("{{ route('hrm.companies.debug') }}", {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: fd
+            }).then(function(r){ return r.json().catch(function(){ return r.text(); }); })
+            .then(function(data){
+                document.getElementById('ajax-debug-result').innerText = JSON.stringify(data, null, 2);
+            }).catch(function(err){
+                document.getElementById('ajax-debug-result').innerText = 'Error: ' + err;
+            });
+        });
+    </script>
+    @endpush
 </div>
 @endsection
