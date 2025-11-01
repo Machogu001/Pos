@@ -31,8 +31,8 @@
 
     <!-- PWA manifest and theme -->
     {{-- Prefer a per-business manifest when session business id is present to allow branding per tenant. 
-        Fallback to /manifest.json when no business context is available. --}}
-    <link rel="manifest" href="{{ session('business.id') ? '/manifest/' . session('business.id') . '.json' : '/manifest.json' }}">
+        Use url() so this works when the app is deployed in a subdirectory. --}}
+    <link rel="manifest" href="{{ session('business.id') ? url('manifest/' . session('business.id') . '.json') : url('manifest.json') }}">
     <meta name="theme-color" content="{{ !empty(session('business.theme_color')) ? session('business.theme_color') : '#2b6cb0' }}">
     <!-- iOS support -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -40,8 +40,8 @@
     <meta name="apple-mobile-web-app-title" content="{{ Session::get('business.name') }}">
     {{-- Use an explicit 192px icon for iOS/apple-touch where possible; fallback to configured favicon. 
         If you'd like local PNG icons, add them to public/icons/icon-192.png and icon-512.png. --}}
-    <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
-    <link rel="apple-touch-icon" href="/{{ config('app.favicon', 'favicon.ico') }}">
+    <link rel="apple-touch-icon" sizes="192x192" href="{{ asset('icons/icon-192.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset(config('app.favicon', 'favicon.ico')) }}">
     
 
     @include('layouts.partials.extracss')

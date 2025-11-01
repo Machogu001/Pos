@@ -75,7 +75,7 @@ class OfficeShiftController extends Controller
             $office_shifts = $office_shifts->orderBy($order, $dir)->get();
         }
 
-        foreach ($office_shifts as $office_shift) {
+    foreach ($office_shifts as $office_shift) {
 
             $item['id'] = $office_shift->id;
             $item['name'] = $office_shift->name;
@@ -97,6 +97,7 @@ class OfficeShiftController extends Controller
             $item['sunday_out'] = $office_shift->sunday_out?substr($office_shift->sunday_out, 0, -2):NULL;
             $data[] = $item;
         }
+        $office_shifts_for_view = collect($data);
 
 
         if ($request->expectsJson()) {
@@ -106,7 +107,8 @@ class OfficeShiftController extends Controller
             ]);
         }
 
-        return view('hrm::office_shifts.index');
+    $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
+    return view('hrm::office_shifts.index', compact('office_shifts_for_view', 'companies', 'totalRows', 'perPage', 'pageStart'));
     }
 
     public function create(Request $request)

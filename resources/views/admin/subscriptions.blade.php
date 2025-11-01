@@ -755,65 +755,8 @@ document.addEventListener('DOMContentLoaded', function() {
 @push('scripts')
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    // Initialize AJAX forms
-    document.querySelectorAll(".ajax-form").forEach(form => {
-        form.addEventListener("submit", function (e) {
-            e.preventDefault();
-            
-            const button = this.querySelector('button[type="submit"]');
-            const btnText = button.querySelector('.btn-text');
-            const btnLoading = button.querySelector('.btn-loading');
-            
-            // Show loading state
-            btnText.classList.add('d-none');
-            btnLoading.classList.remove('d-none');
-            button.disabled = true;
-            
-            let url = this.action;
-            let method = this.querySelector("input[name=_method]")?.value || this.method;
-            let formData = new FormData(this);
-
-            fetch(url, {
-                method: method,
-                headers: {
-                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content,
-                    "Accept": "application/json",
-                    "X-Requested-With": "XMLHttpRequest"
-                },
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Show success message
-                showAlert(data.success ? 'success' : 'danger', 
-                         data.message || (data.success ? 
-                             '{{ __("payment.operation_successful") }}' : 
-                             '{{ __("payment.something_went_wrong") }}'));
-                
-                if (data.success) {
-                    // Reload the page after a short delay to reflect changes
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1500);
-                }
-            })
-            .catch(error => {
-                console.error('AJAX Error:', error);
-                showAlert('danger', '{{ __("payment.server_error_try_again") }}');
-            })
-            .finally(() => {
-                // Restore button state
-                btnText.classList.remove('d-none');
-                btnLoading.classList.add('d-none');
-                button.disabled = false;
-            });
-        });
-    });
+    // AJAX forms are handled centrally in /public/js/ajax-forms.js
+    console.log('Using centralized AJAX form handler for .ajax-form');
 
     // Filter functionality - server-side implementation
     const filterForm = document.getElementById('filterForm');
