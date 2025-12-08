@@ -1,6 +1,13 @@
 <div class="pos-tab-content">
 	<div class="row">
-	@if(!empty($modules))
+  @if(!empty($modules))
+    @php
+        // Ensure HRM appears in the modules list and enabled_modules variable exists
+        if (!isset($modules['hrm'])) {
+            $modules['hrm'] = ['name' => 'HRM'];
+        }
+        $enabled_modules = isset($enabled_modules) && is_array($enabled_modules) ? $enabled_modules : (isset($business) && is_array($business->enabled_modules ?? null) ? $business->enabled_modules : []);
+    @endphp
 		<h4>@lang('lang_v1.enable_disable_modules')</h4>
 		@foreach($modules as $k => $v)
             <div class="col-sm-4">
