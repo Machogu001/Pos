@@ -41,10 +41,13 @@ class StocktakeController extends Controller
                 'location', 
                 'createdBy',
                 'items' => function($q) {
-                    $q->with(['product:id,name,sku', 'variation:id,name,sub_sku']);
+                    $q->with([
+                        'product:id,name,sku', 
+                        'variation:id,name,sub_sku,sell_price_inc_tax,default_sell_price,default_purchase_price'
+                    ]);
                 }
             ])
-            ->where('business_id', $businessId)
+            ->where('stocktakes.business_id', $businessId)
             ->select('stocktakes.*');
 
         $permitted_locations = auth()->user()->permitted_locations();
@@ -165,17 +168,13 @@ class StocktakeController extends Controller
                     try {
                         $total = 0.0;
                         foreach ($row->items as $item) {
-                            $variation = $item->variation;
-                            $unit_price = 0.0;
-                            if (!empty($variation)) {
-                                $unit_price = (float) ($variation->sell_price_inc_tax ?? $variation->default_sell_price ?? 0.0);
-                            }
-                            $variance = isset($item->variance) ? (float) $item->variance : ((float)$item->counted_quantity - (float)$item->system_quantity);
-                            $total += $variance * $unit_price;
+                            $unit_price = (float) ($item->effective_price ?? 0.0);
+                            $counted_qty = (float) ($item->counted_quantity ?? 0.0);
+                            $total += $counted_qty * $unit_price;
                         }
                         return (float) $total;
                     } catch (\Exception $e) {
-                        Log::warning('Failed to compute variance amount for stocktake index row', ['stocktake_id' => $row->id, 'error' => $e->getMessage()]);
+                        Log::warning('Failed to compute total value for stocktake index row', ['stocktake_id' => $row->id, 'error' => $e->getMessage()]);
                         return 0.0;
                     }
                 })
@@ -184,16 +183,12 @@ class StocktakeController extends Controller
                     try {
                         $raw = 0.0;
                         foreach ($row->items as $item) {
-                            $variation = $item->variation;
-                            $unit_price = 0.0;
-                            if (!empty($variation)) {
-                                $unit_price = (float) ($variation->sell_price_inc_tax ?? $variation->default_sell_price ?? 0.0);
-                            }
-                            $variance = isset($item->variance) ? (float) $item->variance : ((float)$item->counted_quantity - (float)$item->system_quantity);
-                            $raw += $variance * $unit_price;
+                            $unit_price = (float) ($item->effective_price ?? 0.0);
+                            $counted_qty = (float) ($item->counted_quantity ?? 0.0);
+                            $raw += $counted_qty * $unit_price;
                         }
                     } catch (\Exception $e) {
-                        Log::warning('Failed to compute formatted variance amount for stocktake index row', ['stocktake_id' => $row->id, 'error' => $e->getMessage()]);
+                        Log::warning('Failed to compute formatted total value for stocktake index row', ['stocktake_id' => $row->id, 'error' => $e->getMessage()]);
                     }
                     return $this->productUtil->num_f($raw);
                 })
@@ -364,6 +359,7 @@ class StocktakeController extends Controller
         $overageCount = 0;
         $shortageCount = 0;
         $totalValueVariance = 0;
+        $totalValue = 0;
 
         if ($stocktake->status === 'completed') {
             foreach ($stocktake->items as $item) {
@@ -377,6 +373,7 @@ class StocktakeController extends Controller
 
                 $unit_price = optional($item->variation)->sell_price_inc_tax ?? 0;
                 $totalValueVariance += $item->variance * $unit_price;
+                $totalValue += ($item->counted_quantity ?? 0) * $unit_price;
             }
         }
 
@@ -389,7 +386,8 @@ class StocktakeController extends Controller
             'exactCount',
             'overageCount',
             'shortageCount',
-            'totalValueVariance'
+            'totalValueVariance',
+            'totalValue'
         ));
     }
 
@@ -1787,6 +1785,7 @@ class StocktakeController extends Controller
     private function calculateStocktakeSummary($filters, $businessId)
     {
         $query = StockHistory::completedStocktakes()
+            ->join('variations', 'stock_histories.variation_id', '=', 'variations.id')
             ->whereHas('product', function($q) use ($businessId) {
                 $q->where('business_id', $businessId);
             });
@@ -1794,11 +1793,11 @@ class StocktakeController extends Controller
         // Apply the same filters
         $permitted_locations = auth()->user()->permitted_locations();
         if ($permitted_locations != 'all') {
-            $query->whereIn('location_id', $permitted_locations);
+            $query->whereIn('stock_histories.location_id', $permitted_locations);
         }
 
         if (!empty($filters['location_id'])) {
-            $query->where('location_id', $filters['location_id']);
+            $query->where('stock_histories.location_id', $filters['location_id']);
         }
 
         if (!empty($filters['date_from'])) {
@@ -1811,11 +1810,12 @@ class StocktakeController extends Controller
 
         return $query->selectRaw('
             COUNT(*) as total_items,
-            SUM(ABS(actual_adjustment)) as total_variance_quantity,
-            SUM(CASE WHEN actual_adjustment > 0 THEN 1 ELSE 0 END) as overage_count,
-            SUM(CASE WHEN actual_adjustment < 0 THEN 1 ELSE 0 END) as shortage_count,
-            SUM(CASE WHEN actual_adjustment = 0 THEN 1 ELSE 0 END) as exact_count,
-            COUNT(DISTINCT reference_no) as stocktake_count
+            SUM(ABS(stock_histories.actual_adjustment)) as total_variance_quantity,
+            SUM(ABS(stock_histories.actual_adjustment) * COALESCE(variations.sell_price_inc_tax, variations.default_sell_price, 0)) as total_variance_amount,
+            SUM(CASE WHEN stock_histories.actual_adjustment > 0 THEN 1 ELSE 0 END) as overage_count,
+            SUM(CASE WHEN stock_histories.actual_adjustment < 0 THEN 1 ELSE 0 END) as shortage_count,
+            SUM(CASE WHEN stock_histories.actual_adjustment = 0 THEN 1 ELSE 0 END) as exact_count,
+            COUNT(DISTINCT stock_histories.reference_no) as stocktake_count
         ')->first();
     }
 

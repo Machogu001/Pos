@@ -62,7 +62,10 @@ class PayrollController extends Controller
 
     public function index(Request $request)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'view', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.payrolls'))) {
+            abort(403);
+        }
 
         $payrolls = [];
         if (Schema::hasTable('hrm_payrolls')) {
@@ -110,7 +113,10 @@ class PayrollController extends Controller
 
     public function create(Request $request)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'create', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.payrolls'))) {
+            abort(403);
+        }
 
         if (Schema::hasTable('business')) {
             $companies = Business::orderBy('id', 'desc')->get(['id','name']);
@@ -142,7 +148,10 @@ class PayrollController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'create', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.payrolls'))) {
+            abort(403);
+        }
 
         // Expect employee_id[] (one or more) and per-employee gross/deductions inputs named gross[<id>], deductions[<id>]
         $this->validate($request, [
@@ -226,12 +235,15 @@ class PayrollController extends Controller
             return response()->json(['success' => true]);
         }
 
-    return redirect()->route('hrm.payrolls.index')->with('success', 'Payroll created');
+    return redirect()->route('hrm.payrolls.index')->with('success', 'Created successfully');
     }
 
     public function show(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'view', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.payrolls'))) {
+            abort(403);
+        }
         if (! Schema::hasTable('hrm_payrolls')) {
             abort(404);
         }
@@ -247,7 +259,10 @@ class PayrollController extends Controller
 
     public function edit(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'update', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.payrolls'))) {
+            abort(403);
+        }
         if (! Schema::hasTable('hrm_payrolls')) {
             abort(404);
         }
@@ -274,7 +289,10 @@ class PayrollController extends Controller
 
     public function update(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'update', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.payrolls'))) {
+            abort(403);
+        }
         $this->validate($request, [
             'company_id' => 'required',
             'employee_id' => 'required',
@@ -331,12 +349,15 @@ class PayrollController extends Controller
             'updated_at' => now(),
         ]);
 
-        return redirect()->route('hrm.payrolls.index')->with('success', 'Payroll updated');
+        return redirect()->route('hrm.payrolls.index')->with('success', 'Updated successfully');
     }
 
     public function destroy(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'delete', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || !$user->can('hrm.access')) {
+            abort(403);
+        }
         if (! Schema::hasTable('hrm_payrolls')) {
             abort(404);
         }
@@ -347,6 +368,6 @@ class PayrollController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect()->route('hrm.payrolls.index')->with('success', 'Payroll deleted');
+        return redirect()->route('hrm.payrolls.index')->with('success', 'Deleted successfully');
     }
 }

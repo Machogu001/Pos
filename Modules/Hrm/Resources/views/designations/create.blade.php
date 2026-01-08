@@ -5,6 +5,7 @@
     <h2>Create Designation</h2>
     <form action="{{ route('hrm.designations.store') }}" method="POST">
         {{ csrf_field() }}
+        @include('hrm::partials.hrm_form_toolbar')
 
         <div class="form-group">
             <label for="designation">Designation</label>
@@ -35,7 +36,7 @@
             @include('hrm::partials.field_error', ['field' => 'department'])
         </div>
 
-        <button class="btn btn-success">Create</button>
+        
     </form>
 </div>
 @endsection

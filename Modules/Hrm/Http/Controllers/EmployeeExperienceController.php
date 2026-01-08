@@ -10,6 +10,10 @@ use Carbon\Carbon;
 
 class EmployeeExperienceController extends Controller
 {
+    protected function getAuthUser($request)
+    {
+        return $request->user('api') ?? $request->user() ?? auth()->user();
+    }
 
 
     public function index(Request $request)
@@ -21,7 +25,7 @@ class EmployeeExperienceController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizeForUser($request->user('api'), 'create', Employee::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'create', Employee::class);
 
         request()->validate([
             'title'           => 'required|string',
@@ -56,7 +60,7 @@ class EmployeeExperienceController extends Controller
 
     public function update(Request $request, $id)
     {
-        $this->authorizeForUser($request->user('api'), 'update', Employee::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'update', Employee::class);
 
         request()->validate([
             'title'           => 'required|string',
@@ -84,7 +88,7 @@ class EmployeeExperienceController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        $this->authorizeForUser($request->user('api'), 'delete', Employee::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'delete', Employee::class);
 
         EmployeeExperience::whereId($id)->update([
             'deleted_at' => Carbon::now(),

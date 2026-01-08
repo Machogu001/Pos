@@ -287,10 +287,45 @@ class AdminController extends Controller
                 ->latest()
                 ->paginate(10);
 
+            // Eager-load any pending MpesaPayment records referenced by subscriptions
+            $pendingIds = $subscriptions->getCollection()->pluck('pending_mpesa_payment_id')->filter()->unique()->toArray();
+            $mpesaMap = [];
+            if (!empty($pendingIds)) {
+                $mpesaPayments = \App\MpesaPayment::whereIn('id', $pendingIds)->get()->keyBy('id');
+                foreach ($mpesaPayments as $id => $mp) {
+                    $mpesaMap[$id] = $mp;
+                }
+            }
+
+            // Attach a convenience property to each subscription for blade usage
+            $subscriptions->getCollection()->each(function ($sub) use ($mpesaMap) {
+                $sub->pending_mpesa = null;
+                if (!empty($sub->pending_mpesa_payment_id) && isset($mpesaMap[$sub->pending_mpesa_payment_id])) {
+                    $sub->pending_mpesa = $mpesaMap[$sub->pending_mpesa_payment_id];
+                }
+            });
+
             return view('admin.subscriptions', compact('subscriptions'));
         }
 
         $subscriptions = $user->subscriptions()->latest()->paginate(10);
+
+        // Also attach pending mpesa payments for non-admin user view
+        $pendingIds = $subscriptions->getCollection()->pluck('pending_mpesa_payment_id')->filter()->unique()->toArray();
+        $mpesaMap = [];
+        if (!empty($pendingIds)) {
+            $mpesaPayments = \App\MpesaPayment::whereIn('id', $pendingIds)->get()->keyBy('id');
+            foreach ($mpesaPayments as $id => $mp) {
+                $mpesaMap[$id] = $mp;
+            }
+        }
+
+        $subscriptions->getCollection()->each(function ($sub) use ($mpesaMap) {
+            $sub->pending_mpesa = null;
+            if (!empty($sub->pending_mpesa_payment_id) && isset($mpesaMap[$sub->pending_mpesa_payment_id])) {
+                $sub->pending_mpesa = $mpesaMap[$sub->pending_mpesa_payment_id];
+            }
+        });
 
         return view('user.subscriptions', compact('subscriptions'));
     }
@@ -317,6 +352,22 @@ class AdminController extends Controller
             'registration_price' => 'nullable|numeric|min:0|max:10000',
             'grace_period_days' => 'required|integer|min:0',
             'recent_limit' => 'required|integer|min:1|max:100',
+            // Company / invoice fields
+            'company_name' => 'nullable|string|max:255',
+            'company_contact_phone' => 'nullable|string|max:100',
+            'company_contact_email' => 'nullable|email|max:255',
+            // invoice_pin must start and end with a letter (e.g., P052182616N)
+            'invoice_pin' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z][A-Za-z0-9]*[A-Za-z]$/'],
+            // Subscription-specific invoice sequence
+            'subscription_invoice_prefix' => 'nullable|string|max:10',
+            'subscription_invoice_next' => 'nullable|integer|min:0',
+            // Subscription VAT percentage (0-100)
+            'subscription_vat_percent' => 'nullable|numeric|min:0|max:100',
+            // Rounding precision for subscription final total (0 = whole number)
+            'subscription_round_precision' => 'nullable|integer|min:0|max:6',
+            'invoice_footer' => 'nullable|string',
+            'statement_footer' => 'nullable|string',
+            'company_logo' => 'nullable|file|image|max:2048',
             'payroll_nssf_percent' => 'nullable|numeric',
             'payroll_shif_percent' => 'nullable|numeric',
             'payroll_housing_percent' => 'nullable|numeric',
@@ -326,10 +377,24 @@ class AdminController extends Controller
         ]);
 
         $settings = AdminSetting::first();
+        // handle logo upload separately
+        if ($request->hasFile('company_logo')) {
+            try {
+                $path = $request->file('company_logo')->store('company_logos', 'public');
+                // store public path
+                $request->merge(['company_logo' => 'storage/' . $path]);
+            } catch (\Exception $e) {
+                // ignore upload errors; will be handled by validation in normal cases
+            }
+        }
+
         $settings->update($request->only([
             'monthly_price', 'quarterly_price', 'yearly_price',
             'registration_price',
-            'auto_renewal', 'grace_period_days', 'recent_limit'
+            'auto_renewal', 'grace_period_days', 'recent_limit',
+            'company_name', 'company_logo', 'company_contact_phone', 'company_contact_email', 'invoice_pin', 'invoice_footer', 'statement_footer',
+            // subscription sequence fields
+            'subscription_invoice_prefix', 'subscription_invoice_next', 'subscription_vat_percent', 'subscription_round_precision'
         ]));
 
         // update payroll-related settings if present
@@ -352,6 +417,26 @@ class AdminController extends Controller
             'success' => true,
             'message' => 'Settings updated successfully',
             'settings' => $settings->fresh()
+        ]);
+    }
+
+    /**
+     * Toggle subscription requirement on/off
+     */
+    public function toggleSubscriptionRequirement(Request $request)
+    {
+        $this->authorize('admin');
+
+        $settings = AdminSetting::firstOrCreate([]);
+        $settings->subscription_required = !($settings->subscription_required ?? false);
+        $settings->save();
+
+        $status = $settings->subscription_required ? 'enabled' : 'disabled';
+
+        return response()->json([
+            'success' => true,
+            'message' => "Subscription requirement has been {$status} successfully",
+            'subscription_required' => $settings->subscription_required
         ]);
     }
 

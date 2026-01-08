@@ -150,6 +150,12 @@ class RoleController extends Controller
                     }
                 }
 
+                // Ensure Admin role always has HRM access
+                if ($role_name === 'Admin') {
+                    $permissions = is_array($permissions) ? $permissions : [];
+                    $permissions[] = 'hrm.access';
+                }
+
                 $this->__createPermissionIfNotExists($permissions);
 
                 if (! empty($permissions)) {
@@ -269,6 +275,12 @@ class RoleController extends Controller
                         foreach ($radio_options as $key => $value) {
                             $permissions[] = $value;
                         }
+                    }
+
+                    // Ensure Admin role always has HRM access
+                    if ($role_name === 'Admin') {
+                        $permissions = is_array($permissions) ? $permissions : [];
+                        $permissions[] = 'hrm.access';
                     }
 
                     $this->__createPermissionIfNotExists($permissions);

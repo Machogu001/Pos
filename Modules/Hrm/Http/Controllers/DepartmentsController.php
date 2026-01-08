@@ -23,7 +23,10 @@ class DepartmentsController extends Controller
 
     public function index(Request $request)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'view', Department::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.departments'))) {
+            abort(403);
+        }
 
         // If departments table does not exist yet, avoid SQL errors
         if (!Schema::hasTable('departments')) {
@@ -105,7 +108,10 @@ class DepartmentsController extends Controller
 
     public function create(Request $request)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'create', Department::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.departments'))) {
+            abort(403);
+        }
 
     $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','name']);
     $employees = Employee::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','username','firstname','lastname']);
@@ -124,7 +130,10 @@ class DepartmentsController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'create', Department::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.departments'))) {
+            abort(403);
+        }
 
         request()->validate([
             'department'   => 'required|string',
@@ -141,7 +150,7 @@ class DepartmentsController extends Controller
             return response()->json(['success' => true]);
         }
 
-    return redirect()->route('hrm.departments.index')->with('success', 'Department created');
+    return redirect()->route('hrm.departments.index')->with('success', 'Created successfully');
     }
 
     //------------ function show -----------\\
@@ -155,7 +164,10 @@ class DepartmentsController extends Controller
 
     public function edit(Request $request , $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'update', Department::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.departments'))) {
+            abort(403);
+        }
 
     $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','name']);
     $employees = Employee::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','username','firstname','lastname']);
@@ -175,7 +187,10 @@ class DepartmentsController extends Controller
 
     public function update(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'update', Department::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.departments'))) {
+            abort(403);
+        }
 
         request()->validate([
             'department'   => 'required|string',
@@ -192,13 +207,16 @@ class DepartmentsController extends Controller
             return response()->json(['success' => true]);
         }
 
-    return redirect()->route('hrm.departments.index')->with('success', 'Department updated');
+    return redirect()->route('hrm.departments.index')->with('success', 'Updated successfully');
     }
 
     //----------- Set department head (AJAX or form) --------------\
     public function setHead(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'update', Department::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.departments'))) {
+            abort(403);
+        }
 
         $request->validate([
             'department_head' => 'nullable|exists:employees,id'
@@ -216,13 +234,16 @@ class DepartmentsController extends Controller
             return response()->json(['success' => true, 'department_head' => $headId, 'employee_name' => $label]);
         }
 
-        return redirect()->route('hrm.departments.index')->with('success', 'Department head updated');
+        return redirect()->route('hrm.departments.index')->with('success', 'Updated successfully');
     }
 
     //----------- Remove department head --------------\
     public function removeHead(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'update', Department::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.departments'))) {
+            abort(403);
+        }
 
         Department::whereId($id)->update(['department_head' => null]);
 
@@ -230,14 +251,17 @@ class DepartmentsController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect()->route('hrm.departments.index')->with('success', 'Department head removed');
+        return redirect()->route('hrm.departments.index')->with('success', 'Updated successfully');
     }
 
     //----------- Delete  department --------------\\
 
     public function destroy(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'delete', Department::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || !$user->can('hrm.access')) {
+            abort(403);
+        }
 
         \DB::transaction(function () use ($id) {
 
@@ -251,15 +275,17 @@ class DepartmentsController extends Controller
             return response()->json(['success' => true]);
         }
 
-    return redirect()->route('hrm.departments.index')->with('success', 'Department deleted');
+    return redirect()->route('hrm.departments.index')->with('success', 'Deleted successfully');
     }
 
     //-------------- Delete by selection  ---------------\\
 
     public function delete_by_selection(Request $request)
     {
-
-        $this->authorizeForUser($request->user('api'), 'delete', Department::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || !$user->can('hrm.access')) {
+            abort(403);
+        }
 
         $selectedIds = $request->selectedIds;
         foreach ($selectedIds as $department_id) {

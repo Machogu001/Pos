@@ -11,12 +11,16 @@ use Carbon\Carbon;
 
 class HolidayController extends Controller
 {
+    protected function getAuthUser($request)
+    {
+        return $request->user('api') ?? $request->user() ?? auth()->user();
+    }
 
     //----------- GET ALL Holidays --------------\\
 
     public function index(Request $request)
     {
-        $this->authorizeForUser($request->user('api'), 'view', Holiday::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'view', Holiday::class);
 
         // How many items do you want to display.
         $perPage = $request->limit;
@@ -34,14 +38,27 @@ class HolidayController extends Controller
                     return $query->where('title', 'LIKE', "%{$request->search}%");
                 });
             });
+        if (!in_array(strtolower($dir ?? ''), ['asc', 'desc'])) {
+            $dir = 'desc';
+        }
+        $allowed = ['id', 'title', 'company_id', 'start_date', 'end_date', 'created_at'];
+        if (empty($order) || !in_array($order, $allowed)) {
+            $order = 'id';
+        }
+
         $totalRows = $holidays->count();
-        if($perPage == "-1"){
+        if ($perPage == "-1") {
             $perPage = $totalRows;
         }
-        $holidays = $holidays->offset($offSet)
-            ->limit($perPage)
-            ->orderBy($order, $dir)
-            ->get();
+
+        if (is_numeric($perPage) && intval($perPage) > 0) {
+            $holidays = $holidays->offset($offSet)
+                ->limit(intval($perPage))
+                ->orderBy($order, $dir)
+                ->get();
+        } else {
+            $holidays = $holidays->orderBy($order, $dir)->get();
+        }
 
         foreach ($holidays as $holiday) {
 
@@ -66,7 +83,7 @@ class HolidayController extends Controller
 
     public function create(Request $request)
     {
-        $this->authorizeForUser($request->user('api'), 'create', Holiday::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'create', Holiday::class);
 
         $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','name']);
         return response()->json([
@@ -78,7 +95,7 @@ class HolidayController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizeForUser($request->user('api'), 'create', Holiday::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'create', Holiday::class);
 
         request()->validate([
             'title'           => 'required|string',
@@ -108,7 +125,7 @@ class HolidayController extends Controller
 
     public function edit(Request $request ,$id)
     {
-        $this->authorizeForUser($request->user('api'), 'update', Holiday::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'update', Holiday::class);
 
         $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','name']);
         return response()->json([
@@ -121,7 +138,7 @@ class HolidayController extends Controller
 
     public function update(Request $request, $id)
     {
-        $this->authorizeForUser($request->user('api'), 'update', Holiday::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'update', Holiday::class);
 
         request()->validate([
             'title'           => 'required|string|max:255',
@@ -145,7 +162,7 @@ class HolidayController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        $this->authorizeForUser($request->user('api'), 'delete', Holiday::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'delete', Holiday::class);
 
         Holiday::whereId($id)->update([
             'deleted_at' => Carbon::now(),
@@ -160,7 +177,7 @@ class HolidayController extends Controller
     public function delete_by_selection(Request $request)
     {
 
-        $this->authorizeForUser($request->user('api'), 'delete', Holiday::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'delete', Holiday::class);
 
         $selectedIds = $request->selectedIds;
         foreach ($selectedIds as $holiday_id) {

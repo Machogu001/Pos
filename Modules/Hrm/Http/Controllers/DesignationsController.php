@@ -22,7 +22,10 @@ class DesignationsController extends Controller
 
     public function index(Request $request)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'view', Designation::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.designations'))) {
+            abort(403);
+        }
 
         // Avoid errors if designations table is not present yet
         if (!Schema::hasTable('designations')) {
@@ -98,7 +101,10 @@ class DesignationsController extends Controller
 
     public function create(Request $request)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'create', Designation::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.designations'))) {
+            abort(403);
+        }
 
         $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
         $departments = Department::where('deleted_at', '=', null)->get(['id','department']);
@@ -117,7 +123,10 @@ class DesignationsController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'create', Designation::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.designations'))) {
+            abort(403);
+        }
 
         request()->validate([
             'designation'   => 'required|string',
@@ -135,7 +144,7 @@ class DesignationsController extends Controller
             return response()->json(['success' => true]);
         }
 
-    return redirect()->route('hrm.designations.index')->with('success', 'Designation created');
+    return redirect()->route('hrm.designations.index')->with('success', 'Created successfully');
     }
 
     //------------ function show -----------\\
@@ -149,7 +158,10 @@ class DesignationsController extends Controller
 
     public function edit(Request $request , $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'update', Designation::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.designations'))) {
+            abort(403);
+        }
 
         $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
         $departments = Department::where('deleted_at', '=', null)->get(['id','department']);
@@ -169,7 +181,10 @@ class DesignationsController extends Controller
 
     public function update(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'update', Designation::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.designations'))) {
+            abort(403);
+        }
 
         request()->validate([
             'designation'   => 'required|string',
@@ -187,14 +202,17 @@ class DesignationsController extends Controller
             return response()->json(['success' => true]);
         }
 
-    return redirect()->route('hrm.designations.index')->with('success', 'Designation updated');
+    return redirect()->route('hrm.designations.index')->with('success', 'Updated successfully');
     }
 
     //----------- Delete  designation --------------\\
 
     public function destroy(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'delete', Designation::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.designations'))) {
+            abort(403);
+        }
 
         \DB::transaction(function () use ($id) {
 
@@ -208,15 +226,17 @@ class DesignationsController extends Controller
             return response()->json(['success' => true]);
         }
 
-    return redirect()->route('hrm.designations.index')->with('success', 'Designation deleted');
+    return redirect()->route('hrm.designations.index')->with('success', 'Deleted successfully');
     }
 
     //-------------- Delete by selection  ---------------\\
 
     public function delete_by_selection(Request $request)
     {
-
-        $this->authorizeForUser($request->user('api'), 'delete', Designation::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || !$user->can('hrm.access')) {
+            abort(403);
+        }
 
         $selectedIds = $request->selectedIds;
         foreach ($selectedIds as $designation_id) {

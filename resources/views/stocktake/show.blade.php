@@ -28,10 +28,11 @@
                         </a>
                     @endif
                     @if($stocktake->status === 'completed' && $stocktake->adjustment_transaction_id)
-                        <a href="{{ route('stock-adjustment.show', $stocktake->adjustment_transaction_id) }}" 
-                           class="btn btn-sm btn-outline-info">
+                        <button type="button" class="btn btn-sm btn-outline-info btn-modal" 
+                                data-href="{{ route('stock-adjustment.show', $stocktake->adjustment_transaction_id) }}"
+                                data-container=".view_modal">
                             <i class="fas fa-exchange-alt me-1"></i> @lang('stocktake.view_adjustment')
-                        </a>
+                        </button>
                     @endif
                 </div>
             </div>
@@ -153,7 +154,9 @@
                             <p class="mb-0 text-muted small mt-2">
                                 <i class="fas fa-exchange-alt me-1 text-primary"></i>
                                 @lang('stocktake.adjustment'): 
-                                <a href="{{ route('stock-adjustment.show', $adjustmentTransaction->id) }}" class="text-decoration-none">
+                                <a href="#" class="text-decoration-none btn-modal" 
+                                   data-href="{{ route('stock-adjustment.show', $adjustmentTransaction->id) }}"
+                                   data-container=".view_modal">
                                     {{ $adjustmentTransaction->ref_no }}
                                 </a>
                             </p>
@@ -235,29 +238,64 @@
                 </div>
             </div>
 
-            <!-- Total Value Variance -->
-            @if($totalValueVariance != 0)
+            <!-- Total Value and Variance Cards -->
             <div class="row mb-4">
                 <div class="col-12">
-                    <div class="card border-0 shadow-sm border-start border-3 
-                        {{ $totalValueVariance > 0 ? 'border-success' : 'border-danger' }}">
-                        <div class="card-body text-center">
-                            <h5 class="card-title text-muted mb-2">@lang('stocktake.total_value_variance')</h5>
-                            <h3 class="mb-0 fw-bold {{ $totalValueVariance > 0 ? 'text-success' : 'text-danger' }}">
-                                {{ $totalValueVariance > 0 ? '+' : '' }}{{ session('currency.symbol') }}{{ number_format(abs($totalValueVariance), 2) }}
-                            </h3>
-                            <p class="text-muted mb-0 small">
-                                @if($totalValueVariance > 0)
-                                    @lang('stocktake.positive_variance_value')
-                                @else
-                                    @lang('stocktake.negative_variance_value')
-                                @endif
-                            </p>
+                    <div class="tw-grid tw-grid-cols-1 tw-gap-4 sm:tw-grid-cols-2 sm:tw-gap-5">
+                        
+                        <!-- Total Value Card -->
+                        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+                            <div class="tw-p-4 sm:tw-p-5">
+                                <div class="tw-flex tw-items-center tw-gap-4">
+                                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-blue-100 tw-text-blue-600">
+                                        <i class="fas fa-coins tw-text-xl"></i>
+                                    </div>
+                                    <div class="tw-flex-1 tw-min-w-0">
+                                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">
+                                            @lang('stocktake.total_value')
+                                        </p>
+                                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-bold tw-tracking-tight">
+                                            {{ session('currency.symbol') }}{{ number_format($totalValue, 2) }}
+                                        </p>
+                                        <p class="tw-text-xs tw-text-gray-500 tw-mt-1">
+                                            @lang('stocktake.counted_stock_value')
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+
+                        <!-- Value Variance Card -->
+                        @if($totalValueVariance != 0)
+                        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+                            <div class="tw-p-4 sm:tw-p-5">
+                                <div class="tw-flex tw-items-center tw-gap-4">
+                                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 {{ $totalValueVariance > 0 ? 'tw-bg-green-100 tw-text-green-600' : 'tw-bg-red-100 tw-text-red-600' }}">
+                                        <i class="fas {{ $totalValueVariance > 0 ? 'fa-arrow-up' : 'fa-arrow-down' }} tw-text-xl"></i>
+                                    </div>
+                                    <div class="tw-flex-1 tw-min-w-0">
+                                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">
+                                            @lang('stocktake.total_value_variance')
+                                        </p>
+                                        <p class="tw-mt-0.5 tw-truncate tw-text-2xl tw-font-bold tw-tracking-tight {{ $totalValueVariance > 0 ? 'tw-text-green-600' : 'tw-text-red-600' }}">
+                                            {{ $totalValueVariance > 0 ? '+' : '' }}{{ session('currency.symbol') }}{{ number_format(abs($totalValueVariance), 2) }}
+                                        </p>
+                                        <p class="tw-text-xs tw-text-gray-500 tw-mt-1">
+                                            @if($totalValueVariance > 0)
+                                                @lang('stocktake.positive_variance_value')
+                                            @else
+                                                @lang('stocktake.negative_variance_value')
+                                            @endif
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+                        
                     </div>
                 </div>
             </div>
-            @endif
             @endif
 
             <!-- Stocktake Items Table -->
@@ -425,9 +463,9 @@
                                 <tfoot class="table-light">
                                     <tr>
                                         @php
-                                            $colspan = 4 + ($lot_enabled ? 1 : 0) + ($expiry_enabled ? 1 : 0);
+                                            $colspan = 1 + ($lot_enabled ? 1 : 0) + ($expiry_enabled ? 1 : 0) + 1; // Product Name + Lot + Expiry + SKU
                                         @endphp
-                                        <td colspan="{{ $colspan }}" class="fw-bold text-end">
+                                        <td colspan="{{ $colspan }}" class="fw-bold ps-4">
                                             @lang('stocktake.totals'):
                                         </td>
                                         <td class="text-end fw-bold">{{ number_format($stocktake->items->sum('system_quantity'), 4) }}</td>
@@ -479,14 +517,14 @@
                                 @endphp
                                 <tr>
                                     <td>
-                                        {{ $history->product_name ?? 'N/A' }}
-                                        @if(($history->variation_name ?? '') != 'DUMMY' && !empty($history->variation_name))
-                                            - {{ $history->variation_name }}
+                                        {{ optional($history->product)->name ?? 'N/A' }}
+                                        @if(optional($history->variation)->name && optional($history->variation)->name != 'DUMMY')
+                                            - {{ optional($history->variation)->name }}
                                         @endif
                                     </td>
                                     <td>
                                         <code class="text-muted">
-                                            {{ $history->variation_sku ?? $history->product_sku ?? 'N/A' }}
+                                            {{ optional($history->variation)->sub_sku ?? optional($history->product)->sku ?? 'N/A' }}
                                         </code>
                                     </td>
                                     <td class="text-end">{{ number_format($history->old_quantity, 4) }}</td>

@@ -129,6 +129,10 @@ class ManageUserController extends Controller
         }
 
         try {
+            // Validate client PIN format if provided
+            $request->validate([
+                'client_pin' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z][A-Za-z0-9]*[A-Za-z]$/'],
+            ]);
             if (! empty($request->input('dob'))) {
                 $request['dob'] = $this->moduleUtil->uf_date($request->input('dob'));
             }
@@ -199,9 +203,14 @@ class ManageUserController extends Controller
         }
 
         $business_id = request()->session()->get('user.business_id');
-        $user = User::where('business_id', $business_id)
-                    ->with(['contactAccess'])
-                    ->findOrFail($id);
+        // Allow superadmin to edit users across all businesses
+        if (auth()->user()->can('superadmin')) {
+            $user = User::with(['contactAccess'])->findOrFail($id);
+        } else {
+            $user = User::where('business_id', $business_id)
+                        ->with(['contactAccess'])
+                        ->findOrFail($id);
+        }
 
         $roles = $this->getRolesArray($business_id);
 
@@ -250,7 +259,7 @@ class ManageUserController extends Controller
                 'blood_group', 'contact_number', 'fb_link', 'twitter_link', 'social_media_1',
                 'social_media_2', 'permanent_address', 'current_address',
                 'guardian_name', 'custom_field_1', 'custom_field_2',
-                'custom_field_3', 'custom_field_4', 'id_proof_name', 'id_proof_number', 'cmmsn_percent', 'gender', 'max_sales_discount_percent', 'family_number', 'alt_number', 'is_enable_service_staff_pin']);
+                'custom_field_3', 'custom_field_4', 'id_proof_name', 'id_proof_number', 'cmmsn_percent', 'gender', 'max_sales_discount_percent', 'family_number', 'alt_number', 'is_enable_service_staff_pin', 'client_pin']);
 
             $user_data['status'] = ! empty($request->input('is_active')) ? 'active' : 'inactive';
 
@@ -308,8 +317,13 @@ class ManageUserController extends Controller
                 }
             }
 
-            $user = User::where('business_id', $business_id)
-                          ->findOrFail($id);
+            // Allow superadmin to update users across all businesses
+            if (auth()->user()->can('superadmin')) {
+                $user = User::findOrFail($id);
+            } else {
+                $user = User::where('business_id', $business_id)
+                              ->findOrFail($id);
+            }
 
             $user->update($user_data);
             $role_id = $request->input('role');

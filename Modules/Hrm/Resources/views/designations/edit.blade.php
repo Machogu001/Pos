@@ -6,6 +6,7 @@
     <form action="{{ route('hrm.designations.update', $designation->id) }}" method="POST">
         {{ csrf_field() }}
         {{ method_field('PUT') }}
+        @include('hrm::partials.hrm_form_toolbar')
 
         <div class="form-group">
             <label for="designation">Designation</label>
@@ -36,7 +37,6 @@
             @include('hrm::partials.field_error', ['field' => 'department'])
         </div>
 
-        <button class="btn btn-success">Update</button>
     </form>
 </div>
 @endsection

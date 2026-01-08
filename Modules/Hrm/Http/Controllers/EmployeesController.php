@@ -48,7 +48,10 @@ class EmployeesController extends Controller
 
     public function index(Request $request)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'view', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.employees'))) {
+            abort(403);
+        }
         // How many items do you want to display.
         $perPageRaw = $request->limit ?? 10;
         if ($perPageRaw == "-1") {
@@ -195,8 +198,10 @@ class EmployeesController extends Controller
 
       public function create(Request $request)
       {
-
-          $this->authorizeForUser($this->getAuthUser($request), 'create', Employee::class);
+          $user = $this->getAuthUser($request);
+          if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.employees'))) {
+              abort(403);
+          }
 
           if (Schema::hasTable('business')) {
               $companies = Business::orderBy('id', 'desc')->get(['id','name']);
@@ -225,7 +230,10 @@ class EmployeesController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'create', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.employees'))) {
+            abort(403);
+        }
 
             $this->validate($request, [
                 'firstname'      => 'required|string',
@@ -237,6 +245,8 @@ class EmployeesController extends Controller
                 'department_id'  => 'nullable',
                 'designation_id' => 'nullable',
                 'office_shift_id'=> 'nullable',
+                'total_leave'    => 'nullable|integer|min:0',
+                'remaining_leave'=> 'nullable|integer|min:0',
             ]);
           
             $data = [];
@@ -253,10 +263,26 @@ class EmployeesController extends Controller
             $data['designation_id'] = $request['designation_id'];
             $data['office_shift_id'] = $request['office_shift_id'];
             $data['joining_date'] = $request['joining_date'];
-            
-            Employee::create($data);
-            
-            return response()->json(['success' => true]);
+            // Default annual leave entitlement (days) if not provided
+            $defaultLeave = config('hrm.default_annual_leave', 21);
+            $data['total_leave'] = isset($request->total_leave) ? intval($request->total_leave) : $defaultLeave;
+            // If remaining_leave provided, use it; otherwise initialize to total_leave
+            $data['remaining_leave'] = isset($request->remaining_leave) ? intval($request->remaining_leave) : $data['total_leave'];
+            // Ensure remaining_leave is not greater than total_leave and not negative
+            if ($data['remaining_leave'] > $data['total_leave']) {
+                $data['remaining_leave'] = $data['total_leave'];
+            }
+            if ($data['remaining_leave'] < 0) {
+                $data['remaining_leave'] = 0;
+            }
+
+            $emp = Employee::create($data);
+
+            if ($request->wantsJson() || $request->expectsJson()) {
+                return response()->json(['success' => true, 'employee' => $emp]);
+            }
+
+            return redirect()->route('hrm.employees.index')->with('success', 'Created successfully');
     }
 
    
@@ -264,7 +290,10 @@ class EmployeesController extends Controller
 
       public function show(Request $request, $id)
       {
-        $this->authorizeForUser($this->getAuthUser($request), 'view', Employee::class);
+                $user = $this->getAuthUser($request);
+                if (!$user || !$user->can('hrm.access')) {
+                        abort(403);
+                }
 
         $employee = Employee::where('deleted_at', '=', null)->findOrFail($id);
         if (Schema::hasTable('business')) {
@@ -296,7 +325,10 @@ class EmployeesController extends Controller
 
     public function edit(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'update', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.employees'))) {
+            abort(403);
+        }
 
         $employee = Employee::where('deleted_at', '=', null)->findOrFail($id);
         if (Schema::hasTable('business')) {
@@ -305,22 +337,38 @@ class EmployeesController extends Controller
             $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
         }
     $office_shifts = Schema::hasTable('office_shifts') ? OfficeShift::where('company_id' , $employee->company_id)->where('deleted_at', '=', null)->get(['id','name']) : collect([]);
-    $departments = Schema::hasTable('departments') ? Department::where('company_id' , $employee->company_id)->where('deleted_at', '=', null)->get(['id','department']) : collect([]);
+    // Prefer company-scoped departments, but fall back to all departments so admin can assign one even
+    // when the employee has no company or the company has no departments yet.
+    if (Schema::hasTable('departments')) {
+        $departments = Department::where('company_id' , $employee->company_id)->where('deleted_at', '=', null)->get(['id','department','company_id']);
+        if ($departments->isEmpty()) {
+            $departments = Department::where('deleted_at', '=', null)->orderBy('id','desc')->get(['id','department','company_id']);
+        }
+    } else {
+        $departments = collect([]);
+    }
     $designations = Schema::hasTable('designations') ? Designation::where('department_id' , $employee->department_id)->where('deleted_at', '=', null)->get(['id','designation']) : collect([]);
-        
-        return response()->json([
-            'employee' => $employee,
-            'companies' => $companies,
-            'office_shifts' => $office_shifts,
-            'departments' => $departments,
-            'designations' => $designations,
-        ]);     
+        // If request expects JSON (AJAX/API), return JSON; otherwise render the classic Blade edit page
+        if ($request->wantsJson() || $request->expectsJson()) {
+            return response()->json([
+                'employee' => $employee,
+                'companies' => $companies,
+                'office_shifts' => $office_shifts,
+                'departments' => $departments,
+                'designations' => $designations,
+            ]);
+        }
+
+        return view('hrm::employees.edit', compact('employee', 'companies', 'office_shifts', 'departments', 'designations'));
     }
 
     // Suspend or unsuspend payroll for an employee
     public function suspend(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'update', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.employees'))) {
+            abort(403);
+        }
 
         $employee = Employee::findOrFail($id);
         $action = $request->input('action', 'suspend');
@@ -337,7 +385,10 @@ class EmployeesController extends Controller
     // Deductions: list for employee
     public function deductionsIndex(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'view', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.employees'))) {
+            abort(403);
+        }
         if (! Schema::hasTable('employee_deductions')) {
             return response()->json(['deductions' => []]);
         }
@@ -348,7 +399,10 @@ class EmployeesController extends Controller
     // Deductions: store
     public function deductionsStore(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'update', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || !$user->can('hrm.access')) {
+            abort(403);
+        }
         $this->validate($request, [
             'amount' => 'required|numeric|min:0.01',
             'reason' => 'nullable|string',
@@ -371,7 +425,10 @@ class EmployeesController extends Controller
     // Deductions: delete
     public function deductionsDestroy(Request $request, $employee_id, $deduction_id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'update', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || !$user->can('hrm.access')) {
+            abort(403);
+        }
         if (! Schema::hasTable('employee_deductions')) {
             return response()->json(['success' => false], 404);
         }
@@ -383,17 +440,20 @@ class EmployeesController extends Controller
 
      public function update(Request $request, $id)
      {
-
-         $this->authorizeForUser($this->getAuthUser($request), 'update', Employee::class);
+         $user = $this->getAuthUser($request);
+         if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.employees'))) {
+             abort(403);
+         }
  
          $this->validate($request, [
-            'firstname'      => 'required|string',
-            'lastname'       => 'required|string',
-            'country'        => 'required|string',
-            'gender'         => 'required',
-            'phone'          => 'required',
-            'total_leave'    => 'required|numeric|min:0',
-            'company_id'     => 'required',
+                'firstname'      => 'required|string',
+                'lastname'       => 'required|string',
+                'country'        => 'required|string',
+                'gender'         => 'required',
+                'phone'          => 'required',
+                'total_leave'    => 'required|integer|min:0',
+                'remaining_leave'=> 'required|integer|min:0|lte:total_leave',
+                'company_id'     => 'required',
             'department_id'  => 'nullable',
             'designation_id' => 'nullable',
             'office_shift_id'=> 'nullable',
@@ -416,6 +476,7 @@ class EmployeesController extends Controller
         $data['designation_id'] = $request['designation_id'];
         $data['office_shift_id'] = $request['office_shift_id'];
         $data['joining_date'] = $request['joining_date'];
+    $data['notes'] = $request['notes'] ?? null;
         $data['role_users_id'] = $request['role_users_id'];
         $data['leaving_date'] = $request['leaving_date']?$request['leaving_date']:NULL;
         $data['marital_status'] = $request['marital_status'];
@@ -427,36 +488,50 @@ class EmployeesController extends Controller
         $data['basic_salary'] = $request['basic_salary'];
         $data['hourly_rate'] = $request['hourly_rate'];
 
-        //calculation of total_leave & remaining_leave
+        // calculation of total_leave & remaining_leave with sanitization
         $employee_leave_info = Employee::find($id);
-        if($employee_leave_info->total_leave == 0)
-        {
-            $data['total_leave'] = $request->total_leave;
-            $data['remaining_leave'] = $request->total_leave;
-        }
-        elseif($request->total_leave > $employee_leave_info->total_leave ){
-            $data['total_leave'] = $request->total_leave;
-            $data['remaining_leave'] = $request->remaining_leave + ($request->total_leave - $employee_leave_info->total_leave);
-        }
-         elseif($request->total_leave < $employee_leave_info->total_leave ){
-            $data['total_leave'] = $request->total_leave;
-            $data['remaining_leave'] = $request->remaining_leave - ($employee_leave_info->total_leave - $request->total_leave);
+        $current_total = intval($employee_leave_info->total_leave ?? 0);
+        $current_remaining = intval($employee_leave_info->remaining_leave ?? 0);
+        $req_total = intval($request->total_leave);
+        $req_remaining = intval($request->remaining_leave ?? $req_total);
 
-        }else{
-            $data['total_leave'] = $request->total_leave;
-            $data['remaining_leave'] = $employee_leave_info->remaining_leave;
+        if ($current_total === 0) {
+            // initialize both to requested total (or provided remaining bounded)
+            $data['total_leave'] = $req_total;
+            $data['remaining_leave'] = min(max($req_remaining, 0), $req_total);
+        } elseif ($req_total > $current_total) {
+            // increased entitlement: add the delta to remaining leave
+            $delta = $req_total - $current_total;
+            $data['total_leave'] = $req_total;
+            $data['remaining_leave'] = min(max($current_remaining + $delta, 0), $req_total);
+        } elseif ($req_total < $current_total) {
+            // decreased entitlement: subtract the delta from remaining leave (but not below 0)
+            $delta = $current_total - $req_total;
+            $data['total_leave'] = $req_total;
+            $data['remaining_leave'] = max($current_remaining - $delta, 0);
+        } else {
+            // same total: respect provided remaining (bounded)
+            $data['total_leave'] = $req_total;
+            $data['remaining_leave'] = min(max($req_remaining, 0), $req_total);
         }
         
-        Employee::find($id)->update($data);
+            Employee::find($id)->update($data);
 
-         return response()->json(['success' => true]);
+        if ($request->wantsJson() || $request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
+
+        return redirect()->route('hrm.employees.show', $id)->with('success', 'Updated successfully');
      }
 
     //------------ Delete Employee -----------\\
 
     public function destroy(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'delete', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.employees'))) {
+            abort(403);
+        }
 
         Employee::whereId($id)->update([
             'deleted_at' => Carbon::now(),
@@ -468,8 +543,10 @@ class EmployeesController extends Controller
 
     public function delete_by_selection(Request $request)
     {
-
-        $this->authorizeForUser($this->getAuthUser($request), 'delete', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.employees'))) {
+            abort(403);
+        }
 
         $selectedIds = $request->selectedIds;
         foreach ($selectedIds as $employee_id) {
@@ -484,7 +561,10 @@ class EmployeesController extends Controller
     //--------------- Trash (deleted employees) view ---------------\
     public function trash(Request $request)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'view', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.employees'))) {
+            abort(403);
+        }
 
         $perPage = $request->limit ?? 10;
         $page = max(1, (int) $request->get('page', 1));
@@ -514,7 +594,10 @@ class EmployeesController extends Controller
     //--------------- Restore deleted employee ---------------\
     public function restore(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'update', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || !$user->can('hrm.access')) {
+            abort(403);
+        }
         $emp = Employee::whereId($id)->first();
         if (! $emp) {
             return response()->json(['success' => false], 404);
@@ -527,7 +610,10 @@ class EmployeesController extends Controller
     //--------------- Permanently delete employee ---------------\
     public function forceDelete(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'delete', Employee::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || !$user->can('hrm.access')) {
+            abort(403);
+        }
         $emp = Employee::whereId($id)->first();
         if (! $emp) {
             return response()->json(['success' => false], 404);
@@ -696,8 +782,11 @@ class EmployeesController extends Controller
 
        public function get_experiences_by_employee(request $request)
        {
-   
-           $this->authorizeForUser($this->getAuthUser($request), 'view', Employee::class);
+  
+           $user = $this->getAuthUser($request);
+           if (!$user || !$user->can('hrm.access')) {
+               abort(403);
+           }
            // How many items do you want to display.
            $perPage = $request->limit;
            $pageStart = \Request::get('page', 1);
@@ -731,7 +820,10 @@ class EmployeesController extends Controller
          public function get_accounts_by_employee(request $request)
          {
      
-             $this->authorizeForUser($this->getAuthUser($request), 'view', Employee::class);
+             $user = $this->getAuthUser($request);
+             if (!$user || !$user->can('hrm.access')) {
+                 abort(403);
+             }
              // How many items do you want to display.
              $perPage = $request->limit;
              $pageStart = \Request::get('page', 1);

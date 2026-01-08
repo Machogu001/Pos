@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bgGradient512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e3a8a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accentGradient512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#dc2626;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ef4444;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="textGradient512" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fbbf24;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="102" fill="url(#bgGradient512)"/>
+  
+  <!-- POS Icon Design - Cash Register/Terminal (scaled up) -->
+  <!-- Screen/Display -->
+  <rect x="149" y="120" width="214" height="120" rx="10" fill="white" opacity="0.95"/>
+  <rect x="160" y="131" width="192" height="98" rx="5" fill="#1e3a8a" opacity="0.2"/>
+  
+  <!-- Base/Keyboard -->
+  <rect x="123" y="258" width="266" height="128" rx="10" fill="url(#accentGradient512)"/>
+  
+  <!-- Keys -->
+  <g fill="white" opacity="0.9">
+    <rect x="139" y="274" width="48" height="29" rx="5"/>
+    <rect x="197" y="274" width="48" height="29" rx="5"/>
+    <rect x="255" y="274" width="48" height="29" rx="5"/>
+    <rect x="313" y="274" width="48" height="29" rx="5"/>
+    
+    <rect x="139" y="313" width="48" height="29" rx="5"/>
+    <rect x="197" y="313" width="48" height="29" rx="5"/>
+    <rect x="255" y="313" width="48" height="29" rx="5"/>
+    <rect x="313" y="313" width="48" height="29" rx="5"/>
+    
+    <rect x="139" y="352" width="106" height="24" rx="5"/>
+    <rect x="255" y="352" width="106" height="24" rx="5"/>
+  </g>
+  
+  <!-- Currency Symbol -->
+  <text x="256" y="195" font-family="Arial, sans-serif" font-size="58" font-weight="bold" fill="#dc2626" text-anchor="middle">Ksh</text>
+  
+  <!-- BMC_POS_SYS Text -->
+  <text x="256" y="440" font-family="Arial, sans-serif" font-size="43" font-weight="bold" fill="url(#textGradient512)" text-anchor="middle" letter-spacing="2">BMC_POS</text>
+  <text x="256" y="483" font-family="Arial, sans-serif" font-size="35" font-weight="bold" fill="white" text-anchor="middle" letter-spacing="1.5" opacity="0.95">SYSTEM</text>
+  
+  <!-- Decorative elements -->
+  <circle cx="448" cy="64" r="21" fill="url(#accentGradient512)" opacity="0.8"/>
+  <circle cx="64" cy="448" r="16" fill="white" opacity="0.3"/>
+  <circle cx="448" cy="448" r="27" fill="white" opacity="0.2"/>
+  <circle cx="64" cy="64" r="13" fill="#ef4444" opacity="0.5"/>
+</svg>

@@ -41,6 +41,14 @@
                 </div>
             </div>
 
+            <div class="col-md-4">
+                <div class="form-group">
+                  {!! Form::label('client_pin', __( 'Client PIN' ) . ':') !!}
+                    {!! Form::text('client_pin', $user->client_pin, ['class' => 'form-control', 'placeholder' => 'e.g. P052182616N' ]); !!}
+                    <p class="help-block">Must start and end with a letter. Letters and numbers allowed in between.</p>
+                </div>
+            </div>
+
             <div class="col-md-2">
                 <div class="form-group">
                   <div class="checkbox">
@@ -269,6 +277,10 @@
         },
     });
   });
+  // Add client PIN validator
+  $.validator.addMethod('pin_format', function(value, element) {
+      return this.optional(element) || /^[A-Za-z][A-Za-z0-9]*[A-Za-z]$/.test(value);
+  }, 'Must start and end with a letter and contain only letters/numbers.');
 
   $('form#user_edit_form').validate({
                 rules: {
@@ -309,6 +321,10 @@
                             }
                         }
                     }
+          ,
+          client_pin: {
+            pin_format: true
+          }
                 },
                 messages: {
                     password: {

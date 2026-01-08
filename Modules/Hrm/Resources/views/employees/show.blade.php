@@ -7,6 +7,8 @@
     <p><strong>Company:</strong> {{ optional($employee->company)->name }}</p>
     <p><strong>Department:</strong> {{ optional($employee->department)->department }}</p>
     <p><strong>Designation:</strong> {{ optional($employee->designation)->designation }}</p>
+    <p><strong>Total annual leave:</strong> {{ $employee->total_leave ?? config('hrm.default_annual_leave', 21) }} days</p>
+    <p><strong>Remaining leave:</strong> {{ $employee->remaining_leave ?? ($employee->total_leave ?? config('hrm.default_annual_leave', 21)) }} days</p>
     <p><strong>Phone:</strong> {{ $employee->phone }}</p>
     <p><strong>Email:</strong> {{ $employee->email }}</p>
     <p><strong>Suspended:</strong> {{ $employee->suspended ? 'Yes' : 'No' }}</p>

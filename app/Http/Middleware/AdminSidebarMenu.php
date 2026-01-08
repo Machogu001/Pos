@@ -922,6 +922,7 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                                 __('business.business_settings'),
                                 ['icon' => '', 'active' => request()->segment(1) == 'business', 'id' => 'tour_step2']
                             );
+                            // Removed: Enable/Disable Modules shortcut from Settings dropdown
                             $sub->url(
                                 action([\App\Http\Controllers\BusinessLocationController::class, 'index']),
                                 __('business.business_locations'),
@@ -999,45 +1000,89 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                 $modules_statuses = json_decode(file_get_contents($statusFile), true);
             }
 
-            // Keep HRM visible when the module folder exists or when enabled in modules_statuses/enabled_modules
-            if (is_dir(base_path('Modules/Hrm')) || (isset($modules_statuses['Hrm']) && $modules_statuses['Hrm']) || in_array('hrm', $enabled_modules) || in_array('Hrm', $enabled_modules)) {
+            // Show HRM only when enabled and user has hrm.access or any granular HRM permission
+            $has_hrm_perm = auth()->user()->can('hrm.access')
+                || auth()->user()->can('hrm.companies')
+                || auth()->user()->can('hrm.departments')
+                || auth()->user()->can('hrm.designations')
+                || auth()->user()->can('hrm.office_shifts')
+                || auth()->user()->can('hrm.employees')
+                || auth()->user()->can('hrm.payrolls');
+            if ((in_array('hrm', $enabled_modules) || in_array('Hrm', $enabled_modules)) && $has_hrm_perm) {
                 // Build HRM dropdown with sub-links (companies, departments, designations, office shifts, employees, payroll)
                 $menu->dropdown(
                     'HRM',
                     function ($sub) {
                         // Companies
                         try {
-                            $sub->url(action([\Modules\Hrm\Http\Controllers\CompanyController::class, 'index']), 'Companies', ['icon' => '', 'active' => request()->segment(2) == 'companies' || request()->segment(1) == 'hrm' && request()->segment(2) == 'companies']);
+                            if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.companies')) {
+                                $sub->url(action([\Modules\Hrm\Http\Controllers\CompanyController::class, 'index']), 'Companies', ['icon' => '', 'active' => request()->segment(2) == 'companies' || request()->segment(1) == 'hrm' && request()->segment(2) == 'companies']);
+                            }
                         } catch (\Exception $e) {
                         }
 
                         // Departments
                         try {
-                            $sub->url(action([\Modules\Hrm\Http\Controllers\DepartmentsController::class, 'index']), 'Departments', ['icon' => '', 'active' => request()->segment(2) == 'departments']);
+                            if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.departments')) {
+                                $sub->url(action([\Modules\Hrm\Http\Controllers\DepartmentsController::class, 'index']), 'Departments', ['icon' => '', 'active' => request()->segment(2) == 'departments']);
+                            }
                         } catch (\Exception $e) {
                         }
 
                         // Designations
                         try {
-                            $sub->url(action([\Modules\Hrm\Http\Controllers\DesignationsController::class, 'index']), 'Designations', ['icon' => '', 'active' => request()->segment(2) == 'designations']);
+                            if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.designations')) {
+                                $sub->url(action([\Modules\Hrm\Http\Controllers\DesignationsController::class, 'index']), 'Designations', ['icon' => '', 'active' => request()->segment(2) == 'designations']);
+                            }
                         } catch (\Exception $e) {
                         }
 
                         // Office Shifts
                         try {
-                            $sub->url(action([\Modules\Hrm\Http\Controllers\OfficeShiftController::class, 'index']), 'Office Shifts', ['icon' => '', 'active' => request()->segment(2) == 'office_shifts']);
+                            if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.office_shifts')) {
+                                $sub->url(action([\Modules\Hrm\Http\Controllers\OfficeShiftController::class, 'index']), 'Office Shifts', ['icon' => '', 'active' => request()->segment(2) == 'office_shifts']);
+                            }
                         } catch (\Exception $e) {
                         }
 
                         // Employees
                         try {
-                            $sub->url(action([\Modules\Hrm\Http\Controllers\EmployeesController::class, 'index']), 'Employees', ['icon' => '', 'active' => request()->segment(2) == 'employees']);
+                            if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.employees')) {
+                                $sub->url(action([\Modules\Hrm\Http\Controllers\EmployeesController::class, 'index']), 'Employees', ['icon' => '', 'active' => request()->segment(2) == 'employees']);
+                            }
                         } catch (\Exception $e) {
                         }
 
                         // Payroll
                         try {
-                            $sub->url(action([\Modules\Hrm\Http\Controllers\PayrollController::class, 'index']), 'Payroll', ['icon' => '', 'active' => request()->segment(2) == 'payrolls']);
+                            if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.payrolls')) {
+                                $sub->url(action([\Modules\Hrm\Http\Controllers\PayrollController::class, 'index']), 'Payroll', ['icon' => '', 'active' => request()->segment(2) == 'payrolls']);
+                            }
+                        } catch (\Exception $e) {
+                        }
+
+                        // Leaves (Leave management) - show only to users with HRM leave permissions
+                        try {
+                            if (auth()->user()->can('leave.view') || auth()->user()->can('leave.create') || auth()->user()->can('leave.update')) {
+                                $sub->url(action([\Modules\Hrm\Http\Controllers\LeaveController::class, 'index']), 'Leaves', ['icon' => '', 'active' => request()->segment(2) == 'leaves']);
+                            }
+                        } catch (\Exception $e) {
+                        }
+
+                        // Leave Types - require leave.view permission
+                        try {
+                            if (auth()->user()->can('leave.view') || auth()->user()->can('leave.create')) {
+                                $sub->url(action([\Modules\Hrm\Http\Controllers\LeaveTypeController::class, 'index']), 'Leave Types', ['icon' => '', 'active' => request()->segment(2) == 'leave_types']);
+                            }
+                        } catch (\Exception $e) {
+                        }
+
+                        // HRM Settings (default leave) - exposed to admins or users with business settings access
+                        try {
+                            if (auth()->user()->can('business_settings.access') || auth()->user()->hasRole('Admin#' . session('business.id'))) {
+                                $sub->url(action([\Modules\Hrm\Http\Controllers\SettingsController::class, 'editDefaultLeave']), 'HRM Settings', ['icon' => '', 'active' => request()->is('hrm/settings/leave')]);
+                                // (Removed) HRM modules shortcut per request
+                            }
                         } catch (\Exception $e) {
                         }
                     },

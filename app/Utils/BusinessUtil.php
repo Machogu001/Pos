@@ -38,6 +38,13 @@ class BusinessUtil extends Util
         ]);
         $user->assignRole($role->name);
 
+        // Ensure Admin has HRM access by default
+        try {
+            $role->givePermissionTo('hrm.access');
+        } catch (\Exception $e) {
+            // Ignore if permission missing; seeder will add it later
+        }
+
         //Create Cashier role for a new business
         $cashier_role = Role::create(['name' => 'Cashier#'.$business_id,
             'business_id' => $business_id,

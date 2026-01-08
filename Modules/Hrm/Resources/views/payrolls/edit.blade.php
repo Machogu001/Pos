@@ -8,6 +8,7 @@
     <form method="POST" action="{{ route('hrm.payrolls.update', $payroll->id) }}">
         @csrf
         @method('PUT')
+        @include('hrm::partials.hrm_form_toolbar')
 
         <div class="mb-3">
             <label class="form-label">Company</label>

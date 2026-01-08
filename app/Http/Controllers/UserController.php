@@ -66,13 +66,18 @@ class UserController extends Controller
             return $notAllowed;
         }
 
+        // validate client_pin if provided
+        $request->validate([
+            'client_pin' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z][A-Za-z0-9]*[A-Za-z]$/'],
+        ]);
+
         try {
             $user_id = $request->session()->get('user.id');
             $input = $request->only(['surname', 'first_name', 'last_name', 'email', 'language', 'marital_status',
                 'blood_group', 'contact_number', 'fb_link', 'twitter_link', 'social_media_1',
                 'social_media_2', 'permanent_address', 'current_address',
                 'guardian_name', 'custom_field_1', 'custom_field_2',
-                'custom_field_3', 'custom_field_4', 'id_proof_name', 'id_proof_number', 'gender', 'family_number', 'alt_number', ]);
+                'custom_field_3', 'custom_field_4', 'id_proof_name', 'id_proof_number', 'gender', 'family_number', 'alt_number', 'client_pin' ]);
 
             if (! empty($request->input('dob'))) {
                 $input['dob'] = $this->moduleUtil->uf_date($request->input('dob'));
@@ -90,6 +95,8 @@ class UserController extends Controller
             $input['id'] = $user_id;
             $business_id = request()->session()->get('user.business_id');
             $input['business_id'] = $business_id;
+            // ensure client_pin is present in session copy
+            $input['client_pin'] = $user->client_pin ?? null;
             session()->put('user', $input);
 
             $output = ['success' => 1,
