@@ -806,20 +806,29 @@ class SellController extends Controller
         //     abort(403, 'Unauthorized action.');
         // }
 
-        $business_id = request()->session()->get('user.business_id');
-        $taxes = TaxRate::where('business_id', $business_id)
-                            ->pluck('name', 'id');
-        $query = Transaction::where('business_id', $business_id)
-                    ->where('id', $id)
-                    ->with(['contact', 'delivery_person_user', 'sell_lines' => function ($q) {
+        $user = auth()->user();
+        $isAdmin = $user->role === 'admin';
+        
+        // Build the query
+        $query = Transaction::where('id', $id)
+                    ->with(['contact', 'business', 'business.owner', 'delivery_person_user', 'sell_lines' => function ($q) {
                         $q->whereNull('parent_sell_line_id');
                     }, 'sell_lines.product', 'sell_lines.product.unit', 'sell_lines.product.second_unit', 'sell_lines.variations', 'sell_lines.variations.product_variation', 'payment_lines', 'sell_lines.modifiers', 'sell_lines.lot_details', 'tax', 'sell_lines.sub_unit', 'table', 'service_staff', 'sell_lines.service_staff', 'types_of_service', 'sell_lines.warranties', 'media']);
 
-        if (! auth()->user()->can('sell.view') && ! auth()->user()->can('direct_sell.access') && auth()->user()->can('view_own_sell_only')) {
-            $query->where('transactions.created_by', request()->session()->get('user.id'));
+        // If not admin, restrict to own business transactions only
+        if (!$isAdmin) {
+            $business_id = request()->session()->get('user.business_id');
+            $query->where('business_id', $business_id);
+            
+            if (! auth()->user()->can('sell.view') && ! auth()->user()->can('direct_sell.access') && auth()->user()->can('view_own_sell_only')) {
+                $query->where('transactions.created_by', request()->session()->get('user.id'));
+            }
         }
 
         $sell = $query->firstOrFail();
+        $business_id = $sell->business_id;
+        $taxes = TaxRate::where('business_id', $business_id)
+                            ->pluck('name', 'id');
 
         $activities = Activity::forSubject($sell)
            ->with(['causer', 'subject'])
@@ -868,22 +877,42 @@ class SellController extends Controller
         $status_color_in_activity = Transaction::sales_order_statuses();
         $sales_orders = $sell->salesOrders();
 
-        return view('sale_pos.show')
-            ->with(compact(
-                'taxes',
-                'sell',
-                'payment_types',
-                'order_taxes',
-                'pos_settings',
-                'shipping_statuses',
-                'shipping_status_colors',
-                'is_warranty_enabled',
-                'activities',
-                'statuses',
-                'status_color_in_activity',
-                'sales_orders',
-                'line_taxes'
-            ));
+        // Check if request is AJAX (modal view) or direct URL (full page view)
+        if (request()->ajax()) {
+            return view('sale_pos.show')
+                ->with(compact(
+                    'taxes',
+                    'sell',
+                    'payment_types',
+                    'order_taxes',
+                    'pos_settings',
+                    'shipping_statuses',
+                    'shipping_status_colors',
+                    'is_warranty_enabled',
+                    'activities',
+                    'statuses',
+                    'status_color_in_activity',
+                    'sales_orders',
+                    'line_taxes'
+                ));
+        } else {
+            return view('sale_pos.show_fullpage')
+                ->with(compact(
+                    'taxes',
+                    'sell',
+                    'payment_types',
+                    'order_taxes',
+                    'pos_settings',
+                    'shipping_statuses',
+                    'shipping_status_colors',
+                    'is_warranty_enabled',
+                    'activities',
+                    'statuses',
+                    'status_color_in_activity',
+                    'sales_orders',
+                    'line_taxes'
+                ));
+        }
     }
 
     /**

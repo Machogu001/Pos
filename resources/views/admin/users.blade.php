@@ -3,10 +3,34 @@
 @section('title', __('payment.users_management'))
 
 @section('content')
-<div class="container-fluid py-4">
+<div class="dashboard-wrapper" style="max-width: 100%; overflow-x: hidden; padding: 1.5rem; margin: 0 auto;">
+
+    <!-- Header Banner -->
+    <div class="tw-mb-5 tw-rounded-xl tw-bg-gradient-to-r tw-from-primary-800 tw-to-primary-900 tw-text-white">
+        <div class="tw-p-5">
+            <div class="sm:tw-flex sm:tw-items-center sm:tw-justify-between sm:tw-gap-6">
+                <div>
+                    <h1 class="tw-text-2xl md:tw-text-3xl tw-font-semibold tw-tracking-tight tw-text-white tw-mb-1">
+                        <i class="fas fa-users me-2"></i>{{ __('payment.users_management') }}
+                    </h1>
+                    <p class="tw-mb-0 tw-text-white/80">{{ __('payment.total_users', ['count' => $users->total()]) }}</p>
+                </div>
+                <div class="tw-mt-3 sm:tw-mt-0 tw-flex tw-flex-wrap tw-gap-2 sm:tw-justify-end">
+                    <button class="tw-inline-flex tw-items-center tw-justify-center tw-gap-1 tw-px-4 tw-py-2 tw-text-sm tw-font-medium tw-text-gray-900 tw-transition-all tw-duration-200 tw-bg-white tw-rounded-lg hover:tw-bg-primary-50" data-bs-toggle="modal" data-bs-target="#filtersModal">
+                        <i class="fas fa-filter me-1"></i> {{ __('payment.filters') }}
+                    </button>
+                    <a href="{{ route('admin.dashboard') }}"
+                       class="tw-inline-flex tw-items-center tw-justify-center tw-gap-1 tw-px-4 tw-py-2 tw-text-sm tw-font-medium tw-text-gray-900 tw-transition-all tw-duration-200 tw-bg-white tw-rounded-lg hover:tw-bg-primary-50">
+                        <i class="fas fa-arrow-left me-1"></i> {{ __('payment.dashboard') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Success/Error Messages -->
     @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert">
             <i class="fas fa-check-circle me-2"></i>
             {{ session('success') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -14,100 +38,134 @@
     @endif
 
     @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
             <i class="fas fa-exclamation-circle me-2"></i>
             {{ session('error') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
 
-    <div class="card shadow-sm rounded-3">
-        <div class="card-header d-flex justify-content-between align-items-center bg-white py-3">
-            <div>
-                <h5 class="mb-0"><i class="fas fa-users me-2 text-primary"></i>{{ __('payment.users_management') }}</h5>
-                <small class="text-muted">{{ __('payment.total_users', ['count' => $users->total()]) }}</small>
-            </div>
-            <div class="d-flex gap-2">
-                <a href="{{ route('admin.dashboard') }}" class="btn btn-outline-primary btn-sm">
-                    <i class="fas fa-arrow-left me-1"></i> {{ __('payment.dashboard') }}
-                </a>
-                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#filtersModal">
-                    <i class="fas fa-filter me-1"></i> {{ __('payment.filters') }}
-                </button>
+    <!-- Quick Stats -->
+    <div class="tw-grid tw-grid-cols-1 tw-gap-4 sm:tw-grid-cols-2 xl:tw-grid-cols-4 sm:tw-gap-5 tw-mb-5">
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-blue-100 tw-text-blue-600">
+                        <i class="fas fa-users fa-lg"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.total') }}</p>
+                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
+                            {{ $stats['total'] ?? 0 }}
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
-        
-        <div class="card-body p-0">
-            <!-- Quick Stats -->
-            <div class="row g-0 border-bottom bg-light">
-                <div class="col-md-3 p-3 text-center border-end">
-                    <div class="text-primary fw-bold fs-4">{{ $stats['total'] ?? 0 }}</div>
-                    <small class="text-muted">{{ __('payment.total') }}</small>
-                </div>
-                <div class="col-md-3 p-3 text-center border-end">
-                    <div class="text-success fw-bold fs-4">{{ $stats['active'] ?? 0 }}</div>
-                    <small class="text-muted">{{ __('payment.active') }}</small>
-                </div>
-                <div class="col-md-3 p-3 text-center border-end">
-                    <div class="text-warning fw-bold fs-4">{{ $stats['inactive'] ?? 0 }}</div>
-                    <small class="text-muted">{{ __('payment.inactive') }}</small>
-                </div>
-                <div class="col-md-3 p-3 text-center">
-                    <div class="text-danger fw-bold fs-4">{{ $stats['terminated'] ?? 0 }}</div>
-                    <small class="text-muted">{{ __('payment.terminated') }}</small>
+
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-green-100 tw-text-green-600">
+                        <i class="fas fa-check-circle fa-lg"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.active') }}</p>
+                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
+                            {{ $stats['active'] ?? 0 }}
+                        </p>
+                    </div>
                 </div>
             </div>
+        </div>
 
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-yellow-100 tw-text-yellow-600">
+                        <i class="fas fa-pause-circle fa-lg"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.inactive') }}</p>
+                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
+                            {{ $stats['inactive'] ?? 0 }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-red-100 tw-text-red-600">
+                        <i class="fas fa-times-circle fa-lg"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.terminated') }}</p>
+                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
+                            {{ $stats['terminated'] ?? 0 }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm rounded-3 border-0">
+        <div class="card-body p-0">
             <!-- Users Table -->
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th class="ps-4">
+                            <th class="ps-4" style="width: 50px;">
                                 <input type="checkbox" id="selectAll" class="form-check-input">
                             </th>
-                            <th>{{ __('payment.user') }}</th>
-                            <th>{{ __('payment.business') }}</th>
-                            <th>{{ __('payment.username') }}</th>
-                            <th>{{ __('payment.subscriptions') }}</th>
-                            <th>{{ __('payment.status') }}</th>
-                            <th>{{ __('payment.last_login') }}</th>
-                            <th>{{ __('payment.actions') }}</th>
+                            <th style="min-width: 250px;">{{ __('payment.user') }}</th>
+                            <th style="min-width: 150px;">{{ __('payment.business') }}</th>
+                            <th style="min-width: 120px;">{{ __('payment.username') }}</th>
+                            <th style="width: 150px;">{{ __('payment.subscriptions') }}</th>
+                            <th style="width: 150px;">{{ __('payment.status') }}</th>
+                            <th style="width: 150px;">{{ __('payment.last_login') }}</th>
+                            <th style="width: 120px;">{{ __('payment.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($users ?? [] as $user)
-                        <tr>
+                        <tr class="align-middle">
                             <td class="ps-4">
                                 <input type="checkbox" class="form-check-input user-checkbox" value="{{ $user->id }}">
                             </td>
                             <td>
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3">
-                                        {{ substr($user->name, 0, 1) }}
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full tw-bg-blue-100 tw-text-blue-600 tw-font-semibold tw-text-sm tw-shrink-0">
+                                        {{ substr($user->name ?? 'U', 0, 1) }}
                                     </div>
-                                    <div>
-                                        <div class="fw-semibold">{{ $user->name }}</div>
-                                        <small class="text-muted">{{ $user->email }}</small>
-                                        <div><small class="text-muted">{{ __('payment.id') }}: {{ $user->id }}</small></div>
+                                    <div class="tw-min-w-0 tw-flex-1">
+                                        <div class="tw-font-medium tw-text-gray-900 tw-truncate">{{ $user->name }}</div>
+                                        <div class="tw-text-sm tw-text-gray-500 tw-truncate">{{ $user->email }}</div>
+                                        <div class="tw-text-xs tw-text-gray-400">{{ __('payment.id') }}: {{ $user->id }}</div>
                                     </div>
                                 </div>
                             </td>
                             <td>
                                 @if($user->business)
-                                    <span class="badge bg-info">{{ $user->business->name }}</span>
+                                    <span class="badge bg-info text-white px-2 py-1">{{ $user->business->name }}</span>
                                 @else
-                                    <span class="text-muted">{{ __('payment.na') }}</span>
+                                    <span class="text-muted">—</span>
                                 @endif
                             </td>
                             <td>
-                                <span class="text-muted">{{ $user->username ?? __('payment.na') }}</span>
+                                <span class="text-gray-700">{{ $user->username ?? '—' }}</span>
                             </td>
                             <td>
-                                <span class="badge bg-secondary">{{ $user->subscriptions_count ?? 0 }}</span>
-                                @if($user->subscriptions_count > 0)
-                                    <small class="text-muted d-block">{{ __('payment.last') }}: {{ optional($user->latest_subscription)->created_at->diffForHumans() ?? __('payment.na') }}</small>
-                                @endif
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-secondary px-2 py-1">{{ $user->subscriptions_count ?? 0 }}</span>
+                                    @if($user->subscriptions_count > 0)
+                                        <small class="text-muted">{{ __('payment.last') }}: {{ optional($user->latest_subscription)->created_at->diffForHumans() ?? '—' }}</small>
+                                    @endif
+                                </div>
                             </td>
                             <td>
                                 <form action="{{ route('admin.users.update-status', ['user' => $user->id]) }}" method="POST" class="user-status-form">

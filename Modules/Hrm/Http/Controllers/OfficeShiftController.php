@@ -22,7 +22,10 @@ class OfficeShiftController extends Controller
 
     public function index(Request $request)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'view', OfficeShift::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.office_shifts'))) {
+            abort(403);
+        }
 
         // Avoid errors if office_shifts table is not present
         if (!Schema::hasTable('office_shifts')) {
@@ -75,26 +78,37 @@ class OfficeShiftController extends Controller
             $office_shifts = $office_shifts->orderBy($order, $dir)->get();
         }
 
+    // determine if per-day columns exist; otherwise fall back to generic start_time/end_time
+    $hasDayCols = Schema::hasColumn('office_shifts', 'monday_in');
     foreach ($office_shifts as $office_shift) {
 
             $item['id'] = $office_shift->id;
             $item['name'] = $office_shift->name;
-            $item['company_id'] = $office_shift['company']->id;
-            $item['company_name'] = $office_shift['company']->name;
-            $item['monday_in'] = $office_shift->monday_in?substr($office_shift->monday_in, 0, -2):NULL;
-            $item['monday_out'] = $office_shift->monday_out?substr($office_shift->monday_out, 0, -2):NULL;
-            $item['tuesday_in'] = $office_shift->tuesday_in?substr($office_shift->tuesday_in, 0, -2):NULL;
-            $item['tuesday_out'] = $office_shift->tuesday_out?substr($office_shift->tuesday_out, 0, -2):NULL;
-            $item['wednesday_in'] = $office_shift->wednesday_in?substr($office_shift->wednesday_in, 0, -2):NULL;
-            $item['wednesday_out'] = $office_shift->wednesday_out?substr($office_shift->wednesday_out, 0, -2):NULL;
-            $item['thursday_in'] = $office_shift->thursday_in?substr($office_shift->thursday_in, 0, -2):NULL;
-            $item['thursday_out'] = $office_shift->thursday_out?substr($office_shift->thursday_out, 0, -2):NULL;
-            $item['friday_in'] = $office_shift->friday_in?substr($office_shift->friday_in, 0, -2):NULL;
-            $item['friday_out'] = $office_shift->friday_out?substr($office_shift->friday_out, 0, -2):NULL;
-            $item['saturday_in'] = $office_shift->saturday_in?substr($office_shift->saturday_in, 0, -2):NULL;
-            $item['saturday_out'] = $office_shift->saturday_out?substr($office_shift->saturday_out, 0, -2):NULL;
-            $item['sunday_in'] = $office_shift->sunday_in?substr($office_shift->sunday_in, 0, -2):NULL;
-            $item['sunday_out'] = $office_shift->sunday_out?substr($office_shift->sunday_out, 0, -2):NULL;
+            $item['company_id'] = isset($office_shift['company']->id) ? $office_shift['company']->id : null;
+            $item['company_name'] = isset($office_shift['company']->name) ? $office_shift['company']->name : null;
+
+            if ($hasDayCols) {
+                $item['monday_in'] = $office_shift->monday_in ? substr($office_shift->monday_in, 0, -2) : null;
+                $item['monday_out'] = $office_shift->monday_out ? substr($office_shift->monday_out, 0, -2) : null;
+                $item['tuesday_in'] = $office_shift->tuesday_in ? substr($office_shift->tuesday_in, 0, -2) : null;
+                $item['tuesday_out'] = $office_shift->tuesday_out ? substr($office_shift->tuesday_out, 0, -2) : null;
+                $item['wednesday_in'] = $office_shift->wednesday_in ? substr($office_shift->wednesday_in, 0, -2) : null;
+                $item['wednesday_out'] = $office_shift->wednesday_out ? substr($office_shift->wednesday_out, 0, -2) : null;
+                $item['thursday_in'] = $office_shift->thursday_in ? substr($office_shift->thursday_in, 0, -2) : null;
+                $item['thursday_out'] = $office_shift->thursday_out ? substr($office_shift->thursday_out, 0, -2) : null;
+                $item['friday_in'] = $office_shift->friday_in ? substr($office_shift->friday_in, 0, -2) : null;
+                $item['friday_out'] = $office_shift->friday_out ? substr($office_shift->friday_out, 0, -2) : null;
+                $item['saturday_in'] = $office_shift->saturday_in ? substr($office_shift->saturday_in, 0, -2) : null;
+                $item['saturday_out'] = $office_shift->saturday_out ? substr($office_shift->saturday_out, 0, -2) : null;
+                $item['sunday_in'] = $office_shift->sunday_in ? substr($office_shift->sunday_in, 0, -2) : null;
+                $item['sunday_out'] = $office_shift->sunday_out ? substr($office_shift->sunday_out, 0, -2) : null;
+            } else {
+                // fallback to start_time/end_time if available
+                $item['start_time'] = isset($office_shift->start_time) ? $office_shift->start_time : null;
+                $item['end_time'] = isset($office_shift->end_time) ? $office_shift->end_time : null;
+                $item['break_minutes'] = isset($office_shift->break_minutes) ? $office_shift->break_minutes : null;
+            }
+
             $data[] = $item;
         }
         $office_shifts_for_view = collect($data);
@@ -113,7 +127,10 @@ class OfficeShiftController extends Controller
 
     public function create(Request $request)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'create', OfficeShift::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.office_shifts'))) {
+            abort(403);
+        }
 
         $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
         if ($request->expectsJson()) {
@@ -130,7 +147,10 @@ class OfficeShiftController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'create', OfficeShift::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.office_shifts'))) {
+            abort(403);
+        }
 
         request()->validate([
             'name'           => 'required|string',
@@ -138,45 +158,64 @@ class OfficeShiftController extends Controller
         ]);
 
     // Only create DateTime instances when values are present to avoid exceptions
-    $monday_in = $request['monday_in'] ? new DateTime($request['monday_in']) : null;
-    $monday_out = $request['monday_out'] ? new DateTime($request['monday_out']) : null;
-    $tuesday_in = $request['tuesday_in'] ? new DateTime($request['tuesday_in']) : null;
-    $tuesday_out = $request['tuesday_out'] ? new DateTime($request['tuesday_out']) : null;
-    $wednesday_in = $request['wednesday_in'] ? new DateTime($request['wednesday_in']) : null;
-    $wednesday_out = $request['wednesday_out'] ? new DateTime($request['wednesday_out']) : null;
-    $thursday_in = $request['thursday_in'] ? new DateTime($request['thursday_in']) : null;
-    $thursday_out = $request['thursday_out'] ? new DateTime($request['thursday_out']) : null;
-    $friday_in = $request['friday_in'] ? new DateTime($request['friday_in']) : null;
-    $friday_out = $request['friday_out'] ? new DateTime($request['friday_out']) : null;
-    $saturday_in = $request['saturday_in'] ? new DateTime($request['saturday_in']) : null;
-    $saturday_out = $request['saturday_out'] ? new DateTime($request['saturday_out']) : null;
-    $sunday_in = $request['sunday_in'] ? new DateTime($request['sunday_in']) : null;
-    $sunday_out = $request['sunday_out'] ? new DateTime($request['sunday_out']) : null;
+    $hasDayCols = Schema::hasColumn('office_shifts', 'monday_in');
+    $createData = [
+        'company_id' => $request['company_id'],
+        'name' => $request['name'],
+    ];
 
-        OfficeShift::create([
-            'company_id'     => $request['company_id'],
-            'name'           => $request['name'],
-            'monday_in'      => $request['monday_in'] && $monday_in ? $monday_in->format('H:iA') : Null,
-            'monday_out'     => $request['monday_out'] && $monday_out ? $monday_out->format('H:iA') : Null,
-            'tuesday_in'     => $request['tuesday_in'] && $tuesday_in ? $tuesday_in->format('H:iA') : Null,
-            'tuesday_out'    => $request['tuesday_out'] && $tuesday_out ? $tuesday_out->format('H:iA') : Null,
-            'wednesday_in'   => $request['wednesday_in'] && $wednesday_in ? $wednesday_in->format('H:iA') : Null,
-            'wednesday_out'  => $request['wednesday_out'] && $wednesday_out ? $wednesday_out->format('H:iA') : Null,
-            'thursday_in'    => $request['thursday_in'] && $thursday_in ? $thursday_in->format('H:iA') : Null,
-            'thursday_out'   => $request['thursday_out'] && $thursday_out ? $thursday_out->format('H:iA') : Null,
-            'friday_in'      => $request['friday_in'] && $friday_in ? $friday_in->format('H:iA') : Null,
-            'friday_out'     => $request['friday_out'] && $friday_out ? $friday_out->format('H:iA') : Null,
-            'saturday_in'    => $request['saturday_in'] && $saturday_in ? $saturday_in->format('H:iA') : Null,
-            'saturday_out'   => $request['saturday_out'] && $saturday_out ? $saturday_out->format('H:iA') : Null,
-            'sunday_in'      => $request['sunday_in'] && $sunday_in ? $sunday_in->format('H:iA') : Null,
-            'sunday_out'     => $request['sunday_out'] && $sunday_out ? $sunday_out->format('H:iA') : Null,
+    if ($hasDayCols) {
+        $monday_in = $request['monday_in'] ? new DateTime($request['monday_in']) : null;
+        $monday_out = $request['monday_out'] ? new DateTime($request['monday_out']) : null;
+        $tuesday_in = $request['tuesday_in'] ? new DateTime($request['tuesday_in']) : null;
+        $tuesday_out = $request['tuesday_out'] ? new DateTime($request['tuesday_out']) : null;
+        $wednesday_in = $request['wednesday_in'] ? new DateTime($request['wednesday_in']) : null;
+        $wednesday_out = $request['wednesday_out'] ? new DateTime($request['wednesday_out']) : null;
+        $thursday_in = $request['thursday_in'] ? new DateTime($request['thursday_in']) : null;
+        $thursday_out = $request['thursday_out'] ? new DateTime($request['thursday_out']) : null;
+        $friday_in = $request['friday_in'] ? new DateTime($request['friday_in']) : null;
+        $friday_out = $request['friday_out'] ? new DateTime($request['friday_out']) : null;
+        $saturday_in = $request['saturday_in'] ? new DateTime($request['saturday_in']) : null;
+        $saturday_out = $request['saturday_out'] ? new DateTime($request['saturday_out']) : null;
+        $sunday_in = $request['sunday_in'] ? new DateTime($request['sunday_in']) : null;
+        $sunday_out = $request['sunday_out'] ? new DateTime($request['sunday_out']) : null;
+
+        $createData = array_merge($createData, [
+            'monday_in' => $request['monday_in'] && $monday_in ? $monday_in->format('H:iA') : null,
+            'monday_out' => $request['monday_out'] && $monday_out ? $monday_out->format('H:iA') : null,
+            'tuesday_in' => $request['tuesday_in'] && $tuesday_in ? $tuesday_in->format('H:iA') : null,
+            'tuesday_out' => $request['tuesday_out'] && $tuesday_out ? $tuesday_out->format('H:iA') : null,
+            'wednesday_in' => $request['wednesday_in'] && $wednesday_in ? $wednesday_in->format('H:iA') : null,
+            'wednesday_out' => $request['wednesday_out'] && $wednesday_out ? $wednesday_out->format('H:iA') : null,
+            'thursday_in' => $request['thursday_in'] && $thursday_in ? $thursday_in->format('H:iA') : null,
+            'thursday_out' => $request['thursday_out'] && $thursday_out ? $thursday_out->format('H:iA') : null,
+            'friday_in' => $request['friday_in'] && $friday_in ? $friday_in->format('H:iA') : null,
+            'friday_out' => $request['friday_out'] && $friday_out ? $friday_out->format('H:iA') : null,
+            'saturday_in' => $request['saturday_in'] && $saturday_in ? $saturday_in->format('H:iA') : null,
+            'saturday_out' => $request['saturday_out'] && $saturday_out ? $saturday_out->format('H:iA') : null,
+            'sunday_in' => $request['sunday_in'] && $sunday_in ? $sunday_in->format('H:iA') : null,
+            'sunday_out' => $request['sunday_out'] && $sunday_out ? $sunday_out->format('H:iA') : null,
         ]);
+    } else {
+        // fallback to generic fields if they exist
+        if (Schema::hasColumn('office_shifts', 'start_time') && $request->filled('start_time')) {
+            $createData['start_time'] = $request->input('start_time');
+        }
+        if (Schema::hasColumn('office_shifts', 'end_time') && $request->filled('end_time')) {
+            $createData['end_time'] = $request->input('end_time');
+        }
+        if (Schema::hasColumn('office_shifts', 'break_minutes') && $request->filled('break_minutes')) {
+            $createData['break_minutes'] = $request->input('break_minutes');
+        }
+    }
+
+        OfficeShift::create($createData);
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
         }
 
-    return redirect()->route('hrm.office_shifts.index')->with('success', 'Office shift created');
+    return redirect()->route('hrm.office_shifts.index')->with('success', 'Created successfully');
     }
 
     //------------ function show -----------\\
@@ -190,7 +229,10 @@ class OfficeShiftController extends Controller
 
     public function edit(Request $request , $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'update', OfficeShift::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.office_shifts'))) {
+            abort(403);
+        }
 
         $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
         if ($request->expectsJson()) {
@@ -208,7 +250,10 @@ class OfficeShiftController extends Controller
 
     public function update(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'update', OfficeShift::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.office_shifts'))) {
+            abort(403);
+        }
 
         //monday_in
         if(strlen($request['monday_in']) == 5){
@@ -308,38 +353,58 @@ class OfficeShiftController extends Controller
             $sunday_out =  new DateTime(substr($request['sunday_out'], 0, -2));
         }
 
-        OfficeShift::whereId($id)->update([
-            'company_id'     => $request['company_id'],
-            'name'           => $request['name'],
-            'monday_in'      => $request['monday_in']?$monday_in->format('H:iA'):Null,
-            'monday_out'     => $request['monday_out']?$monday_out->format('H:iA'):Null,
-            'tuesday_in'     => $request['tuesday_in']?$tuesday_in->format('H:iA'):Null,
-            'tuesday_out'    => $request['tuesday_out']?$tuesday_out->format('H:iA'):Null,
-            'wednesday_in'   => $request['wednesday_in']?$wednesday_in->format('H:iA'):Null,
-            'wednesday_out'  => $request['wednesday_out']?$wednesday_out->format('H:iA'):Null,
-            'thursday_in'    => $request['thursday_in']?$thursday_in->format('H:iA'):Null,
-            'thursday_out'   => $request['thursday_out']?$thursday_out->format('H:iA'):Null,
-            'friday_in'      => $request['friday_in']?$friday_in->format('H:iA'):Null,
-            'friday_out'     => $request['friday_out']?$friday_out->format('H:iA'):Null,
-            'saturday_in'    => $request['saturday_in']?$saturday_in->format('H:iA'):Null,
-            'saturday_out'   => $request['saturday_out']?$saturday_out->format('H:iA'):Null,
-            'sunday_in'      => $request['sunday_in']?$sunday_in->format('H:iA'):Null,
-            'sunday_out'     => $request['sunday_out']?$sunday_out->format('H:iA'):Null,
-        ]);
+        $updateData = [
+            'company_id' => $request['company_id'],
+            'name' => $request['name'],
+        ];
+
+        if ($hasDayCols) {
+            $updateData = array_merge($updateData, [
+                'monday_in' => $request['monday_in'] ? $monday_in->format('H:iA') : null,
+                'monday_out' => $request['monday_out'] ? $monday_out->format('H:iA') : null,
+                'tuesday_in' => $request['tuesday_in'] ? $tuesday_in->format('H:iA') : null,
+                'tuesday_out' => $request['tuesday_out'] ? $tuesday_out->format('H:iA') : null,
+                'wednesday_in' => $request['wednesday_in'] ? $wednesday_in->format('H:iA') : null,
+                'wednesday_out' => $request['wednesday_out'] ? $wednesday_out->format('H:iA') : null,
+                'thursday_in' => $request['thursday_in'] ? $thursday_in->format('H:iA') : null,
+                'thursday_out' => $request['thursday_out'] ? $thursday_out->format('H:iA') : null,
+                'friday_in' => $request['friday_in'] ? $friday_in->format('H:iA') : null,
+                'friday_out' => $request['friday_out'] ? $friday_out->format('H:iA') : null,
+                'saturday_in' => $request['saturday_in'] ? $saturday_in->format('H:iA') : null,
+                'saturday_out' => $request['saturday_out'] ? $saturday_out->format('H:iA') : null,
+                'sunday_in' => $request['sunday_in'] ? $sunday_in->format('H:iA') : null,
+                'sunday_out' => $request['sunday_out'] ? $sunday_out->format('H:iA') : null,
+            ]);
+        } else {
+            if (Schema::hasColumn('office_shifts', 'start_time') && $request->filled('start_time')) {
+                $updateData['start_time'] = $request->input('start_time');
+            }
+            if (Schema::hasColumn('office_shifts', 'end_time') && $request->filled('end_time')) {
+                $updateData['end_time'] = $request->input('end_time');
+            }
+            if (Schema::hasColumn('office_shifts', 'break_minutes') && $request->filled('break_minutes')) {
+                $updateData['break_minutes'] = $request->input('break_minutes');
+            }
+        }
+
+        OfficeShift::whereId($id)->update($updateData);
 
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
         }
 
-    return redirect()->route('hrm.office_shifts.index')->with('success', 'Office shift updated');
+    return redirect()->route('hrm.office_shifts.index')->with('success', 'Updated successfully');
     }
 
     //----------- Delete  office_shift --------------\\
 
     public function destroy(Request $request, $id)
     {
-        $this->authorizeForUser($this->getAuthUser($request), 'delete', OfficeShift::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.office_shifts'))) {
+            abort(403);
+        }
 
         \DB::transaction(function () use ($id) {
 
@@ -353,15 +418,17 @@ class OfficeShiftController extends Controller
             return response()->json(['success' => true]);
         }
 
-    return redirect()->route('hrm.office_shifts.index')->with('success', 'Office shift deleted');
+    return redirect()->route('hrm.office_shifts.index')->with('success', 'Deleted successfully');
     }
 
     //-------------- Delete by selection  ---------------\\
 
     public function delete_by_selection(Request $request)
     {
-
-        $this->authorizeForUser($this->getAuthUser($request), 'delete', OfficeShift::class);
+        $user = $this->getAuthUser($request);
+        if (!$user || !$user->can('hrm.access')) {
+            abort(403);
+        }
 
         $selectedIds = $request->selectedIds;
         foreach ($selectedIds as $office_shift_id) {

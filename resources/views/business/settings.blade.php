@@ -35,7 +35,7 @@
                     <a href="#" class="list-group-item text-center tw-font-bold tw-text-sm md:tw-text-base">@lang('lang_v1.email_settings')</a>
                     <a href="#" class="list-group-item text-center tw-font-bold tw-text-sm md:tw-text-base">@lang('lang_v1.sms_settings')</a>
                     <a href="#" class="list-group-item text-center tw-font-bold tw-text-sm md:tw-text-base">@lang('lang_v1.reward_point_settings')</a>
-                    <a href="#" class="list-group-item text-center tw-font-bold tw-text-sm md:tw-text-base">@lang('lang_v1.modules')</a>
+                    <a href="#" id="modules_tab_link" class="list-group-item text-center tw-font-bold tw-text-sm md:tw-text-base">@lang('lang_v1.modules')</a>
                     <a href="#" class="list-group-item text-center tw-font-bold tw-text-sm md:tw-text-base">@lang('lang_v1.custom_labels')</a>
                 </div>
             </div>
@@ -114,6 +114,17 @@
     $(document).ready(function(){
 
     
+        // If url has ?tab=modules, switch to Modules tab for quick access
+        try {
+            var params = new URLSearchParams(window.location.search);
+            if (params.get('tab') === 'modules') {
+                var $modulesLink = $('#modules_tab_link');
+                if ($modulesLink.length) {
+                    $modulesLink.trigger('click');
+                }
+            }
+        } catch (e) {}
+
         $('#test_email_btn').click( function() {
             var data = {
                 mail_driver: $('#mail_driver').val(),

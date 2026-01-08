@@ -20,6 +20,8 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\CheckSubscriptions::class,
         \App\Console\Commands\SimulateMpesaFlow::class,
         \App\Console\Commands\ListUnconsumedMpesaPayments::class,
+        \App\Console\Commands\SetDefaultLeave::class,
+        \App\Console\Commands\SendSubscriptionReminders::class,
     ];
 
     /**
@@ -54,6 +56,9 @@ class Kernel extends ConsoleKernel
 
         // Check for expired subscriptions - runs daily in all environments
         $schedule->command('subscriptions:check')->dailyAt('00:00');
+
+    // Generate subscription pre-expiry invoice notices and reminders (14d & 7d)
+    $schedule->command('subscriptions:send_reminders')->dailyAt('09:00');
 
         // Check for expired subscriptions (legacy closure-based approach - you might want to remove this if using the command)
         $schedule->call(function () {

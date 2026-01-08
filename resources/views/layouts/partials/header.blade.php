@@ -3,8 +3,8 @@
 
 <div
     class="  tw-transition-all tw-duration-5000 tw-border-b tw-bg-gradient-to-r tw-from-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-800 tw-to-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-900 tw-shrink-0 lg:tw-h-15 tw-border-primary-500/30 no-print">
-    <div class="tw-px-5 tw-py-3">
-        <div class="tw-flex tw-items-start tw-justify-between tw-gap-6 lg:tw-items-center">
+    <div class="tw-px-5 tw-py-3" style="overflow: visible;">
+        <div class="tw-flex tw-items-start tw-justify-between tw-gap-6 lg:tw-items-center" style="overflow: visible;">
             <div class="tw-flex tw-items-center tw-gap-3">
                 <button type="button" 
                     class="small-view-button xl:tw-w-20 lg:tw-hidden tw-inline-flex tw-items-center tw-justify-center tw-text-sm tw-font-medium tw-text-white tw-transition-all tw-duration-200 tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-800 hover:tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-700 tw-p-1.5 tw-rounded-lg tw-ring-1 hover:tw-text-white tw-ring-white/10">
@@ -49,7 +49,18 @@
             @endif
 
 
-            <div class="tw-flex tw-flex-wrap tw-items-center tw-justify-end tw-gap-3">
+            <div class="tw-flex tw-items-center tw-justify-end tw-gap-3" style="overflow: visible;">
+                    {{-- View toggle: default desktop, user can switch to mobile view --}}
+                    <button id="view-toggle-btn" title="Toggle mobile/desktop view"
+                        class="tw-inline-flex tw-items-center tw-justify-center tw-text-sm tw-font-medium tw-text-white tw-transition-all tw-duration-200 tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-700 hover:tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-600 tw-px-3 tw-py-1.5 tw-rounded-lg tw-ring-1 tw-ring-white/10 lg:tw-hidden">
+                        <span id="view-toggle-label">Desktop view</span>
+                    </button>
+                    <!-- Header PWA install CTA (hidden by default). JS will show when beforeinstallprompt fires -->
+                    <button id="header-pwa-install-btn" title="Install app" aria-hidden="true"
+                        class="tw-hidden tw-inline-flex tw-items-center tw-justify-center tw-text-sm tw-font-medium tw-text-white tw-transition-all tw-duration-200 tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-600 hover:tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-500 tw-px-3 tw-py-1.5 tw-rounded-lg tw-ring-1 tw-ring-white/10"
+                        style="min-width:78px">
+                        <span id="header-pwa-install-label">Install</span>
+                    </button>
                 @if (Module::has('Essentials'))
                     @includeIf('essentials::layouts.partials.header_part')
                 @endif
@@ -193,18 +204,15 @@
 
 
 
-                <details class="tw-dw-dropdown tw-relative tw-inline-block tw-text-left">
-                    <summary data-toggle="popover"
+                <div class="tw-relative tw-inline-block tw-text-left" id="user-dropdown-wrapper" style="overflow: visible;">
+                    <button type="button" id="user-dropdown-btn"
                         class="tw-dw-m-1 tw-inline-flex tw-transition-all tw-ring-1 tw-ring-white/10 tw-cursor-pointer tw-duration-200 tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-800 hover:tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-700 tw-py-1.5 tw-px-3 tw-rounded-lg tw-items-center tw-justify-center tw-text-sm tw-font-medium tw-text-white hover:tw-text-white tw-gap-1">
                         <span class="tw-hidden md:tw-block">{{ Auth::User()->first_name }} {{ Auth::User()->last_name }}</span>
 
                         <svg  xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="tw-size-5"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 10m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M6.168 18.849a4 4 0 0 1 3.832 -2.849h4a4 4 0 0 1 3.834 2.855" /></svg>
+                    </button>
 
-                        
-                        
-                    </summary>
-
-                    <ul class="tw-p-2 tw-w-48 tw-absolute tw-right-0 tw-z-10 tw-mt-2 tw-origin-top-right tw-bg-white tw-rounded-lg tw-shadow-lg tw-ring-1 tw-ring-gray-200 focus:tw-outline-none"
+                    <ul id="user-dropdown-menu" style="display: none; position: fixed; z-index: 99999;" class="tw-p-2 tw-w-48 tw-mt-2 tw-origin-top-right tw-bg-white tw-rounded-lg tw-shadow-lg tw-ring-1 tw-ring-gray-200 focus:tw-outline-none"
                         role="menu" tabindex="-1">
                         <div class="tw-px-4 tw-pt-3 tw-pb-1" role="none">
                             <p class="tw-text-sm" role="none">
@@ -247,7 +255,40 @@
                             </a>
                         </li>
                     </ul>
-                </details>
+                </div>
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const btn = document.getElementById('user-dropdown-btn');
+                        const menu = document.getElementById('user-dropdown-menu');
+                        const wrapper = document.getElementById('user-dropdown-wrapper');
+                        
+                        if (btn && menu) {
+                            // Toggle dropdown on button click
+                            btn.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                
+                                if (menu.style.display === 'none') {
+                                    // Position the menu relative to the button
+                                    const btnRect = btn.getBoundingClientRect();
+                                    menu.style.top = (btnRect.bottom + 8) + 'px';
+                                    menu.style.right = (window.innerWidth - btnRect.right) + 'px';
+                                    menu.style.display = 'block';
+                                } else {
+                                    menu.style.display = 'none';
+                                }
+                            });
+                            
+                            // Close dropdown when clicking outside
+                            document.addEventListener('click', function(e) {
+                                if (!wrapper.contains(e.target)) {
+                                    menu.style.display = 'none';
+                                }
+                            });
+                        }
+                    });
+                </script>
             </div>
         </div>
     </div>

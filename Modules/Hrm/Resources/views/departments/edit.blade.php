@@ -6,6 +6,7 @@
     <form action="{{ route('hrm.departments.update', $department->id) }}" method="POST">
         {{ csrf_field() }}
         {{ method_field('PUT') }}
+        @include('hrm::partials.hrm_form_toolbar')
 
         <div class="form-group">
             <label for="department">Department</label>
@@ -46,7 +47,7 @@
             @endif
         </div>
 
-        <button class="btn btn-success">Update</button>
+        
     </form>
 </div>
 @endsection

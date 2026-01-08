@@ -1,7 +1,12 @@
 <IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
     RewriteEngine On
 
-    # Redirect everything to /pos/public
-    RewriteCond %{REQUEST_URI} !^/pos/public/
-    RewriteRule ^(.*)$ /pos/public/$1 [L,R=302]
+    # Redirect all requests to index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
 </IfModule>

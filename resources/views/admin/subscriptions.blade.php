@@ -3,26 +3,27 @@
 @section('title', __('payment.subscription_management'))
 
 @section('content')
-<!-- Header Section -->
-<div class="bg-gradient-primary text-white py-4 mb-4">
-    <div class="container-fluid">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <h1 class="h3 mb-2 fw-bold">
-                    <i class="fas fa-users-cog me-3"></i>{{ __('payment.subscription_management') }}
-                </h1>
-                <p class="mb-0 opacity-75">Monitor and manage all user subscriptions and payments</p>
-            </div>
-            <div class="col-md-4 text-md-end">
-                <a href="{{ route('admin.dashboard') }}" class="btn btn-light btn-lg shadow-sm">
-                    <i class="fas fa-arrow-left me-2"></i>{{ __('payment.back_to_dashboard') }}
-                </a>
+<div class="dashboard-wrapper" style="max-width: 100%; overflow-x: hidden; padding: 1.5rem; margin: 0 auto;">
+
+    <!-- Header Banner -->
+    <div class="tw-mb-5 tw-rounded-xl tw-bg-gradient-to-r tw-from-primary-800 tw-to-primary-900 tw-text-white">
+        <div class="tw-p-5">
+            <div class="sm:tw-flex sm:tw-items-center sm:tw-justify-between sm:tw-gap-6">
+                <div>
+                    <h1 class="tw-text-2xl md:tw-text-3xl tw-font-semibold tw-tracking-tight tw-text-white tw-mb-1">
+                        <i class="fas fa-users-cog me-2"></i>{{ __('payment.subscription_management') }}
+                    </h1>
+                    <p class="tw-mb-0 tw-text-white/80">Monitor and manage all user subscriptions and payments</p>
+                </div>
+                <div class="tw-mt-3 sm:tw-mt-0 tw-flex tw-flex-wrap tw-gap-2 sm:tw-justify-end">
+                    <a href="{{ route('admin.dashboard') }}"
+                       class="tw-inline-flex tw-items-center tw-justify-center tw-gap-1 tw-px-4 tw-py-2 tw-text-sm tw-font-medium tw-text-gray-900 tw-transition-all tw-duration-200 tw-bg-white tw-rounded-lg hover:tw-bg-primary-50">
+                        <i class="fas fa-arrow-left me-1"></i> {{ __('payment.back_to_dashboard') }}
+                    </a>
+                </div>
             </div>
         </div>
     </div>
-</div>
-
-<div class="container-fluid px-4">
 
     <!-- Success/Error Messages -->
     <div id="ajaxAlerts"></div>
@@ -43,64 +44,98 @@
         </div>
     @endif
 
+    <!-- Modal: Download Range for Selected Subscriptions -->
+    <div class="modal fade" id="downloadRangeModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="downloadRangeForm" method="POST" action="{{ route('admin.subscriptions.download_statements') }}">
+                    @csrf
+                    <div class="modal-header">
+                        <h5 class="modal-title">Download Statements (Selected)</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="subscription_ids" id="download_subscription_ids">
+                        <div class="mb-3">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" name="start" class="form-control" title="Start date (dd/mm/yyyy)">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">End Date</label>
+                            <input type="date" name="end" class="form-control" title="End date (dd/mm/yyyy)">
+                        </div>
+                        <div class="form-text text-muted">If left empty, each subscription's start/end will be used. Format: dd/mm/yyyy</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Download ZIP</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Summary Cards -->
-    <div class="row g-4 mb-4">
-        <div class="col-lg-3 col-md-6">
-            <div class="card border-0 shadow-sm h-100 bg-success text-white">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1 text-white-50">Active Subscriptions</h6>
-                            <h2 class="mb-0 fw-bold">{{ $subscriptions->where('status', 'active')->count() }}</h2>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-check-circle fa-2x opacity-50"></i>
-                        </div>
+    <div class="tw-grid tw-grid-cols-1 tw-gap-4 sm:tw-grid-cols-2 xl:tw-grid-cols-4 sm:tw-gap-5 tw-mb-5">
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-green-100 tw-text-green-600">
+                        <i class="fas fa-check-circle fa-lg"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">Active Subscriptions</p>
+                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
+                            {{ $subscriptions->where('status', 'active')->count() }}
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="card border-0 shadow-sm h-100 bg-warning text-dark">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1 text-dark-50">Pending Payments</h6>
-                            <h2 class="mb-0 fw-bold">{{ $subscriptions->where('status', 'pending')->count() }}</h2>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-clock fa-2x opacity-50"></i>
-                        </div>
+
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-yellow-100 tw-text-yellow-600">
+                        <i class="fas fa-clock fa-lg"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">Pending Payments</p>
+                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
+                            {{ $subscriptions->where('status', 'pending')->count() }}
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="card border-0 shadow-sm h-100 bg-secondary text-white">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1 text-white-50">Expired</h6>
-                            <h2 class="mb-0 fw-bold">{{ $subscriptions->where('status', 'expired')->count() }}</h2>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-calendar-times fa-2x opacity-50"></i>
-                        </div>
+
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-gray-100 tw-text-gray-600">
+                        <i class="fas fa-calendar-times fa-lg"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">Expired</p>
+                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
+                            {{ $subscriptions->where('status', 'expired')->count() }}
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="card border-0 shadow-sm h-100 bg-info text-white">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1 text-white-50">Monthly Revenue</h6>
-                            <h2 class="mb-0 fw-bold">Ksh {{ number_format($subscriptions->where('status', 'active')->sum('amount'), 0) }}</h2>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-dollar-sign fa-2x opacity-50"></i>
-                        </div>
+
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-blue-100 tw-text-blue-600">
+                        <i class="fas fa-dollar-sign fa-lg"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">Monthly Revenue</p>
+                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
+                            Ksh {{ number_format($subscriptions->where('status', 'active')->sum('amount'), 0) }}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -166,6 +201,7 @@
                 <table class="table table-hover align-middle">
                     <thead class="table-light">
                         <tr>
+                            <th><input type="checkbox" id="selectAllSubscriptions"></th>
                             <th>{{ __('payment.id') }}</th>
                             <th>{{ __('payment.user') }}</th>
                             <th>{{ __('payment.business') }}</th>
@@ -176,12 +212,14 @@
                             <th>{{ __('payment.end_date') }}</th>
                             <th>{{ __('payment.status') }}</th>
                             <th>{{ __('payment.mpesa_receipt') }}</th>
+                                <th>{{ __('payment.pending_links') }}</th>
                             <th>{{ __('payment.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($subscriptions ?? [] as $subscription)
                         <tr class="subscription-row" data-status="{{ $subscription->status }}" data-billing-cycle="{{ $subscription->billing_cycle }}">
+                            <td><input type="checkbox" class="subscription-checkbox" value="{{ $subscription->id }}"></td>
                             <td>{{ $subscription->id }}</td>
                             <td>{{ $subscription->user->username ?? ($subscription->user->name ?? 'N/A') }}</td>
                             <td>{{ $subscription->user->business->name ?? 'N/A' }}</td>
@@ -198,8 +236,40 @@
                                 </span>
                             </td>
                             <td>{{ $subscription->mpesa_receipt ?? 'N/A' }}</td>
-                            <td>
-                                <div class="d-flex flex-wrap gap-1">
+                                <td>
+                                    {{-- Pending invoice tx and mpesa payment links --}}
+                                    @php
+                                        $pendingLinks = [];
+                                        if (!empty($subscription->pending_invoice_transaction_id)) {
+                                            $pendingLinks[] = ['type' => 'invoice', 'id' => $subscription->pending_invoice_transaction_id];
+                                        }
+                                        if (!empty($subscription->pending_mpesa_payment_id)) {
+                                            // Use pre-attached pending_mpesa property (eager-loaded) to avoid per-row queries
+                                            if (!empty($subscription->pending_mpesa)) {
+                                                $pendingLinks[] = ['type' => 'mpesa', 'id' => $subscription->pending_mpesa->id, 'checkout' => $subscription->pending_mpesa->checkout_request_id];
+                                            } else {
+                                                $pendingLinks[] = ['type' => 'mpesa', 'id' => $subscription->pending_mpesa_payment_id];
+                                            }
+                                        }
+                                    @endphp
+                                    <div class="d-flex flex-column gap-1">
+                                        @forelse($pendingLinks as $pl)
+                                            @if($pl['type'] === 'invoice')
+                                                <a href="{{ action([\App\Http\Controllers\SellController::class, 'show'], [$pl['id']]) }}" target="_blank" class="badge bg-info text-decoration-none">Invoice #{{ $pl['id'] }}</a>
+                                            @else
+                                                @if(!empty($pl['checkout']))
+                                                    <a href="{{ route('mpesa.logs', ['checkout_request_id' => $pl['checkout']]) }}" target="_blank" class="badge bg-warning text-decoration-none">Mpesa #{{ $pl['id'] }}</a>
+                                                @else
+                                                    <span class="badge bg-secondary">Mpesa #{{ $pl['id'] }}</span>
+                                                @endif
+                                            @endif
+                                        @empty
+                                            <span class="text-muted">-</span>
+                                        @endforelse
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-1">
                                     @if($subscription->status === 'active' || $subscription->status === 'expired')
                                         <form action="{{ route('admin.subscriptions.renew', $subscription) }}" method="POST" class="ajax-form d-inline">
                                             @csrf
@@ -234,14 +304,22 @@
                                         <span class="badge bg-secondary">{{ __('payment.no_actions') }}</span>
                                     @endif
                                     
-                                    <!-- View Details Button -->
-                                    <button type="button" class="btn btn-sm btn-info view-details" 
-                                            data-bs-toggle="modal" data-bs-target="#subscriptionDetailsModal"
-                                            data-subscription="{{ json_encode($subscription) }}"
-                                            data-user="{{ json_encode($subscription->user) }}"
-                                            data-business="{{ json_encode($subscription->user->business ?? null) }}">
+                    <!-- View Details Button -->
+                                    <a href="{{ route('admin.subscriptions.show', $subscription->id) }}" class="btn btn-sm btn-info" title="{{ __('payment.view_details') }}">
                                         <i class="fas fa-eye"></i>
-                                    </button>
+                                    </a>
+
+                                    <!-- Download Invoice & Statement -->
+                                        <a href="{{ route('subscription.invoice.download', $subscription->id) }}" class="btn btn-sm btn-outline-primary" target="_blank" title="Download Invoice">
+                                        <i class="fas fa-file-invoice-dollar"></i>
+                                    </a>
+                                        <a href="{{ route('subscription.statement.download', $subscription->id) }}" class="btn btn-sm btn-outline-secondary" target="_blank" title="Download Statement">
+                                        <i class="fas fa-file-alt"></i>
+                                    </a>
+                                        <!-- Quick download for a specific date range -->
+                                        <button type="button" class="btn btn-sm btn-outline-info btn-download-range" data-subscription-id="{{ $subscription->id }}" data-bs-toggle="modal" data-bs-target="#downloadRangeModal">
+                                            <i class="fas fa-calendar-alt"></i>
+                                        </button>
                                 </div>
                             </td>
                         </tr>
@@ -486,7 +564,7 @@
         width: 100%;
         height: 100%;
         background-color: rgba(0, 0, 0, 0.5);
-        display: none;
+        display: none !important; /* keep hidden by default */
         justify-content: center;
         align-items: center;
         z-index: 9999;
@@ -623,18 +701,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 5000);
     });
     
-    // Add loading overlay
-    const loadingOverlay = document.createElement('div');
-    loadingOverlay.className = 'loading-overlay';
-    loadingOverlay.innerHTML = `
-        <div class="loading-spinner">
-            <div class="spinner-border text-primary mb-3" role="status">
-                <span class="visually-hidden">Loading...</span>
+    // Add loading overlay (only if not present) and keep it hidden by default
+    let loadingOverlay = document.body.querySelector('.loading-overlay');
+    if (!loadingOverlay) {
+        loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'loading-overlay';
+        loadingOverlay.style.display = 'none';
+        loadingOverlay.innerHTML = `
+            <div class="loading-spinner">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <h6 class="fw-medium mb-0">Processing request...</h6>
             </div>
-            <h6 class="fw-medium mb-0">Processing request...</h6>
-        </div>
-    `;
-    document.body.appendChild(loadingOverlay);
+        `;
+        document.body.appendChild(loadingOverlay);
+    }
     
     // Global loading functions
     window.showLoading = function() {
@@ -646,7 +728,8 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     // Enhanced AJAX form handling
-    document.querySelectorAll('form[data-ajax="true"]').forEach(form => {
+    // Attach to both forms declared with data-ajax and legacy .ajax-form class
+    document.querySelectorAll('form[data-ajax="true"], form.ajax-form').forEach(form => {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -692,6 +775,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+    // Ensure any stray overlay is hidden on initial load
+    try { hideLoading(); } catch (e) { /* noop */ }
     
     // Toast notification function
     window.showToast = function(type, message) {
@@ -880,6 +965,34 @@ document.addEventListener("DOMContentLoaded", function () {
             alertDiv.remove();
         }, 5000);
     }
+
+    // Handle select all subscriptions
+    $('#selectAllSubscriptions').on('change', function() {
+        $('.subscription-checkbox').prop('checked', $(this).is(':checked'));
+    });
+
+    // Show download modal when clicking download range button
+    $('.btn-download-range').on('click', function() {
+        var selectedIds = $('.subscription-checkbox:checked').map(function() {
+            return $(this).val();
+        }).get();
+
+        if (selectedIds.length === 0) {
+            alert('{{ __("payment.please_select_subscriptions") }}');
+            return;
+        }
+
+        $('#downloadRangeModal').modal('show');
+    });
+
+    // Handle download range modal
+    $('#downloadRangeModal').on('show.bs.modal', function () {
+        var selectedIds = $('.subscription-checkbox:checked').map(function() {
+            return $(this).val();
+        }).get();
+        
+        $('#selectedSubscriptionIds').val(selectedIds.join(','));
+    });
 });
 </script>
 @endpush

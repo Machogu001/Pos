@@ -18,12 +18,16 @@ use App\utils\helpers;
 
 class AttendancesController extends Controller
 {
+    protected function getAuthUser($request)
+    {
+        return $request->user('api') ?? $request->user() ?? auth()->user();
+    }
 
     //----------- GET ALL  Attendance --------------\\
 
     public function index(Request $request)
     {
-        $this->authorizeForUser($request->user('api'), 'view', Attendance::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'view', Attendance::class);
         $role = Auth::user()->roles()->first();
         $view_records = Role::findOrFail($role->id)->inRole('record_view');
         // How many items do you want to display.
@@ -57,14 +61,27 @@ class AttendancesController extends Controller
                     });
             });
         });
+        if (!in_array(strtolower($dir ?? ''), ['asc', 'desc'])) {
+            $dir = 'desc';
+        }
+        $allowed = ['id', 'date', 'clock_in', 'clock_out', 'total_work', 'company_id', 'employee_id', 'created_at'];
+        if (empty($order) || !in_array($order, $allowed)) {
+            $order = 'id';
+        }
+
         $totalRows = $attendances->count();
-        if($perPage == "-1"){
+        if ($perPage == "-1") {
             $perPage = $totalRows;
         }
-        $attendances = $attendances->offset($offSet)
-            ->limit($perPage)
-            ->orderBy($order, $dir)
-            ->get();
+
+        if (is_numeric($perPage) && intval($perPage) > 0) {
+            $attendances = $attendances->offset($offSet)
+                ->limit(intval($perPage))
+                ->orderBy($order, $dir)
+                ->get();
+        } else {
+            $attendances = $attendances->orderBy($order, $dir)->get();
+        }
 
         foreach ($attendances as $attendance) {
 
@@ -92,7 +109,7 @@ class AttendancesController extends Controller
 
     public function create(Request $request)
     {
-        $this->authorizeForUser($request->user('api'), 'create', Attendance::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'create', Attendance::class);
 
         $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
         return response()->json([
@@ -105,7 +122,7 @@ class AttendancesController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizeForUser($request->user('api'), 'create', Attendance::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'create', Attendance::class);
 
         $this->validate($request, [
             'company_id'     => 'required',
@@ -218,7 +235,7 @@ class AttendancesController extends Controller
 
     public function edit(Request $request , $id)
     {
-        $this->authorizeForUser($request->user('api'), 'update', Attendance::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'update', Attendance::class);
 
         $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
         return response()->json([
@@ -231,7 +248,7 @@ class AttendancesController extends Controller
 
     public function update(Request $request, $id)
     {
-        $this->authorizeForUser($request->user('api'), 'update', Attendance::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'update', Attendance::class);
 
         $this->validate($request, [
             'company_id'      => 'required',
@@ -332,7 +349,7 @@ class AttendancesController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        $this->authorizeForUser($request->user('api'), 'delete', Attendance::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'delete', Attendance::class);
 
             Attendance::whereId($id)->update([
                 'deleted_at' => Carbon::now(),
@@ -347,7 +364,7 @@ class AttendancesController extends Controller
     public function delete_by_selection(Request $request)
     {
 
-        $this->authorizeForUser($request->user('api'), 'delete', Attendance::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'delete', Attendance::class);
 
         $selectedIds = $request->selectedIds;
         foreach ($selectedIds as $attendance_id) {

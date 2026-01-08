@@ -13,6 +13,10 @@ use DB;
 
 class EmployeeAccountController extends Controller
 {
+    protected function getAuthUser($request)
+    {
+        return $request->user('api') ?? $request->user() ?? auth()->user();
+    }
 
 
     public function index(Request $request)
@@ -24,7 +28,7 @@ class EmployeeAccountController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizeForUser($request->user('api'), 'create', Employee::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'create', Employee::class);
 
         $this->validate($request, [
             'bank_name'      => 'required|string|max:255',
@@ -48,7 +52,7 @@ class EmployeeAccountController extends Controller
 
     public function update(Request $request, $id)
     {
-        $this->authorizeForUser($request->user('api'), 'update', Employee::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'update', Employee::class);
 
         $this->validate($request, [
             'bank_name'      => 'required|string|max:255',
@@ -67,7 +71,7 @@ class EmployeeAccountController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        $this->authorizeForUser($request->user('api'), 'delete', Employee::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'delete', Employee::class);
 
         EmployeeAccount::whereId($id)->update([
             'deleted_at' => Carbon::now(),

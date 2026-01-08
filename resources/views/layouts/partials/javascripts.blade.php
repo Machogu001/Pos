@@ -22,6 +22,18 @@
 <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js?v=$asset_v"></script>
 <![endif]-->
 
+<script>
+    // Ensure CSRF meta exists before vendor scripts run so compiled JS can pick it up.
+    try {
+        if (!document.head.querySelector('meta[name="csrf-token"]')) {
+            var meta = document.createElement('meta');
+            meta.name = 'csrf-token';
+            meta.content = '{{ csrf_token() }}';
+            document.head.appendChild(meta);
+        }
+    } catch (e) { /* noop */ }
+</script>
+
 <script src="{{ asset('js/vendor.js?v=' . $asset_v) }}"></script>
 
 @if (file_exists(public_path('js/lang/' . session()->get('user.language', config('app.locale')) . '.js')))
@@ -57,6 +69,179 @@
     Dropzone.autoDiscover = false;
     moment.tz.setDefault('{{ Session::get('business.time_zone') }}');
     $(document).ready(function() {
+        // Header PWA install CTA: show when beforeinstallprompt fires and trigger prompt on click.
+        try {
+            var headerInstallBtn = document.getElementById('header-pwa-install-btn');
+
+            // Hide if already installed or dismissed
+            function headerInstallShouldHide() {
+                try {
+                    if (localStorage.getItem('pwa-installed') === '1' || localStorage.getItem('pwa-install-dismissed') === '1') return true;
+                } catch (e) { /* noop */ }
+                // Standalone check
+                try {
+                    if (('standalone' in window.navigator) && window.navigator.standalone) return true;
+                } catch (e) { /* noop */ }
+                return false;
+            }
+
+            if (headerInstallBtn) {
+                if (headerInstallShouldHide()) {
+                    headerInstallBtn.style.display = 'none';
+                }
+
+                // Listen for global beforeinstallprompt (may be fired by other partials too)
+                window.addEventListener('beforeinstallprompt', function (e) {
+                    try {
+                        console.debug('beforeinstallprompt event caught (header script)');
+                        e.preventDefault();
+                        window.__bremac_deferredPrompt = e;
+                        window.__bremac_pwa_status = window.__bremac_pwa_status || {};
+                        window.__bremac_pwa_status.beforeInstallPromptFired = true;
+                        // If user already installed/dismissed, don't show
+                        if (headerInstallShouldHide()) return;
+                        headerInstallBtn.style.display = '';
+                        headerInstallBtn.removeAttribute('aria-hidden');
+                    } catch (err) { console.warn('header beforeinstallprompt handler', err); }
+                });
+
+                // If appinstalled event fires, hide the button
+                window.addEventListener('appinstalled', function () {
+                    try { localStorage.setItem('pwa-installed', '1'); } catch (e) {}
+                    headerInstallBtn.style.display = 'none';
+                });
+
+                headerInstallBtn.addEventListener('click', async function () {
+                    try {
+                        var dp = window.__bremac_deferredPrompt;
+                        if (dp) {
+                            dp.prompt();
+                            var choice = await dp.userChoice;
+                            if (choice && choice.outcome === 'accepted') {
+                                try { localStorage.setItem('pwa-installed', '1'); } catch (e) {}
+                            } else {
+                                try { localStorage.setItem('pwa-install-dismissed', '1'); } catch (e) {}
+                            }
+                            window.__bremac_deferredPrompt = null;
+                            headerInstallBtn.style.display = 'none';
+                        } else {
+                            // Fallback: open the install modal if present
+                            var installModalBtn = document.getElementById('pwa-install-btn');
+                            if (installModalBtn) {
+                                try { installModalBtn.click(); } catch (e) { console.warn('could not open install modal', e); }
+                            }
+                        }
+                    } catch (e) { console.warn('header install click error', e); }
+                });
+                // If beforeinstallprompt never fired, attempt a gentle fallback after a short delay:
+                // if manifest + SW look good, show CTA so user can open the install modal.
+                setTimeout(async function () {
+                    try {
+                        if (window.__bremac_deferredPrompt) return; // native prompt available
+                        // Ensure we have probe data; if not, run a quick probe
+                        if (!window.__bremac_pwa_status) {
+                            // If install_prompt partial is present it exposes __bremac_probe_pwa
+                            if (typeof window.__bremac_probe_pwa === 'function') {
+                                await window.__bremac_probe_pwa();
+                            }
+                        }
+                        var status = window.__bremac_pwa_status || {};
+                        var canShow = (status.manifestOk && status.swRegistered) && !headerInstallShouldHide();
+                        console.debug('header CTA fallback check', { status: status, canShow: canShow });
+                        if (canShow) {
+                            // Show header CTA
+                            headerInstallBtn.style.display = '';
+                            headerInstallBtn.removeAttribute('aria-hidden');
+                            // Aggressive fallback: open our install modal programmatically so user sees install instructions
+                            try {
+                                if (typeof window.__bremac_show_install_modal === 'function') {
+                                    window.__bremac_show_install_modal();
+                                }
+                            } catch (e) { console.warn('could not show install modal programmatically', e); }
+                        }
+                    } catch (e) { console.warn('header CTA fallback error', e); }
+                }, 1800);
+            }
+        } catch (e) { console.warn('header install CTA init error', e); }
+        // Initialize view toggle button label and behavior
+        try {
+            var btn = document.getElementById('view-toggle-btn');
+            var lbl = document.getElementById('view-toggle-label');
+
+            function getPreferred() {
+                return localStorage.getItem('preferred_view') || 'desktop';
+            }
+
+            function updateLabel(p) {
+                if (!lbl) return;
+                lbl.textContent = (p === 'desktop') ? 'Desktop view' : 'Mobile view';
+            }
+
+            // Treat phones as <= 767px. Devices with width >= 1024 are considered desktop by layout, but
+            // we only show the toggle on phones (<=767px) and hide it when the user preference is 'desktop'.
+            function isPhone() {
+                try {
+                    return window.matchMedia && window.matchMedia('(max-width: 767px)').matches;
+                } catch (e) {
+                    return (window.innerWidth || document.documentElement.clientWidth) <= 767;
+                }
+            }
+
+            function updateViewToggleVisibility() {
+                if (!btn) return;
+                var pref = getPreferred();
+                // Show only on phones, and only when pref !== 'desktop'
+                if (!isPhone() || pref === 'desktop') {
+                    btn.style.display = 'none';
+                } else {
+                    btn.style.display = '';
+                }
+            }
+
+            // Debounced resize handler
+            var _resizeTimer;
+            window.addEventListener('resize', function () {
+                clearTimeout(_resizeTimer);
+                _resizeTimer = setTimeout(function () {
+                    updateViewToggleVisibility();
+                }, 150);
+            });
+
+            if (btn) {
+                var pref = getPreferred();
+                updateLabel(pref);
+                updateViewToggleVisibility();
+
+                btn.addEventListener('click', function () {
+                    var current = getPreferred();
+                    var next = current === 'desktop' ? 'mobile' : 'desktop';
+
+                    // Update label immediately
+                    updateLabel(next);
+
+                    // Update visibility before navigation so users see immediate effect
+                    try {
+                        localStorage.setItem('preferred_view', next);
+                    } catch (e) {
+                        console.warn('Could not set preferred_view in localStorage', e);
+                    }
+
+                    updateViewToggleVisibility();
+
+                    // Use the global setter if available, otherwise reload after small delay
+                    if (typeof window.setPreferredView === 'function') {
+                        try {
+                            window.setPreferredView(next);
+                        } catch (e) {
+                            // Fallback to reload
+                            setTimeout(function () { location.reload(); }, 120);
+                        }
+                    } else {
+                        setTimeout(function () { location.reload(); }, 120);
+                    }
+                });
+            }
+        } catch (e) { console.warn('view toggle init error', e); }
         $.ajaxSetup({
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -260,22 +445,7 @@
         });
 
         $('.side-bar-collapse').click(function() {
-            // On small screens keep the slide toggle behavior
-            if ($(window).width() < 1024) {
-                $('.side-bar').toggle('slow');
-                return;
-            }
-
-            // On larger screens, toggle a body class so CSS can adjust the layout
-            var $body = $('body');
-            $body.toggleClass('sidebar-collapse');
-
-            // Persist collapse state in localStorage so it remains across reloads
-            if ($body.hasClass('sidebar-collapse')) {
-                localStorage.setItem('upos_sidebar_collapse', 'true');
-            } else {
-                localStorage.removeItem('upos_sidebar_collapse');
-            }
+            $('.side-bar').toggle('slow');
         });
 
         $('.dt-buttons.btn-group').find('a.btn').removeClass('btn-default');

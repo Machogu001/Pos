@@ -3,6 +3,7 @@
 		<tr>
 			<td>
 				<p class="text-right">
+					@unless(!empty($receipt_details->is_subscription_invoice))
 					<small class="text-muted-imp">
 						@if(!empty($receipt_details->invoice_no_prefix))
 							{!! $receipt_details->invoice_no_prefix !!}
@@ -10,6 +11,7 @@
 
 						{{$receipt_details->invoice_no}}
 					</small>
+					@endunless
 				</p>
 			</td>
 		</tr>
@@ -34,6 +36,74 @@
 				@if(!empty($receipt_details->invoice_heading))
 					<h2 style="font-weight: bold; font-size: 35px !important; margin-top: 10px;">{!! $receipt_details->invoice_heading !!}</h2>
 				@endif
+
+				{{-- Subscription invoice block: bordered, column layout separated from header/footer --}}
+				@if(!empty($receipt_details->is_subscription_invoice))
+						@php
+						// Prefer admin dashboard values first (set via AdminSetting), then invoice/business values, then sensible defaults.
+						$company_name = $receipt_details->admin_company_name ?? $receipt_details->display_name ?? $receipt_details->business_name ?? 'BREMAC CONSULTANT LTD';
+						$company_phone = $receipt_details->admin_contact_phone ?? $receipt_details->contact ?? $receipt_details->business_phone ?? $receipt_details->mobile ?? '';
+						$company_email = $receipt_details->admin_contact_email ?? $receipt_details->business_email ?? $receipt_details->email ?? '';
+						// Company PIN could be stored in admin invoice_pin, company_pin or tax_info1/tax_info2 depending on layout
+						$company_pin = $receipt_details->admin_invoice_pin ?? $receipt_details->company_pin ?? $receipt_details->tax_info1 ?? $receipt_details->tax_info2 ?? '';
+						$company_logo = $receipt_details->admin_company_logo ?? $receipt_details->logo ?? $receipt_details->invoice_logo ?? '';
+					@endphp
+
+					<div style="margin-top:12px; text-align:left;">
+						<!-- Header: Company logo + Company name + contact (classic elegant layout) -->
+						<div style="width:100%; border-bottom:2px solid #222; padding-bottom:8px; margin-bottom:12px;">
+							<div style="float:left; width:20%;">
+								@if(!empty($company_logo))
+									<img src="{{ $company_logo }}" alt="logo" style="max-height:60px; max-width:100%; display:block;">
+								@else
+									{{-- placeholder or nothing when no logo configured --}}
+								@endif
+							</div>
+							<div style="float:left; width:50%; padding-left:12px;">
+								<h2 style="margin:0; font-size:20px; font-weight:700;">{{ $company_name }}</h2>
+								<div style="font-size:12px; color:#333; margin-top:6px;">Subscription Invoice</div>
+								@if(!empty($company_pin))<div style="font-size:12px; color:#333; margin-top:4px;"><strong>Company PIN:</strong> {{ $company_pin }}</div>@endif
+							</div>
+							<div style="float:right; width:28%; text-align:right; font-size:12px;">
+								<div><strong>Invoice No:</strong> {{ $receipt_details->invoice_no }}</div>
+								@if(!empty($company_phone))<div><strong>Mobile:</strong> {{ $company_phone }}</div>@endif
+								@if(!empty($company_email))<div>{{ $company_email }}</div>@endif
+							</div>
+							<div style="clear:both"></div>
+						</div>
+
+						<!-- Main bordered content table -->
+						<table style="width:100%; border:1px solid #ddd; border-collapse:collapse; font-size:13px;">
+							<tbody>
+								<tr>
+									<td style="border-bottom:1px solid #eee; padding:8px; width:50%; vertical-align:top;">
+										<div><strong>Company PIN:</strong> {{ $company_pin ?? '' }}</div>
+										<div style="margin-top:6px;"><strong>Invoice for:</strong> {{ $receipt_details->subscription_plan_name }} &nbsp; <strong>Amount (ex VAT):</strong> {{ $receipt_details->subscription_amount_exc }}</div>
+									</td>
+									<td style="border-bottom:1px solid #eee; padding:8px; width:50%; vertical-align:top;">
+										<div><strong>VAT:</strong> <strong>VAT Amount:</strong> {{ $receipt_details->subscription_vat_amount }}</div>
+										<div style="margin-top:6px;"><strong>Total (incl. VAT):</strong> {{ $receipt_details->subscription_total }}</div>
+									</td>
+								</tr>
+								<tr>
+									<td style="border-bottom:1px solid #eee; padding:8px; vertical-align:top;">
+										<div><strong>Subscriber:</strong> {{ $receipt_details->subscriber }}</div>
+										<div style="margin-top:6px;"><strong>Period:</strong> {{ $receipt_details->subscription_period ?? '' }}</div>
+									</td>
+									<td style="border-bottom:1px solid #eee; padding:8px; vertical-align:top;">
+										<div><strong>Subscription ID:</strong> {{ $receipt_details->subscription_id ?? '' }} &nbsp; <strong>Status:</strong> {{ $receipt_details->subscription_status ?? '' }}</div>
+										<div style="margin-top:6px;"><small>Generated on {{ $receipt_details->generated_on ?? '' }}</small></div>
+									</td>
+								</tr>
+								<tr>
+									<td colspan="2" style="padding:8px;">
+										<em>Please use your account dashboard to pay or use the payment link sent to your email.</em>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				@endif
 			</td>
 		</tr>
 			@if(!empty($receipt_details->letter_head))
@@ -51,13 +121,6 @@
 
 	<div class="col-md-6 invoice-col width-50">
 
-		<div class="text-right font-23">
-			@if(!empty($receipt_details->invoice_no_prefix))
-				<span class="pull-left">{!! $receipt_details->invoice_no_prefix !!}</span>
-			@endif
-
-			{{$receipt_details->invoice_no}}
-		</div>
 
 		<!-- Total Due-->
 		@if(!empty($receipt_details->total_due) && !empty($receipt_details->total_due_label))
@@ -375,6 +438,7 @@
 </div>
 <div class="row  mt-5">
 	<div class="col-xs-12">
+		@if(empty($receipt_details->is_subscription_invoice))
 		<table class="table table-bordered table-no-top-cell-border table-slim mb-12">
 			<thead>
 				<tr style="background-color: #357ca5 !important; color: white !important; font-size: 20px !important" class="table-no-side-cell-border table-no-top-cell-border text-center">
@@ -567,11 +631,76 @@
 
 			</tbody>
 		</table>
-	</div>
-</div>
+		@else
+		<!-- Compact product summary for subscription invoices -->
+		<table class="table table-bordered table-no-top-cell-border table-slim mb-12">
+			<thead>
+				<tr style="background-color: #357ca5 !important; color: white !important; font-size: 18px !important" class="text-left">
+					<td style="padding:8px;">Description</td>
+					<td style="padding:8px; text-align:center; width:15%;">Quantity</td>
+					<td style="padding:8px; text-align:right; width:20%;">Unit Price</td>
+					<td style="padding:8px; text-align:right; width:20%;">Subtotal</td>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td style="padding:8px;">Subscription: {{ $receipt_details->subscription_plan_name }}</td>
+					<td style="padding:8px; text-align:center;">1</td>
+					<td style="padding:8px; text-align:right;">{{ $receipt_details->subscription_amount_exc }}</td>
+					<td style="padding:8px; text-align:right;">{{ $receipt_details->subscription_amount_exc }}</td>
+				</tr>
+			</tbody>
+				</table>
+				@endif
+			</div>
+
+			<!-- Totals row: place immediately after the products table and float to the right -->
+			<div style="width:100%; clear:both; margin-top:10px;">
+				<div style="width:35%; float:right;">
+					<table class="table-no-side-cell-border table-no-top-cell-border width-100 table-slim">
+						<tbody>
+							<tr>
+								<td style="width:50%">{!! $receipt_details->subtotal_label ?? 'Subtotal:' !!}</td>
+								<td class="text-right">{{ $receipt_details->subtotal_exc_tax ?? $receipt_details->subscription_amount_exc }}</td>
+							</tr>
+
+							@if(!empty($receipt_details->taxes))
+								@foreach($receipt_details->taxes as $k => $v)
+									<tr>
+										<td>{{ $k }}</td>
+										<td class="text-right">(+) {{ $v }}</td>
+									</tr>
+								@endforeach
+							@else
+								@if( !empty($receipt_details->tax) )
+									<tr>
+										<td>{!! $receipt_details->tax_label !!}</td>
+										<td class="text-right">(+) {{ $receipt_details->tax }}</td>
+									</tr>
+								@endif
+							@endif
+
+							@if( $receipt_details->round_off_amount > 0)
+								<tr>
+									<td>{!! $receipt_details->round_off_label !!}</td>
+									<td class="text-right">{{ $receipt_details->round_off }}</td>
+								</tr>
+							@endif
+
+							<tr>
+								<th style="background-color: #357ca5 !important; color: white !important" class="font-23 padding-10">{!! $receipt_details->total_label !!}</th>
+								<td class="text-right font-23 padding-10" style="background-color: #357ca5 !important; color: white !important">{{ $receipt_details->total }}</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+				<div style="clear:both"></div>
+			</div>
+
+<div style="clear: both;"></div>
 
 <div class="row invoice-info " style="page-break-inside: avoid !important">
-	<div class="col-md-6 invoice-col width-50">
+	<div class="col-md-12 invoice-col">
 		<table class="table table-slim">
 			@if(!empty($receipt_details->payments))
 				@foreach($receipt_details->payments as $payment)
@@ -584,177 +713,6 @@
 			@endif
 		</table>
 		<b class="pull-left">{{__('lang_v1.authorized_signatory')}}</b>
-	</div>
-
-	<div class="col-md-6 invoice-col width-50">
-		<table class="table-no-side-cell-border table-no-top-cell-border width-100 table-slim">
-			<tbody>
-				@if(!empty($receipt_details->total_quantity_label))
-					<tr>
-						<td style="width:50%">
-							{!! $receipt_details->total_quantity_label !!}
-						</td>
-						<td class="text-right">
-							{{$receipt_details->total_quantity}}
-						</td>
-					</tr>
-				@endif
-				@if(!empty($receipt_details->total_items_label))
-					<tr>
-						<td style="width:50%">
-							{!! $receipt_details->total_items_label !!}
-						</td>
-						<td class="text-right">
-							{{$receipt_details->total_items}}
-						</td>
-					</tr>
-				@endif
-				<tr >
-					<td style="width:50%">
-						{!! $receipt_details->subtotal_label !!}
-					</td>
-					<td class="text-right">
-						{{$receipt_details->subtotal_exc_tax}}
-					</td>
-				</tr>
-				
-				<!-- Shipping Charges -->
-				@if(!empty($receipt_details->shipping_charges))
-					<tr >
-						<td style="width:50%">
-							{!! $receipt_details->shipping_charges_label !!}
-						</td>
-						<td class="text-right">
-							{{$receipt_details->shipping_charges}}
-						</td>
-					</tr>
-				@endif
-
-				@if(!empty($receipt_details->packing_charge))
-					<tr >
-						<td style="width:50%">
-							{!! $receipt_details->packing_charge_label !!}
-						</td>
-						<td class="text-right">
-							{{$receipt_details->packing_charge}}
-						</td>
-					</tr>
-				@endif
-
-				<!-- Tax -->
-				@if(!empty($receipt_details->taxes))
-					@foreach($receipt_details->taxes as $k => $v)
-						<tr >
-							<td>{{$k}}</td>
-							<td class="text-right">(+) {{$v}}</td>
-						</tr>
-					@endforeach
-				@endif
-
-				<!-- Discount -->
-				@if( !empty($receipt_details->discount) )
-					<tr >
-						<td>
-							{!! $receipt_details->discount_label !!}
-						</td>
-
-						<td class="text-right">
-							(-) {{$receipt_details->discount}}
-						</td>
-					</tr>
-				@endif
-
-				@if( !empty($receipt_details->total_line_discount) )
-					<tr >
-						<td>
-							{!! $receipt_details->line_discount_label !!}
-						</td>
-
-						<td class="text-right">
-							(-) {{$receipt_details->total_line_discount}}
-						</td>
-					</tr>
-				@endif
-
-				@if( !empty($receipt_details->additional_expenses) )
-					@foreach($receipt_details->additional_expenses as $key => $val)
-						<tr >
-							<td>
-								{{$key}}:
-							</td>
-
-							<td class="text-right">
-								(+) {{$val}}
-							</td>
-						</tr>
-					@endforeach
-				@endif
-
-				@if( !empty($receipt_details->reward_point_label) )
-					<tr >
-						<td>
-							{!! $receipt_details->reward_point_label !!}
-						</td>
-
-						<td class="text-right">
-							(-) {{$receipt_details->reward_point_amount}}
-						</td>
-					</tr>
-				@endif
-
-				@if(!empty($receipt_details->group_tax_details))
-					@foreach($receipt_details->group_tax_details as $key => $value)
-						<tr >
-							<td>
-								{!! $key !!}
-							</td>
-							<td class="text-right">
-								(+) {{$value}}
-							</td>
-						</tr>
-					@endforeach
-				@else
-					@if( !empty($receipt_details->tax) )
-						<tr >
-							<td>
-								{!! $receipt_details->tax_label !!}
-							</td>
-							<td class="text-right">
-								(+) {{$receipt_details->tax}}
-							</td>
-						</tr>
-					@endif
-				@endif
-
-				@if( $receipt_details->round_off_amount > 0)
-					<tr >
-						<td>
-							{!! $receipt_details->round_off_label !!}
-						</td>
-						<td class="text-right">
-							{{$receipt_details->round_off}}
-						</td>
-					</tr>
-				@endif
-				
-				<!-- Total -->
-				<tr>
-					<th style="background-color: #357ca5 !important; color: white !important" class="font-23 padding-10">
-						{!! $receipt_details->total_label !!}
-					</th>
-					<td class="text-right font-23 padding-10" style="background-color: #357ca5 !important; color: white !important">
-						{{$receipt_details->total}}
-					</td>
-				</tr>
-				@if(!empty($receipt_details->total_in_words))
-				<tr>
-					<td colspan="2" class="text-right">
-						<small>({{$receipt_details->total_in_words}})</small>
-					</td>
-				</tr>
-				@endif
-			</tbody>
-        </table>
 	</div>
 </div>
 
@@ -777,7 +735,7 @@
     @endif
 </div>
 
-@if(!empty($receipt_details->additional_notes))
+@if(!empty($receipt_details->additional_notes) && empty($receipt_details->is_subscription_invoice))
 	<div class="row">
 		<div class="col-xs-12">
 			<br>

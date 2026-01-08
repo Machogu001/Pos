@@ -4,26 +4,28 @@
 
 @section('content')
 <div class="container-fluid px-4 py-3">
-    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
-        <!-- Card Header with Action Button -->
-        <div class="card-header bg-white py-3 border-bottom">
-            <div class="d-flex align-items-center justify-content-between">
+    <div class="card border-0 shadow-lg rounded-3 overflow-hidden">
+        <!-- Modern Gradient Header (matching Home Dashboard) -->
+        <div class="card-header tw-bg-gradient-to-r tw-from-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-800 tw-to-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-900 py-4 border-0">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                 <div class="d-flex align-items-center">
-                    <i class="fas fa-clipboard-list fs-4 text-primary me-3"></i>
+                    <div class="tw-bg-white/20 tw-p-3 tw-rounded-lg me-3">
+                        <i class="fas fa-clipboard-list fs-3 tw-text-white"></i>
+                    </div>
                     <div>
-                        <h3 class="mb-0 fw-semibold">@lang('stocktake.stocktakes')</h3>
-                        <p class="text-muted mb-0 small">@lang('stocktake.manage_stocktakes_description')</p>
+                        <h3 class="mb-1 fw-bold tw-text-white">@lang('stocktake.stocktakes')</h3>
+                        <p class="tw-text-white/90 mb-0 small">@lang('stocktake.manage_stocktakes_description')</p>
                     </div>
                 </div>
-                <div class="d-flex align-items-center">
-                    <a href="{{ route('stocktakes.history') }}" class="btn btn-info me-2">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <a href="{{ route('stocktakes.history') }}" class="btn btn-light shadow-sm">
                         <i class="fas fa-history me-2"></i> @lang('stocktake.history')
                     </a>
-                    <a href="{{ route('stocktakes.variance_report') }}" class="btn btn-warning me-2">
+                    <a href="{{ route('stocktakes.variance_report') }}" class="btn btn-warning shadow-sm">
                         <i class="fas fa-chart-bar me-2"></i> @lang('stocktake.variance_report')
                     </a>
                     @can('stocktake.create')
-                    <a href="{{ route('stocktakes.create') }}" class="btn btn-primary">
+                    <a href="{{ route('stocktakes.create') }}" class="btn btn-success shadow-sm">
                         <i class="fas fa-plus-circle me-2"></i> @lang('stocktake.add_stocktake')
                     </a>
                     @endcan
@@ -32,89 +34,115 @@
         </div>
 
         <!-- Card Body -->
-        <div class="card-body">
+        <div class="card-body bg-light">
             <!-- Status Messages -->
             @if(session('status'))
-                <div class="alert alert-{{ session('status.success') ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+                <div class="alert alert-{{ session('status.success') ? 'success' : 'danger' }} alert-dismissible fade show shadow-sm border-0" role="alert">
                     <i class="fas fa-{{ session('status.success') ? 'check-circle' : 'exclamation-triangle' }} me-2"></i>
                     {!! session('status.msg') !!}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             @endif
 
-            <!-- Quick Stats Cards -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="card bg-primary text-white">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center">
-                                <div class="flex-grow-1">
-                                    <h4 class="mb-0" id="total-stocktakes">-</h4>
-                                    <small class="opacity-75">@lang('stocktake.total_stocktakes')</small>
+            <!-- Modern Stats Cards (Matching Home Dashboard) -->
+            <div class="row mb-4 g-3">
+                <div class="col-lg-3 col-md-6">
+                    <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm tw-rounded-xl hover:tw-shadow-md hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 h-100">
+                        <div class="tw-p-4 sm:tw-p-5">
+                            <div class="tw-flex tw-items-center tw-gap-4">
+                                <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-blue-100 tw-text-blue-600">
+                                    <i class="fas fa-clipboard-list fa-lg"></i>
                                 </div>
-                                <i class="fas fa-clipboard-list fa-2x opacity-50"></i>
+                                <div class="tw-flex-1 tw-min-w-0">
+                                    <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">
+                                        @lang('stocktake.total_stocktakes')
+                                    </p>
+                                    <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-font-bold tw-tracking-tight" id="total-stocktakes">
+                                        -
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card bg-warning text-dark">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center">
-                                <div class="flex-grow-1">
-                                    <h4 class="mb-0" id="in-progress-stocktakes">-</h4>
-                                    <small class="opacity-75">@lang('stocktake.in_progress')</small>
+                <div class="col-lg-3 col-md-6">
+                    <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm tw-rounded-xl hover:tw-shadow-md hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 h-100">
+                        <div class="tw-p-4 sm:tw-p-5">
+                            <div class="tw-flex tw-items-center tw-gap-4">
+                                <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-amber-100 tw-text-amber-600">
+                                    <i class="fas fa-sync-alt fa-lg fa-spin"></i>
                                 </div>
-                                <i class="fas fa-sync-alt fa-2x opacity-50"></i>
+                                <div class="tw-flex-1 tw-min-w-0">
+                                    <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">
+                                        @lang('stocktake.in_progress')
+                                    </p>
+                                    <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-font-bold tw-tracking-tight" id="in-progress-stocktakes">
+                                        -
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card bg-success text-white">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center">
-                                <div class="flex-grow-1">
-                                    <h4 class="mb-0" id="completed-stocktakes">-</h4>
-                                    <small class="opacity-75">@lang('stocktake.completed')</small>
+                <div class="col-lg-3 col-md-6">
+                    <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm tw-rounded-xl hover:tw-shadow-md hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 h-100">
+                        <div class="tw-p-4 sm:tw-p-5">
+                            <div class="tw-flex tw-items-center tw-gap-4">
+                                <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-green-100 tw-text-green-600">
+                                    <i class="fas fa-check-circle fa-lg"></i>
                                 </div>
-                                <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                                <div class="tw-flex-1 tw-min-w-0">
+                                    <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">
+                                        @lang('stocktake.completed')
+                                    </p>
+                                    <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-font-bold tw-tracking-tight" id="completed-stocktakes">
+                                        -
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card bg-danger text-white">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center">
-                                <div class="flex-grow-1">
-                                    <h4 class="mb-0" id="cancelled-stocktakes">-</h4>
-                                    <small class="opacity-75">@lang('stocktake.cancelled')</small>
+                <div class="col-lg-3 col-md-6">
+                    <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm tw-rounded-xl hover:tw-shadow-md hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 h-100">
+                        <div class="tw-p-4 sm:tw-p-5">
+                            <div class="tw-flex tw-items-center tw-gap-4">
+                                <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-red-100 tw-text-red-600">
+                                    <i class="fas fa-times-circle fa-lg"></i>
                                 </div>
-                                <i class="fas fa-times-circle fa-2x opacity-50"></i>
+                                <div class="tw-flex-1 tw-min-w-0">
+                                    <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">
+                                        @lang('stocktake.cancelled')
+                                    </p>
+                                    <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-font-bold tw-tracking-tight" id="cancelled-stocktakes">
+                                        -
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Filters Section -->
+            <!-- Modern Filters Section -->
             <div class="row mb-4">
                 <div class="col-12">
-                    <div class="card border-0 bg-light">
+                    <div class="card border-0 shadow-sm">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="card-title mb-0">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="card-title mb-0 fw-bold">
                                     <i class="fas fa-filter text-primary me-2"></i>@lang('stocktake.filters')
                                 </h5>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" id="toggle-advanced-filters">
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="toggle-advanced-filters">
                                     <i class="fas fa-sliders-h me-1"></i> @lang('stocktake.advanced_filters')
                                 </button>
                             </div>
                             <form id="stocktake_filter_form">
-                                <div class="row g-3 align-items-end">
-                                    <div class="col-md-3">
-                                        <label class="form-label fw-semibold">@lang('business.location')</label>
+                                <div class="row g-3">
+                                    <div class="col-lg-3 col-md-6">
+                                        <label class="form-label fw-semibold text-secondary mb-2">
+                                            <i class="fas fa-map-marker-alt me-1 text-primary"></i>@lang('business.location')
+                                        </label>
                                         <select class="form-control select2" id="location_filter" name="location_id">
                                             <option value="">@lang('stocktake.all')</option>
                                             @foreach($businessLocations as $key => $value)
@@ -122,8 +150,10 @@
                                             @endforeach
                                         </select>
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label fw-semibold">@lang('stocktake.status')</label>
+                                    <div class="col-lg-3 col-md-6">
+                                        <label class="form-label fw-semibold text-secondary mb-2">
+                                            <i class="fas fa-info-circle me-1 text-primary"></i>@lang('stocktake.status')
+                                        </label>
                                         <select class="form-control select2" id="status_filter" name="status">
                                             <option value="">@lang('stocktake.all')</option>
                                             <option value="in_progress">@lang('stocktake.in_progress')</option>
@@ -131,8 +161,10 @@
                                             <option value="cancelled">@lang('stocktake.cancelled')</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label fw-semibold">@lang('stocktake.date_range')</label>
+                                    <div class="col-lg-3 col-md-6">
+                                        <label class="form-label fw-semibold text-secondary mb-2">
+                                            <i class="fas fa-calendar-alt me-1 text-primary"></i>@lang('stocktake.date_range')
+                                        </label>
                                         <select class="form-control select2" id="date_range_filter" name="date_range">
                                             <option value="">@lang('stocktake.all')</option>
                                             <option value="today">@lang('stocktake.today')</option>
@@ -144,19 +176,25 @@
                                             <option value="custom">@lang('stocktake.custom_range')</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label fw-semibold">@lang('stocktake.price_basis')</label>
+                                    <div class="col-lg-3 col-md-6">
+                                        <label class="form-label fw-semibold text-secondary mb-2">
+                                            <i class="fas fa-dollar-sign me-1 text-primary"></i>@lang('stocktake.price_basis')
+                                        </label>
                                         <select class="form-control" id="price_basis_filter" name="price_basis">
                                             <option value="selling">@lang('stocktake.price_basis_selling')</option>
                                             <option value="purchase">@lang('stocktake.price_basis_purchase')</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-3">
-                                        <div class="d-flex gap-2">
-                                            <button type="button" class="btn btn-primary flex-fill" id="apply_filters">
-                                                <i class="fas fa-filter me-2"></i> @lang('stocktake.apply')
+                                </div>
+                                
+                                <!-- Action Buttons -->
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <div class="d-flex gap-2 justify-content-end">
+                                            <button type="button" class="btn btn-primary px-4 shadow-sm" id="apply_filters">
+                                                <i class="fas fa-check me-2"></i> @lang('stocktake.apply')
                                             </button>
-                                            <button type="button" class="btn btn-outline-secondary" id="reset_filters">
+                                            <button type="button" class="btn btn-outline-secondary px-4" id="reset_filters">
                                                 <i class="fas fa-redo me-2"></i> @lang('stocktake.reset')
                                             </button>
                                         </div>
@@ -164,17 +202,23 @@
                                 </div>
                                 
                                 <!-- Advanced Filters -->
-                                <div class="row g-3 align-items-end mt-3" id="advanced-filters" style="display: none;">
+                                <div class="row g-3 mt-2 p-3 tw-bg-gray-50 tw-rounded-lg" id="advanced-filters" style="display: none;">
                                     <div class="col-md-4">
-                                        <label class="form-label fw-semibold">@lang('stocktake.custom_from_date')</label>
+                                        <label class="form-label fw-semibold text-secondary mb-2">
+                                            <i class="fas fa-calendar-day me-1 text-primary"></i>@lang('stocktake.custom_from_date')
+                                        </label>
                                         <input type="date" class="form-control" id="from_date_filter" name="from_date">
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label fw-semibold">@lang('stocktake.custom_to_date')</label>
+                                        <label class="form-label fw-semibold text-secondary mb-2">
+                                            <i class="fas fa-calendar-check me-1 text-primary"></i>@lang('stocktake.custom_to_date')
+                                        </label>
                                         <input type="date" class="form-control" id="to_date_filter" name="to_date">
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label fw-semibold">@lang('stocktake.search_reference')</label>
+                                        <label class="form-label fw-semibold text-secondary mb-2">
+                                            <i class="fas fa-search me-1 text-primary"></i>@lang('stocktake.search_reference')
+                                        </label>
                                         <input type="text" class="form-control" id="search_filter" name="search" placeholder="@lang('stocktake.enter_reference')">
                                     </div>
                                 </div>
@@ -184,23 +228,24 @@
                 </div>
             </div>
 
-            <!-- DataTable -->
+            <!-- Modern DataTable -->
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white py-3 border-bottom">
-        <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <h5 class="mb-0 fw-bold text-dark">
                 <i class="fas fa-table me-2 text-primary"></i>
                 @lang('stocktake.stocktake_list')
             </h5>
-            <div class="d-flex align-items-center">
-                <div class="form-check form-switch me-3">
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" id="auto-refresh-toggle" checked>
-                    <label class="form-check-label small" for="auto-refresh-toggle">
-                        @lang('stocktake.auto_refresh')
+                    <label class="form-check-label small text-dark" for="auto-refresh-toggle">
+                        <i class="fas fa-sync-alt me-1"></i> @lang('stocktake.auto_refresh')
                     </label>
                 </div>
-                <span class="badge bg-light text-dark small" id="last-updated">
-                    @lang('stocktake.last_updated'): <span id="last-updated-time">-</span>
+                <span class="badge bg-light text-dark shadow-sm px-3 py-2 border" id="last-updated">
+                    <i class="fas fa-clock me-1 text-primary"></i>
+                    @lang('stocktake.last_updated'): <span id="last-updated-time" class="fw-bold">-</span>
                 </span>
             </div>
         </div>
@@ -208,17 +253,17 @@
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0" id="stocktakes-table" style="width:100%">
-                <thead class="table-light">
+                <thead class="tw-bg-gray-50">
                     <tr>
-                        <th class="ps-4">@lang('stocktake.reference_no')</th>
-                        <th>@lang('stocktake.location')</th>
-                        <th>@lang('stocktake.status')</th>
-                        <th class="text-center">@lang('stocktake.product_count')</th>
-                            <th class="text-end">@lang('stocktake.value_amount')</th>
-                        <th>@lang('stocktake.started_at')</th>
-                        <th>@lang('stocktake.completed_at')</th>
-                        <th>@lang('stocktake.adjustment_ref')</th>
-                        <th class="text-center">@lang('stocktake.action')</th>
+                        <th class="ps-4 fw-semibold">@lang('stocktake.reference_no')</th>
+                        <th class="fw-semibold">@lang('stocktake.location')</th>
+                        <th class="fw-semibold">@lang('stocktake.status')</th>
+                        <th class="text-center fw-semibold">@lang('stocktake.product_count')</th>
+                        <th class="text-end fw-semibold">@lang('stocktake.value_amount')</th>
+                        <th class="fw-semibold">@lang('stocktake.started_at')</th>
+                        <th class="fw-semibold">@lang('stocktake.completed_at')</th>
+                        <th class="fw-semibold">@lang('stocktake.adjustment_ref')</th>
+                        <th class="text-center fw-semibold">@lang('stocktake.action')</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1142,4 +1187,102 @@ $(document).ready(function() {
     });
 });
 </script>
+
+<style>
+    /* Modern Card Hover Effects */
+    .hover-lift {
+        transition: all 0.3s ease;
+    }
+    
+    .hover-lift:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+    }
+
+    /* Smooth transitions for stats */
+    #total-stocktakes, #in-progress-stocktakes, 
+    #completed-stocktakes, #cancelled-stocktakes {
+        transition: all 0.5s ease;
+    }
+
+    /* Table row hover effect */
+    #stocktakes-table tbody tr {
+        transition: all 0.2s ease;
+    }
+
+    #stocktakes-table tbody tr:hover {
+        background-color: #f8f9fa;
+        transform: scale(1.005);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Status badge styles */
+    .badge {
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    }
+
+    /* Filter card animation */
+    #advanced-filters {
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            max-height: 0;
+        }
+        to {
+            opacity: 1;
+            max-height: 200px;
+        }
+    }
+
+    /* Button hover effects */
+    .btn {
+        transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    /* DataTables button styling */
+    .dt-buttons .btn {
+        margin: 0 2px;
+        border-radius: 6px;
+    }
+
+    /* Action button group spacing */
+    .btn-group .btn {
+        margin: 0 2px;
+    }
+
+    /* Spinning icon animation */
+    @keyframes gentleSpin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .fa-spin {
+        animation: gentleSpin 3s linear infinite;
+    }
+
+    /* Alert animations */
+    .alert {
+        animation: slideInDown 0.3s ease-out;
+    }
+
+    @keyframes slideInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
 @endsection

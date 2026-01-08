@@ -6,6 +6,7 @@
     <form action="{{ route('hrm.office_shifts.update', $office_shift->id) }}" method="POST">
         {{ csrf_field() }}
         {{ method_field('PUT') }}
+        @include('hrm::partials.hrm_form_toolbar')
 
         <div class="form-group">
             <label for="name">Name</label>
@@ -38,7 +39,7 @@
         </div>
         <!-- Additional days can be added similarly -->
 
-        <button class="btn btn-success mt-3">Update</button>
+        
     </form>
 </div>
 @endsection

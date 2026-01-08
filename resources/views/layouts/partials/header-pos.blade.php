@@ -218,10 +218,10 @@
         <div class="tw-w-full md:tw-w-2/3 !tw-p-0 tw-flex tw-items-center tw-justify-between tw-gap-4 tw-flex-col md:tw-flex-row tw-hidden md:tw-flex"
             id="pos_header_more_options">
             <a href="{{ $go_back_url }}" title="{{ __('lang_v1.go_back') }}"
-                class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 pull-right">
-                <strong class="!tw-m-3">
+                class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 pull-right tw-overflow-hidden tw-px-2">
+                <strong class="tw-flex tw-items-center tw-gap-2">
                     <i class="fa fa-backward fa-lg fa fa-backward tw-fa-lg tw-text-[#009EE4] !tw-text-sm"></i>
-                    <span class="tw-inline md:tw-hidden">{{ __('lang_v1.go_back') }}</span>
+                    <span class="tw-inline md:tw-hidden tw-whitespace-nowrap">{{ __('lang_v1.go_back') }}</span>
                 </strong>
             </a>
 
@@ -235,11 +235,11 @@
 
             @if (!isset($pos_settings['hide_recent_trans']) || $pos_settings['hide_recent_trans'] == 0)
                 <button type="button"
-                    class="md:tw-hidden tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 pull-right"
+                    class="md:tw-hidden tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 pull-right tw-overflow-hidden tw-px-2"
                     data-toggle="modal" data-target="#recent_transactions_modal" id="recent-transactions">
-                        <strong class="!tw-m-3">
+                        <strong class="tw-flex tw-items-center tw-gap-2">
                             <i class="fa fa-clock fa-lg tw-text-[#646EE4] !tw-text-sm"></i>
-                            <span class="tw-inline md:tw-hidden">{{ __('lang_v1.recent_transactions') }}</span>
+                            <span class="tw-inline md:tw-hidden tw-whitespace-nowrap">{{ __('lang_v1.recent_transactions') }}</span>
                         </strong>
                 </button>
             @endif
@@ -247,24 +247,24 @@
             @if (!empty($pos_settings['inline_service_staff']))
                 <button type="button" id="show_service_staff_availability"
                     title="{{ __('lang_v1.service_staff_availability') }}"
-                    class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 pull-right"
+                    class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 pull-right tw-overflow-hidden tw-px-2"
                     data-container=".view_modal"
                     data-href="{{ action([\App\Http\Controllers\SellPosController::class, 'showServiceStaffAvailibility']) }}">
-                    <strong class="!tw-m-3">
+                    <strong class="tw-flex tw-items-center tw-gap-2">
                         <i class="fa fa-users fa-lg tw-text-[#646EE4] !tw-text-sm"></i>
-                        <span class="tw-inline md:tw-hidden">{{ __('lang_v1.service_staff_availability') }}</span>
+                        <span class="tw-inline md:tw-hidden tw-whitespace-nowrap">{{ __('lang_v1.service_staff_availability') }}</span>
                     </strong>
                 </button>
             @endif
 
             @can('close_cash_register')
                 <button type="button" id="close_register" title="{{ __('cash_register.close_register') }}"
-                    class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 btn-modal pull-right"
+                    class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 btn-modal pull-right tw-overflow-hidden tw-px-2"
                     data-container=".close_register_modal"
                     data-href="{{ action([\App\Http\Controllers\CashRegisterController::class, 'getCloseRegister']) }}">
-                    <strong class="!tw-m-3">
+                    <strong class="tw-flex tw-items-center tw-gap-2">
                         <i class="fa fa-window-close fa-lg tw-text-[#EF4B53] !tw-text-sm"></i>
-                        <span class="tw-inline md:tw-hidden">{{ __('cash_register.close_register') }}</span>
+                        <span class="tw-inline md:tw-hidden tw-whitespace-nowrap">{{ __('cash_register.close_register') }}</span>
                     </strong>
                 </button>
             @endcan
@@ -273,71 +273,71 @@
                 !empty($pos_settings['inline_service_staff']) ||
                     (in_array('tables', $enabled_modules) || in_array('service_staff', $enabled_modules)))
                 <button type="button"
-                    class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 pull-right popover-default"
+                    class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 pull-right popover-default tw-overflow-hidden tw-px-2"
                     id="service_staff_replacement" title="{{ __('restaurant.service_staff_replacement') }}"
                     data-toggle="popover" data-trigger="click"
                     data-content='<div class="m-8"><input type="text" class="form-control" placeholder="@lang('sale.invoice_no')" id="send_for_sell_service_staff_invoice_no"></div><div class="w-100 text-center"><button type="button" class="tw-dw-btn tw-dw-btn-xs tw-dw-btn-outline tw-dw-btn-error" id="send_for_sercice_staff_replacement">@lang('lang_v1.send')</button></div>'
                     data-html="true" data-placement="bottom">
 
-                    <strong class="!tw-m-3">
+                    <strong class="tw-flex tw-items-center tw-gap-2">
                         <i class="fa fa-user-plus fa-lg tw-text-[#646EE4] !tw-text-sm"></i>
-                        <span class="tw-inline md:tw-hidden">{{ __('restaurant.service_staff_replacement') }}</span>
+                        <span class="tw-inline md:tw-hidden tw-whitespace-nowrap">{{ __('restaurant.service_staff_replacement') }}</span>
                     </strong>
                 </button>
             @endif
 
             @can('view_cash_register')
                 <button type="button" id="register_details" title="{{ __('cash_register.register_details') }}"
-                    class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 btn-modal pull-right"
+                    class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 btn-modal pull-right tw-overflow-hidden tw-px-2"
                     data-container=".register_details_modal"
                     data-href="{{ action([\App\Http\Controllers\CashRegisterController::class, 'getRegisterDetails']) }}">
 
-                    <strong class="!tw-m-3">
+                    <strong class="tw-flex tw-items-center tw-gap-2">
                         <i class="fa fa-briefcase tw-fa-lg tw-text-[#00935F] !tw-text-sm" aria-hidden="true"></i>
-                        <span class="tw-inline md:tw-hidden">{{ __('cash_register.register_details') }}</span>
+                        <span class="tw-inline md:tw-hidden tw-whitespace-nowrap">{{ __('cash_register.register_details') }}</span>
                     </strong>
                 </button>
             @endcan
 
             <button title="@lang('lang_v1.calculator')" id="btnCalculator" type="button"
-                class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 pull-right popover-default"
+                class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 pull-right popover-default tw-overflow-hidden tw-px-2"
                 data-toggle="popover" data-trigger="click" data-content='@include('layouts.partials.calculator')' data-html="true"
                 data-placement="bottom">
 
 
-                <strong class="!tw-m-3">
+                <strong class="tw-flex tw-items-center tw-gap-2">
                     <i class="fa fa-calculator fa-lg tw-text-[#00935F] !tw-text-sm" aria-hidden="true"></i>
-                    <span class="tw-inline md:tw-hidden">{{ __('lang_v1.calculator') }}</span>
+                    <span class="tw-inline md:tw-hidden tw-whitespace-nowrap">{{ __('lang_v1.calculator') }}</span>
                 </strong>
             </button>
 
             <button type="button"
-                class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 pull-right pull-right popover-default"
+                class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 pull-right pull-right popover-default tw-overflow-hidden tw-px-2"
                 id="return_sale" title="@lang('lang_v1.sell_return')" data-toggle="popover" data-trigger="click"
                 data-content='<div class="m-8"><input type="text" class="form-control" placeholder="@lang('sale.invoice_no')" id="send_for_sell_return_invoice_no"></div><div class="w-100 text-center"><button type="button" class="tw-dw-btn tw-dw-btn-error tw-text-white tw-dw-btn-sm" id="send_for_sell_return">@lang('lang_v1.send')</button></div>'
                 data-html="true" data-placement="bottom">
-                <strong class="!tw-m-3">
+                <strong class="tw-flex tw-items-center tw-gap-2">
                     <i class="fas fa-undo fa-lg tw-text-[#EF4B53] !tw-text-sm"></i>
-                    <span class="tw-inline md:tw-hidden">{{ __('lang_v1.sell_return') }}</span>
+                    <span class="tw-inline md:tw-hidden tw-whitespace-nowrap">{{ __('lang_v1.sell_return') }}</span>
                 </strong>
             </button>
 
 
             <button type="button" title="{{ __('lang_v1.full_screen') }}"
-                class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 pull-right"
+                class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 pull-right tw-overflow-hidden tw-px-2"
                 id="full_screen">
-                <strong class="!tw-m-3">
+                <strong class="tw-flex tw-items-center tw-gap-2">
                     <i class="fa fa-window-maximize fa-lg tw-text-[#646EE4] !tw-text-sm"></i>
-                    <span class="tw-inline md:tw-hidden">Full Screen</span>
+                    <span class="tw-inline md:tw-hidden tw-whitespace-nowrap">Full Screen</span>
                 </strong>
             </button>
 
             <button type="button" id="view_suspended_sales" title="{{ __('lang_v1.view_suspended_sales') }}"
-                class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 btn-modal pull-right"
+                class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-md md:tw-w-8 tw-w-auto tw-h-8 tw-text-gray-600 btn-modal pull-right tw-overflow-hidden tw-px-2"
                 data-container=".view_modal" data-href="{{ $view_suspended_sell_url }}">
-                <strong class="!tw-m-3">
+                <strong class="tw-flex tw-items-center tw-gap-2">
                     <i class="fa fa-pause-circle fa-lg tw-text-[#A5ADBB] !tw-text-sm"></i>
-                    <span class="tw-inline md:tw-hidden">{{ __('lang_v1.view_suspended_sales') }}</span>
+                    <span class="tw-inline md:tw-hidden tw-whitespace-nowrap">{{ __('lang_v1.view_suspended_sales') }}</span>
                 </strong>
             </button>
 
