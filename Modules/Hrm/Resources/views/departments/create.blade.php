@@ -5,6 +5,7 @@
     <h2>Create Department</h2>
     <form method="POST" action="{{ route('hrm.departments.store') }}">
         @csrf
+        @include('hrm::partials.hrm_form_toolbar')
 
         <div class="form-group mb-3">
             <label for="department">Department</label>
@@ -57,8 +58,7 @@
             <div class="text-danger small">{{ $message }}</div>
         @enderror
 
-        <button class="btn btn-primary">Save</button>
-        <a href="{{ route('hrm.departments.index') }}" class="btn btn-secondary ms-2">Cancel</a>
+        
     </form>
 </div>
 @endsection

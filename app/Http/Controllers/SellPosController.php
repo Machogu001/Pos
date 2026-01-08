@@ -2208,12 +2208,18 @@ class SellPosController extends Controller
                     'msg' => trans('messages.something_went_wrong'),
                 ];
 
-                $business_id = $request->session()->get('user.business_id');
+                $user = auth()->user();
+                $isAdmin = $user->role === 'admin';
+                
+                // Build query based on user role
+                $query = Transaction::where('id', $transaction_id)->with(['location']);
+                
+                if (!$isAdmin) {
+                    $business_id = $request->session()->get('user.business_id');
+                    $query->where('business_id', $business_id);
+                }
 
-                $transaction = Transaction::where('business_id', $business_id)
-                    ->where('id', $transaction_id)
-                    ->with(['location'])
-                    ->first();
+                $transaction = $query->first();
 
                 if (empty($transaction)) {
                     return $output;
@@ -3279,7 +3285,20 @@ class SellPosController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $business_id = request()->session()->get('user.business_id');
+        $user = auth()->user();
+        $isAdmin = $user->role === 'admin';
+        
+        // Verify access: Admin can view all, regular users only their own business transactions
+        if (!$isAdmin) {
+            $business_id = request()->session()->get('user.business_id');
+            $transaction = Transaction::where('id', $id)->first();
+            
+            if (!$transaction || $transaction->business_id != $business_id) {
+                abort(403, 'Unauthorized action.');
+            }
+        }
+
+        $business_id = $isAdmin ? Transaction::find($id)->business_id : request()->session()->get('user.business_id');
 
         $receipt_contents = $this->transactionUtil->getPdfContentsForGivenTransaction($business_id, $id);
         $receipt_details = $receipt_contents['receipt_details'];

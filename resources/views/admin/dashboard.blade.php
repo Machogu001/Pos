@@ -3,23 +3,25 @@
 @section('title', __('payment.admin_dashboard'))
 
 @section('content')
-<div class="container-fluid px-4 py-4">
+<div class="dashboard-wrapper" style="max-width: 100%; overflow-x: hidden; padding: 1.5rem; margin: 0 auto;">
 
-    <!-- Header Banner -->
-    <div class="bg-gradient-primary text-white py-4 mb-4 rounded-3">
-        <div class="container-fluid px-0">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h1 class="h3 mb-1 fw-bold">
+    <!-- Header Banner (match Home dashboard styling) -->
+    <div class="tw-mb-5 tw-rounded-xl tw-bg-gradient-to-r tw-from-primary-800 tw-to-primary-900 tw-text-white">
+        <div class="tw-p-5">
+            <div class="sm:tw-flex sm:tw-items-center sm:tw-justify-between sm:tw-gap-6">
+                <div>
+                    <h1 class="tw-text-2xl md:tw-text-3xl tw-font-semibold tw-tracking-tight tw-text-white tw-mb-1">
                         <i class="fas fa-tachometer-alt me-2"></i> {{ __('payment.admin_dashboard') }}
                     </h1>
-                    <p class="mb-0 opacity-75">Overview of users, subscriptions and recent activity</p>
+                    <p class="tw-mb-0 tw-text-white/80">{{ __('payment.overview_text') }}</p>
                 </div>
-                <div class="col-md-4 text-md-end">
-                    <a href="{{ route('admin.subscriptions') }}" class="btn btn-light btn-sm shadow-sm">
+                <div class="tw-mt-3 sm:tw-mt-0 tw-flex tw-flex-wrap tw-gap-2 sm:tw-justify-end">
+                    <a href="{{ route('admin.subscriptions') }}"
+                       class="tw-inline-flex tw-items-center tw-justify-center tw-gap-1 tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-text-gray-900 tw-transition-all tw-duration-200 tw-bg-white tw-rounded-lg hover:tw-bg-primary-50">
                         <i class="fas fa-receipt me-1"></i> {{ __('payment.view_subscriptions') }}
                     </a>
-                    <a href="{{ route('admin.users') }}" class="btn btn-light btn-sm shadow-sm ms-2">
+                    <a href="{{ route('admin.users') }}"
+                       class="tw-inline-flex tw-items-center tw-justify-center tw-gap-1 tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-text-gray-900 tw-transition-all tw-duration-200 tw-bg-white tw-rounded-lg hover:tw-bg-primary-50">
                         <i class="fas fa-users me-1"></i> {{ __('payment.view_users') }}
                     </a>
                 </div>
@@ -27,84 +29,155 @@
         </div>
     </div>
 
-    <!-- Statistics Cards -->
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-md-3">
-            <div class="card shadow-sm border-0 rounded-3 bg-gradient-primary text-white stats-card">
-                <div class="card-body p-3 d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1 fw-normal">{{ __('payment.total_businesses') }}</h6>
-                            <h2 class="mb-0 fw-bold">{{ $totalBusinesses ?? $totalUsers ?? 0 }}</h2>
+    <!-- Subscription Enforcement Toggle -->
+    <div class="tw-mb-5">
+        <div class="tw-bg-white tw-shadow-sm tw-rounded-xl tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-flex-col sm:tw-flex-row tw-items-start sm:tw-items-center tw-justify-between tw-gap-4">
+                    <div class="tw-flex tw-items-start tw-gap-4">
+                        <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 {{ ($settings->subscription_required ?? false) ? 'tw-bg-green-100 tw-text-green-600' : 'tw-bg-gray-100 tw-text-gray-400' }}">
+                            <i class="fas fa-shield-alt"></i>
                         </div>
-                        <div class="flex-shrink-0 text-end ms-3">
-                            <i class="fas fa-building fa-2x opacity-50"></i>
+                        <div>
+                            <h5 class="tw-text-lg tw-font-semibold tw-text-gray-900 tw-mb-1">Subscription Enforcement</h5>
+                            <p class="tw-text-sm tw-text-gray-600 tw-mb-0">
+                                @if($settings->subscription_required ?? false)
+                                    <span class="tw-text-green-600 tw-font-medium">Enabled:</span> Users must have an active subscription to use the system
+                                @else
+                                    <span class="tw-text-gray-500 tw-font-medium">Disabled:</span> Users can use the system without a subscription
+                                @endif
+                            </p>
                         </div>
+                    </div>
+                    <form action="{{ route('admin.settings.toggle-subscription-requirement') }}" method="POST" id="subscription-toggle-form">
+                        @csrf
+                        <button type="submit" class="btn {{ ($settings->subscription_required ?? false) ? 'btn-danger' : 'btn-success' }}">
+                            <span class="btn-text">
+                                <i class="fas fa-{{ ($settings->subscription_required ?? false) ? 'times' : 'check' }} me-1"></i>
+                                {{ ($settings->subscription_required ?? false) ? 'Disable' : 'Enable' }} Subscription
+                            </span>
+                            <span class="btn-loading d-none">
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                            </span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards (match Home dashboard styling) -->
+    <div class="tw-grid tw-grid-cols-1 tw-gap-4 sm:tw-grid-cols-2 xl:tw-grid-cols-4 sm:tw-gap-5 tw-mb-5">
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-sky-100 tw-text-sky-500">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">{{ __('payment.total_businesses') }}</p>
+                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
+                            {{ $totalBusinesses ?? $totalUsers ?? 0 }}
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="card shadow-sm border-0 rounded-3 bg-gradient-success text-white stats-card">
-                <div class="card-body p-3 d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1 fw-normal">{{ __('payment.active') }}</h6>
-                            <h2 class="mb-0 fw-bold">{{ $activeUsers ?? 0 }}</h2>
-                        </div>
-                        <div class="flex-shrink-0 text-end ms-3">
-                            <i class="fas fa-check-circle fa-2x opacity-50"></i>
-                        </div>
+
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-green-100 tw-text-green-500">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">{{ __('payment.active') }}</p>
+                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
+                            {{ $activeUsers ?? 0 }}
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="card shadow-sm border-0 rounded-3 bg-gradient-warning text-dark stats-card">
-                <div class="card-body p-3 d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1 fw-normal">{{ __('payment.inactive') }}</h6>
-                            <h2 class="mb-0 fw-bold">{{ $inactiveUsers ?? 0 }}</h2>
-                        </div>
-                        <div class="flex-shrink-0 text-end ms-3">
-                            <i class="fas fa-pause-circle fa-2x opacity-50"></i>
-                        </div>
+
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-yellow-100 tw-text-yellow-500">
+                        <i class="fas fa-pause-circle"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">{{ __('payment.inactive') }}</p>
+                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
+                            {{ $inactiveUsers ?? 0 }}
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="card shadow-sm border-0 rounded-3 bg-gradient-danger text-white stats-card">
-                <div class="card-body p-3 d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1 fw-normal">{{ __('payment.terminated') }}</h6>
-                            <h2 class="mb-0 fw-bold">{{ $terminatedUsers ?? 0 }}</h2>
-                        </div>
-                        <div class="flex-shrink-0 text-end ms-3">
-                            <i class="fas fa-times-circle fa-2x opacity-50"></i>
-                        </div>
+
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-red-100 tw-text-red-500">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">{{ __('payment.terminated') }}</p>
+                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
+                            {{ $terminatedUsers ?? 0 }}
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row g-4">
-        <!-- Users Management -->
-        <div class="col-md-6">
-            <div class="card shadow-sm border-0 rounded-3 h-100">
-                <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 fw-semibold">
-                        <i class="fas fa-users me-2 text-primary"></i>
+    <!-- User Management & Subscriptions -->
+    <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-4 sm:tw-gap-5 tw-mb-5">
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('userManagementModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-purple-100 tw-text-purple-600">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.user_management') }}</p>
+                        <p class="tw-mt-0.5 tw-text-sm tw-text-gray-600">{{ __('payment.manage_users_businesses') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('subscriptionsModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-green-100 tw-text-green-600">
+                        <i class="fas fa-receipt"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.recent_subscriptions') }}</p>
+                        <p class="tw-mt-0.5 tw-text-sm tw-text-gray-600">{{ __('payment.view_manage_subscriptions') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Management Modal -->
+    <div class="modal fade" id="userManagementModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-users me-2"></i>
                         {{ __('payment.user_management') }}
                     </h5>
-                    <a href="{{ route('admin.users') }}" class="btn btn-sm btn-outline-primary">
-                        {{ __('payment.view_all') }} <i class="fas fa-arrow-right ms-1"></i>
-                    </a>
+                    <button type="button" class="close text-white" data-dismiss="modal" onclick="$('#userManagementModal').modal('hide')">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
-                <div class="card-body p-0">
+                <div class="modal-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
@@ -112,19 +185,16 @@
                                     <th class="ps-3">{{ __('payment.business') }}</th>
                                     <th>{{ __('payment.business_status') }}</th>
                                     <th>{{ __('payment.user') }}</th>
-                                    <th>{{ __('payment.phone') }}</th> <!-- Phone from M-Pesa payments -->
+                                    <th>{{ __('payment.phone') }}</th>
                                     <th>{{ __('payment.user_status') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse(($recentUsers ?? collect())->take($settings->recent_limit ?? 5) as $user)
                                     <tr data-has-phone="{{ !empty($user->phone) ? 'true' : 'false' }}">
-                                        <!-- Business -->
                                         <td class="ps-3">
-                                            <span class="fw-medium">{{ optional($user->business)->name ?? 'N/A' }}</span>
+                                            <span class="fw-medium">{{ optional($user->business)->name ?? optional($user->business)->tax_number ?? 'N/A' }}</span>
                                         </td>
-
-                                        <!-- Business Status -->
                                         <td>
                                             @if($user->business)
                                             <form action="{{ route('admin.business.update-status', $user->business) }}" 
@@ -146,18 +216,12 @@
                                                 <span class="text-muted">N/A</span>
                                             @endif
                                         </td>
-                                            
-                                        <!-- User -->
                                         <td>
                                             <span class="fw-medium">{{ $user->username ?? $user->name ?? 'N/A' }}</span>
                                         </td>
-
-                                        <!-- Phone Number from M-Pesa Payment -->
                                         <td>
                                             <span class="fw-medium">{{ $user->phone ?? 'N/A' }}</span>
                                         </td>
-
-                                        <!-- User Status -->
                                         <td>
                                             <form action="{{ route('admin.users.update-status', $user) }}" 
                                                   method="POST" class="ajax-form user-status-form d-flex align-items-center">
@@ -189,22 +253,30 @@
                         </table>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Recent Subscriptions -->
-        <div class="col-md-6">
-            <div class="card shadow-sm border-0 rounded-3 h-100">
-                <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 fw-semibold">
-                        <i class="fas fa-receipt me-2 text-success"></i>
-                        {{ __('payment.recent_subscriptions') }}
-                    </h5>
-                    <a href="{{ route('admin.subscriptions') }}" class="btn btn-sm btn-outline-primary">
+                <div class="modal-footer">
+                    <a href="{{ route('admin.users') }}" class="btn btn-primary">
                         {{ __('payment.view_all') }} <i class="fas fa-arrow-right ms-1"></i>
                     </a>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="$('#userManagementModal').modal('hide')">{{ __('payment.close') }}</button>
                 </div>
-                <div class="card-body p-0">
+            </div>
+        </div>
+    </div>
+
+    <!-- Subscriptions Modal -->
+    <div class="modal fade" id="subscriptionsModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-receipt me-2"></i>
+                        {{ __('payment.recent_subscriptions') }}
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" onclick="$('#subscriptionsModal').modal('hide')">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
@@ -224,7 +296,7 @@
                                             <span class="fw-medium">{{ $subscription->user->username ?? ($subscription->user->name ?? 'N/A') }}</span>
                                         </td>
                                         <td>
-                                            <span class="fw-medium">{{ optional($subscription->user->business)->name ?? 'N/A' }}</span>
+                                            <span class="fw-medium">{{ optional($subscription->user->business)->name ?? optional($subscription->user->business)->tax_number ?? 'N/A' }}</span>
                                         </td>
                                         <td>
                                             <span class="fw-medium">{{ $subscription->plan_name }}</span>
@@ -272,173 +344,109 @@
                         </table>
                     </div>
                 </div>
+                <div class="modal-footer">
+                    <a href="{{ route('admin.subscriptions') }}" class="btn btn-success">
+                        {{ __('payment.view_all') }} <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="$('#subscriptionsModal').modal('hide')">{{ __('payment.close') }}</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Subscription Settings -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0 rounded-3 border-start border-4 border-info">
-                <div class="card-header bg-white py-3 border-bottom">
-                    <h5 class="mb-0 fw-semibold">
-                        <i class="fas fa-cog me-2 text-info"></i>
-                        {{ __('payment.subscription_settings') }}
-                    </h5>
+    <!-- Subscription Settings & Pricing -->
+    <div class="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 lg:tw-grid-cols-3 xl:tw-grid-cols-5 tw-gap-4 sm:tw-gap-5 tw-mb-5">
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('registrationModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-blue-100 tw-text-blue-600">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.registration') }}</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.configure_plans_pricing') }}</p>
+                    </div>
                 </div>
-                <div class="card-body">
-              <form id="settingsForm" action="{{ route('admin.settings.update') }}" method="POST" class="settings-form" 
-                          onsubmit="
-                            event.preventDefault();
-                            console.log('🚀 Settings form submitted inline');
-                            
-                            const form = this;
-                            const formAction = '{{ route('admin.settings.update') }}';
-                            const formData = new FormData(form);
-                            const csrfToken = document.querySelector('meta[name=&quot;csrf-token&quot;]')?.content || '{{ csrf_token() }}';
-                            
-                            // Show loading state
-                            const submitBtn = form.querySelector('button[type=&quot;submit&quot;]');
-                            const btnText = submitBtn.querySelector('.btn-text');
-                            const btnLoading = submitBtn.querySelector('.btn-loading');
-                            
-                            if (btnText && btnLoading) {
-                                btnText.classList.add('d-none');
-                                btnLoading.classList.remove('d-none');
-                            }
-                            submitBtn.disabled = true;
-                            
-                            fetch(formAction, {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRF-TOKEN': csrfToken,
-                                    'Accept': 'application/json',
-                                    'X-Requested-With': 'XMLHttpRequest'
-                                },
-                                body: formData
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                console.log('✅ Settings response:', data);
-                                if (data.success) {
-                                    // Create floating toast notification
-                                    const createToast = (type, message) => {
-                                        const toast = document.createElement('div');
-                                        toast.className = 'floating-toast floating-toast-' + type;
-                                        toast.innerHTML = `
-                                            <div class='toast-content'>
-                                                <i class='fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2'></i>
-                                                <span>${message}</span>
-                                                <button type='button' class='toast-close' onclick='this.parentElement.parentElement.remove()'>
-                                                    <i class='fas fa-times'></i>
-                                                </button>
-                                            </div>
-                                        `;
-                                        
-                                        // Add styles if not already present
-                                        if (!document.getElementById('floating-toast-styles')) {
-                                            const style = document.createElement('style');
-                                            style.id = 'floating-toast-styles';
-                                            style.textContent = `
-                                                .floating-toast {
-                                                    position: fixed;
-                                                    top: 1rem;
-                                                    right: 1rem;
-                                                    z-index: 9999;
-                                                    min-width: 300px;
-                                                    max-width: 500px;
-                                                    border-radius: 0.75rem;
-                                                    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-                                                    transform: translateX(100%);
-                                                    transition: all 0.3s ease;
-                                                    opacity: 0;
-                                                }
-                                                .floating-toast.show {
-                                                    transform: translateX(0);
-                                                    opacity: 1;
-                                                }
-                                                .floating-toast-success {
-                                                    background-color: #10b981;
-                                                    color: white;
-                                                }
-                                                .floating-toast-error {
-                                                    background-color: #ef4444;
-                                                    color: white;
-                                                }
-                                                .toast-content {
-                                                    padding: 1rem 1.25rem;
-                                                    display: flex;
-                                                    align-items: center;
-                                                    font-weight: 500;
-                                                    font-size: 0.95rem;
-                                                }
-                                                .toast-close {
-                                                    background: none;
-                                                    border: none;
-                                                    color: inherit;
-                                                    margin-left: auto;
-                                                    padding: 0.25rem;
-                                                    cursor: pointer;
-                                                    opacity: 0.7;
-                                                    transition: opacity 0.2s ease;
-                                                }
-                                                .toast-close:hover {
-                                                    opacity: 1;
-                                                }
-                                            `;
-                                            document.head.appendChild(style);
-                                        }
-                                        
-                                        document.body.appendChild(toast);
-                                        setTimeout(() => toast.classList.add('show'), 10);
-                                        setTimeout(() => {
-                                            toast.classList.remove('show');
-                                            setTimeout(() => toast.remove(), 300);
-                                        }, 4000);
-                                    };
-                                    
-                                    createToast('success', data.message || 'Settings updated successfully!');
-                                    
-                                    // Play success audio
-                                    try {
-                                        const successAudio = document.getElementById('success-audio');
-                                        if (successAudio) {
-                                            successAudio.play().catch(error => {
-                                                console.log('🔇 Audio playback may be blocked by browser policy');
-                                            });
-                                        }
-                                    } catch (error) {
-                                        console.log('🔇 Audio not available');
-                                    }
-                                } else {
-                                    createToast('error', data.message || 'Failed to update settings');
-                                }
-                            })
-                            .catch(error => {
-                                console.error('❌ Error:', error);
-                                // Create error toast for network errors too
-                                const createToast = (type, message) => {
-                                    const toast = document.createElement('div');
-                                    toast.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:9999;background:#ef4444;color:white;padding:1rem;border-radius:0.5rem;box-shadow:0 4px 6px rgba(0,0,0,0.1);';
-                                    toast.innerHTML = '<i class=&quot;fas fa-exclamation-triangle me-2&quot;></i>' + message;
-                                    document.body.appendChild(toast);
-                                    setTimeout(() => toast.remove(), 4000);
-                                };
-                                createToast('error', 'An error occurred while updating settings');
-                            })
-                            .finally(() => {
-                                if (btnText && btnLoading) {
-                                    btnText.classList.remove('d-none');
-                                    btnLoading.classList.add('d-none');
-                                }
-                                submitBtn.disabled = false;
-                            });
-                            
-                            return false;
-                          ">
+            </div>
+        </div>
+
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('payrollModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-green-100 tw-text-green-600">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.payroll') }}</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.manage_payroll_tax_bands') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('invoicingModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-yellow-100 tw-text-yellow-600">
+                        <i class="fas fa-file-invoice"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.invoicing') }}</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.configure_invoice_settings') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('systemModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-cyan-100 tw-text-cyan-600">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.system') }}</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.configure_auto_renewal_system') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('companyModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-red-100 tw-text-red-600">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.company_info') }}</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.manage_company_branding') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Registration Modal -->
+    <div class="modal fade" id="registrationModal" tabindex="-1" aria-labelledby="registrationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="registrationModalLabel">
+                        <i class="fas fa-user-plus me-2"></i>Registration Settings
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+              <form id="registrationForm" action="{{ route('admin.settings.update') }}" method="POST" class="settings-form" 
+                          onsubmit="return handleModalFormSubmit(event, this, 'registrationModal');">
                         @csrf
-                        <input type="hidden" name="form_action" value="{{ route('admin.settings.update') }}">
-                        <div class="row mb-3">
+                        <!-- Hidden fields for required settings not in this modal -->
+                        <input type="hidden" name="grace_period_days" value="{{ $settings?->grace_period_days ?? 7 }}">
+                        <input type="hidden" name="recent_limit" value="{{ $settings?->recent_limit ?? 5 }}">
+                <div class="modal-body">
+                                                <div class="row g-3 mb-3">
                             <div class="col-md-4">
                                 <label class="form-label fw-medium">{{ __('payment.monthly_price') }}</label>
                                 <div class="input-group">
@@ -470,34 +478,70 @@
                                     <input type="number" step="0.01" min="0" max="10000" class="form-control" name="registration_price"
                                         value="{{ $settings?->registration_price ?? 5 }}" aria-describedby="registrationPriceHelp">
                                 </div>
-                                <small id="registrationPriceHelp" class="text-muted">Price charged during business registration. Set to 0 to make registration free. Max Ksh 10,000.</small>
+                                <small id="registrationPriceHelp" class="text-muted">{{ __('payment.registration_price_help') }}</small>
                                 <div class="mt-2">
-                                    <button id="previewRegistrationEmailBtn" type="button" class="btn btn-sm btn-outline-secondary">Preview Registration Email</button>
+                                    <button id="previewRegistrationEmailBtn" type="button" class="btn btn-sm btn-outline-secondary">{{ __('payment.preview_registration_email') }}</button>
                                 </div>
                             </div>
                         </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary px-4">
+                        <span class="btn-text">{{ __('payment.update_settings') }}</span>
+                        <span class="btn-loading d-none">
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                        </span>
+                    </button>
+                </div>
+              </form>
+            </div>
+        </div>
+    </div>
 
-                        <h5 class="mt-3">Payroll Defaults</h5>
-                        <div class="row mb-3">
+    <!-- Payroll Modal -->
+    <div class="modal fade" id="payrollModal" tabindex="-1" aria-labelledby="payrollModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="payrollModalLabel">
+                        <i class="fas fa-money-bill-wave me-2"></i>Payroll Settings
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+              <form action="{{ route('admin.settings.update') }}" method="POST" class="settings-form" 
+                          onsubmit="return handleModalFormSubmit(event, this, 'payrollModal');">
+                        @csrf
+                        <!-- Hidden fields for required settings not in this modal -->
+                        <input type="hidden" name="monthly_price" value="{{ $settings?->monthly_price ?? 0 }}">
+                        <input type="hidden" name="quarterly_price" value="{{ $settings?->quarterly_price ?? 0 }}">
+                        <input type="hidden" name="yearly_price" value="{{ $settings?->yearly_price ?? 0 }}">
+                        <input type="hidden" name="grace_period_days" value="{{ $settings?->grace_period_days ?? 7 }}">
+                        <input type="hidden" name="recent_limit" value="{{ $settings?->recent_limit ?? 5 }}">
+                <div class="modal-body">
+                        <h6 class="fw-semibold mb-3">{{ __('payment.payroll_defaults') }}</h6>
+                        <div class="row g-3 mb-4">
                             <div class="col-md-3">
-                                <label class="form-label fw-medium">NSSF percent (fraction)</label>
+                                <label class="form-label fw-medium">{{ __('payment.nssf_percent') }}</label>
                                 <input type="number" step="0.00001" class="form-control" name="payroll_nssf_percent" value="{{ $settings?->payroll_nssf_percent ?? 0.0048 }}">
-                                <small class="text-muted">e.g. 0.0048 for 0.48%</small>
+                                <small class="text-muted">{{ __('payment.nssf_example', ['example' => '0.0048']) }}</small>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label fw-medium">SHIF percent (fraction)</label>
+                                <label class="form-label fw-medium">{{ __('payment.shif_percent') }}</label>
                                 <input type="number" step="0.00001" class="form-control" name="payroll_shif_percent" value="{{ $settings?->payroll_shif_percent ?? 0.0275 }}">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label fw-medium">Housing percent (fraction)</label>
+                                <label class="form-label fw-medium">{{ __('payment.housing_percent') }}</label>
                                 <input type="number" step="0.00001" class="form-control" name="payroll_housing_percent" value="{{ $settings?->payroll_housing_percent ?? 0.015 }}">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label fw-medium">Tax percent (fraction)</label>
-                                <input type="number" step="0.00001" class="form-control" name="payroll_tax_percent" value="{{ $settings?->payroll_tax_percent ?? 0.245 }}">
+                                <label class="form-label fw-medium">{{ __('payment.tax_percent') }}</label>
+                                <input type="number" step="0.00001" class="form-control" name="payroll_tax_percent" value="{{ $settings?->payroll_tax_percent ?? 0.0245 }}">
                             </div>
                         </div>
-                        <div class="row mb-3">
+                        <div class="row g-3 mb-4">
                             <div class="col-md-4">
                                 <label class="form-label fw-medium">Personal relief (amount)</label>
                                 <div class="input-group">
@@ -507,23 +551,22 @@
                             </div>
                         </div>
 
-                        <div class="row mb-3">
+                        <h6 class="fw-semibold mb-3">{{ __('payment.payroll_tax_bands') }}</h6>
+                        <div class="row g-3 mb-3">
                             <div class="col-12">
-                                <label class="form-label fw-medium">Payroll tax bands</label>
                                 <div id="bandEditor" class="mb-2">
                                     <div class="card border-1 shadow-sm">
                                         <div class="card-body p-3">
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <div>
-                                                    <strong>Payroll Tax Bands</strong>
-                                                    <div class="small text-muted">Define progressive bands. Leave Upper empty for the final open band.</div>
+                                                    <div class="small text-muted">{{ __('payment.bands_description') }}</div>
                                                 </div>
                                                 <div class="btn-group">
                                                     <button type="button" id="addBand" class="btn btn-sm btn-primary">
-                                                        <i class="fas fa-plus me-1"></i> Add band
+                                                        <i class="fas fa-plus me-1"></i> {{ __('payment.add_band') }}
                                                     </button>
                                                     <button type="button" id="loadExampleBands" class="btn btn-sm btn-outline-secondary">
-                                                        <i class="fas fa-list me-1"></i> Load example
+                                                        <i class="fas fa-list me-1"></i> {{ __('payment.load_example') }}
                                                     </button>
                                                 </div>
                                             </div>
@@ -532,9 +575,9 @@
                                                 <table class="table table-sm table-borderless align-middle" id="bandsTable">
                                                     <thead>
                                                         <tr class="text-muted small">
-                                                            <th style="width:55%">Upper (Ksh — leave empty for last band)</th>
-                                                            <th style="width:30%">Rate (fraction, e.g. 0.1)</th>
-                                                            <th style="width:15%" class="text-end">Actions</th>
+                                                            <th style="width:55%">{{ __('payment.upper_column') }}</th>
+                                                            <th style="width:30%">{{ __('payment.rate_column') }}</th>
+                                                            <th style="width:15%" class="text-end">{{ __('payment.bands_table_actions') }}</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody></tbody>
@@ -542,7 +585,7 @@
                                             </div>
 
                                             <div class="mt-2 d-flex justify-content-between align-items-center">
-                                                <small class="text-muted">Tip: specify bands in increasing order; final band upper should be empty.</small>
+                                                <small class="text-muted">{{ __('payment.bands_tip') }}</small>
                                                 <div id="bandsError" class="text-danger small" style="display:none;"></div>
                                             </div>
                                         </div>
@@ -551,8 +594,116 @@
                                 <input type="hidden" name="payroll_tax_bands" id="payroll_tax_bands" value="{{ $settings?->payroll_tax_bands ?? '' }}">
                             </div>
                         </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-success px-4">
+                        <span class="btn-text">{{ __('payment.update_settings') }}</span>
+                        <span class="btn-loading d-none">
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                        </span>
+                    </button>
+                </div>
+              </form>
+            </div>
+        </div>
+    </div>
 
-                        <div class="row mb-3">
+    <!-- Invoicing Modal -->
+    <div class="modal fade" id="invoicingModal" tabindex="-1" aria-labelledby="invoicingModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="invoicingModalLabel">
+                        <i class="fas fa-file-invoice me-2"></i>Invoicing Settings
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+              <form action="{{ route('admin.settings.update') }}" method="POST" class="settings-form" 
+                          onsubmit="return handleModalFormSubmit(event, this, 'invoicingModal');">
+                        @csrf
+                        <!-- Hidden fields for required settings not in this modal -->
+                        <input type="hidden" name="monthly_price" value="{{ $settings?->monthly_price ?? 0 }}">
+                        <input type="hidden" name="quarterly_price" value="{{ $settings?->quarterly_price ?? 0 }}">
+                        <input type="hidden" name="yearly_price" value="{{ $settings?->yearly_price ?? 0 }}">
+                        <input type="hidden" name="grace_period_days" value="{{ $settings?->grace_period_days ?? 7 }}">
+                        <input type="hidden" name="recent_limit" value="{{ $settings?->recent_limit ?? 5 }}">
+                <div class="modal-body">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-medium">Subscription invoice prefix</label>
+                                <input type="text" class="form-control" name="subscription_invoice_prefix" value="{{ $settings?->subscription_invoice_prefix ?? '' }}" placeholder="e.g. SUB">
+                                <small class="text-muted">Optional prefix for subscription invoices.</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-medium">Subscription invoice next</label>
+                                <input type="number" class="form-control" name="subscription_invoice_next" value="{{ $settings?->subscription_invoice_next ?? 1 }}" min="0">
+                                <small class="text-muted">Next numeric value for the subscription invoice sequence.</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-medium">Subscription VAT (%)</label>
+                                <input type="number" step="0.01" class="form-control" name="subscription_vat_percent" value="{{ $settings?->subscription_vat_percent ?? 0 }}" min="0" max="100">
+                                <small class="text-muted">Optional VAT percentage to apply to subscription invoices (e.g. 16).</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-medium">Subscription round precision</label>
+                                <input type="number" class="form-control" name="subscription_round_precision" value="{{ $settings?->subscription_round_precision ?? 0 }}" min="0" max="6">
+                                <small class="text-muted">Number of decimal places to round invoice totals to (0 = whole number)</small>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-12">
+                                <label class="form-label fw-medium">Invoice footer / note</label>
+                                <textarea class="form-control" name="invoice_footer" rows="3">{{ $settings?->invoice_footer ?? '' }}</textarea>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-12">
+                                <label class="form-label fw-medium">Statement footer / note</label>
+                                <textarea class="form-control" name="statement_footer" rows="3">{{ $settings?->statement_footer ?? '' }}</textarea>
+                                <small class="text-muted">This will appear at the bottom of account statements only.</small>
+                            </div>
+                        </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-warning px-4">
+                        <span class="btn-text">{{ __('payment.update_settings') }}</span>
+                        <span class="btn-loading d-none">
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                        </span>
+                    </button>
+                </div>
+              </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Modal -->
+    <div class="modal fade" id="systemModal" tabindex="-1" aria-labelledby="systemModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="systemModalLabel">
+                        <i class="fas fa-server me-2"></i>System Settings
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+              <form action="{{ route('admin.settings.update') }}" method="POST" class="settings-form" 
+                          onsubmit="return handleModalFormSubmit(event, this, 'systemModal');">
+                        @csrf
+                        <!-- Hidden fields for required settings not in this modal -->
+                        <input type="hidden" name="monthly_price" value="{{ $settings?->monthly_price ?? 0 }}">
+                        <input type="hidden" name="quarterly_price" value="{{ $settings?->quarterly_price ?? 0 }}">
+                        <input type="hidden" name="yearly_price" value="{{ $settings?->yearly_price ?? 0 }}">
+                <div class="modal-body">
+                        <div class="row g-3 mb-3">
                             <div class="col-md-6">
                                 <div class="form-check form-switch mt-3">
                                     <input class="form-check-input" type="checkbox" name="auto_renewal"
@@ -567,7 +718,7 @@
                             </div>
                         </div>
 
-                        <div class="row mb-3">
+                        <div class="row g-3 mb-3">
                             <div class="col-md-6">
                                 <label class="form-label fw-medium">{{ __('payment.recent_records_limit') }}</label>
                                 <input type="number" min="1" max="100" class="form-control" name="recent_limit"
@@ -575,37 +726,117 @@
                                 <small class="text-muted">{{ __('payment.controls_how_many_recent') }}</small>
                             </div>
                         </div>
-
-                        <button type="submit" class="btn btn-primary px-4">
-                            <span class="btn-text">{{ __('payment.update_settings') }}</span>
-                            <span class="btn-loading d-none">
-                                <span class="spinner-border spinner-border-sm" role="status"></span>
-                                <span class="ms-1">{{ __('payment.updating') }}</span>
-                            </span>
-                        </button>
-                    </form>
                 </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-info px-4">
+                        <span class="btn-text">{{ __('payment.update_settings') }}</span>
+                        <span class="btn-loading d-none">
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                        </span>
+                    </button>
+                </div>
+              </form>
             </div>
         </div>
     </div>
 
-    <!-- Manual Subscription Management -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0 rounded-3 border-start border-4 border-success">
-                <div class="card-header bg-white py-3 border-bottom">
-                    <h5 class="mb-0 fw-semibold">
-                        <i class="fas fa-hand-holding-usd me-2 text-success"></i>
-                        {{ __('payment.manual_subscription_management') }}
+    <!-- Company Info Modal -->
+    <div class="modal fade" id="companyModal" tabindex="-1" aria-labelledby="companyModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="companyModalLabel">
+                        <i class="fas fa-building me-2"></i>Company Information
                     </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
-                <div class="card-body">
+              <form action="{{ route('admin.settings.update') }}" method="POST" enctype="multipart/form-data" class="settings-form" 
+                          onsubmit="return handleModalFormSubmit(event, this, 'companyModal');">
+                        @csrf
+                        <!-- Hidden fields for required settings not in this modal -->
+                        <input type="hidden" name="monthly_price" value="{{ $settings?->monthly_price ?? 0 }}">
+                        <input type="hidden" name="quarterly_price" value="{{ $settings?->quarterly_price ?? 0 }}">
+                        <input type="hidden" name="yearly_price" value="{{ $settings?->yearly_price ?? 0 }}">
+                        <input type="hidden" name="grace_period_days" value="{{ $settings?->grace_period_days ?? 7 }}">
+                        <input type="hidden" name="recent_limit" value="{{ $settings?->recent_limit ?? 5 }}">
+                <div class="modal-body">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-medium">Company name</label>
+                                <input type="text" class="form-control" name="company_name" value="{{ $settings?->company_name ?? '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-medium">Company logo</label>
+                                <input type="file" class="form-control" name="company_logo" accept="image/*">
+                                @if(!empty($settings?->company_logo))
+                                    <div class="mt-2 small text-muted">Current: <a href="{{ asset($settings->company_logo) }}" target="_blank">View</a></div>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-medium">Contact phone</label>
+                                <input type="text" class="form-control" name="company_contact_phone" value="{{ $settings?->company_contact_phone ?? '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-medium">Contact email</label>
+                                <input type="email" class="form-control" name="company_contact_email" value="{{ $settings?->company_contact_email ?? '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-medium">Invoice PIN</label>
+                                <input type="text" class="form-control" name="invoice_pin" value="{{ $settings?->invoice_pin ?? '' }}">
+                            </div>
+                        </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-danger px-4">
+                        <span class="btn-text">{{ __('payment.update_settings') }}</span>
+                        <span class="btn-loading d-none">
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                        </span>
+                    </button>
+                </div>
+              </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Manual Subscription Management -->
+    <div class="tw-bg-white tw-shadow-sm tw-rounded-xl tw-mb-5">
+        <div class="tw-p-4 sm:tw-p-5 tw-border-b tw-border-gray-100">
+            <div class="tw-flex tw-items-center tw-gap-3">
+                <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full tw-bg-emerald-100 tw-text-emerald-600">
+                    <i class="fas fa-hand-holding-usd"></i>
+                </div>
+                <h5 class="tw-text-lg tw-font-semibold tw-text-gray-900 tw-mb-0">{{ __('payment.manual_subscription_management') }}</h5>
+            </div>
+        </div>
+        <div class="tw-p-4 sm:tw-p-5">
+            <div class="tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded-lg tw-p-4 tw-mb-5">
+                <div class="tw-flex tw-gap-3">
+                    <div class="tw-shrink-0">
+                        <i class="fas fa-info-circle tw-text-blue-600 tw-mt-0.5"></i>
+                    </div>
+                    <div class="tw-text-sm tw-text-blue-900">
+                        <span class="tw-font-semibold">Quick Creation:</span> Manually create subscriptions for users without M-Pesa payment. The system will use default pricing unless you specify a custom amount.
+                    </div>
+                </div>
+            </div>
+                    
                     <form action="{{ route('admin.subscriptions.manual') }}" method="POST" class="ajax-form">
                         @csrf
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-medium">{{ __('payment.select_user') }}</label>
-                                <select class="form-select" name="user_id" required>
+                        <div class="row g-4 mb-4">
+                            <div class="col-lg-4">
+                                <label class="form-label fw-semibold">
+                                    <i class="fas fa-user me-1 text-primary"></i>
+                                    {{ __('payment.select_user') }} <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select form-select-lg" name="user_id" required>
                                     <option value="">{{ __('payment.select_user') }}</option>
                                     @foreach($users ?? [] as $user)
                                     <option value="{{ $user->id }}">
@@ -614,30 +845,44 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-medium">{{ __('payment.billing_cycle') }}</label>
-                                <select class="form-select" name="billing_cycle" required>
-                                    <option value="monthly">{{ __('payment.monthly') }}</option>
-                                    <option value="quarterly">{{ __('payment.quarterly') }}</option>
-                                    <option value="yearly">{{ __('payment.yearly') }}</option>
+                            <div class="col-lg-4">
+                                <label class="form-label fw-semibold">
+                                    <i class="fas fa-calendar-alt me-1 text-success"></i>
+                                    {{ __('payment.billing_cycle') }} <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select form-select-lg" name="billing_cycle" required>
+                                    <option value="monthly">{{ __('payment.monthly') }} - Ksh {{ number_format($settings->monthly_price ?? 0, 2) }}</option>
+                                    <option value="quarterly">{{ __('payment.quarterly') }} - Ksh {{ number_format($settings->quarterly_price ?? 0, 2) }}</option>
+                                    <option value="yearly">{{ __('payment.yearly') }} - Ksh {{ number_format($settings->yearly_price ?? 0, 2) }}</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-medium">{{ __('payment.custom_amount') }}</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light">Ksh</span>
-                                    <input type="number" step="0.01" class="form-control" name="custom_amount">
+                            <div class="col-lg-4">
+                                <label class="form-label fw-semibold">
+                                    <i class="fas fa-money-bill-wave me-1 text-warning"></i>
+                                    {{ __('payment.custom_amount') }}
+                                </label>
+                                <div class="input-group input-group-lg">
+                                    <span class="input-group-text bg-light fw-semibold">Ksh</span>
+                                    <input type="number" step="0.01" class="form-control" name="custom_amount" placeholder="Optional">
                                 </div>
-                                <small class="text-muted">{{ __('payment.leave_empty_default') }}</small>
+                                <small class="text-muted d-block mt-1">
+                                    <i class="fas fa-lightbulb me-1"></i>
+                                    {{ __('payment.leave_empty_default') }}
+                                </small>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-success px-4">
-                            <span class="btn-text">{{ __('payment.create_manual_subscription') }}</span>
-                            <span class="btn-loading d-none">
-                                <span class="spinner-border spinner-border-sm" role="status"></span>
-                                <span class="ms-1">{{ __('payment.creating') }}</span>
-                            </span>
-                        </button>
+                        <div class="d-flex justify-content-end">
+                            <button type="submit" class="btn btn-success btn-lg px-5">
+                                <span class="btn-text">
+                                    <i class="fas fa-plus-circle me-2"></i>
+                                    {{ __('payment.create_manual_subscription') }}
+                                </span>
+                                <span class="btn-loading d-none">
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    {{ __('payment.creating') }}
+                                </span>
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -648,96 +893,361 @@
 @endsection
 
 @push('styles')
-<style>
-    /* Reuse the polished subscriptions styles so dashboard fits consistently */
-    .bg-gradient-primary {
-        background: linear-gradient(135deg, #667eea, #764ba2) !important;
-    }
-
-    .card {
-        transition: all 0.3s ease;
-        border: none !important;
-        border-radius: 0.5rem;
-    }
-
-    .card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 .75rem 1.5rem rgba(0, 0, 0, .08) !important;
-    }
-
-    .card-body { padding: 1rem; }
-
-    .table {
-        border-collapse: separate;
-        border-spacing: 0;
-    }
-
-    .table th {
-        font-weight: 600;
-        font-size: 0.875rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: #6c757d;
-        border-top: none;
-        background-color: #f8f9fc;
-        position: sticky;
-        top: 0;
-        z-index: 10;
-    }
-
-    .table td { vertical-align: middle; border-top: 1px solid #f3f4f6; }
-
-    .table tbody tr { transition: all 0.2s ease; }
-    .table tbody tr:hover { background-color: #f8f9fc; transform: scale(1.01); }
-
-    .btn { transition: all 0.2s ease; border-radius: 0.5rem; font-weight: 500; }
-    .btn:hover { transform: translateY(-1px); box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.08); }
-
-    .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.875rem; }
-
-    .form-control, .form-select { border-radius: 0.5rem; border: 1px solid #e3e6f0; transition: all 0.2s ease; }
-    .form-control:focus, .form-select:focus { border-color: #4e73df; box-shadow: 0 0 0 0.15rem rgba(78,115,223,0.08); }
-
-    .modal-content { border-radius: 1rem; border: none; box-shadow: 0 1rem 3rem rgba(0,0,0,0.14); }
-    .modal-header { border-bottom: 1px solid #f3f4f6; border-radius: 1rem 1rem 0 0; background-color: #f8f9fc; }
-    .modal-footer { border-top: 1px solid #f3f4f6; border-radius: 0 0 1rem 1rem; background-color: #f8f9fc; }
-
-    .alert { border-radius: 0.75rem; border: none; }
-
-    @media (max-width: 768px) {
-        .card-body { padding: 1rem !important; }
-        .table-responsive { font-size: 0.9rem; }
-        .btn { font-size: 0.9rem; padding: 0.375rem 0.75rem; }
-        .container-fluid { padding-left: 1rem !important; padding-right: 1rem !important; }
-    }
-
-    /* Small helper: ensure the stats cards align with subscriptions sizing */
-    .card .card-body .h2, .card .card-body h2 { font-size: 1.6rem; }
-
-    /* Keep ajax form overlay */
-    .ajax-form { position: relative; }
-    .form-disabled-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255, 255, 255, 0.7); display: none; z-index: 100; border-radius: 0.375rem; }
-    .ajax-form.loading .form-disabled-overlay { display: block; }
-
-    /* Dashboard-specific tweaks */
-    .stats-card { min-height: 90px; display: flex; align-items: center; }
-    .stats-card h6 { font-size: 0.85rem; margin-bottom: 0.25rem; }
-    .stats-card h2 { font-size: 1.6rem; margin: 0; }
-
-    /* Cap tables inside dashboard cards so very long lists don't push the page too far */
-    .card .table-responsive { max-height: 260px; overflow: auto; }
-    .table td, .table th { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    /* Slight separation between sidebar and main on wide screens */
-    @media (min-width: 992px) {
-        body:not(.sidebar-collapse) main { padding-left: 0.5rem; }
-    }
-</style>
+    <link rel="stylesheet" href="{{ asset('css/admin-dashboard.css') }}">
+    <style>
+        /* Fix dashboard layout and prevent horizontal scrollbar */
+        body {
+            overflow-x: hidden !important;
+        }
+        
+        .content-wrapper {
+            overflow-x: hidden !important;
+        }
+        
+        #scrollable-container {
+            overflow-x: hidden !important;
+        }
+        
+        .dashboard-wrapper {
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box;
+        }
+        
+        /* Fix Tailwind grid to prevent overflow */
+        .tw-grid {
+            width: 100%;
+            max-width: 100%;
+        }
+        
+        /* Ensure all rows don't overflow */
+        .dashboard-wrapper .row {
+            margin-left: -0.75rem;
+            margin-right: -0.75rem;
+            max-width: 100%;
+        }
+        
+        .dashboard-wrapper [class*="col-"] {
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+        
+        /* Fix cards to prevent overflow */
+        .card {
+            max-width: 100%;
+            overflow: hidden;
+        }
+        
+        /* Fix table responsive containers */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            max-width: 100%;
+        }
+        
+        /* Prevent form elements from causing overflow */
+        .form-select,
+        .form-control,
+        input,
+        select {
+            max-width: 100%;
+        }
+        
+        .hover-lift {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .hover-lift:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+        }
+        
+        /* Custom column for 5 cards in a row on XL screens */
+        @media (min-width: 1200px) {
+            .col-xl-2-4 {
+                flex: 0 0 auto;
+                width: 20%; /* 100% / 5 = 20% */
+            }
+        }
+        
+        /* Ensure cards are centered when they wrap */
+        .justify-content-center > [class*="col-"] {
+            display: flex;
+            justify-content: center;
+        }
+        
+        /* Gradient headers */
+        .bg-gradient-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .bg-gradient-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        }
+        .bg-gradient-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+        
+        /* Section spacing */
+        .row.mt-4:first-of-type {
+            margin-top: 1.5rem !important;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .dashboard-wrapper {
+                padding: 1rem !important;
+            }
+        }
+    </style>
 @endpush
 
 @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        // Small set of translations used in runtime JS. Keep minimal to avoid large inlined objects.
+        const DASHBOARD_I18N = {!! json_encode([
+            'remove' => __('payment.remove'),
+            'missing_phone_number' => __('payment.missing_phone_number'),
+            'missing_phone_body' => __('payment.missing_phone_body'),
+            'registration_email_preview' => __('payment.registration_email_preview'),
+            'unable_load_preview' => __('payment.unable_load_preview'),
+            'ok' => __('payment.ok'),
+            'bands_invalid_json' => __('payment.bands_invalid_json'),
+        ]) !!};
+        
+        /**
+         * Open modal using jQuery (since Bootstrap may not be loaded)
+         */
+        function openModal(modalId) {
+            $('#' + modalId).modal('show');
+            
+            // Initialize bands editor when payroll modal opens
+            if (modalId === 'payrollModal') {
+                setTimeout(function() {
+                    const bandsTable = document.getElementById('bandsTable');
+                    if (bandsTable && !window.bandsEditorInitialized) {
+                        initializeBandsEditor();
+                        window.bandsEditorInitialized = true;
+                    }
+                }, 100);
+            }
+        }
+        
+        /**
+         * Handle modal form submissions
+         */
+        function handleModalFormSubmit(event, form, modalId) {
+            event.preventDefault();
+            console.log('🚀 Modal form submitted:', modalId);
+            
+            const formAction = '{{ route('admin.settings.update') }}';
+            const formData = new FormData(form);
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+            
+            // Show loading state
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const btnText = submitBtn.querySelector('.btn-text');
+            const btnLoading = submitBtn.querySelector('.btn-loading');
+            
+            if (btnText && btnLoading) {
+                btnText.classList.add('d-none');
+                btnLoading.classList.remove('d-none');
+            }
+            submitBtn.disabled = true;
+            
+            // Trigger bands collection before submit if in payroll modal
+            if (modalId === 'payrollModal') {
+                try {
+                    if (window.collectBands && typeof window.collectBands === 'function') {
+                        const bands = window.collectBands();
+                        const hiddenField = form.querySelector('#payroll_tax_bands');
+                        if (hiddenField) {
+                            hiddenField.value = JSON.stringify(bands);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error collecting bands:', err);
+                    if (typeof showToast === 'function') {
+                        showToast('error', err.message || 'Invalid tax bands');
+                    }
+                    if (btnText && btnLoading) {
+                        btnText.classList.remove('d-none');
+                        btnLoading.classList.add('d-none');
+                    }
+                    submitBtn.disabled = false;
+                    return false;
+                }
+            }
+            
+            fetch(formAction, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('✅ Settings response:', data);
+                if (data.success) {
+                    if (typeof showToast === 'function') {
+                        showToast('success', data.message || 'Settings updated successfully!');
+                    } else {
+                        alert(data.message || 'Settings updated successfully!');
+                    }
+                    
+                    // Close modal using jQuery
+                    $('#' + modalId).modal('hide');
+                    
+                    // Play success audio
+                    try {
+                        const successAudio = document.getElementById('success-audio');
+                        if (successAudio) {
+                            successAudio.play().catch(error => {
+                                console.log('🔇 Audio playback may be blocked by browser policy');
+                            });
+                        }
+                    } catch (error) {
+                        console.log('🔇 Audio not available');
+                    }
+                } else {
+                    if (typeof showToast === 'function') {
+                        showToast('error', data.message || 'Failed to update settings');
+                    } else {
+                        alert(data.message || 'Failed to update settings');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('❌ Error:', error);
+                if (typeof showToast === 'function') {
+                    showToast('error', 'An error occurred while updating settings');
+                } else {
+                    alert('An error occurred while updating settings');
+                }
+            })
+            .finally(() => {
+                if (btnText && btnLoading) {
+                    btnText.classList.remove('d-none');
+                    btnLoading.classList.add('d-none');
+                }
+                submitBtn.disabled = false;
+            });
+            
+            return false;
+        }
+
+        /**
+         * Initialize the payroll tax bands editor
+         */
+        function initializeBandsEditor() {
+            function q(sel){ return document.querySelector(sel); }
+            var tableBody = q('#bandsTable tbody');
+            var addBtn = q('#addBand');
+            var loadExampleBtn = q('#loadExampleBands');
+            var hidden = q('#payroll_tax_bands');
+            var errorDiv = q('#bandsError');
+            
+            if (!tableBody || !addBtn || !hidden) {
+                console.log('Bands editor elements not found, skipping initialization');
+                return;
+            }
+
+            function makeRow(upper, rate){
+                var tr = document.createElement('tr');
+                var u = document.createElement('td');
+                var ui = document.createElement('input'); ui.type='number'; ui.step='0.01'; ui.className='form-control form-control-sm';
+                if (upper !== null && upper !== undefined && upper !== '') ui.value = upper;
+                ui.placeholder = 'Leave empty for last band';
+                u.appendChild(ui);
+
+                var r = document.createElement('td');
+                var ri = document.createElement('input'); ri.type='number'; ri.step='0.0001'; ri.className='form-control form-control-sm';
+                if (rate !== null && rate !== undefined) ri.value = rate;
+                ri.placeholder = 'e.g. 0.1';
+                r.appendChild(ri);
+
+                var a = document.createElement('td'); a.className='text-end';
+                var rem = document.createElement('button'); rem.type='button'; rem.className='btn btn-sm btn-outline-danger'; 
+                rem.innerHTML = '<i class="fas fa-trash"></i>';
+                rem.addEventListener('click', function(){ tr.remove(); });
+                a.appendChild(rem);
+
+                tr.appendChild(u); tr.appendChild(r); tr.appendChild(a);
+                tableBody.appendChild(tr);
+                return tr;
+            }
+
+            function loadInitial(){
+                tableBody.innerHTML = '';
+                var raw = hidden.value || '';
+                if (!raw.trim()){ 
+                    // add default empty row
+                    makeRow('', ''); 
+                    return;
+                }
+                try {
+                    var arr = JSON.parse(raw);
+                    if (!Array.isArray(arr)) throw new Error('Not array');
+                    if (arr.length === 0) {
+                        makeRow('', '');
+                    } else {
+                        arr.forEach(function(b){ 
+                            makeRow(b.upper === null ? '' : b.upper, b.rate); 
+                        });
+                    }
+                } catch(e){
+                    // fallback: show one empty row and display error
+                    makeRow('', '');
+                    if (errorDiv) {
+                        errorDiv.style.display = 'block';
+                        errorDiv.innerText = DASHBOARD_I18N.bands_invalid_json || 'Saved bands JSON is invalid';
+                    }
+                }
+            }
+
+            addBtn.addEventListener('click', function(){ makeRow('', ''); });
+            
+            if (loadExampleBtn) {
+                loadExampleBtn.addEventListener('click', function(){
+                    tableBody.innerHTML = '';
+                    // Kenya 2024 tax bands example
+                    makeRow('24000', '0.1');
+                    makeRow('32333', '0.25');
+                    makeRow('500000', '0.3');
+                    makeRow('800000', '0.325');
+                    makeRow('', '0.35'); // Last band has no upper limit
+                });
+            }
+
+            window.collectBands = function(){
+                var bands = [];
+                var rows = tableBody.querySelectorAll('tr');
+                for(var i=0;i<rows.length;i++){
+                    var up = rows[i].querySelector('td:nth-child(1) input').value;
+                    var rt = rows[i].querySelector('td:nth-child(2) input').value;
+                    
+                    // Skip empty rows
+                    if ((up === undefined || up === null || up === '') && 
+                        (rt === undefined || rt === null || rt === '')) {
+                        continue;
+                    }
+                    
+                    var upper = (up === undefined || up === null || up === '') ? null : parseFloat(up);
+                    var rate = (rt === undefined || rt === null || rt === '') ? NaN : parseFloat(rt);
+                    
+                    if (isNaN(rate)) { 
+                        throw new Error('Rate must be a number on row '+(i+1)); 
+                    }
+                    bands.push({ upper: upper, rate: rate });
+                }
+                return bands;
+            };
+
+            loadInitial();
+        }
+
         document.addEventListener("DOMContentLoaded", function () {
 
             // Add phone number validation before activation
@@ -754,11 +1264,9 @@
                         if (!hasPhone) {
                             Swal.fire({
                                 icon: 'warning',
-                                title: 'Missing Phone Number',
-                                html: `This user does not have a phone number for payment processing.<br>
-                                      Phone: <strong>${phoneCell.textContent.trim()}</strong><br><br>
-                                      Please add a phone number before activating this user.`,
-                                confirmButtonText: 'OK'
+                                title: DASHBOARD_I18N.missing_phone_number,
+                                html: DASHBOARD_I18N.missing_phone_body.replace(':phone', phoneCell.textContent.trim()),
+                                confirmButtonText: DASHBOARD_I18N.ok || 'OK'
                             });
                             
                             // Reset to previous value
@@ -774,160 +1282,15 @@
                     }
                 });
             });
+            
+            // Initialize tax bands table if it exists
+            const bandsTable = document.getElementById('bandsTable');
+            if (bandsTable) {
+                initializeBandsEditor();
+            }
 
             // AJAX forms are handled centrally in /public/js/ajax-forms.js
             console.log('Using centralized AJAX form handler for .ajax-form');
-            
-            // Additional specific handler for settings form (backup)
-            const settingsForm = document.getElementById('settingsForm');
-            if (settingsForm) {
-                console.log('Found settings form, adding backup handler');
-                // Remove any existing event listeners to avoid conflicts
-                settingsForm.removeEventListener('submit', settingsForm._customHandler);
-                
-                settingsForm._customHandler = function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('Settings form submitted via backup handler');
-
-                    const formData = new FormData(this);
-                    // Prefer explicit hidden form_action field when present to avoid action="javascript:void(0)"
-                    const formAction = this.querySelector('input[name="form_action"]')?.value || this.action;
-                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
-
-                    // Show loading state
-                    const submitBtn = this.querySelector('button[type="submit"]');
-                    const btnText = submitBtn.querySelector('.btn-text');
-                    const btnLoading = submitBtn.querySelector('.btn-loading');
-
-                    if (btnText && btnLoading) {
-                        btnText.classList.add('d-none');
-                        btnLoading.classList.remove('d-none');
-                    }
-                    submitBtn.disabled = true;
-
-                    fetch(formAction, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': csrfToken,
-                            'Accept': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: formData
-                    })
-                    .then(response => {
-                        console.log('Response status:', response.status);
-                        return response.json();
-                    })
-                    .then(data => {
-                        console.log('Settings update response:', data);
-                        if (data.success) {
-                            showToast('success', data.message || 'Settings updated successfully!');
-                        } else {
-                            showToast('error', data.message || 'Failed to update settings');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Settings update error:', error);
-                        showToast('error', 'An error occurred while updating settings');
-                    })
-                    .finally(() => {
-                        // Restore button state
-                        if (btnText && btnLoading) {
-                            btnText.classList.remove('d-none');
-                            btnLoading.classList.add('d-none');
-                        }
-                        submitBtn.disabled = false;
-                    });
-                };
-
-                // Bands editor wiring
-                (function(){
-                    function q(sel){ return document.querySelector(sel); }
-                    var tableBody = q('#bandsTable tbody');
-                    var addBtn = q('#addBand');
-                    var hidden = q('#payroll_tax_bands');
-                    var errorDiv = q('#bandsError');
-
-                    function makeRow(upper, rate){
-                        var tr = document.createElement('tr');
-                        var u = document.createElement('td');
-                        var ui = document.createElement('input'); ui.type='number'; ui.step='0.01'; ui.className='form-control form-control-sm';
-                        if (upper !== null && upper !== undefined) ui.value = upper;
-                        ui.placeholder = '';
-                        u.appendChild(ui);
-
-                        var r = document.createElement('td');
-                        var ri = document.createElement('input'); ri.type='number'; ri.step='0.0001'; ri.className='form-control form-control-sm';
-                        if (rate !== null && rate !== undefined) ri.value = rate;
-                        r.appendChild(ri);
-
-                        var a = document.createElement('td'); a.className='text-center';
-                        var rem = document.createElement('button'); rem.type='button'; rem.className='btn btn-sm btn-outline-danger'; rem.innerText='Remove';
-                        rem.addEventListener('click', function(){ tr.remove(); });
-                        a.appendChild(rem);
-
-                        tr.appendChild(u); tr.appendChild(r); tr.appendChild(a);
-                        tableBody.appendChild(tr);
-                        return tr;
-                    }
-
-                    function loadInitial(){
-                        tableBody.innerHTML = '';
-                        var raw = hidden.value || '';
-                        if (!raw.trim()){ // add default empty row
-                            makeRow('', ''); return;
-                        }
-                        try {
-                            var arr = JSON.parse(raw);
-                            if (!Array.isArray(arr)) throw new Error('Not array');
-                            arr.forEach(function(b){ makeRow(b.upper === null ? '' : b.upper, b.rate); });
-                        } catch(e){
-                            // fallback: show one empty row and display error
-                            makeRow('', '');
-                            errorDiv.style.display = 'block';
-                            errorDiv.innerText = 'Saved bands JSON is invalid — editing will overwrite it. Please fix after saving.';
-                        }
-                    }
-
-                    addBtn.addEventListener('click', function(){ makeRow('', ''); });
-
-                    function collectBands(){
-                        var bands = [];
-                        var rows = tableBody.querySelectorAll('tr');
-                        for(var i=0;i<rows.length;i++){
-                            var up = rows[i].querySelector('td:nth-child(1) input').value;
-                            var rt = rows[i].querySelector('td:nth-child(2) input').value;
-                            var upper = (up === undefined || up === null || up === '') ? null : parseFloat(up);
-                            var rate = (rt === undefined || rt === null || rt === '') ? NaN : parseFloat(rt);
-                            if (isNaN(rate)) { throw new Error('Rate must be a number on row '+(i+1)); }
-                            bands.push({ upper: upper, rate: rate });
-                        }
-                        return bands;
-                    }
-
-                    // hook into main settings submit to validate and serialize
-                    var settingsFormEl = q('#settingsForm');
-                    if (settingsFormEl){
-                        settingsFormEl.addEventListener('submit', function(ev){
-                            try {
-                                errorDiv.style.display = 'none'; errorDiv.innerText = '';
-                                var bands = collectBands();
-                                hidden.value = JSON.stringify(bands);
-                                return true;
-                            } catch(err){
-                                ev.preventDefault(); ev.stopPropagation();
-                                errorDiv.style.display = 'block'; errorDiv.innerText = err.message || 'Invalid bands';
-                                return false;
-                            }
-                        });
-                    }
-
-                    loadInitial();
-                })();
-                
-                settingsForm.addEventListener('submit', settingsForm._customHandler);
-            }
             
             // Manual payment check handler
             if (document.getElementById('manualCheckStatus')) {
@@ -1001,7 +1364,7 @@
                             <div class="modal-dialog modal-lg">
                                 <div class="modal-content">
                                     <div class="modal-header">
-                                        <h5 class="modal-title">Registration Email Preview</h5>
+                                        <h5 class="modal-title">${DASHBOARD_I18N.registration_email_preview || 'Registration Email Preview'}</h5>
                                         <button type="button" class="btn-close" aria-label="Close"></button>
                                     </div>
                                     <div class="modal-body">${html}</div>
@@ -1013,7 +1376,7 @@
                         modalDiv.querySelector('.btn-close').addEventListener('click', () => modalDiv.remove());
                     } catch (err) {
                         console.error(err);
-                        showToast('error', 'Unable to load preview');
+                        showToast('error', DASHBOARD_I18N.unable_load_preview || 'Unable to load preview');
                     }
                 });
             }
@@ -1131,6 +1494,192 @@
                 toast.classList.remove('show');
                 setTimeout(() => toast.remove(), 300);
             }, 4000);
+        }
+
+        /**
+         * Handle subscription toggle with confirmation
+         */
+        (function() {
+            const subscriptionToggleForm = document.getElementById('subscription-toggle-form');
+            
+            if (subscriptionToggleForm) {
+                // Use capture phase to intercept before any other handlers
+                subscriptionToggleForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    
+                    // Check current state dynamically from the button
+                    const submitBtn = subscriptionToggleForm.querySelector('button[type="submit"]');
+                    const isCurrentlyEnabled = submitBtn.classList.contains('btn-danger');
+                    
+                    // If trying to disable (button is red/danger), show confirmation
+                    if (isCurrentlyEnabled) {
+                        showConfirmationModal(
+                            'Disable Subscription Requirement?',
+                            'Are you sure you want to disable subscription enforcement? Users will be able to use the system without an active subscription.',
+                            function() {
+                                submitToggle();
+                            }
+                        );
+                    } else {
+                        // Enabling, no confirmation needed
+                        submitToggle();
+                    }
+                    
+                    function submitToggle() {
+                        const formData = new FormData(subscriptionToggleForm);
+                        const submitBtn = subscriptionToggleForm.querySelector('button[type="submit"]');
+                        const btnText = submitBtn.querySelector('.btn-text');
+                        const btnLoading = submitBtn.querySelector('.btn-loading');
+                        
+                        // Show loading state
+                        submitBtn.disabled = true;
+                        if (btnText) btnText.classList.add('d-none');
+                        if (btnLoading) btnLoading.classList.remove('d-none');
+                        
+                        fetch(subscriptionToggleForm.action, {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Update UI immediately
+                                updateSubscriptionToggleUI(data.subscription_required);
+                                
+                                // Show success message
+                                showToast('success', data.message);
+                            } else {
+                                throw new Error(data.message || 'Failed to toggle subscription requirement');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showToast('error', error.message || 'An error occurred');
+                            
+                            // Reset button state
+                            submitBtn.disabled = false;
+                            if (btnText) btnText.classList.remove('d-none');
+                            if (btnLoading) btnLoading.classList.add('d-none');
+                        });
+                    }
+                });
+            }
+            
+            /**
+             * Update the subscription toggle UI without page reload
+             */
+            function updateSubscriptionToggleUI(isEnabled) {
+                const container = document.getElementById('subscription-toggle-form').closest('.tw-bg-white');
+                const iconCircle = container.querySelector('.tw-inline-flex.tw-items-center.tw-justify-center');
+                const statusText = container.querySelector('.tw-text-sm.tw-text-gray-600');
+                const submitBtn = container.querySelector('button[type="submit"]');
+                const btnText = submitBtn.querySelector('.btn-text');
+                const btnLoading = submitBtn.querySelector('.btn-loading');
+                
+                // Update icon circle colors
+                if (isEnabled) {
+                    iconCircle.className = 'tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-green-100 tw-text-green-600';
+                } else {
+                    iconCircle.className = 'tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-gray-100 tw-text-gray-400';
+                }
+                
+                // Update status text
+                if (isEnabled) {
+                    statusText.innerHTML = '<span class="tw-text-green-600 tw-font-medium">Enabled:</span> Users must have an active subscription to use the system';
+                } else {
+                    statusText.innerHTML = '<span class="tw-text-gray-500 tw-font-medium">Disabled:</span> Users can use the system without a subscription';
+                }
+                
+                // Update button
+                if (isEnabled) {
+                    submitBtn.className = 'btn btn-danger';
+                    btnText.innerHTML = '<i class="fas fa-times me-1"></i>Disable Subscription';
+                } else {
+                    submitBtn.className = 'btn btn-success';
+                    btnText.innerHTML = '<i class="fas fa-check me-1"></i>Enable Subscription';
+                }
+                
+                // Reset button state
+                submitBtn.disabled = false;
+                if (btnText) btnText.classList.remove('d-none');
+                if (btnLoading) btnLoading.classList.add('d-none');
+            }
+        })();
+
+        /**
+         * Show a custom confirmation modal
+         */
+        function showConfirmationModal(title, message, onConfirm) {
+            // Create a toast-style confirmation overlay
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;';
+            
+            const toast = document.createElement('div');
+            toast.style.cssText = 'background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); max-width: 450px; width: 90%; animation: slideDown 0.3s ease-out;';
+            toast.innerHTML = `
+                <style>
+                    @keyframes slideDown {
+                        from { transform: translateY(-20px); opacity: 0; }
+                        to { transform: translateY(0); opacity: 1; }
+                    }
+                </style>
+                <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 48px; height: 48px; border-radius: 50%; background: #fef3c7; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-exclamation-triangle" style="color: #f59e0b; font-size: 24px;"></i>
+                        </div>
+                        <div>
+                            <h5 style="margin: 0; font-size: 18px; font-weight: 600; color: #111827;">${title}</h5>
+                        </div>
+                    </div>
+                </div>
+                <div style="padding: 24px;">
+                    <p style="margin: 0; color: #6b7280; font-size: 15px; line-height: 1.6;">${message}</p>
+                </div>
+                <div style="padding: 16px 24px; background: #f9fafb; border-radius: 0 0 12px 12px; display: flex; gap: 12px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" data-action="cancel" style="min-width: 100px;">
+                        <i class="fas fa-times me-1"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-danger" data-action="confirm" style="min-width: 100px;">
+                        <i class="fas fa-check me-1"></i>Yes, Disable
+                    </button>
+                </div>
+            `;
+            
+            overlay.appendChild(toast);
+            document.body.appendChild(overlay);
+            
+            // Fade in
+            setTimeout(() => {
+                overlay.style.transition = 'opacity 0.2s';
+                overlay.style.opacity = '1';
+            }, 10);
+            
+            // Handle button clicks
+            toast.querySelector('[data-action="confirm"]').addEventListener('click', function() {
+                closeToast();
+                if (onConfirm) onConfirm();
+            });
+            
+            toast.querySelector('[data-action="cancel"]').addEventListener('click', closeToast);
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) closeToast();
+            });
+            
+            function closeToast() {
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    if (overlay.parentNode) {
+                        document.body.removeChild(overlay);
+                    }
+                }, 200);
+            }
         }
     </script>
 @endpush

@@ -39,7 +39,7 @@
         telemetry: "{{ url('pwa/telemetry-public') }}",
         installed: "{{ url('pwa/installed') }}",
         dismissed: "{{ url('pwa/dismissed') }}",
-        serviceWorker: "{{ asset('service-worker.js') }}"
+        serviceWorker: "{{ asset('service-worker.js?v=' . $asset_v) }}"
     };
 
     let deferredPrompt = null;
@@ -50,6 +50,59 @@
     const installModal = document.getElementById('pwa-install-modal');
     const installBtn = document.getElementById('pwa-install-btn');
     const iosInstructions = document.getElementById('pwa-ios-instructions');
+
+    // Debug helpers: expose some state to window for remote debugging
+    try {
+        console.debug('PWA debug init', {
+            serverPwaInstalled: serverPwaInstalled,
+            serverPwaDismissed: serverPwaDismissed,
+            isIos: isIos,
+            isInStandaloneMode: isInStandaloneMode,
+            PWA_ENDPOINTS: PWA_ENDPOINTS
+        });
+    } catch (e) { /* noop */ }
+
+    window.__bremac_pwa_status = {
+        serverPwaInstalled: serverPwaInstalled,
+        serverPwaDismissed: serverPwaDismissed,
+        isIos: isIos,
+        isInStandaloneMode: isInStandaloneMode,
+        manifestOk: false,
+        swRegistered: false,
+        beforeInstallPromptFired: false
+    };
+
+    // Check manifest & service worker status for debugging
+    async function probeManifestAndSW() {
+        try {
+            const manifestLink = document.querySelector('link[rel="manifest"]');
+            if (manifestLink && manifestLink.href) {
+                try {
+                    const r = await fetch(manifestLink.href, { method: 'GET', cache: 'no-store' });
+                    window.__bremac_pwa_status.manifestOk = r && r.ok;
+                    console.debug('PWA manifest fetched', manifestLink.href, r && r.status, r && r.headers && r.headers.get('Content-Type'));
+                } catch (e) {
+                    window.__bremac_pwa_status.manifestOk = false;
+                    console.warn('PWA manifest fetch failed', e);
+                }
+            } else {
+                console.warn('PWA manifest link not found');
+            }
+        } catch (e) { console.warn('probeManifest error', e); }
+
+        try {
+            if ('serviceWorker' in navigator) {
+                const reg = await navigator.serviceWorker.getRegistration();
+                window.__bremac_pwa_status.swRegistered = !!reg;
+                console.debug('PWA service worker registration status', !!reg, reg);
+            }
+        } catch (e) { console.warn('probeSW error', e); }
+    }
+
+    // Expose a helper for manual inspection in remote debug console
+    window.__bremac_probe_pwa = probeManifestAndSW;
+    // Run an initial probe
+    probeManifestAndSW().catch(()=>{});
 
     // Show modal helper using bootstrap (both v4 & v5 compatible check)
     function showModal() {
@@ -105,6 +158,11 @@
             console.warn('Could not show install modal', e);
         }
     }
+
+    // Expose programmatic modal opener for other scripts
+    try {
+        window.__bremac_show_install_modal = showModal;
+    } catch (e) { /* noop */ }
 
     window.addEventListener('beforeinstallprompt', (e) => {
         // Prevent Chrome 67 and earlier from automatically showing the prompt
@@ -239,16 +297,7 @@
         }
     });
 
-    // Register a simple service worker for offline + PWA install support
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-            navigator.serviceWorker.register(PWA_ENDPOINTS.serviceWorker).then(function(reg) {
-                // Registered
-            }).catch(function(err) {
-                console.warn('Service worker registration failed: ', err);
-            });
-        });
-    }
+    // Service worker is registered globally in the main layout; avoid double registration here.
 
     // When modal is dismissed via close button, persist a dismissal so we don't annoy users
     const dismissBtn = document.getElementById('pwa-dismiss-btn');

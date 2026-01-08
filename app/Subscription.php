@@ -22,7 +22,12 @@ class Subscription extends Model
         'activated_at',
         'is_renewal',
         'previous_subscription_id',
-        'cancelled_at'
+        'cancelled_at',
+        // tracking / linking fields added for automated invoicing
+        'invoice_sent_at',
+        'reminder_sent_at',
+        'pending_invoice_transaction_id',
+        'pending_mpesa_payment_id',
     ];
 
     protected $casts = [

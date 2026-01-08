@@ -3,10 +3,54 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 
+// Debug: current user's roles, permissions, and HRM enablement (no permission gate)
+Route::group([
+    'module' => 'Hrm',
+    'namespace' => 'Modules\\Hrm\\Http\\Controllers',
+    'middleware' => ['web', 'auth', 'SetSessionData', 'language', 'timezone']
+], function () {
+    Route::get('/hrm/debug/access', function () {
+        $user = auth()->user();
+        $roles = $user ? $user->getRoleNames() : collect();
+        $perms = $user ? $user->getPermissionNames() : collect();
+        $enabled = session('business.enabled_modules') ?? [];
+        return response()->json([
+            'user_id' => $user ? $user->id : null,
+            'business_id' => $user ? $user->business_id : null,
+            'roles' => $roles,
+            'permissions' => $perms,
+            'hrm_enabled' => in_array('hrm', (array) $enabled),
+            'enabled_modules' => $enabled,
+        ]);
+    })->name('hrm.debug.access');
+
+    // Temporary: seed granular HRM permissions if missing
+    Route::post('/hrm/debug/seed-perms', function () {
+        $perms = [
+            'hrm.access',
+            'hrm.companies',
+            'hrm.departments',
+            'hrm.designations',
+            'hrm.office_shifts',
+            'hrm.employees',
+            'hrm.payrolls',
+        ];
+        foreach ($perms as $p) {
+            \Spatie\Permission\Models\Permission::firstOrCreate([
+                'name' => $p,
+                'guard_name' => 'web',
+            ]);
+        }
+        return response()->json(['ok' => true, 'seeded' => $perms]);
+    })->name('hrm.debug.seed_perms');
+
+});
+
 Route::group([
     'module' => 'Hrm',
     'namespace' => 'Modules\\Hrm\\Http\\Controllers',
     // Ensure HRM routes build the admin sidebar and have session/lang context
+    // Log access attempts, rely on controller-level granular permissions.
     'middleware' => ['web', 'auth', 'SetSessionData', 'language', 'timezone', 'AdminSidebarMenu', 'subscription']
 ], function () {
     Route::get('/hrm', [\Modules\Hrm\Http\Controllers\HrmController::class, 'index']);
@@ -104,4 +148,22 @@ Route::group([
     Route::get('/hrm/employees/{employee}/deductions', [\Modules\Hrm\Http\Controllers\EmployeesController::class, 'deductionsIndex'])->name('hrm.employees.deductions.index');
     Route::post('/hrm/employees/{employee}/deductions', [\Modules\Hrm\Http\Controllers\EmployeesController::class, 'deductionsStore'])->name('hrm.employees.deductions.store');
     Route::delete('/hrm/employees/{employee}/deductions/{deduction}', [\Modules\Hrm\Http\Controllers\EmployeesController::class, 'deductionsDestroy'])->name('hrm.employees.deductions.destroy');
+
+    // Leaves (Leave management)
+    Route::resource('/hrm/leaves', \Modules\Hrm\Http\Controllers\LeaveController::class, [
+        'as' => 'hrm'
+    ]);
+
+    // HRM Settings (default leave)
+    Route::get('/hrm/settings/leave', [\Modules\Hrm\Http\Controllers\SettingsController::class, 'editDefaultLeave'])->name('hrm.settings.leave.edit');
+    Route::post('/hrm/settings/leave', [\Modules\Hrm\Http\Controllers\SettingsController::class, 'updateDefaultLeave'])->name('hrm.settings.leave.update');
+
+    // HRM Settings: Enable/Disable core modules
+    Route::get('/hrm/settings/modules', [\Modules\Hrm\Http\Controllers\SettingsController::class, 'editModules'])->name('hrm.settings.modules.edit');
+    Route::post('/hrm/settings/modules', [\Modules\Hrm\Http\Controllers\SettingsController::class, 'updateModules'])->name('hrm.settings.modules.update');
+
+    // Leave Types
+    Route::resource('/hrm/leave_types', \Modules\Hrm\Http\Controllers\LeaveTypeController::class, [
+        'as' => 'hrm'
+    ]);
 });

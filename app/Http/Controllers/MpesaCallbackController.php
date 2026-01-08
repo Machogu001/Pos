@@ -36,6 +36,39 @@ class MpesaCallbackController extends Controller
         ->where('checkout_request_id', $checkoutRequestID)
         ->first();
 
+    // If not found by merchant/checkout IDs, try to match by AccountReference (invoice number) or BillRefNumber
+    if (! $payment) {
+        // Attempt to extract AccountReference or BillRefNumber from the callback body
+        try {
+            $raw = $request->all();
+            // Look for possible locations
+            $accountRef = null;
+            if (isset($raw['Body']['stkCallback']['CallbackMetadata']['Item'])) {
+                foreach ($raw['Body']['stkCallback']['CallbackMetadata']['Item'] as $item) {
+                    if (isset($item['Name']) && in_array($item['Name'], ['AccountReference', 'BillRefNumber'])) {
+                        $accountRef = $item['Value'] ?? null;
+                        break;
+                    }
+                }
+            }
+            // Some providers send account reference at top-level or different key
+            if (empty($accountRef)) {
+                $accountRef = $request->input('account_reference') ?? $request->input('AccountReference') ?? $request->input('BillRefNumber');
+            }
+
+            if (! empty($accountRef)) {
+                // Try exact match first
+                $payment = MpesaPayment::where('account_reference', $accountRef)->latest()->first();
+                if (! $payment) {
+                    // Try case-insensitive / contains match
+                    $payment = MpesaPayment::where('account_reference', 'like', '%' . $accountRef . '%')->latest()->first();
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Error extracting account reference from callback: ' . $e->getMessage());
+        }
+    }
+
     if (!$payment) {
         Log::warning("⚠️ No matching M-Pesa payment found for CheckoutRequestID: $checkoutRequestID");
         return response()->json(['error' => 'Payment not found'], 404);

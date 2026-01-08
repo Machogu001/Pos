@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 use Carbon\Carbon;
 use Exception;
@@ -37,8 +38,10 @@ class SubscriptionController extends Controller
         try {
             $settings = AdminSetting::firstOrFail();
             $user = Auth::user();
+            $isAdmin = $user->role === 'admin';
             
             // Get active subscription with eager loading
+            // Admin sees their own, regular users see their own
             $activeSubscription = $user->subscriptions()
                 ->where('status', 'active')
                 ->where('end_date', '>', now())
@@ -47,16 +50,25 @@ class SubscriptionController extends Controller
 
             $plans = $this->getSubscriptionPlans($settings);
 
-            // Only show mpesa payments that are related to subscriptions.
-            // We consider a payment related to a subscription when it has a subscription_id
-            // or its account_reference is prefixed by SUB (legacy heuristics).
-            $paymentHistory = $user->mpesaPayments()
-                ->where(function ($q) {
-                    $q->whereNotNull('subscription_id')
-                      ->orWhere('account_reference', 'like', 'SUB%');
-                })
-                ->orderBy('created_at', 'desc')
-                ->get();
+            // Payment history filtering based on role
+            if ($isAdmin) {
+                // Admin sees ALL payment history
+                $paymentHistory = MpesaPayment::where(function ($q) {
+                        $q->whereNotNull('subscription_id')
+                          ->orWhere('account_reference', 'like', 'SUB%');
+                    })
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+            } else {
+                // Regular users see only their own payments
+                $paymentHistory = $user->mpesaPayments()
+                    ->where(function ($q) {
+                        $q->whereNotNull('subscription_id')
+                          ->orWhere('account_reference', 'like', 'SUB%');
+                    })
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+            }
 
             return view('subscription.plans', compact(
                 'settings', 
@@ -154,6 +166,17 @@ class SubscriptionController extends Controller
             $settings = AdminSetting::firstOrFail();
             $billingCycle = $request->billing_cycle;
             $amount = $settings->{$billingCycle . '_price'};
+
+            // Apply subscription VAT if set in admin settings and rounding precision
+            $vatPercent = floatval($settings->subscription_vat_percent ?? 0);
+            $vatAmount = 0;
+            if ($vatPercent > 0 && $amount > 0) {
+                $vatAmount = round(($amount * ($vatPercent / 100)), 2);
+            }
+            $finalAmount = round($amount + $vatAmount, 2);
+            $roundPrecision = intval($settings->subscription_round_precision ?? 0);
+            // Round final amount to configured precision (default 0 -> whole number)
+            $finalAmountRounded = round($finalAmount, $roundPrecision, PHP_ROUND_HALF_UP);
             $checkoutRequestId = $request->checkout_request_id;
 
             // Validate amount
@@ -164,9 +187,103 @@ class SubscriptionController extends Controller
             // Check for existing pending subscription
             $subscription = $this->getOrCreateSubscription($user, $billingCycle, $amount);
 
-            // Check for existing payment
-            $payment = $this->getOrCreatePayment($user, $subscription, $request->phone, $amount);
+            // Check for existing payment (use VAT-inclusive rounded amount)
+            $payment = $this->getOrCreatePayment($user, $subscription, $request->phone, $finalAmountRounded);
 
+            // Ensure a subscription invoice Transaction exists and is linked
+            try {
+                $transactionUtil = new \App\Utils\TransactionUtil();
+                $location_id = 1;
+                try {
+                    if (method_exists($user, 'getDefaultLocation') && $user->getDefaultLocation()) {
+                        $location_id = $user->getDefaultLocation()->id;
+                    }
+                } catch (\Exception $e) {
+                }
+
+                // Generate a subscription-specific invoice_no using admin settings (lock for update)
+                $invoice_no = null;
+                try {
+                    DB::beginTransaction();
+                    $adminSettings = \App\AdminSetting::lockForUpdate()->first();
+                    if ($adminSettings) {
+                        $prefix = $adminSettings->subscription_invoice_prefix ?? '';
+                        $next = intval($adminSettings->subscription_invoice_next ?? 1);
+                        $numeric = str_pad($next, 6, '0', STR_PAD_LEFT);
+                        $invoice_no = $prefix . $numeric;
+                        $adminSettings->subscription_invoice_next = $next + 1;
+                        $adminSettings->save();
+                    }
+                    DB::commit();
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    $invoice_no = null;
+                }
+
+                // Ensure we have a Contact for the subscriber so invoices show subscriber name
+                $contact = null;
+                try {
+                    $contactQuery = \App\Contact::where(function($q) use ($user) {
+                        $q->where('email', $user->email)->orWhere('mobile', $user->phone ?? '');
+                    });
+                    if (! empty($user->business_id)) {
+                        $contactQuery->where('business_id', $user->business_id);
+                    }
+                    $contact = $contactQuery->first();
+
+                    if (! $contact) {
+                        $contact = \App\Contact::create([
+                            'business_id' => $user->business_id ?? null,
+                            'type' => 'customer',
+                            'name' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: ($user->email ?? 'Subscriber'),
+                            'mobile' => $user->phone ?? null,
+                            'email' => $user->email ?? null,
+                            'contact_status' => 'active',
+                            'created_by' => $user->id,
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to find/create contact for subscriber: ' . $e->getMessage());
+                    $contact = null;
+                }
+
+                $input = [
+                    'location_id' => $location_id,
+                    'status' => 'final',
+                    'contact_id' => $contact->id ?? null,
+                    'transaction_date' => now()->toDateTimeString(),
+                    'is_recurring' => 0,
+                    'subscription_no' => 'sub_invoice_' . $subscription->id . '_' . now()->format('Ymd'),
+                    'sub_type' => 'subscription_invoice',
+                    'sale_note' => 'Subscription invoice for ' . $subscription->plan_name,
+                ];
+
+                if (! empty($invoice_no)) {
+                    $input['invoice_no'] = $invoice_no;
+                }
+
+                $invoice_total = [
+                    'total_before_tax' => $subscription->amount ?? $amount,
+                    'tax' => $vatAmount,
+                ];
+
+                $tx = null;
+                try {
+                    $tx = $transactionUtil->createSellTransaction($user->business_id ?? null, array_merge($input, ['final_total' => $finalAmountRounded]), $invoice_total, $user->id);
+                    $tx->payment_status = 'due';
+                    $tx->save();
+                } catch (\Exception $e) {
+                    Log::warning('Failed to create invoice transaction for subscription: ' . $e->getMessage());
+                }
+
+                if ($tx) {
+                    // Link transaction to subscription and update payment account reference
+                    $subscription->pending_invoice_transaction_id = $tx->id;
+                    $subscription->save();
+                }
+            } catch (\Exception $e) {
+                Log::warning('Error ensuring subscription invoice exists: ' . $e->getMessage());
+            }
             // If we have a checkout_request_id, check payment status
             if ($checkoutRequestId) {
                 $payment->update(['checkout_request_id' => $checkoutRequestId]);
@@ -196,10 +313,8 @@ class SubscriptionController extends Controller
             $mpesaController = new MpesaController();
             $response = $mpesaController->initiatePaymentDirect(
                 $request->phone, 
-                $amount, 
-                'SUB' . $subscription->id,
-                $user->first_name,
-                $user->last_name
+                $finalAmountRounded,
+                $payment->account_reference
             );
 
             if ($response['success']) {
@@ -318,17 +433,126 @@ class SubscriptionController extends Controller
             $settings = AdminSetting::firstOrFail();
             $billingCycle = $request->plan_key;
             $amount = $settings->{$billingCycle . '_price'};
+            // Apply subscription VAT if configured and rounding precision
+            $vatPercentTmp = floatval($settings->subscription_vat_percent ?? 0);
+            $vatAmountTmp = 0;
+            if ($vatPercentTmp > 0 && $amount > 0) {
+                $vatAmountTmp = round(($amount * ($vatPercentTmp / 100)), 2);
+            }
+            $finalAmountTmp = round($amount + $vatAmountTmp, 2);
+            $roundPrecisionTmp = intval($settings->subscription_round_precision ?? 0);
+            $finalAmountTmpRounded = round($finalAmountTmp, $roundPrecisionTmp, PHP_ROUND_HALF_UP);
 
             // Create subscription
             $subscription = $this->getOrCreateSubscription($user, $billingCycle, $amount);
 
-            // Create payment record
+            // Ensure invoice transaction exists before creating payment
+            try {
+                $transactionUtil = new \App\Utils\TransactionUtil();
+                $location_id = 1;
+                try {
+                    if (method_exists($user, 'getDefaultLocation') && $user->getDefaultLocation()) {
+                        $location_id = $user->getDefaultLocation()->id;
+                    }
+                } catch (\Exception $e) {
+                }
+
+                // Generate invoice_no
+                $invoice_no = null;
+                try {
+                    DB::beginTransaction();
+                    $adminSettings = \App\AdminSetting::lockForUpdate()->first();
+                    if ($adminSettings) {
+                        $prefix = $adminSettings->subscription_invoice_prefix ?? '';
+                        $next = intval($adminSettings->subscription_invoice_next ?? 1);
+                        $numeric = str_pad($next, 6, '0', STR_PAD_LEFT);
+                        $invoice_no = $prefix . $numeric;
+                        $adminSettings->subscription_invoice_next = $next + 1;
+                        $adminSettings->save();
+                    }
+                    DB::commit();
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    $invoice_no = null;
+                }
+
+                $contact = null;
+                if ($user->business_id) {
+                    $contact = \App\Contact::where('business_id', $user->business_id)
+                        ->where(function($q) use ($user) {
+                            $q->where('email', $user->email)->orWhere('mobile', $user->phone ?? '');
+                        })->first();
+
+                    if (! $contact) {
+                        $contact = \App\Contact::create([
+                            'business_id' => $user->business_id,
+                            'type' => 'customer',
+                            'name' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
+                            'mobile' => $user->phone ?? null,
+                            'email' => $user->email ?? null,
+                            'contact_status' => 'active',
+                            'created_by' => $user->id,
+                        ]);
+                    }
+                }
+
+                $input = [
+                    'location_id' => $location_id,
+                    'status' => 'final',
+                    'contact_id' => $contact->id ?? null,
+                    'transaction_date' => now()->toDateTimeString(),
+                    'is_recurring' => 0,
+                    'subscription_no' => 'sub_invoice_' . $subscription->id . '_' . now()->format('Ymd'),
+                    'sub_type' => 'subscription_invoice',
+                    'sale_note' => 'Subscription invoice for ' . $subscription->plan_name,
+                ];
+
+                if (! empty($invoice_no)) {
+                    $input['invoice_no'] = $invoice_no;
+                }
+
+                $invoice_total = [
+                    'total_before_tax' => $subscription->amount ?? $amount,
+                    'tax' => $vatAmountTmp,
+                ];
+
+                $tx = null;
+                try {
+                    $tx = $transactionUtil->createSellTransaction($user->business_id ?? null, array_merge($input, ['final_total' => $finalAmountTmpRounded]), $invoice_total, $user->id);
+                    $tx->payment_status = 'due';
+                    $tx->save();
+                } catch (\Exception $e) {
+                    Log::warning('Failed to create invoice transaction for STK push: ' . $e->getMessage());
+                }
+
+                if ($tx) {
+                    $subscription->pending_invoice_transaction_id = $tx->id;
+                    $subscription->save();
+                }
+            } catch (\Exception $e) {
+                Log::warning('Error creating invoice for STK push: ' . $e->getMessage());
+            }
+
+            // Create payment record (use invoice number if available)
+            // IMPORTANT: mpesa_payments.account_reference has a UNIQUE constraint and is intended
+            // to match the M-Pesa STK AccountReference. Do NOT reuse invoice numbers here.
+            $accountRef = 'SUB' . $subscription->id . '-' . strtoupper(Str::random(6));
+            $attempts = 0;
+            while (MpesaPayment::where('account_reference', $accountRef)->exists()) {
+                $attempts++;
+                if ($attempts > 5) {
+                    $accountRef = 'SUB' . $subscription->id . '-' . strtoupper(Str::uuid()->toString());
+                    break;
+                }
+                $accountRef = 'SUB' . $subscription->id . '-' . strtoupper(Str::random(6));
+            }
+
             $payment = MpesaPayment::create([
                 'user_id' => $user->id,
                 'subscription_id' => $subscription->id,
                 'phone_number' => $request->phone,
-                'amount' => $amount,
-                'account_reference' => 'SUB' . $subscription->id,
+                'amount' => $finalAmountTmpRounded,
+                'account_reference' => $accountRef,
                 'payment_type' => 'subscription',
                 'transaction_status' => self::PAYMENT_PENDING,
                 'first_name' => $user->first_name,
@@ -340,10 +564,8 @@ class SubscriptionController extends Controller
             $mpesaController = new MpesaController();
             $response = $mpesaController->initiatePaymentDirect(
                 $request->phone, 
-                $amount, 
-                'SUB' . $subscription->id,
-                $user->first_name,
-                $user->last_name
+                $finalAmountTmpRounded, 
+                $accountRef
             );
 
             if (isset($response['success']) && $response['success']) {
@@ -413,6 +635,16 @@ class SubscriptionController extends Controller
             $billingCycle = $request->billing_cycle;
             $amount = $settings->{$billingCycle . '_price'};
 
+            // Apply subscription VAT if configured and rounding precision for renewals
+            $vatPercent = floatval($settings->subscription_vat_percent ?? 0);
+            $vatAmount = 0;
+            if ($vatPercent > 0 && $amount > 0) {
+                $vatAmount = round(($amount * ($vatPercent / 100)), 2);
+            }
+            $finalAmount = round($amount + $vatAmount, 2);
+            $roundPrecision = intval($settings->subscription_round_precision ?? 0);
+            $finalAmountRounded = round($finalAmount, $roundPrecision, PHP_ROUND_HALF_UP);
+
             // Get latest subscription to determine renewal base date (active or expired)
             $latestSub = $user->subscriptions()
                 ->whereIn('status', ['active', 'expired'])
@@ -448,12 +680,103 @@ class SubscriptionController extends Controller
             ]);
 
             // Create payment record
+            // Create an invoice transaction for this renewal so we can use the invoice number as account reference
+            $transactionUtil = new \App\Utils\TransactionUtil();
+            $location_id = 1;
+            try {
+                if (method_exists($user, 'getDefaultLocation') && $user->getDefaultLocation()) {
+                    $location_id = $user->getDefaultLocation()->id;
+                }
+            } catch (\Exception $e) {
+            }
+
+            // Generate a subscription-specific invoice_no using admin settings (lock for update)
+            $invoice_no = null;
+            try {
+                DB::beginTransaction();
+                $adminSettings = \App\AdminSetting::lockForUpdate()->first();
+                if ($adminSettings) {
+                    $prefix = $adminSettings->subscription_invoice_prefix ?? '';
+                    $next = intval($adminSettings->subscription_invoice_next ?? 1);
+                    $numeric = str_pad($next, 6, '0', STR_PAD_LEFT);
+                    $invoice_no = $prefix . $numeric;
+                    $adminSettings->subscription_invoice_next = $next + 1;
+                    $adminSettings->save();
+                }
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                $invoice_no = null;
+            }
+
+            $contact = null;
+            if ($user->business_id) {
+                $contact = \App\Contact::where('business_id', $user->business_id)
+                    ->where(function($q) use ($user) {
+                        $q->where('email', $user->email)->orWhere('mobile', $user->phone ?? '');
+                    })->first();
+
+                if (! $contact) {
+                    $contact = \App\Contact::create([
+                        'business_id' => $user->business_id,
+                        'type' => 'customer',
+                        'name' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
+                        'mobile' => $user->phone ?? null,
+                        'email' => $user->email ?? null,
+                        'contact_status' => 'active',
+                        'created_by' => $user->id,
+                    ]);
+                }
+            }
+
+            $input = [
+                'location_id' => $location_id,
+                'status' => 'final',
+                'contact_id' => $contact->id ?? null,
+                'transaction_date' => now()->toDateTimeString(),
+                'is_recurring' => 0,
+                'subscription_no' => 'sub_invoice_' . $newSub->id . '_' . now()->format('Ymd'),
+                'sub_type' => 'subscription_invoice',
+                'sale_note' => 'Subscription renewal invoice for ' . $newSub->plan_name,
+            ];
+
+            if (! empty($invoice_no)) {
+                $input['invoice_no'] = $invoice_no;
+            }
+
+            $invoice_total = [
+                'total_before_tax' => $amount,
+                'tax' => $vatAmount,
+            ];
+
+            try {
+                // Use VAT-inclusive rounded final total when creating the invoice transaction
+                $tx = $transactionUtil->createSellTransaction($user->business_id ?? null, array_merge($input, ['final_total' => $finalAmountRounded]), $invoice_total, $user->id);
+                $tx->payment_status = 'due';
+                $tx->save();
+            } catch (\Exception $e) {
+                Log::warning('Failed to create invoice transaction for renewal: ' . $e->getMessage());
+            }
+
+            // IMPORTANT: mpesa_payments.account_reference has a UNIQUE constraint and is intended
+            // to match the M-Pesa STK AccountReference. Do NOT reuse invoice numbers here.
+            $accountRef = 'RENEW' . $newSub->id . '-' . strtoupper(Str::random(6));
+            $attempts = 0;
+            while (MpesaPayment::where('account_reference', $accountRef)->exists()) {
+                $attempts++;
+                if ($attempts > 5) {
+                    $accountRef = 'RENEW' . $newSub->id . '-' . strtoupper(Str::uuid()->toString());
+                    break;
+                }
+                $accountRef = 'RENEW' . $newSub->id . '-' . strtoupper(Str::random(6));
+            }
+
             $payment = MpesaPayment::create([
                 'user_id' => $user->id,
                 'subscription_id' => $newSub->id,
                 'phone_number' => $request->phone,
-                'amount' => $amount,
-                'account_reference' => 'RENEW' . $newSub->id,
+                'amount' => $finalAmountRounded,
+                'account_reference' => $accountRef,
                 'payment_type' => 'subscription',
                 'transaction_status' => self::PAYMENT_PENDING,
                 'first_name' => $user->first_name,
@@ -465,10 +788,8 @@ class SubscriptionController extends Controller
             $mpesaController = new MpesaController();
             $response = $mpesaController->initiatePaymentDirect(
                 $request->phone, 
-                $amount, 
-                'RENEW' . $newSub->id,
-                $user->first_name,
-                $user->last_name
+                $finalAmountRounded, 
+                $accountRef
             );
 
             if ($response['success']) {
@@ -782,6 +1103,17 @@ class SubscriptionController extends Controller
                 return false;
             }
 
+            // Guard: do not activate if the payment is not marked as paid/success
+            if (!in_array($payment->transaction_status, ['paid', 'success'], true)) {
+                Log::warning('activateSubscription called for payment that is not paid; aborting', [
+                    'payment_id' => $payment->id,
+                    'transaction_status' => $payment->transaction_status ?? 'null'
+                ]);
+
+                DB::rollBack();
+                return false;
+            }
+
             Log::info("Starting subscription activation for payment ID: {$payment->id}");
             Log::info("Payment M-Pesa receipt: " . ($payment->mpesa_receipt_number ?? 'NULL'));
             Log::info("Payment created at: " . $payment->created_at->toDateTimeString());
@@ -795,10 +1127,124 @@ class SubscriptionController extends Controller
                 return false;
             }
 
+            // If this payment is linked to a pending renewal that has an invoice transaction,
+            // consume that transaction by creating a TransactionPayment entry so the
+            // invoice is marked paid and mapping is durable. This ensures paying the
+            // generated invoice (from the 14-day job) will mark the invoice paid and
+            // tie the MpesaPayment -> Transaction mapping for future audits.
+            try {
+                if (!empty($subscription->pending_invoice_transaction_id) && $payment->transaction_status === 'paid') {
+                    $tx = \App\Transaction::find($subscription->pending_invoice_transaction_id);
+                        if ($tx && $tx->payment_status !== 'paid') {
+                            // Ensure the transaction contact is the subscriber so receipts show subscriber name
+                            try {
+                                $subscriber = $subscription->user ?? null;
+                                if ($subscriber) {
+                                    // Find or create contact for subscriber
+                                    $subscriberContact = null;
+                                    try {
+                                        $contactQuery = \App\Contact::where(function($q) use ($subscriber) {
+                                            $q->where('email', $subscriber->email)->orWhere('mobile', $subscriber->phone ?? '');
+                                        });
+                                        if (! empty($subscriber->business_id)) {
+                                            $contactQuery->where('business_id', $subscriber->business_id);
+                                        }
+                                        $subscriberContact = $contactQuery->first();
+
+                                        if (! $subscriberContact) {
+                                            $subscriberContact = \App\Contact::create([
+                                                'business_id' => $subscriber->business_id ?? null,
+                                                'type' => 'customer',
+                                                'name' => trim(($subscriber->first_name ?? '') . ' ' . ($subscriber->last_name ?? '')) ?: ($subscriber->email ?? 'Subscriber'),
+                                                'mobile' => $subscriber->phone ?? null,
+                                                'email' => $subscriber->email ?? null,
+                                                'contact_status' => 'active',
+                                                'created_by' => $subscriber->id,
+                                            ]);
+                                        }
+                                    } catch (\Exception $e) {
+                                        Log::warning('Failed to find/create subscriber contact during activation: ' . $e->getMessage());
+                                        $subscriberContact = null;
+                                    }
+
+                                    if ($subscriberContact) {
+                                        $tx->contact_id = $subscriberContact->id;
+                                        $tx->save();
+                                    }
+                                }
+                            } catch (\Exception $e) {
+                                Log::warning('Error ensuring transaction contact for subscription activation: ' . $e->getMessage());
+                            }
+                        $transactionUtil = new \App\Utils\TransactionUtil();
+
+                        $ref_count = $transactionUtil->setAndGetReferenceCount('sell_payment', $tx->business_id);
+                        $payment_ref_no = $transactionUtil->generateReferenceNumber('sell_payment', $ref_count, $tx->business_id);
+
+                        $tpData = [
+                            'paid_on' => Carbon::now()->toDateTimeString(),
+                            'transaction_id' => $tx->id,
+                            'amount' => $payment->amount ?? $tx->final_total,
+                            'payment_for' => $tx->contact_id,
+                            'method' => 'mpesa',
+                            'note' => 'Auto-consumed subscription renewal via M-Pesa ' . ($payment->mpesa_receipt_number ?? ''),
+                            'paid_through_link' => 0,
+                            'gateway' => 'mpesa',
+                            'business_id' => $tx->business_id,
+                            'payment_ref_no' => $payment_ref_no,
+                        ];
+
+                        // Create a parent payment record and allocate it across due transactions
+                        // using TransactionUtil->payAtOnce so partial payments are handled correctly.
+                        $parentInputs = $tpData;
+                        // mark as parent (is_advance like behavior) so allocation runs properly
+                        $parentInputs['created_by'] = auth()->id() ?? $payment->user_id ?? 1;
+                        $parentInputs['payment_for'] = $tpData['payment_for'] ?? $tx->contact_id;
+                        $parentInputs['business_id'] = $tpData['business_id'] ?? $tx->business_id;
+
+                        $parent_payment = \App\TransactionPayment::create($parentInputs);
+
+                        // Distribute payment among unpaid transactions (this will create TransactionPayment rows)
+                        $excess = $transactionUtil->payAtOnce($parent_payment, 'sell');
+
+                        // Update mpesa payment to reference the consumed transaction (important for audit)
+                        $payment->update(['consumed_by_transaction_id' => $tx->id, 'consumed_at' => Carbon::now()]);
+
+                        // Ensure the specific transaction's payment_status is recalculated
+                        $payment_status = $transactionUtil->updatePaymentStatus($tx->id, $tx->final_total);
+                        $tx->payment_status = $payment_status;
+                        $tx->save();
+
+                        // Activity log
+                        $transactionUtil->activityLog($tx, 'payment_added', null, ['mpesa_payment_id' => $payment->id]);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to auto-consume invoice transaction for subscription activation: ' . $e->getMessage());
+            }
+
             Log::info("Found subscription ID: {$subscription->id}, Current status: {$subscription->status}");
 
-            // USE PAYMENT DATE AS START DATE (as requested)
+            // Determine start date for subscription activation.
+            // Default to payment date, but if this payment is for a renewal that was
+            // created to start after the current subscription (i.e., pre-paid renewal),
+            // respect the subscription's configured start_date so the renewal begins
+            // when the current subscription expires.
             $startDate = $payment->created_at;
+            try {
+                if (! empty($subscription->is_renewal) || ! empty($subscription->previous_subscription_id)) {
+                    // If a planned start_date exists and is in the future relative to payment,
+                    // use that as the real start date so prepaid renewals begin after current expiry.
+                    if (! empty($subscription->start_date)) {
+                        $plannedStart = \Carbon\Carbon::parse($subscription->start_date);
+                        if ($plannedStart->gt($startDate)) {
+                            $startDate = $plannedStart;
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                // fallback to payment created_at if any parsing fails
+                $startDate = $payment->created_at;
+            }
             
             // CRITICAL FIX: Ensure we always have the receipt number
             $mpesaReceipt = $payment->mpesa_receipt_number;

@@ -11,6 +11,14 @@ class CheckSubscription
 {
     public function handle(Request $request, Closure $next)
     {
+        // Check if subscription enforcement is enabled
+        $settings = \App\AdminSetting::first();
+        
+        // If no settings exist yet (fresh install) or subscription not required, allow access
+        if (!$settings || !($settings->subscription_required ?? false)) {
+            return $next($request);
+        }
+
         $user = Auth::user();
         
         if (!$user) {
@@ -56,12 +64,27 @@ class CheckSubscription
     private function isSystemAdmin($user)
     {
         // Check if user has admin role or is super admin
-        // Adjust this logic based on your user roles system
-        return $user->hasRole('admin') || 
-               $user->hasRole('superadmin') || 
-               $user->is_superadmin == 1 ||
-               $user->user_type == 'admin';
-               $user->isAdmin();
-
+        if (!$user) return false;
+        
+        // Check various admin indicators
+        if (method_exists($user, 'hasRole')) {
+            if ($user->hasRole('admin') || $user->hasRole('superadmin')) {
+                return true;
+            }
+        }
+        
+        if (isset($user->is_superadmin) && $user->is_superadmin == 1) {
+            return true;
+        }
+        
+        if (isset($user->user_type) && $user->user_type == 'admin') {
+            return true;
+        }
+        
+        if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
+            return true;
+        }
+        
+        return false;
     }
 }

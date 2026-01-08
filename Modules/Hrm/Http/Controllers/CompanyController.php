@@ -13,8 +13,34 @@ use Illuminate\Support\Facades\Schema;
 class CompanyController extends Controller
 {
 
+    /**
+     * Ensure Laravel Passport encryption keys exist.
+     * If keys are missing and not provided via env, generate them.
+     */
+    protected function ensurePassportKeys()
+    {
+        $privateEnv = config('passport.private_key');
+        $publicEnv = config('passport.public_key');
+
+        $privateFile = storage_path('oauth-private.key');
+        $publicFile = storage_path('oauth-public.key');
+
+        $filesExist = file_exists($privateFile) && file_exists($publicFile);
+        $envProvided = !empty($privateEnv) && !empty($publicEnv);
+
+        if (!$filesExist && !$envProvided) {
+            try {
+                \Artisan::call('passport:keys');
+            } catch (\Throwable $e) {
+                // Swallow to avoid breaking request flow; logging will show if needed.
+            }
+        }
+    }
+
     protected function getAuthUser($request)
     {
+        // Make sure Passport keys are available before trying to resolve the user
+        $this->ensurePassportKeys();
         return $request->user('api') ?? $request->user() ?? auth()->user();
     }
 

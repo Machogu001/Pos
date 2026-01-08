@@ -61,6 +61,12 @@ class Kernel extends HttpKernel
         'signed' => \Illuminate\Routing\Middleware\ValidateSignature::class,
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
+
+        // Spatie Permission middleware aliases
+        'role' => \Spatie\Permission\Middlewares\RoleMiddleware::class,
+        'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
+        'roles' => \Spatie\Permission\Middlewares\RoleMiddleware::class,
+        'permissions' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
         'language' => \App\Http\Middleware\Language::class,
         'timezone' => \App\Http\Middleware\Timezone::class,
         'SetSessionData' => \App\Http\Middleware\SetSessionData::class,
@@ -73,5 +79,7 @@ class Kernel extends HttpKernel
         'check.mpesa.payment' => \App\Http\Middleware\CheckMpesaPayment::class,
         'admin' => \App\Http\Middleware\AdminMiddleware::class,
         'subscription' => \App\Http\Middleware\CheckSubscription::class,
+        // HRM access attempt logging
+        // 'log.hrm' => \App\Http\Middleware\LogHrmAccessAttempt::class,
     ];
 }

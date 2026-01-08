@@ -5,6 +5,7 @@
     <h2>Create Payroll</h2>
     <form method="POST" action="{{ route('hrm.payrolls.store') }}">
         @csrf
+        @include('hrm::partials.hrm_form_toolbar')
 
         <div class="form-group">
             <label>Company</label>

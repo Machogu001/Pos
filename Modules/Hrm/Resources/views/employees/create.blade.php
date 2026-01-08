@@ -5,6 +5,7 @@
     <h2>Create Employee</h2>
     <form method="POST" action="{{ route('hrm.employees.store') }}">
         @csrf
+        @include('hrm::partials.hrm_form_toolbar')
         <div class="form-group">
             <label>First name</label>
             <input name="firstname" class="form-control" placeholder="First name" required />
@@ -70,18 +71,71 @@
             <label>Phone</label>
             <input name="phone" class="form-control" placeholder="07xxxxxxxx" />
         </div>
-        <button class="btn btn-primary">Save</button>
+        <div class="form-group">
+            <label>Total annual leave (days)</label>
+            <input id="total_leave" name="total_leave" type="number" min="0" step="1" class="form-control" value="{{ old('total_leave', config('hrm.default_annual_leave', 21)) }}" />
+            <small class="form-text text-muted">Set the employee's total annual leave entitlement in days.</small>
+        </div>
+        <div class="form-group">
+            <label>Remaining leave (days)</label>
+            <input id="remaining_leave" name="remaining_leave" type="number" min="0" step="1" class="form-control" value="{{ old('remaining_leave', config('hrm.default_annual_leave', 21)) }}" />
+            <small id="remaining_help" class="form-text text-muted">If left empty the remaining leave will be initialized to the total entitlement.</small>
+        </div>
+        
     </form>
 </div>
 @endsection
 
 @push('scripts')
-<script>
-    // Debug AJAX POST for employees
+        <script>
+    // Debug AJAX POST for employees + client-side leave validation
     document.addEventListener('DOMContentLoaded', function(){
         var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn btn-outline-primary mt-2'; btn.id = 'ajax-employees-debug'; btn.innerText = 'Send debug POST';
         var container = document.querySelector('.container'); container.appendChild(btn);
         var out = document.createElement('pre'); out.id = 'ajax-employees-result'; out.style.whiteSpace = 'pre-wrap'; container.appendChild(out);
+
+        // Helper: show brief message under remaining_help
+        function showRemainingMessage(msg, isError){
+            var help = document.getElementById('remaining_help');
+            if (!help) return;
+            help.textContent = msg;
+            help.classList.toggle('text-danger', !!isError);
+            help.classList.toggle('text-muted', !isError);
+            setTimeout(function(){
+                // restore default help text
+                help.textContent = '{{ addslashes("If left empty the remaining leave will be initialized to the total entitlement.") }}';
+                help.classList.remove('text-danger');
+                help.classList.add('text-muted');
+            }, 3000);
+        }
+
+        function enforceLeaveBounds(){
+            var totalEl = document.getElementById('total_leave');
+            var remEl = document.getElementById('remaining_leave');
+            if (!totalEl || !remEl) return;
+            var total = parseInt(totalEl.value, 10);
+            var rem = parseInt(remEl.value, 10);
+            if (isNaN(total)) total = 0;
+            if (isNaN(rem)) rem = 0;
+            if (rem < 0) { remEl.value = 0; showRemainingMessage('Remaining cannot be negative', true); }
+            if (rem > total) { remEl.value = total; showRemainingMessage('Remaining cannot exceed total; adjusted to total.', true); }
+        }
+
+        // Attach listeners
+        var totalInput = document.getElementById('total_leave');
+        var remainingInput = document.getElementById('remaining_leave');
+        if (totalInput) totalInput.addEventListener('input', enforceLeaveBounds);
+        if (remainingInput) remainingInput.addEventListener('input', enforceLeaveBounds);
+
+        // Ensure bounds on normal submit
+        var formEl = document.querySelector('form');
+        if (formEl) {
+            formEl.addEventListener('submit', function(e){
+                enforceLeaveBounds();
+                // allow submit; server-side will also validate
+            });
+        }
+
         btn.addEventListener('click', function(){
             var form = document.querySelector('form'); var fd = new FormData(form);
             fetch("{{ route('hrm.employees.debug') }}", { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }, body: fd })

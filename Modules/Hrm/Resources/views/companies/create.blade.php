@@ -5,6 +5,7 @@
     <h2>Create Company</h2>
     <form action="{{ route('hrm.companies.store') }}" method="POST">
         {{ csrf_field() }}
+        @include('hrm::partials.hrm_form_toolbar')
 
         <div class="form-group">
             <label for="name">Name</label>
@@ -26,7 +27,7 @@
             <input type="text" name="country" id="country" class="form-control" placeholder="Country name" />
         </div>
 
-    <button class="btn btn-success">Create</button>
+    
     </form>
 
     <hr />

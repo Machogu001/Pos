@@ -32,19 +32,19 @@
     $canShowActionButtons = !$hasActiveSubscription;
 @endphp
 
-<!-- Header Section -->
-<div class="bg-gradient-primary text-white py-5 mb-4">
-    <div class="container-fluid">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <h1 class="h2 mb-2 fw-bold">
+<!-- Header Section (match Home dashboard styling) -->
+<div class="tw-pb-6 tw-bg-gradient-to-r tw-from-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-800 tw-to-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-900 xl:tw-pb-0">
+    <div class="tw-px-5 tw-pt-3">
+        <div class="sm:tw-flex sm:tw-items-center sm:tw-justify-between sm:tw-gap-12">
+            <div class="tw-mt-2 sm:tw-w-1/2 md:tw-w-1/2">
+                <h1 class="tw-text-2xl md:tw-text-4xl tw-tracking-tight tw-text-white tw-font-semibold tw-mb-2">
                     @if($user->is_admin)
                         <i class="fas fa-tachometer-alt me-3"></i>Admin Dashboard
                     @else
                         <i class="fas fa-crown me-3"></i>Subscription Plans
                     @endif
                 </h1>
-                <p class="mb-0 opacity-75">
+                <p class="tw-mb-0 tw-text-white">
                     @if($user->is_admin)
                         Manage users, subscriptions, and system settings
                     @else
@@ -52,12 +52,15 @@
                     @endif
                 </p>
             </div>
-            <div class="col-md-4 text-md-end">
+
+            <div class="tw-mt-2 sm:tw-w-1/3 md:tw-w-1/4 tw-flex sm:tw-justify-end">
                 @if(!$user->is_admin && $hasActiveSubscription)
-                    <div class="bg-white bg-opacity-20 rounded-3 p-3 text-center">
-                        <i class="fas fa-check-circle fa-2x mb-2"></i>
-                        <h6 class="mb-1">Active Until</h6>
-                        <p class="mb-0 fw-bold">{{ \Carbon\Carbon::parse($userSubscription->end_date)->format('M j, Y') }}</p>
+                    <div class="tw-inline-flex tw-flex-col tw-items-center tw-justify-center tw-rounded-xl tw-bg-white/15 tw-ring-1 tw-ring-white/20 tw-px-4 tw-py-3">
+                        <i class="fas fa-check-circle tw-text-white/90 tw-text-2xl tw-mb-1"></i>
+                        <div class="tw-text-sm tw-text-white">Active Until</div>
+                        <div class="tw-text-white tw-font-semibold">
+                            {{ \Carbon\Carbon::parse($userSubscription->end_date)->format('M j, Y') }}
+                        </div>
                     </div>
                 @endif
             </div>
@@ -65,7 +68,7 @@
     </div>
 </div>
 
-<div class="container-fluid px-4">
+<div class="tw-px-5 tw-py-4">
 
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show shadow-sm border-0" role="alert">
@@ -83,93 +86,72 @@
         </div>
     @endif
 
-    <!-- Dashboard Stats -->
-    <div class="row g-4 mb-5">
-        <div class="col-lg-3 col-md-6">
-            <div class="card border-0 shadow-sm h-100 overflow-hidden">
-                <div class="card-body p-4 position-relative">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="text-muted mb-2 fw-medium">{{ __('payment.total_businesses') }}</h6>
-                            <h2 class="mb-0 fw-bold text-primary"><span id="card-total-businesses">{{ $user->is_admin ? ($totalUsers ?? 0) : ($user->business ? 1 : 0) }}</span></h2>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <div class="bg-primary bg-opacity-10 rounded-circle p-3">
-                                <i class="fas fa-building fa-2x text-primary"></i>
-                            </div>
-                        </div>
+    <!-- Dashboard Stats (match Home dashboard styling) -->
+    <div class="tw-grid tw-grid-cols-1 tw-gap-4 tw-mb-6 sm:tw-grid-cols-2 xl:tw-grid-cols-4 sm:tw-gap-5">
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-sky-100 tw-text-sky-500">
+                        <i class="fas fa-building"></i>
                     </div>
-                </div>
-                <div class="card-footer bg-primary bg-opacity-5 py-2">
-                    <small class="text-primary fw-medium">
-                        <i class="fas fa-chart-line me-1"></i>Total registered
-                    </small>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">{{ __('payment.total_businesses') }}</p>
+                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
+                            <span id="card-total-businesses">{{ $user->is_admin ? ($totalUsers ?? 0) : ($user->business ? 1 : 0) }}</span>
+                        </p>
+                        <p class="tw-mt-1 tw-text-xs tw-text-gray-500">Total registered</p>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="card border-0 shadow-sm h-100 overflow-hidden">
-                <div class="card-body p-4 position-relative">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="text-muted mb-2 fw-medium">{{ __('payment.active') }}</h6>
-                            <h2 class="mb-0 fw-bold text-success"><span id="card-active-count">{{ $user->is_admin ? ($activeUsers ?? 0) : ($hasActiveSubscription ? 1 : 0) }}</span></h2>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <div class="bg-success bg-opacity-10 rounded-circle p-3">
-                                <i class="fas fa-check-circle fa-2x text-success"></i>
-                            </div>
-                        </div>
+
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-green-100 tw-text-green-500">
+                        <i class="fas fa-check-circle"></i>
                     </div>
-                </div>
-                <div class="card-footer bg-success bg-opacity-5 py-2">
-                    <small class="text-success fw-medium">
-                        <i class="fas fa-arrow-up me-1"></i>Currently active
-                    </small>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">{{ __('payment.active') }}</p>
+                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
+                            <span id="card-active-count">{{ $user->is_admin ? ($activeUsers ?? 0) : ($hasActiveSubscription ? 1 : 0) }}</span>
+                        </p>
+                        <p class="tw-mt-1 tw-text-xs tw-text-gray-500">Currently active</p>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="card border-0 shadow-sm h-100 overflow-hidden">
-                <div class="card-body p-4 position-relative">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="text-muted mb-2 fw-medium">{{ __('payment.pending') }}</h6>
-                            <h2 class="mb-0 fw-bold text-warning"><span id="card-pending-count">{{ $user->is_admin ? ($pendingSubscriptions ?? 0) : ($userSubscription?->status === 'pending' ? 1 : 0) }}</span></h2>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <div class="bg-warning bg-opacity-10 rounded-circle p-3">
-                                <i class="fas fa-clock fa-2x text-warning"></i>
-                            </div>
-                        </div>
+
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-yellow-100 tw-text-yellow-500">
+                        <i class="fas fa-hourglass-half"></i>
                     </div>
-                </div>
-                <div class="card-footer bg-warning bg-opacity-5 py-2">
-                    <small class="text-warning fw-medium">
-                        <i class="fas fa-hourglass-half me-1"></i>Awaiting payment
-                    </small>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">{{ __('payment.pending') }}</p>
+                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
+                            <span id="card-pending-count">{{ $user->is_admin ? ($pendingSubscriptions ?? 0) : ($userSubscription?->status === 'pending' ? 1 : 0) }}</span>
+                        </p>
+                        <p class="tw-mt-1 tw-text-xs tw-text-gray-500">Awaiting payment</p>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="card border-0 shadow-sm h-100 overflow-hidden">
-                <div class="card-body p-4 position-relative">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="text-muted mb-2 fw-medium">{{ __('payment.monthly_revenue') }}</h6>
-                            <h2 class="mb-0 fw-bold text-info">Ksh <span id="card-monthly-revenue">{{ $user->is_admin ? number_format($monthlyRevenue ?? 0, 0) : number_format($userSubscription?->amount ?? 0, 0) }}</span></h2>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <div class="bg-info bg-opacity-10 rounded-circle p-3">
-                                <i class="fas fa-dollar-sign fa-2x text-info"></i>
-                            </div>
-                        </div>
+
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-indigo-100 tw-text-indigo-500">
+                        <i class="fas fa-coins"></i>
                     </div>
-                </div>
-                <div class="card-footer bg-info bg-opacity-5 py-2">
-                    <small class="text-info fw-medium">
-                        <i class="fas fa-coins me-1"></i>Monthly revenue
-                    </small>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">{{ __('payment.monthly_revenue') }}</p>
+                        <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
+                            Ksh <span id="card-monthly-revenue">{{ $user->is_admin ? number_format($monthlyRevenue ?? 0, 0) : number_format($userSubscription?->amount ?? 0, 0) }}</span>
+                        </p>
+                        <p class="tw-mt-1 tw-text-xs tw-text-gray-500">Monthly revenue</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -219,6 +201,46 @@
                                 @if($userSubscription->mpesa_receipt)
                                     <p><i class="fas fa-receipt me-2"></i>{{ __('payment.mpesa_receipt') }}: <strong>{{ $userSubscription->mpesa_receipt }}</strong></p>
                                 @endif
+                                <!-- Download invoice & statement for current subscription -->
+                                <div class="mt-3">
+                                    <a href="{{ route('subscription.invoice.download', $userSubscription->id) }}" class="btn btn-sm btn-outline-primary me-2" target="_blank">
+                                        <i class="fas fa-file-invoice me-1"></i> {{ __('payment.download_invoice') }}
+                                    </a>
+
+                                    @if($isAdmin)
+                                        <!-- Admin: Can download statement for any user -->
+                                        <form method="GET" action="{{ route('subscription.statement.download', $userSubscription->id) }}" class="d-inline-flex align-items-center flex-wrap gap-1">
+                                            @php
+                                                $prefillStart = $userSubscription->start_date ? \Carbon\Carbon::parse($userSubscription->start_date)->format('Y-m-d') : '';
+                                                $prefillEnd = $userSubscription->end_date ? \Carbon\Carbon::parse($userSubscription->end_date)->format('Y-m-d') : '';
+                                                $allUsers = \App\User::where('role', '!=', 'admin')->orderBy('first_name')->get();
+                                            @endphp
+                                            <select name="user_id" class="form-control form-control-sm me-1" style="width: 150px;">
+                                                <option value="">Select User</option>
+                                                @foreach($allUsers as $u)
+                                                    <option value="{{ $u->id }}" {{ $u->id == $userSubscription->user_id ? 'selected' : '' }}>
+                                                        {{ $u->first_name }} {{ $u->last_name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <input type="date" name="start" class="form-control form-control-sm me-1" value="{{ $prefillStart }}" title="Start date" />
+                                            <input type="date" name="end" class="form-control form-control-sm me-1" value="{{ $prefillEnd }}" title="End date" />
+                                            <button class="btn btn-sm btn-outline-secondary" type="submit">{{ __('payment.download_statement') }}</button>
+                                        </form>
+                                    @else
+                                        <!-- Regular User: Can only download their own statement -->
+                                        <form method="GET" action="{{ route('subscription.statement.download', $userSubscription->id) }}" class="d-inline-flex align-items-center">
+                                            @php
+                                                $prefillStart = $userSubscription->start_date ? \Carbon\Carbon::parse($userSubscription->start_date)->format('Y-m-d') : '';
+                                                $prefillEnd = $userSubscription->end_date ? \Carbon\Carbon::parse($userSubscription->end_date)->format('Y-m-d') : '';
+                                            @endphp
+                                            <input type="date" name="start" class="form-control form-control-sm me-1" value="{{ $prefillStart }}" title="Start date (dd/mm/yyyy)" />
+                                            <input type="date" name="end" class="form-control form-control-sm me-1" value="{{ $prefillEnd }}" title="End date (dd/mm/yyyy)" />
+                                            <button class="btn btn-sm btn-outline-secondary" type="submit">{{ __('payment.download_statement') }}</button>
+                                            <small class="text-muted ms-2 d-none d-md-inline">Format: dd/mm/yyyy</small>
+                                        </form>
+                                    @endif
+                                </div>
                             </div>
 
                             @if($canShowActionButtons)
@@ -393,6 +415,102 @@
                                 </tbody>
                             </table>
                         </div>
+                        <!-- User invoices (if any) -->
+                        @php
+                            $userInvoices = collect();
+                            $isAdmin = auth()->user()->role === 'admin';
+                            
+                            try {
+                                if ($isAdmin) {
+                                    // Admin sees ALL subscription invoices
+                                    $userInvoices = \App\Transaction::where('type', 'sell')
+                                        ->where('sub_type', 'subscription_invoice')
+                                        ->orderBy('transaction_date', 'desc')
+                                        ->limit(50)
+                                        ->get();
+                                } else {
+                                    // Regular users see ONLY invoices for their own subscriptions
+                                    // Get all subscription IDs for this user
+                                    $userSubscriptionIds = auth()->user()->subscriptions()->pluck('id')->toArray();
+                                    
+                                    if (!empty($userSubscriptionIds)) {
+                                        // Build patterns for all user's subscriptions
+                                        $patterns = array_map(function($subId) {
+                                            return 'sub_invoice_' . $subId . '_%';
+                                        }, $userSubscriptionIds);
+                                        
+                                        // Get invoices matching ANY of the user's subscription patterns
+                                        $userInvoices = \App\Transaction::where('type', 'sell')
+                                            ->where('sub_type', 'subscription_invoice')
+                                            ->where(function($q) use ($patterns) {
+                                                foreach ($patterns as $pattern) {
+                                                    $q->orWhere('subscription_no', 'like', $pattern);
+                                                }
+                                            })
+                                            ->orderBy('transaction_date', 'desc')
+                                            ->limit(20)
+                                            ->get();
+                                    }
+                                }
+                            } catch (\Exception $e) {
+                                $userInvoices = collect();
+                            }
+                        @endphp
+
+                        @if($userInvoices->count() > 0)
+                            <hr />
+                            <h6 class="mt-3">Your Invoices</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Invoice #</th>
+                                            @if($isAdmin)
+                                                <th>User Name</th>
+                                            @endif
+                                            <th>Total</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($userInvoices as $inv)
+                                            @php
+                                                $invoiceOwner = null;
+                                                if ($isAdmin && !empty($inv->subscription_no) && strpos($inv->subscription_no, 'sub_invoice_') === 0) {
+                                                    try {
+                                                        $parts = explode('_', $inv->subscription_no);
+                                                        if (isset($parts[2]) && is_numeric($parts[2])) {
+                                                            $subId = (int) $parts[2];
+                                                            $sub = \App\Subscription::with('user')->find($subId);
+                                                            if ($sub && $sub->user) {
+                                                                $invoiceOwner = $sub->user->first_name . ' ' . $sub->user->last_name;
+                                                                if ($sub->user->business) {
+                                                                    $invoiceOwner .= ' (' . $sub->user->business->name . ')';
+                                                                }
+                                                            }
+                                                        }
+                                                    } catch (\Exception $e) {
+                                                        // Ignore parsing errors
+                                                    }
+                                                }
+                                            @endphp
+                                            <tr>
+                                                <td>{{ optional($inv->transaction_date)->format('d M Y') ?? optional($inv->created_at)->format('d M Y') }}</td>
+                                                <td>{{ $inv->invoice_no ?? $inv->id }}</td>
+                                                @if($isAdmin)
+                                                    <td>{{ $invoiceOwner ?? 'N/A' }}</td>
+                                                @endif
+                                                <td>Ksh {{ number_format($inv->final_total ?? 0, 2) }}</td>
+                                                <td>
+                                                    <a href="{{ route('transaction.invoice.download', $inv->id) }}" class="btn btn-sm btn-outline-primary" target="_blank">Download</a>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
                     @else
                         <p class="text-muted">{{ __('payment.no_payment_history') }}</p>
                     @endif
@@ -1243,8 +1361,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const alerts = document.querySelectorAll('.alert:not(.alert-permanent)');
         alerts.forEach(alert => {
             setTimeout(() => {
-                const bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
+                $(alert).fadeOut(300, function() { $(this).remove(); });
             }, 5000);
         });
         
@@ -1298,13 +1415,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             toastContainer.appendChild(toast);
-            const bsToast = new bootstrap.Toast(toast, { delay: 4000 });
-            bsToast.show();
-            
-            // Remove from DOM after hiding
-            toast.addEventListener('hidden.bs.toast', () => {
-                toast.remove();
-            });
+            $(toast).fadeIn(300);
+            setTimeout(() => {
+                $(toast).fadeOut(300, function() { $(this).remove(); });
+            }, 4000);
         };
     });
 </script>

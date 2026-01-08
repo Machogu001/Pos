@@ -79,6 +79,11 @@
     {!! Form::label('id_proof_number', __( 'lang_v1.id_proof_number') . ':') !!}
     {!! Form::text('id_proof_number', !empty($user->id_proof_number) ? $user->id_proof_number : null, ['class' => 'form-control', 'placeholder' => __( 'lang_v1.id_proof_number' ) ]); !!}
 </div>
+<div class="form-group col-md-3">
+    {!! Form::label('client_pin', __( 'Client PIN' ) . ':') !!}
+    {!! Form::text('client_pin', !empty($user->client_pin) ? $user->client_pin : null, ['class' => 'form-control', 'placeholder' => 'e.g. P052182616N' ]); !!}
+    <small class="text-muted">Must start and end with a letter (letters/numbers allowed in between).</small>
+</div>
 <div class="clearfix"></div>
 <div class="form-group col-md-6">
     {!! Form::label('permanent_address', __( 'lang_v1.permanent_address') . ':') !!}

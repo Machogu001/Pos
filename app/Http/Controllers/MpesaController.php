@@ -636,7 +636,12 @@ public function checkPaymentStatus(Request $request)
         $response = Http::withToken($accessToken)
             ->post('https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest', $payload);
 
-        Log::info('STK Push Request (Direct)', ['payload' => $payload]);
+        // Avoid logging sensitive fields such as Password
+        $logPayload = $payload;
+        if (is_array($logPayload) && array_key_exists('Password', $logPayload)) {
+            $logPayload['Password'] = '[REDACTED]';
+        }
+        Log::info('STK Push Request (Direct)', ['payload' => $logPayload]);
         Log::info('STK Push Response (Direct)', ['body' => $response->body()]);
 
         $responseData = $response->json();

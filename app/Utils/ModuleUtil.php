@@ -495,6 +495,8 @@ class ModuleUtil extends Util
             'types_of_service' => ['name' => __('lang_v1.types_of_service'),
                 'tooltip' => __('lang_v1.types_of_service_help_long'),
             ],
+            // HRM module toggle: allows hiding HRM menu when disabled
+            'hrm' => ['name' => 'HRM'],
         ];
     }
 

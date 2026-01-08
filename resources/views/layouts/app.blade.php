@@ -22,25 +22,70 @@
 <head>
     <!-- Tell the browser to be responsive to screen width -->
     <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-        name="viewport">
+    <!-- Viewport: default to desktop view on phones/tablets unless user opts into mobile view -->
+    <meta id="meta-viewport" name="viewport" content="width=1024">
+    <script>
+        (function(){
+            try {
+                var pref = localStorage.getItem('preferred_view') || 'desktop';
+                var meta = document.getElementById('meta-viewport');
+                function apply(p){
+                    if (!meta) return;
+                    if (p === 'desktop') {
+                        // Render using a wide viewport so site shows desktop layout on small devices
+                        meta.setAttribute('content', 'width=1024');
+                    } else {
+                        // Standard responsive mobile viewport
+                        meta.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes');
+                    }
+                }
+                apply(pref);
+                // Expose setter so page scripts can toggle and persist preference
+                window.setPreferredView = function(p) {
+                    localStorage.setItem('preferred_view', p);
+                    apply(p);
+                    try { location.reload(); } catch (e) { /* noop */ }
+                };
+            } catch (e) { /* noop */ }
+        })();
+    </script>
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title') - {{ Session::get('business.name') }}</title>
     @include('layouts.partials.css')
 
     <!-- PWA manifest and theme -->
-    {{-- Prefer a per-business manifest when session business id is present to allow branding per tenant. 
-        Use url() so this works when the app is deployed in a subdirectory. --}}
-    <link rel="manifest" href="{{ session('business.id') ? url('manifest/' . session('business.id') . '.json') : url('manifest.json') }}">
+    {{-- Prefer a per-business manifest when session business id is present to allow branding per tenant.
+        Only use the per-business manifest if the file actually exists under public/manifest/{id}.json.
+        This avoids linking to a 404 manifest which breaks PWA installability. --}}
+    @php
+        $manifestUrl = url('manifest.json?v=' . time());
+        if (session('business.id')) {
+            $perBusinessPath = public_path('manifest/' . session('business.id') . '.json');
+            if (file_exists($perBusinessPath)) {
+                $manifestUrl = url('manifest/' . session('business.id') . '.json?v=' . time());
+            }
+        }
+    @endphp
+    <link rel="manifest" href="{{ $manifestUrl }}">
     <meta name="theme-color" content="{{ !empty(session('business.theme_color')) ? session('business.theme_color') : '#2b6cb0' }}">
     <!-- iOS support -->
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="{{ Session::get('business.name') }}">
-    {{-- Use an explicit 192px icon for iOS/apple-touch where possible; fallback to configured favicon. 
-        If you'd like local PNG icons, add them to public/icons/icon-192.png and icon-512.png. --}}
-    <link rel="apple-touch-icon" sizes="192x192" href="{{ asset('icons/icon-192.png') }}">
+    {{-- Use PWA icons with fallback to prevent 404 errors --}}
+    @php
+        $iconPath = 'pwa-icons/icon-192.png';
+        $iconExists = file_exists(public_path($iconPath));
+        if (!$iconExists) {
+            $iconPath = 'icons/icon-192.png';
+            $iconExists = file_exists(public_path($iconPath));
+        }
+    @endphp
+    @if($iconExists)
+        <link rel="apple-touch-icon" sizes="192x192" href="{{ asset($iconPath) }}">
+    @endif
     <link rel="apple-touch-icon" href="{{ asset(config('app.favicon', 'favicon.ico')) }}">
     
 
@@ -141,14 +186,46 @@
         @endif
 
         @include('layouts.partials.javascripts')
-
-    {{-- Install prompt modal and registration (only included for authenticated users).
-         Avoid including the partial when server already knows the user installed or dismissed. --}}
-    @auth
-        @if (! (optional(auth()->user())->pwa_installed_at || optional(auth()->user())->pwa_install_dismissed_at))
-            @include('layouts.partials.install_prompt')
+        @php
+            $flashMsg = session('status') ?? session('message') ?? session('success') ?? null;
+        @endphp
+        <script>
+            // Provide a global helper to play success sound consistently
+            window.playSuccess = function(){
+                try {
+                    var el = document.getElementById('success-audio');
+                    if (el && typeof el.play === 'function') { el.currentTime = 0; el.play(); }
+                } catch(e) {}
+            };
+            window.playError = function(){
+                try {
+                    var el = document.getElementById('error-audio');
+                    if (el && typeof el.play === 'function') { el.currentTime = 0; el.play(); }
+                } catch(e) {}
+            };
+            window.playWarning = function(){
+                try {
+                    var el = document.getElementById('warning-audio');
+                    if (el && typeof el.play === 'function') { el.currentTime = 0; el.play(); }
+                } catch(e) {}
+            };
+        </script>
+        @if($flashMsg)
+        <script>
+            (function(){
+                try {
+                    var msg = @json($flashMsg);
+                    if (window.toastr && msg) { toastr.success(msg); }
+                    if (msg) { window.playSuccess(); }
+                } catch(e) {}
+            })();
+        </script>
         @endif
-    @endauth
+
+    {{-- Install prompt modal and registration. Include for all visitors so the client-side
+         beforeinstallprompt handler can show the prompt when criteria are met. The
+         partial itself checks server-side and local flags before showing the modal. --}}
+    @include('layouts.partials.install_prompt')
 
         <div class="modal fade view_modal" tabindex="-1" role="dialog" aria-labelledby="gridSystemModalLabel"></div>
 
@@ -160,7 +237,17 @@
         <div>
 
             <div class="overlay tw-hidden"></div>
-</body>
+        <script>
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                    // Append asset version to bust caches and force browser to fetch latest SW
+                    navigator.serviceWorker.register('{{ url("service-worker.js") }}?v={{ $asset_v }}')
+                        .then(function(reg) { console.log('Service Worker registered:', reg); })
+                        .catch(function(err) { console.log('SW registration failed:', err); });
+                });
+            }
+        </script>
+    </body>
 <style>
     @media print {
   #scrollable-container {
@@ -195,6 +282,22 @@
         position:relative;
     }
     
+    /* Prevent horizontal scrollbar globally */
+    body, html {
+        overflow-x: hidden !important;
+        max-width: 100vw;
+    }
+    
+    .tw-flex {
+        max-width: 100vw;
+        overflow-x: hidden;
+    }
+    
+    main {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
 
 
 

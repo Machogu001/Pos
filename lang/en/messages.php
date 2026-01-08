@@ -27,6 +27,7 @@ return [
     'date' => 'Date',
     'filter_by_date' => 'Filter by date',
     'location' => 'Location',
+    'back' => 'Back',
     'go_back' => 'Go Back',
     'due_tooltip' => '-ve value = Amount to pay <br> +ve value = Amount to receive',
     'purchase_due_tooltip' => '-ve value = Amount to receive <br> +ve value = Amount to pay',

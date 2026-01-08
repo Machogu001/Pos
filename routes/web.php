@@ -65,6 +65,7 @@ use App\Http\Controllers\MpesaController;
 use App\Http\Controllers\MpesaCallbackController;
 use App\Http\Controllers\MpesaLogController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\SubscriptionInvoiceController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\PaymentAccountController;
 /*|--------------------------------------------------------------------------
@@ -94,6 +95,7 @@ Route::get('/manifest.json', function () {
         'name' => $name,
         'short_name' => 'POS',
         'start_url' => url('/'),
+        'scope' => url('/'),
         'display' => 'standalone',
         'background_color' => '#ffffff',
         'theme_color' => $theme_color,
@@ -721,6 +723,11 @@ Route::middleware(['auth', 'AdminSidebarMenu'])->group(function () {
     // Subscription History
     Route::get('/subscription/history', [SubscriptionController::class, 'history'])->name('subscription.history');
     Route::get('/subscription/success/{subscription_id?}', [SubscriptionController::class, 'success'])->name('subscription.success');
+
+    // Subscription invoice and statement downloads
+    Route::get('/subscription/invoice/{id}/download', [SubscriptionInvoiceController::class, 'downloadInvoice'])->name('subscription.invoice.download');
+    Route::get('/subscription/statement/{id}/download', [SubscriptionInvoiceController::class, 'downloadStatement'])->name('subscription.statement.download');
+    Route::get('/invoice/transaction/{transactionId}/download', [SubscriptionInvoiceController::class, 'downloadTransactionInvoice'])->name('transaction.invoice.download');
 });
 
 // ============================
@@ -741,6 +748,7 @@ Route::prefix('admin')->middleware(['auth', 'admin', 'AdminSidebarMenu'])->group
 
     // Settings
     Route::post('/settings/update', [AdminController::class, 'updateSettings'])->name('admin.settings.update');
+    Route::post('/settings/toggle-subscription-requirement', [AdminController::class, 'toggleSubscriptionRequirement'])->name('admin.settings.toggle-subscription-requirement');
     Route::get('/settings/preview-registration-email', [AdminController::class, 'previewRegistrationEmail'])->name('admin.settings.previewRegistrationEmail');
 
     // ============================
@@ -755,6 +763,12 @@ Route::prefix('admin')->middleware(['auth', 'admin', 'AdminSidebarMenu'])->group
         Route::patch('/{subscription}/update-status', [AdminController::class, 'updateSubscriptionStatus'])->name('admin.subscriptions.update-status');
         Route::delete('/subscriptions/{subscription}', [AdminController::class, 'destroySubscription'])->name('admin.subscriptions.destroy');
     });
+    // Admin view for individual M-Pesa payments
+    Route::get('/mpesa-payments/{mpesaPayment}', [\App\Http\Controllers\Admin\MpesaPaymentController::class, 'show'])
+        ->name('admin.mpesa_payments.show');
+    // Bulk download statements for selected subscriptions (admin)
+    Route::post('/subscriptions/download-statements', [\App\Http\Controllers\SubscriptionInvoiceController::class, 'downloadBulkStatements'])
+        ->name('admin.subscriptions.download_statements');
     Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])
     ->name('admin.subscriptions.cancel');
 

@@ -5,6 +5,7 @@
     <h2>Create Office Shift</h2>
     <form action="{{ route('hrm.office_shifts.store') }}" method="POST">
         {{ csrf_field() }}
+        @include('hrm::partials.hrm_form_toolbar')
 
         <div class="form-group">
             <label for="name">Name</label>
@@ -37,7 +38,7 @@
         </div>
         <!-- Reuse similar fields for other days if needed -->
 
-        <button class="btn btn-success mt-3">Create</button>
+        
     </form>
 </div>
 @endsection

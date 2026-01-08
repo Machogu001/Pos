@@ -1138,7 +1138,112 @@ class TransactionUtil extends Util
         }
 
         //Customer show_customer
-        $customer = Contact::find($transaction->contact_id);
+        $customer = null;
+
+        // If this is a subscription invoice, prefer the subscription's user as the customer
+        if (isset($transaction->sub_type) && $transaction->sub_type === 'subscription_invoice' && !empty($transaction->subscription_no)) {
+            try {
+                $parts = explode('_', $transaction->subscription_no);
+                if (isset($parts[2]) && is_numeric($parts[2])) {
+                    $subId = (int) $parts[2];
+                    $sub = \App\Subscription::with('user')->find($subId);
+                    if ($sub && $sub->user) {
+                        $user = $sub->user;
+                        $customer = new \stdClass();
+                        $customer->name = $user->name ?? $user->username ?? 'Customer';
+                        $customer->mobile = $user->phone ?? $user->mobile ?? '';
+                        $customer->contact_address = '';
+                        // Try to use user's business info for address if available
+                        if (isset($user->business) && $user->business) {
+                            $customer->contact_address = $user->business->name ?? '';
+                            if (!empty($user->business->city)) {
+                                $customer->contact_address .= ', ' . $user->business->city;
+                            }
+                        }
+                        $customer->landline = '';
+                        $customer->tax_number = '';
+                        $customer->supplier_business_name = '';
+                        $customer->custom_field1 = '';
+                        $customer->custom_field2 = '';
+                        $customer->custom_field3 = '';
+                        $customer->custom_field4 = '';
+                    }
+                }
+            } catch (\Exception $e) {
+                // ignore and fallback to contact below
+            }
+        }
+
+        // If still no customer (or not a subscription invoice), fall back to the transaction contact
+        if (empty($customer) && !empty($transaction->contact_id)) {
+            $customer = Contact::find($transaction->contact_id);
+        }
+
+        // Ensure $customer is at least a dummy object to avoid undefined property errors
+        if (empty($customer)) {
+            $customer = new \stdClass();
+            $customer->name = 'Walk-In Customer';
+            $customer->mobile = '';
+            $customer->contact_address = '';
+            $customer->landline = '';
+            $customer->tax_number = '';
+            $customer->supplier_business_name = '';
+            $customer->custom_field1 = '';
+            $customer->custom_field2 = '';
+            $customer->custom_field3 = '';
+            $customer->custom_field4 = '';
+        }
+
+        // If subscription invoice, attach subscription-specific display fields
+        if (isset($transaction->sub_type) && $transaction->sub_type === 'subscription_invoice' && !empty($transaction->subscription_no)) {
+            try {
+                $parts = explode('_', $transaction->subscription_no);
+                if (isset($parts[2]) && is_numeric($parts[2])) {
+                    $subId = (int) $parts[2];
+                    $sub = \App\Subscription::with('user')->find($subId);
+                    if ($sub) {
+                        $output['is_subscription_invoice'] = true;
+                        $output['subscription_id'] = $sub->id;
+                        $output['subscription_status'] = $sub->status ?? '';
+                        $start = !empty($sub->start_date) ? $sub->start_date : null;
+                        $end = !empty($sub->end_date) ? $sub->end_date : null;
+                        if (!empty($start) || !empty($end)) {
+                            $period = '';
+                            if (!empty($start)) {
+                                $period .= $this->format_date($start, true, $business_details);
+                            }
+                            if (!empty($end)) {
+                                $period .= ' to ' . $this->format_date($end, true, $business_details);
+                            }
+                            $output['subscription_period'] = $period;
+                        }
+
+                        $plan_name = $sub->plan_name ?? 'Subscription';
+                        $output['subscription_plan_name'] = $plan_name;
+
+                        // Amounts
+                        $amount_exc = $transaction->total_before_tax ?? ($transaction->final_total - ($transaction->tax_amount ?? 0));
+                        $amount_inc = $transaction->final_total ?? $amount_exc;
+                        $vat_amount = $transaction->tax_amount ?? 0;
+
+                        $output['subscription_amount_exc'] = $this->num_f($amount_exc, true, $business_details);
+                        $output['subscription_vat_amount'] = $this->num_f($vat_amount, true, $business_details);
+                        $output['subscription_total'] = $this->num_f($amount_inc, true, $business_details);
+
+                        // Subscriber email (prefer subscription user)
+                        $output['subscriber'] = $sub->user->email ?? $customer->name ?? '';
+
+                        // Company PIN (use business tax_number_1 if present)
+                        $output['company_pin'] = $business_details->tax_number_1 ?? '';
+
+                        // Generated on
+                        $output['generated_on'] = $this->format_date($transaction->transaction_date, true, $business_details);
+                    }
+                }
+            } catch (\Exception $e) {
+                // ignore
+            }
+        }
 
         $output['customer_info'] = '';
         $output['customer_tax_number'] = '';
@@ -1358,6 +1463,68 @@ class TransactionUtil extends Util
             $details = $this->_receiptDetailsSellLines($lines, $il, $business_details);
 
             $output['lines'] = $details['lines'];
+
+            // If this is a subscription invoice and there are no sell lines, create a single
+            // line representing the subscription: qty 1, unit price = amount exclusive of VAT,
+            // subtotal = exclusive VAT, total = inclusive VAT. Prefer subscription plan name
+            // for the product name when available.
+            if (empty($output['lines']) && isset($transaction->sub_type) && $transaction->sub_type === 'subscription_invoice') {
+                // Determine exclusive and inclusive amounts from transaction
+                $amount_exc = $transaction->total_before_tax ?? ($transaction->final_total - ($transaction->tax_amount ?? 0));
+                $amount_inc = $transaction->final_total ?? $amount_exc;
+
+                $plan_name = 'Subscription';
+                if (!empty($transaction->subscription_no)) {
+                    try {
+                        $parts = explode('_', $transaction->subscription_no);
+                        if (isset($parts[2]) && is_numeric($parts[2])) {
+                            $subId = (int) $parts[2];
+                            $sub = \App\Subscription::find($subId);
+                            if ($sub && !empty($sub->plan_name)) {
+                                $plan_name = $sub->plan_name;
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        // ignore
+                    }
+                }
+
+                $line = [
+                    'name' => 'Subscription invoice for ' . $plan_name,
+                    'product_variation' => '',
+                    'variation' => '',
+                    'sub_sku' => '',
+                    'brand' => '',
+                    'product_custom_fields' => '',
+                    'product_description' => '',
+                    'sell_line_note' => '',
+                    'lot_number' => null,
+                    'lot_number_label' => null,
+                    'product_expiry' => null,
+                    'warranty_name' => null,
+                    'quantity' => 1,
+                    'units' => 'unit',
+                    'base_unit_multiplier' => 1,
+                    'orig_quantity' => 1,
+                    'unit_price_before_discount' => $this->num_f($amount_exc, $show_currency, $business_details),
+                    'unit_price_inc_tax' => $this->num_f($amount_inc, $show_currency, $business_details),
+                    'total_line_discount' => 0,
+                    'line_discount_percent' => null,
+                    'line_total_exc_tax' => $this->num_f($amount_exc, $show_currency, $business_details),
+                    'line_total' => $this->num_f($amount_inc, $show_currency, $business_details),
+                    'line_total_uf' => $amount_exc,
+                    // Numeric fields used later for subtotal/tax calculations
+                    'line_total_exc_tax_uf' => $amount_exc,
+                    'quantity_uf' => 1,
+                    'line_discount_uf' => 0,
+                    'tax_percent' => (!empty($amount_exc) ? round((($transaction->tax_amount ?? 0) / max(0.00001, $amount_exc)) * 100, 2) : 0),
+                    'tax_unformatted' => $transaction->tax_amount ?? 0,
+                ];
+
+                $output['lines'] = [$line];
+                // Ensure downstream calculations which iterate over $details['lines'] see this injected line
+                $details['lines'] = $output['lines'];
+            }
             $output['taxes'] = [];
             $total_quantity = 0;
             $total_line_discount = 0;
@@ -1438,8 +1605,11 @@ class TransactionUtil extends Util
 
         //Subtotal
         $output['subtotal_label'] = $il->sub_total_label.':';
-        $output['subtotal'] = ($transaction->total_before_tax != 0) ? $this->num_f($transaction->total_before_tax, $show_currency, $business_details) : 0;
-        $output['subtotal_unformatted'] = ($transaction->total_before_tax != 0) ? $transaction->total_before_tax : 0;
+    // Use transaction.total_before_tax when present; otherwise fall back to the
+    // calculated subtotal from lines (this ensures injected subscription lines
+    // are reflected in the displayed subtotal)
+    $output['subtotal_unformatted'] = ($transaction->total_before_tax != 0) ? $transaction->total_before_tax : $subtotal_exc_tax;
+    $output['subtotal'] = ($output['subtotal_unformatted'] != 0) ? $this->num_f($output['subtotal_unformatted'], $show_currency, $business_details) : 0;
 
         //round off
         $output['round_off_label'] = ! empty($il->round_off_label) ? $il->round_off_label.':' : __('lang_v1.round_off').':';
@@ -1550,7 +1720,11 @@ class TransactionUtil extends Util
                 $payments = $transaction->payment_lines->toArray();
                 $payment_types = $this->payment_types($transaction->location_id, true);
                 if (! empty($payments)) {
-                    foreach ($payments as $value) {
+                        foreach ($payments as $value) {
+                            // Skip zero-amount payment lines (these may be placeholder/failed entries)
+                            if (! isset($value['amount']) || floatval($value['amount']) == 0) {
+                                continue;
+                            }
                         $method = ! empty($payment_types[$value['method']]) ? $payment_types[$value['method']] : '';
                         if ($value['method'] == 'cash') {
                             $output['payments'][] =
@@ -2001,8 +2175,28 @@ class TransactionUtil extends Util
             $output['export_custom_fields_info']['export_custom_field_6'] = $export_custom_fields_info['export_custom_field_6'] ?? '';
         }
 
-        $output['design'] = $il->design;
+    $output['design'] = $il->design;
         $output['table_tax_headings'] = ! empty($il->table_tax_headings) ? array_filter(json_decode($il->table_tax_headings), 'strlen') : null;
+
+        // Attach top-level admin dashboard settings (if present) so templates can prefer them
+        try {
+            $adminSettings = \App\AdminSetting::first();
+            if (! empty($adminSettings)) {
+                $output['admin_company_name'] = $adminSettings->company_name ?? null;
+                $output['admin_contact_phone'] = $adminSettings->company_contact_phone ?? null;
+                $output['admin_contact_email'] = $adminSettings->company_contact_email ?? null;
+                $output['admin_invoice_pin'] = $adminSettings->invoice_pin ?? null;
+                // company_logo is stored; do not assume path — let blade handle if present
+                $output['admin_company_logo'] = ! empty($adminSettings->company_logo) ? asset('uploads/company_logos/'.$adminSettings->company_logo) : null;
+                $output['admin_invoice_footer'] = $adminSettings->invoice_footer ?? null;
+                $output['admin_statement_footer'] = $adminSettings->statement_footer ?? null;
+                $output['subscription_invoice_prefix_admin'] = $adminSettings->subscription_invoice_prefix ?? null;
+                $output['subscription_vat_percent_admin'] = $adminSettings->subscription_vat_percent ?? null;
+                $output['subscription_round_precision_admin'] = $adminSettings->subscription_round_precision ?? null;
+            }
+        } catch (\Exception $e) {
+            // ignore if admin settings table not present
+        }
 
         return (object) $output;
     }
@@ -2616,9 +2810,14 @@ class TransactionUtil extends Util
      */
     public function getSellTotals($business_id, $start_date = null, $end_date = null, $location_id = null, $created_by = null, $permitted_locations = null)
     {
-        $query = Transaction::where('transactions.business_id', $business_id)
-                    ->where('transactions.type', 'sell')
-                    ->where('transactions.status', 'final')
+                $query = Transaction::where('transactions.business_id', $business_id)
+                                        ->where('transactions.type', 'sell')
+                                        ->where('transactions.status', 'final')
+                                        // Exclude subscription invoices from regular sell aggregates
+                                        ->where(function ($q) {
+                                                $q->whereNull('transactions.sub_type')
+                                                    ->orWhere('transactions.sub_type', '!=', 'subscription_invoice');
+                                        })
                     ->select(
                         DB::raw('SUM(final_total) as total_sell'),
                         DB::raw('SUM(final_total - tax_amount) as total_exc_tax'),
@@ -2971,13 +3170,18 @@ class TransactionUtil extends Util
      */
     public function getSellsCurrentFy($business_id, $start, $end)
     {
-        $query = Transaction::leftjoin('transactions as SR', function ($join) {
+                $query = Transaction::leftjoin('transactions as SR', function ($join) {
             $join->on('SR.return_parent_id', '=', 'transactions.id')
                                     ->where('SR.type', 'sell_return');
         })
-                            ->where('transactions.business_id', $business_id)
-                            ->where('transactions.type', 'sell')
-                            ->where('transactions.status', 'final')
+                                                        ->where('transactions.business_id', $business_id)
+                                                        ->where('transactions.type', 'sell')
+                                                        ->where('transactions.status', 'final')
+                                                        // Exclude subscription invoices from regular sell aggregates
+                                                        ->where(function ($q) {
+                                                                $q->whereNull('transactions.sub_type')
+                                                                    ->orWhere('transactions.sub_type', '!=', 'subscription_invoice');
+                                                        })
                             ->whereBetween('transactions.transaction_date', [$start, $end]);
 
         //Check for permitted locations of a user
@@ -4053,6 +4257,11 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
                             ->where('t.business_id', $business_id)
                             ->where('t.type', 'sell')
                             ->where('t.status', 'final')
+                                                        // Exclude subscription invoices from commission calculations
+                                                        ->where(function ($q) {
+                                                                $q->whereNull('t.sub_type')
+                                                                    ->orWhere('t.sub_type', '!=', 'subscription_invoice');
+                                                        })
                             ->select(DB::raw('SUM( (transaction_sell_lines.quantity - transaction_sell_lines.quantity_returned) * transaction_sell_lines.unit_price ) as final_total'));
 
         //Check for permitted locations of a user
@@ -4088,6 +4297,11 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
                             ->where('t.business_id', $business_id)
                             ->where('t.type', 'sell')
                             ->where('t.status', 'final')
+                                                        // Exclude subscription invoices from payment with commission calculations
+                                                        ->where(function ($q) {
+                                                                $q->whereNull('t.sub_type')
+                                                                    ->orWhere('t.sub_type', '!=', 'subscription_invoice');
+                                                        })
                             ->select(DB::raw('SUM(IF( is_return = 0, amount, amount*-1)) as total_paid'));
 
         //Check for permitted locations of a user
@@ -5287,13 +5501,13 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
                 )->first();
 
         //Get payment totals before start date
-        $prev_payments = $this->__paymentQuery($contact_id, $start, null, $location_id)
-                            ->select('transaction_payments.*', 'bl.name as location_name', 't.type as transaction_type', 'is_advance')
-                                    ->get();
+    $prev_payments = $this->__paymentQuery($contact_id, $start, null, $location_id)
+                ->select('transaction_payments.*', 'bl.name as location_name', 't.type as transaction_type', 't.sub_type as transaction_sub_type', 'is_advance')
+                    ->get();
 
-        $prev_total_invoice_paid = $prev_payments->where('transaction_type', 'sell')->where('is_return', 0)->sum('amount');
+    $prev_total_invoice_paid = $prev_payments->where('transaction_type', 'sell')->where('is_return', 0)->where('transaction_sub_type', '!=', 'subscription_invoice')->sum('amount');
         $prev_total_ob_paid = $prev_payments->where('transaction_type', 'opening_balance')->where('is_return', 0)->sum('amount');
-        $prev_total_sell_change_return = $prev_payments->where('transaction_type', 'sell')->where('is_return', 1)->sum('amount');
+    $prev_total_sell_change_return = $prev_payments->where('transaction_type', 'sell')->where('is_return', 1)->where('transaction_sub_type', '!=', 'subscription_invoice')->sum('amount');
         $prev_total_sell_change_return = ! empty($prev_total_sell_change_return) ? $prev_total_sell_change_return : 0;
         $prev_total_invoice_paid -= $prev_total_sell_change_return;
         $prev_total_purchase_paid = $prev_payments->where('transaction_type', 'purchase')->where('is_return', 0)->sum('amount');
@@ -5402,7 +5616,9 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
             $ledger[] = $temp_array;
         }
 
-        $invoice_sum = $transactions->where('type', 'sell')->sum('final_total');
+    $invoice_sum = $transactions->where('type', 'sell')
+            ->where('sub_type', '!=', 'subscription_invoice')
+            ->sum('final_total');
         $purchase_sum = $transactions->where('type', 'purchase')->sum('final_total');
         $sell_return_sum = $transactions->where('type', 'sell_return')->sum('final_total');
         $purchase_return_sum = $transactions->where('type', 'purchase_return')->sum('final_total');
@@ -5481,8 +5697,8 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
                                 ->get()
                                 ->sum('amount');
 
-        $total_invoice_paid = ! empty($payments) ? $payments->where('transaction_type', 'sell')->where('is_return', 0)->sum('amount') : 0;
-        $total_sell_change_return = ! empty($payments) ? $payments->where('transaction_type', 'sell')->where('is_return', 1)->sum('amount') : 0;
+    $total_invoice_paid = ! empty($payments) ? $payments->where('transaction_type', 'sell')->where('is_return', 0)->where('transaction_sub_type', '!=', 'subscription_invoice')->sum('amount') : 0;
+    $total_sell_change_return = ! empty($payments) ? $payments->where('transaction_type', 'sell')->where('is_return', 1)->where('transaction_sub_type', '!=', 'subscription_invoice')->sum('amount') : 0;
         $total_sell_change_return = ! empty($total_sell_change_return) ? $total_sell_change_return : 0;
         $total_invoice_paid -= $total_sell_change_return;
         $total_purchase_paid = ! empty($payments) ? $payments->where('transaction_type', 'purchase')->where('is_return', 0)->sum('amount') : 0;
@@ -5561,7 +5777,8 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
         $overall_transaction_sums = $this->__transactionQuery($contact_id, null, null, $location_id)
                 ->select(
                     DB::raw("SUM(IF(type = 'purchase', final_total, 0)) as total_purchase"),
-                    DB::raw("SUM(IF(type = 'sell' AND status = 'final', final_total, 0)) as total_invoice"),
+                    // Exclude subscription invoices from total_invoice
+                    DB::raw("SUM(IF(type = 'sell' AND status = 'final' AND (sub_type IS NULL OR sub_type != 'subscription_invoice'), final_total, 0)) as total_invoice"),
                     DB::raw("SUM(IF(type = 'sell_return', final_total, 0)) as total_sell_return"),
                     DB::raw("SUM(IF(type = 'purchase_return', final_total, 0)) as total_purchase_return"),
                     DB::raw("SUM(IF(type = 'opening_balance', final_total, 0)) as total_opening_balance"),
@@ -5572,12 +5789,12 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
         $overall_ledger_discount = $overall_transaction_sums->total_ledger_discount;
 
         //Get Overall transaction payment
-        $overall_payments = $this->__paymentQuery($contact_id, null, null, $location_id)
-                            ->select('transaction_payments.*', 'bl.name as location_name', 't.type as transaction_type', 'is_advance')
-                                    ->get();
-        $overall_total_invoice_paid = $overall_payments->where('transaction_type', 'sell')->where('is_return', 0)->sum('amount');
-        $overall_total_ob_paid = $overall_payments->where('transaction_type', 'opening_balance')->where('is_return', 0)->sum('amount');
-        $overall_total_sell_change_return = $overall_payments->where('transaction_type', 'sell')->where('is_return', 1)->sum('amount');
+    $overall_payments = $this->__paymentQuery($contact_id, null, null, $location_id)
+                ->select('transaction_payments.*', 'bl.name as location_name', 't.type as transaction_type', 't.sub_type as transaction_sub_type', 'is_advance')
+                    ->get();
+    $overall_total_invoice_paid = $overall_payments->where('transaction_type', 'sell')->where('is_return', 0)->where('transaction_sub_type', '!=', 'subscription_invoice')->sum('amount');
+    $overall_total_ob_paid = $overall_payments->where('transaction_type', 'opening_balance')->where('is_return', 0)->sum('amount');
+    $overall_total_sell_change_return = $overall_payments->where('transaction_type', 'sell')->where('is_return', 1)->where('transaction_sub_type', '!=', 'subscription_invoice')->sum('amount');
         $overall_total_sell_change_return = ! empty($overall_total_sell_change_return) ? $overall_total_sell_change_return : 0;
         $overall_total_invoice_paid -= $overall_total_sell_change_return;
         $overall_total_purchase_paid = $overall_payments->where('transaction_type', 'purchase')->where('is_return', 0)->sum('amount');
@@ -6445,7 +6662,12 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
     {
         $totals = Transaction::where('business_id', $business_id)
                                 ->where('commission_agent', $user_id)
-                                ->where('type', 'sell')
+                                                                ->where('type', 'sell')
+                                                                // Exclude subscription invoices from user sales totals
+                                                                ->where(function ($q) {
+                                                                        $q->whereNull('sub_type')
+                                                                            ->orWhere('sub_type', '!=', 'subscription_invoice');
+                                                                })
                                 ->where('status', 'final')
                                 ->whereBetween(DB::raw('transaction_date'), [$start_date, $end_date])
                                 ->select(
@@ -6462,11 +6684,16 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
 
     public function getSources($business_id)
     {
-        $unique_sources = Transaction::where('business_id', $business_id)
-                                    ->where('type', 'sell')
-                                    ->select('source')
-                                    ->groupBy('source')
-                                    ->get();
+                $unique_sources = Transaction::where('business_id', $business_id)
+                                                                        ->where('type', 'sell')
+                                                                        // Exclude subscription invoices from sources
+                                                                        ->where(function ($q) {
+                                                                                $q->whereNull('sub_type')
+                                                                                    ->orWhere('sub_type', '!=', 'subscription_invoice');
+                                                                        })
+                                                                        ->select('source')
+                                                                        ->groupBy('source')
+                                                                        ->get();
         $sources = [];
 
         foreach ($unique_sources as $source) {

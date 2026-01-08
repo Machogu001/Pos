@@ -802,22 +802,86 @@ class ProductController extends Controller
            $product->product_locations()->sync($product_locations);
 
 if ($product->type == 'single') {
-    $single_data = $request->only(['single_variation_id', 'single_dpp', 'single_dpp_inc_tax', 'single_dsp_inc_tax', 'profit_percent', 'single_dsp']);
-    $variation = Variation::find($single_data['single_variation_id']);
+    $single_variation_id = $request->input('single_variation_id');
+    $should_update_single_variation =
+        ! empty($single_variation_id)
+        || $request->filled('single_dpp')
+        || $request->filled('single_dpp_inc_tax')
+        || $request->filled('profit_percent')
+        || $request->filled('single_dsp')
+        || $request->filled('single_dsp_inc_tax')
+        || $request->hasFile('variation_images');
 
-    // Add null check before assigning properties
-    if ($variation) {
-        $variation->sub_sku = $product->sku;
-        $variation->default_purchase_price = $this->productUtil->num_uf($single_data['single_dpp']);
-        $variation->dpp_inc_tax = $this->productUtil->num_uf($single_data['single_dpp_inc_tax']);
-        $variation->profit_percent = $this->productUtil->num_uf($single_data['profit_percent']);
-        $variation->default_sell_price = $this->productUtil->num_uf($single_data['single_dsp']);
-        $variation->sell_price_inc_tax = $this->productUtil->num_uf($single_data['single_dsp_inc_tax']);
-        $variation->save();
+    // Some update flows (e.g. name-only edits) don't post variation fields.
+    // In those cases, skip variation updates entirely.
+    if ($should_update_single_variation) {
+        $variation = null;
 
-        Media::uploadMedia($product->business_id, $variation, $request, 'variation_images');
-    } else {
-        throw new \Exception("Variation not found for single product.");
+        if (! empty($single_variation_id)) {
+            $variation = Variation::find($single_variation_id);
+        }
+
+        // Fallback: a single product should have exactly one variation.
+        if (empty($variation)) {
+            $variation = Variation::where('product_id', $product->id)
+                                ->orderBy('id')
+                                ->first();
+        }
+
+        // If the product is inconsistent (missing its single variation) and the user
+        // is editing pricing, recreate the expected single variation.
+        if (empty($variation) && (
+            $request->filled('single_dpp')
+            || $request->filled('single_dpp_inc_tax')
+            || $request->filled('profit_percent')
+            || $request->filled('single_dsp')
+            || $request->filled('single_dsp_inc_tax')
+        )) {
+            $this->productUtil->createSingleProductVariation(
+                $product,
+                $product->sku,
+                $request->input('single_dpp'),
+                $request->input('single_dpp_inc_tax'),
+                $request->input('profit_percent'),
+                $request->input('single_dsp'),
+                $request->input('single_dsp_inc_tax')
+            );
+
+            $variation = Variation::where('product_id', $product->id)
+                                ->orderByDesc('id')
+                                ->first();
+        }
+
+        if (! empty($variation)) {
+            // Always keep sub_sku aligned with the product SKU.
+            $variation->sub_sku = $product->sku;
+
+            if ($request->filled('single_dpp')) {
+                $variation->default_purchase_price = $this->productUtil->num_uf($request->input('single_dpp'));
+            }
+            if ($request->filled('single_dpp_inc_tax')) {
+                $variation->dpp_inc_tax = $this->productUtil->num_uf($request->input('single_dpp_inc_tax'));
+            }
+            if ($request->filled('profit_percent')) {
+                $variation->profit_percent = $this->productUtil->num_uf($request->input('profit_percent'));
+            }
+            if ($request->filled('single_dsp')) {
+                $variation->default_sell_price = $this->productUtil->num_uf($request->input('single_dsp'));
+            }
+            if ($request->filled('single_dsp_inc_tax')) {
+                $variation->sell_price_inc_tax = $this->productUtil->num_uf($request->input('single_dsp_inc_tax'));
+            }
+
+            $variation->save();
+            Media::uploadMedia($product->business_id, $variation, $request, 'variation_images');
+        } else {
+            // Don't hard-fail the whole product update (prevents name-only edits from breaking).
+            \Log::warning('Single product variation missing during update; skipped variation update.', [
+                'business_id' => $business_id ?? null,
+                'product_id' => $product->id,
+                'single_variation_id' => $single_variation_id,
+            ]);
+        }
     }
 } elseif ($product->type == 'variable') {
     //Update existing variations
@@ -849,20 +913,89 @@ if ($product->type == 'single') {
         }
     }
 
-    $variation = Variation::find($request->input('combo_variation_id'));
-    
-    // Add null check before assigning properties
-    if ($variation) {
-        $variation->sub_sku = $product->sku;
-        $variation->default_purchase_price = $this->productUtil->num_uf($request->input('item_level_purchase_price_total'));
-        $variation->dpp_inc_tax = $this->productUtil->num_uf($request->input('purchase_price_inc_tax'));
-        $variation->profit_percent = $this->productUtil->num_uf($request->input('profit_percent'));
-        $variation->default_sell_price = $this->productUtil->num_uf($request->input('selling_price'));
-        $variation->sell_price_inc_tax = $this->productUtil->num_uf($request->input('selling_price_inc_tax'));
-        $variation->combo_variations = $combo_variations;
-        $variation->save();
-    } else {
-        throw new \Exception("Variation not found for combo product.");
+    $combo_variation_id = $request->input('combo_variation_id');
+    $should_update_combo_variation =
+        ! empty($combo_variation_id)
+        || $request->filled('item_level_purchase_price_total')
+        || $request->filled('purchase_price_inc_tax')
+        || $request->filled('profit_percent')
+        || $request->filled('selling_price')
+        || $request->filled('selling_price_inc_tax')
+        || ! empty($combo_variations);
+
+    // Some update flows (e.g. name-only edits) don't post combo variation fields.
+    // In those cases, skip variation updates entirely.
+    if ($should_update_combo_variation) {
+        $variation = null;
+
+        if (! empty($combo_variation_id)) {
+            $variation = Variation::find($combo_variation_id);
+        }
+
+        // Fallback: a combo product should have exactly one variation.
+        if (empty($variation)) {
+            $variation = Variation::where('product_id', $product->id)
+                                ->orderBy('id')
+                                ->first();
+        }
+
+        // If the product is inconsistent (missing its combo variation) and the user
+        // is editing pricing/composition, recreate the expected combo variation.
+        if (empty($variation) && (
+            $request->filled('item_level_purchase_price_total')
+            || $request->filled('purchase_price_inc_tax')
+            || $request->filled('profit_percent')
+            || $request->filled('selling_price')
+            || $request->filled('selling_price_inc_tax')
+        )) {
+            $this->productUtil->createSingleProductVariation(
+                $product,
+                $product->sku,
+                $request->input('item_level_purchase_price_total'),
+                $request->input('purchase_price_inc_tax'),
+                $request->input('profit_percent'),
+                $request->input('selling_price'),
+                $request->input('selling_price_inc_tax'),
+                $combo_variations
+            );
+
+            $variation = Variation::where('product_id', $product->id)
+                                ->orderByDesc('id')
+                                ->first();
+        }
+
+        if (! empty($variation)) {
+            // Always keep sub_sku aligned with the product SKU.
+            $variation->sub_sku = $product->sku;
+
+            if ($request->filled('item_level_purchase_price_total')) {
+                $variation->default_purchase_price = $this->productUtil->num_uf($request->input('item_level_purchase_price_total'));
+            }
+            if ($request->filled('purchase_price_inc_tax')) {
+                $variation->dpp_inc_tax = $this->productUtil->num_uf($request->input('purchase_price_inc_tax'));
+            }
+            if ($request->filled('profit_percent')) {
+                $variation->profit_percent = $this->productUtil->num_uf($request->input('profit_percent'));
+            }
+            if ($request->filled('selling_price')) {
+                $variation->default_sell_price = $this->productUtil->num_uf($request->input('selling_price'));
+            }
+            if ($request->filled('selling_price_inc_tax')) {
+                $variation->sell_price_inc_tax = $this->productUtil->num_uf($request->input('selling_price_inc_tax'));
+            }
+            if (! empty($combo_variations)) {
+                $variation->combo_variations = $combo_variations;
+            }
+
+            $variation->save();
+        } else {
+            // Don't hard-fail the whole product update (prevents name-only edits from breaking).
+            \Log::warning('Combo product variation missing during update; skipped variation update.', [
+                'business_id' => $business_id ?? null,
+                'product_id' => $product->id,
+                'combo_variation_id' => $combo_variation_id,
+            ]);
+        }
     }
 }
 
