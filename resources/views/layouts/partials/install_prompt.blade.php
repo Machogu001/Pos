@@ -4,7 +4,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">Install {{ Session::get('business.name') }}</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close" id="pwa-modal-close-btn" data-bs-dismiss="modal" aria-label="Close" style="cursor: pointer;"></button>
       </div>
       <div class="modal-body text-center">
         <p id="pwa-install-description">Install this app to access it quickly from your device.</p>
@@ -299,28 +299,14 @@
 
     // Service worker is registered globally in the main layout; avoid double registration here.
 
-    // When modal is dismissed via close button, persist a dismissal so we don't annoy users
-    const dismissBtn = document.getElementById('pwa-dismiss-btn');
-    if (dismissBtn) {
-        dismissBtn.addEventListener('click', function() {
-            localStorage.setItem('pwa-install-dismissed', '1');
+    // Helper function to handle PWA dismiss action
+    function handlePwaDismiss() {
+        localStorage.setItem('pwa-install-dismissed', '1');
+        try {
+            const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            // Telemetry: dismissed
             try {
-                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                // Telemetry: dismissed
-                try {
-                    fetch(PWA_ENDPOINTS.telemetry, {
-                        method: 'POST',
-                        credentials: 'same-origin',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': token,
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify({ event: 'dismissed' })
-                    });
-                } catch (e) { /* noop */ }
-
-                fetch(PWA_ENDPOINTS.dismissed, {
+                fetch(PWA_ENDPOINTS.telemetry, {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: {
@@ -328,9 +314,45 @@
                         'X-CSRF-TOKEN': token,
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({})
+                    body: JSON.stringify({ event: 'dismissed' })
                 });
-            } catch (e) { console.warn(e); }
+            } catch (e) { /* noop */ }
+
+            fetch(PWA_ENDPOINTS.dismissed, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({})
+            });
+        } catch (e) { console.warn(e); }
+    }
+
+    // When modal is dismissed via close button (X button), persist a dismissal so we don't annoy users
+    const closeBtn = document.getElementById('pwa-modal-close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            handlePwaDismiss();
+            // Let Bootstrap handle the modal closing
+            try { 
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    const modal = bootstrap.Modal.getInstance(installModal) || new bootstrap.Modal(installModal);
+                    modal.hide();
+                } else if (typeof $ !== 'undefined') {
+                    $(installModal).modal('hide'); 
+                }
+            } catch(e) {}
+        });
+    }
+
+    const dismissBtn = document.getElementById('pwa-dismiss-btn');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', function() {
+            handlePwaDismiss();
         });
     }
 

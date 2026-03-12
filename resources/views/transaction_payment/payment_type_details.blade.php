@@ -85,3 +85,28 @@
 		</div>
 	</div>
 </div>
+<div class="payment_details_div @if( $payment_line->method !== 'mpesa' ) {{ 'hide' }} @endif" data-type="mpesa" >
+	<div class="col-md-12">
+		<div class="form-group">
+			{!! Form::label("mpesa_phone", __('payment.mpesa_phone') . ':') !!}
+			<div class="input-group">
+				<span class="input-group-addon">
+					<i class="fas fa-mobile-alt"></i>
+				</span>
+				{!! Form::text("mpesa_phone", !empty($payment_line->mpesa_phone) ? $payment_line->mpesa_phone : '', ['class' => 'form-control mpesa-phone', 'placeholder' => '254712345678']); !!}
+			</div>
+			<p class="help-block">@lang('payment.enter_valid_phone')</p>
+		</div>
+	</div>
+	{!! Form::hidden("checkout_request_id", !empty($payment_line->checkout_request_id) ? $payment_line->checkout_request_id : '', ['class' => 'checkout_request_id']); !!}
+	{!! Form::hidden("mpesa_receipt_number", !empty($payment_line->mpesa_receipt_number) ? $payment_line->mpesa_receipt_number : '', ['class' => 'mpesa_receipt_number']); !!}
+	{!! Form::hidden("mpesa_status", !empty($payment_line->mpesa_status) ? $payment_line->mpesa_status : '', ['class' => 'mpesa_status']); !!}
+	<div class="col-md-12">
+		<div class="form-group">
+			<button type="button" class="btn btn-primary send-mpesa-stk-purchase">@lang('payment.send_stk')</button>
+			<button type="button" class="btn btn-default check-mpesa-status-purchase ml-2">@lang('payment.check_status')</button>
+			<span class="mpesa-status-badge text-muted ml-2"></span>
+		</div>
+	</div>
+	<div class="clearfix"></div>
+</div>

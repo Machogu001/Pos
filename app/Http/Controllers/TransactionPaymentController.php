@@ -87,6 +87,12 @@ class TransactionPaymentController extends Controller
                     $inputs['transaction_no'] = $request->input('transaction_no_2');
                 } elseif ($inputs['method'] == 'custom_pay_3') {
                     $inputs['transaction_no'] = $request->input('transaction_no_3');
+                } elseif ($inputs['method'] == 'mpesa') {
+                    $inputs['mpesa_phone'] = $request->input('mpesa_phone');
+                    $inputs['checkout_request_id'] = $request->input('checkout_request_id');
+                    $inputs['mpesa_receipt_number'] = $request->input('mpesa_receipt_number');
+                    $inputs['mpesa_status'] = $request->input('mpesa_status');
+                    $inputs['transaction_no'] = $request->input('mpesa_receipt_number');
                 }
 
                 if (! empty($request->input('account_id')) && $inputs['method'] != 'advance') {

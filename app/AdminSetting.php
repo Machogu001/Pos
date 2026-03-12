@@ -33,11 +33,23 @@ class AdminSetting extends Model
     'subscription_invoice_next',
     // Subscription VAT percent (0-100)
     'subscription_vat_percent'
-    ,'subscription_round_precision'
+    ,'subscription_round_precision',
+    // Subscription-specific M-Pesa credentials
+    'subscription_mpesa_consumer_key',
+    'subscription_mpesa_consumer_secret',
+    'subscription_mpesa_shortcode',
+    'subscription_mpesa_passkey',
+    'subscription_mpesa_callback',
+    // eTIMS Integration Settings
+    'etims_api_url',
+    'etims_api_token',
+    'etims_branch_id',
+    'etims_auto_transmit',
     ];
 
     protected $casts = [
         'auto_renewal' => 'boolean',
         'subscription_required' => 'boolean',
+        'etims_auto_transmit' => 'boolean',
     ];
 }

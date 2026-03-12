@@ -102,7 +102,9 @@ class ContactController extends Controller
      */
     private function indexSupplier()
     {
-        if (! auth()->user()->can('supplier.view') && ! auth()->user()->can('supplier.view_own')) {
+        $is_admin = $this->contactUtil->is_admin(auth()->user());
+
+        if (! $is_admin && ! auth()->user()->can('supplier.view') && ! auth()->user()->can('supplier.view_own')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -130,7 +132,7 @@ class ContactController extends Controller
             $contact->where('contacts.contact_status', request()->input('contact_status'));
         }
 
-        if (! empty(request()->input('assigned_to'))) {
+        if (! $is_admin && ! empty(request()->input('assigned_to'))) {
             $contact->join('user_contact_access AS uc', 'contacts.id', 'uc.contact_id')
                 ->where('uc.user_id', request()->input('assigned_to'));
         }
@@ -285,13 +287,13 @@ class ContactController extends Controller
      */
     private function indexCustomer()
     {
-        if (! auth()->user()->can('customer.view') && ! auth()->user()->can('customer.view_own')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $business_id = request()->session()->get('user.business_id');
 
         $is_admin = $this->contactUtil->is_admin(auth()->user());
+
+        if (! $is_admin && ! auth()->user()->can('customer.view') && ! auth()->user()->can('customer.view_own')) {
+            abort(403, 'Unauthorized action.');
+        }
 
         $query = $this->contactUtil->getContactQuery($business_id, 'customer');
 
@@ -311,7 +313,7 @@ class ContactController extends Controller
             $query->havingRaw('opening_balance > 0');
         }
 
-        if (! empty(request()->input('assigned_to'))) {
+        if (! $is_admin && ! empty(request()->input('assigned_to'))) {
             $query->join('user_contact_access AS uc', 'contacts.id', 'uc.contact_id')
                 ->where('uc.user_id', request()->input('assigned_to'));
         }

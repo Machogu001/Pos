@@ -311,6 +311,19 @@ class SubscriptionController extends Controller
 
             // Initiate new payment
             $mpesaController = new MpesaController();
+            
+            // Use subscription-specific credentials if available
+            $settings = AdminSetting::first();
+            if ($settings && $settings->subscription_mpesa_consumer_key) {
+                $mpesaController->setCustomCredentials(
+                    $settings->subscription_mpesa_consumer_key,
+                    $settings->subscription_mpesa_consumer_secret,
+                    $settings->subscription_mpesa_shortcode,
+                    $settings->subscription_mpesa_passkey,
+                    $settings->subscription_mpesa_callback
+                );
+            }
+            
             $response = $mpesaController->initiatePaymentDirect(
                 $request->phone, 
                 $finalAmountRounded,
@@ -562,6 +575,19 @@ class SubscriptionController extends Controller
 
             // Initiate STK push
             $mpesaController = new MpesaController();
+            
+            // Use subscription-specific credentials if available
+            $settings = AdminSetting::first();
+            if ($settings && $settings->subscription_mpesa_consumer_key) {
+                $mpesaController->setCustomCredentials(
+                    $settings->subscription_mpesa_consumer_key,
+                    $settings->subscription_mpesa_consumer_secret,
+                    $settings->subscription_mpesa_shortcode,
+                    $settings->subscription_mpesa_passkey,
+                    $settings->subscription_mpesa_callback
+                );
+            }
+            
             $response = $mpesaController->initiatePaymentDirect(
                 $request->phone, 
                 $finalAmountTmpRounded, 
@@ -786,6 +812,19 @@ class SubscriptionController extends Controller
 
             // Initiate payment
             $mpesaController = new MpesaController();
+            
+            // Use subscription-specific credentials if available
+            $settings = AdminSetting::first();
+            if ($settings && $settings->subscription_mpesa_consumer_key) {
+                $mpesaController->setCustomCredentials(
+                    $settings->subscription_mpesa_consumer_key,
+                    $settings->subscription_mpesa_consumer_secret,
+                    $settings->subscription_mpesa_shortcode,
+                    $settings->subscription_mpesa_passkey,
+                    $settings->subscription_mpesa_callback
+                );
+            }
+            
             $response = $mpesaController->initiatePaymentDirect(
                 $request->phone, 
                 $finalAmountRounded, 

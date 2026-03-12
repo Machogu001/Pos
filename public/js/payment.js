@@ -190,3 +190,165 @@ $(document).on('submit', 'form#transaction_payment_add_form', function(e){
     }
     
 })
+
+// M-Pesa STK Push for Purchase Payments
+$(document).on('click', '.send-mpesa-stk-purchase', async function(e) {
+    e.preventDefault();
+    const btn = $(this);
+    const form = $('#transaction_payment_add_form');
+    const phoneInput = form.find('.mpesa-phone');
+    const amountInput = form.find('.payment_amount');
+    const checkoutInput = form.find('.checkout_request_id');
+    const receiptInput = form.find('.mpesa_receipt_number');
+    const statusInput = form.find('.mpesa_status');
+    const statusBadge = form.find('.mpesa-status-badge');
+
+    const phone = phoneInput.val().trim();
+    const amount = __read_number(amountInput);
+
+    if (!phone) {
+        toastr.error(__translate('payment.mpesa_phone_required'));
+        return;
+    }
+
+    if (!amount || amount <= 0) {
+        toastr.error('Please enter a valid payment amount');
+        return;
+    }
+
+    // Normalize phone
+    let normalizedPhone = phone.replace(/^\+/, '');
+    if (/^0?7\d{8}$/.test(normalizedPhone)) {
+        normalizedPhone = '254' + normalizedPhone.replace(/^0/, '');
+    }
+
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> ' + __translate('payment.initiating_payment'));
+    statusBadge.html('<i class="fas fa-spinner fa-spin"></i> Initiating...');
+
+    try {
+        const response = await fetch('/mpesa/initiate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            body: JSON.stringify({
+                phone: normalizedPhone,
+                amount: amount,
+                payment_type: 'purchase'
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            checkoutInput.val(data.checkoutRequestId);
+            toastr.success(__translate('payment.stk_sent'));
+            statusBadge.html('<span class="badge bg-warning">Pending</span>');
+            
+            // Start polling for status
+            pollMpesaStatusPurchase(data.checkoutRequestId, statusBadge, receiptInput, statusInput);
+        } else {
+            toastr.error(data.message || __translate('payment.payment_initiation_failed'));
+            statusBadge.html('<span class="badge bg-danger">Failed</span>');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        toastr.error(__translate('payment.payment_initiation_failed'));
+        statusBadge.html('<span class="badge bg-danger">Error</span>');
+    } finally {
+        btn.prop('disabled', false).html(__translate('payment.send_stk'));
+    }
+});
+
+// Check M-Pesa Status for Purchase Payments
+$(document).on('click', '.check-mpesa-status-purchase', async function(e) {
+    e.preventDefault();
+    const btn = $(this);
+    const form = $('#transaction_payment_add_form');
+    const checkoutInput = form.find('.checkout_request_id');
+    const statusBadge = form.find('.mpesa-status-badge');
+    const receiptInput = form.find('.mpesa_receipt_number');
+    const statusInput = form.find('.mpesa_status');
+
+    const checkoutRequestId = checkoutInput.val();
+
+    if (!checkoutRequestId) {
+        toastr.error('No M-Pesa transaction to check');
+        return;
+    }
+
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Checking...');
+    statusBadge.html('<i class="fas fa-spinner fa-spin"></i> Checking...');
+
+    try {
+        const response = await fetch('/payment/check-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            body: JSON.stringify({ checkoutRequestId: checkoutRequestId })
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'paid') {
+            receiptInput.val(data.mpesa_receipt_number);
+            statusInput.val('paid');
+            statusBadge.html('<span class="badge bg-success">Paid - ' + data.mpesa_receipt_number + '</span>');
+            toastr.success('Payment confirmed: ' + data.mpesa_receipt_number);
+        } else if (data.status === 'pending') {
+            statusBadge.html('<span class="badge bg-warning">Pending</span>');
+            toastr.info('Payment is still pending');
+        } else {
+            statusBadge.html('<span class="badge bg-danger">Failed</span>');
+            toastr.error(data.message || 'Payment failed');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        toastr.error('Error checking payment status');
+        statusBadge.html('<span class="badge bg-danger">Error</span>');
+    } finally {
+        btn.prop('disabled', false).html(__translate('payment.check_status'));
+    }
+});
+
+// Poll M-Pesa status for purchase payments
+function pollMpesaStatusPurchase(checkoutRequestId, statusBadge, receiptInput, statusInput, attempts = 0) {
+    if (attempts >= 20) { // Stop after 20 attempts (60 seconds)
+        statusBadge.html('<span class="badge bg-warning">Timeout - Check Status</span>');
+        return;
+    }
+
+    setTimeout(async () => {
+        try {
+            const response = await fetch('/payment/check-status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                body: JSON.stringify({ checkoutRequestId: checkoutRequestId })
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'paid') {
+                receiptInput.val(data.mpesa_receipt_number);
+                statusInput.val('paid');
+                statusBadge.html('<span class="badge bg-success">Paid - ' + data.mpesa_receipt_number + '</span>');
+                toastr.success('Payment confirmed: ' + data.mpesa_receipt_number);
+            } else if (data.status === 'pending') {
+                // Continue polling
+                pollMpesaStatusPurchase(checkoutRequestId, statusBadge, receiptInput, statusInput, attempts + 1);
+            } else {
+                statusBadge.html('<span class="badge bg-danger">Failed</span>');
+                toastr.error(data.message || 'Payment failed');
+            }
+        } catch (error) {
+            console.error('Polling error:', error);
+            pollMpesaStatusPurchase(checkoutRequestId, statusBadge, receiptInput, statusInput, attempts + 1);
+        }
+    }, 3000); // Check every 3 seconds
+}

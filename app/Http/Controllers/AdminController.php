@@ -374,6 +374,13 @@ class AdminController extends Controller
             'payroll_tax_percent' => 'nullable|numeric',
             'payroll_personal_relief' => 'nullable|numeric',
             'payroll_tax_bands' => 'nullable|string',
+            // eTIMS Integration fields
+            'etims_api_url' => 'nullable|url|max:500',
+            'etims_api_token' => 'nullable|string',
+            'etims_branch_id' => 'nullable|string|max:10',
+            'etims_auto_transmit' => 'nullable|boolean',
+            'etims_transmit_subscriptions' => 'nullable|boolean',
+            'etims_transmit_registrations' => 'nullable|boolean',
         ]);
 
         $settings = AdminSetting::first();
@@ -394,7 +401,9 @@ class AdminController extends Controller
             'auto_renewal', 'grace_period_days', 'recent_limit',
             'company_name', 'company_logo', 'company_contact_phone', 'company_contact_email', 'invoice_pin', 'invoice_footer', 'statement_footer',
             // subscription sequence fields
-            'subscription_invoice_prefix', 'subscription_invoice_next', 'subscription_vat_percent', 'subscription_round_precision'
+            'subscription_invoice_prefix', 'subscription_invoice_next', 'subscription_vat_percent', 'subscription_round_precision',
+            // eTIMS fields
+            'etims_api_url', 'etims_api_token', 'etims_branch_id', 'etims_auto_transmit', 'etims_transmit_subscriptions', 'etims_transmit_registrations'
         ]));
 
         // update payroll-related settings if present
@@ -437,6 +446,41 @@ class AdminController extends Controller
             'success' => true,
             'message' => "Subscription requirement has been {$status} successfully",
             'subscription_required' => $settings->subscription_required
+        ]);
+    }
+
+    /**
+     * Update subscription-specific M-Pesa credentials.
+     */
+    public function updateSubscriptionMpesaCredentials(Request $request)
+    {
+        $this->authorize('admin');
+
+        $validated = $request->validate([
+            'subscription_mpesa_consumer_key' => 'nullable|string|max:255',
+            'subscription_mpesa_consumer_secret' => 'nullable|string|max:255',
+            'subscription_mpesa_shortcode' => 'nullable|string|max:50',
+            'subscription_mpesa_passkey' => 'nullable|string|max:255',
+            'subscription_mpesa_callback' => 'nullable|url|max:255',
+        ]);
+
+        // If any field is filled, all required fields must be filled
+        $filledFields = array_filter($validated);
+        if (!empty($filledFields) && count($filledFields) < 5) {
+            return response()->json([
+                'success' => false,
+                'message' => 'All M-Pesa credential fields must be filled if you want to configure subscription-specific credentials'
+            ], 422);
+        }
+
+        $settings = AdminSetting::firstOrCreate([]);
+        $settings->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => empty($filledFields) 
+                ? 'Subscription M-Pesa credentials cleared. System will use default (.env) credentials.' 
+                : 'Subscription M-Pesa credentials updated successfully'
         ]);
     }
 

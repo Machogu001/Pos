@@ -29,6 +29,18 @@ class MpesaController extends Controller
         $this->callbackUrl = env('MPESA_CALLBACK');
     }
 
+    /**
+     * Set custom M-Pesa credentials (e.g., for subscription payments)
+     */
+    public function setCustomCredentials($consumerKey, $consumerSecret, $shortCode, $passkey, $callbackUrl)
+    {
+        $this->consumerKey = $consumerKey;
+        $this->consumerSecret = $consumerSecret;
+        $this->shortCode = $shortCode;
+        $this->passkey = $passkey;
+        $this->callbackUrl = $callbackUrl;
+    }
+
     public function showPaymentForm()
     {
         return view('business.payment');
@@ -46,6 +58,30 @@ class MpesaController extends Controller
             // allow caller to indicate the type of payment (sell, registration, subscription)
             'payment_type' => 'nullable|string|in:registration,sell,subscription',
         ]);
+
+        // Determine payment type early so we can pick the correct credential source.
+        // Rule: subscription payments use admin-set subscription credentials; everything else uses .env.
+        $paymentType = $request->input('payment_type', 'registration');
+
+        $referer = strtolower($request->header('referer') ?? '');
+        $isPosFlag = $request->input('is_pos') == 1 || $request->input('from_pos') == 1;
+
+        // Check referer contains any of the known POS path segments
+        $posPaths = ['/sale_pos', '/pos', '/sale-pos', '/sale_pos'];
+        $refererContainsPos = false;
+        if (!empty($referer)) {
+            foreach ($posPaths as $p) {
+                if (str_contains($referer, $p)) {
+                    $refererContainsPos = true;
+                    break;
+                }
+            }
+        }
+
+        // If this looks like a POS request, force 'sell' unless explicitly marked as 'subscription'
+        if ($paymentType !== 'subscription' && ($isPosFlag || $refererContainsPos)) {
+            $paymentType = 'sell';
+        }
 
     $rawPhone = $request->phone;
     $phone = preg_replace('/^(\+?254|0)/', '254', $rawPhone);
@@ -71,6 +107,17 @@ class MpesaController extends Controller
         $amount = $settings->registration_price ?? 5;
     }
 
+    // Use subscription-specific M-Pesa credentials ONLY for subscription payments.
+    if ($paymentType === 'subscription' && $settings && $settings->subscription_mpesa_consumer_key) {
+        $this->setCustomCredentials(
+            $settings->subscription_mpesa_consumer_key,
+            $settings->subscription_mpesa_consumer_secret,
+            $settings->subscription_mpesa_shortcode,
+            $settings->subscription_mpesa_passkey,
+            $settings->subscription_mpesa_callback
+        );
+    }
+
         // Store names/phone in session for later use (may be blank for POS flow)
         session([
             'payment_phone' => $phone,
@@ -85,6 +132,7 @@ class MpesaController extends Controller
             'user_id' => auth()->id(),
             'phone' => $phone,
             'amount' => $amount,
+            'payment_type' => $paymentType,
         ]);
 
         // Check for existing pending transaction
@@ -106,30 +154,6 @@ class MpesaController extends Controller
         if (isset($responseBody['ResponseCode']) && $responseBody['ResponseCode'] === '0') {
             $merchantRequestID = $responseBody['MerchantRequestID'] ?? null;
             $checkoutRequestID = $responseBody['CheckoutRequestID'] ?? null;
-
-                // Allow caller to set payment_type (default to registration)
-                // But force 'sell' when request appears to originate from POS (referer or explicit flag)
-                $defaultType = 'registration';
-                $paymentType = $request->input('payment_type', $defaultType);
-
-                // If the frontend explicitly indicates this is a POS request, or the referer contains POS paths, force 'sell'
-                $referer = strtolower($request->header('referer') ?? '');
-                $isPosFlag = $request->input('is_pos') == 1 || $request->input('from_pos') == 1;
-                // Check referer contains any of the known POS path segments
-                $posPaths = ['/sale_pos', '/pos', '/sale-pos', '/sale_pos'];
-                $refererContainsPos = false;
-                if (!empty($referer)) {
-                    foreach ($posPaths as $p) {
-                        if (str_contains($referer, $p)) {
-                            $refererContainsPos = true;
-                            break;
-                        }
-                    }
-                }
-
-                if ($isPosFlag || $refererContainsPos) {
-                    $paymentType = 'sell';
-                }
 
                 if (!$payment) {
                     $payment = MpesaPayment::create([

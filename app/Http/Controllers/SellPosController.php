@@ -816,6 +816,32 @@ class SellPosController extends Controller
 
                 SellCreatedOrModified::dispatch($transaction);
 
+                // Transmit invoice to eTIMS if enabled and transaction is final (products only)
+                if ($input['status'] == 'final' && \App\Services\EtimsService::shouldTransmit($transaction)) {
+                    try {
+                        $etimsService = new \App\Services\EtimsService();
+                        $etimsResult = $etimsService->transmitInvoice($transaction);
+
+                        if ($etimsResult['success']) {
+                            \Log::info('eTIMS invoice transmitted successfully', [
+                                'transaction_id' => $transaction->id,
+                                'invoice_no' => $transaction->invoice_no
+                            ]);
+                        } else {
+                            \Log::warning('eTIMS invoice transmission failed', [
+                                'transaction_id' => $transaction->id,
+                                'invoice_no' => $transaction->invoice_no,
+                                'error' => $etimsResult['message']
+                            ]);
+                        }
+                    } catch (\Exception $e) {
+                        \Log::error('eTIMS transmission exception', [
+                            'transaction_id' => $transaction->id,
+                            'error' => $e->getMessage()
+                        ]);
+                    }
+                }
+
                 if ($request->input('is_save_and_print') == 1) {
                     $url = $this->transactionUtil->getInvoiceUrl($transaction->id, $business_id);
 

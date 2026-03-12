@@ -39,9 +39,13 @@ $(document).ready(function () {
     if ($('html').attr('dir') == 'rtl') {
         $.fn.select2.defaults.set('dir', 'rtl');
     }
-    $.fn.datepicker.defaults.todayHighlight = true;
-    $.fn.datepicker.defaults.autoclose = true;
-    $.fn.datepicker.defaults.format = datepicker_date_format;
+    
+    //Default setting for datepicker (only if loaded)
+    if ($.fn.datepicker && $.fn.datepicker.defaults) {
+        $.fn.datepicker.defaults.todayHighlight = true;
+        $.fn.datepicker.defaults.autoclose = true;
+        $.fn.datepicker.defaults.format = datepicker_date_format;
+    }
 
     //Toastr setting
     toastr.options.preventDuplicates = true;

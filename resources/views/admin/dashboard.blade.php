@@ -29,43 +29,6 @@
         </div>
     </div>
 
-    <!-- Subscription Enforcement Toggle -->
-    <div class="tw-mb-5">
-        <div class="tw-bg-white tw-shadow-sm tw-rounded-xl tw-ring-1 tw-ring-gray-200">
-            <div class="tw-p-4 sm:tw-p-5">
-                <div class="tw-flex tw-flex-col sm:tw-flex-row tw-items-start sm:tw-items-center tw-justify-between tw-gap-4">
-                    <div class="tw-flex tw-items-start tw-gap-4">
-                        <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 {{ ($settings->subscription_required ?? false) ? 'tw-bg-green-100 tw-text-green-600' : 'tw-bg-gray-100 tw-text-gray-400' }}">
-                            <i class="fas fa-shield-alt"></i>
-                        </div>
-                        <div>
-                            <h5 class="tw-text-lg tw-font-semibold tw-text-gray-900 tw-mb-1">Subscription Enforcement</h5>
-                            <p class="tw-text-sm tw-text-gray-600 tw-mb-0">
-                                @if($settings->subscription_required ?? false)
-                                    <span class="tw-text-green-600 tw-font-medium">Enabled:</span> Users must have an active subscription to use the system
-                                @else
-                                    <span class="tw-text-gray-500 tw-font-medium">Disabled:</span> Users can use the system without a subscription
-                                @endif
-                            </p>
-                        </div>
-                    </div>
-                    <form action="{{ route('admin.settings.toggle-subscription-requirement') }}" method="POST" id="subscription-toggle-form">
-                        @csrf
-                        <button type="submit" class="btn {{ ($settings->subscription_required ?? false) ? 'btn-danger' : 'btn-success' }}">
-                            <span class="btn-text">
-                                <i class="fas fa-{{ ($settings->subscription_required ?? false) ? 'times' : 'check' }} me-1"></i>
-                                {{ ($settings->subscription_required ?? false) ? 'Disable' : 'Enable' }} Subscription
-                            </span>
-                            <span class="btn-loading d-none">
-                                <span class="spinner-border spinner-border-sm" role="status"></span>
-                            </span>
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Statistics Cards (match Home dashboard styling) -->
     <div class="tw-grid tw-grid-cols-1 tw-gap-4 sm:tw-grid-cols-2 xl:tw-grid-cols-4 sm:tw-gap-5 tw-mb-5">
         <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">
@@ -133,8 +96,45 @@
         </div>
     </div>
 
-    <!-- User Management & Subscriptions -->
-    <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-4 sm:tw-gap-5 tw-mb-5">
+    <!-- Management & Configuration Cards -->
+    <div class="tw-grid tw-grid-cols-1 tw-gap-4 sm:tw-grid-cols-2 xl:tw-grid-cols-4 sm:tw-gap-5 tw-mb-5">
+        <!-- Subscription Enforcement -->
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('subscriptionEnforcementModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 {{ ($settings->subscription_required ?? false) ? 'tw-bg-green-100 tw-text-green-600' : 'tw-bg-gray-100 tw-text-gray-400' }}">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">Subscription Enforcement</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">
+                            @if($settings->subscription_required ?? false)
+                                Enabled: Users must have an active subscription
+                            @else
+                                Disabled: Users can use the system without subscription
+                            @endif
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- M-Pesa Credentials -->
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('mpesaCredentialsModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-blue-100 tw-text-blue-600">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">Subscription M-Pesa Credentials</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">Configure separate M-Pesa credentials for subscription payments</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Management -->
         <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('userManagementModal')">
             <div class="tw-p-4 sm:tw-p-5">
                 <div class="tw-flex tw-items-center tw-gap-4">
@@ -143,12 +143,13 @@
                     </div>
                     <div class="tw-flex-1 tw-min-w-0">
                         <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.user_management') }}</p>
-                        <p class="tw-mt-0.5 tw-text-sm tw-text-gray-600">{{ __('payment.manage_users_businesses') }}</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.manage_users_businesses') }}</p>
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- Recent Subscriptions -->
         <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('subscriptionsModal')">
             <div class="tw-p-4 sm:tw-p-5">
                 <div class="tw-flex tw-items-center tw-gap-4">
@@ -157,7 +158,112 @@
                     </div>
                     <div class="tw-flex-1 tw-min-w-0">
                         <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.recent_subscriptions') }}</p>
-                        <p class="tw-mt-0.5 tw-text-sm tw-text-gray-600">{{ __('payment.view_manage_subscriptions') }}</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.view_manage_subscriptions') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manual Subscription Management -->
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('manualSubscriptionModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-emerald-100 tw-text-emerald-600">
+                        <i class="fas fa-hand-holding-usd"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.manual_subscription_management') }}</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">Manually create subscriptions for users without M-Pesa payment</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registration -->
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('registrationModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-blue-100 tw-text-blue-600">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.registration') }}</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.configure_plans_pricing') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payroll -->
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('payrollModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-green-100 tw-text-green-600">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.payroll') }}</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.manage_payroll_tax_bands') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Invoicing -->
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('invoicingModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-yellow-100 tw-text-yellow-600">
+                        <i class="fas fa-file-invoice"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.invoicing') }}</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.configure_invoice_settings') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System -->
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('systemModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-cyan-100 tw-text-cyan-600">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.system') }}</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.configure_auto_renewal_system') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Company Info -->
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('companyModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-red-100 tw-text-red-600">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.company_info') }}</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.manage_company_branding') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- eTIMS Integration -->
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('etimsModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 {{ ($settings->etims_api_url ?? false) ? 'tw-bg-green-100 tw-text-green-600' : 'tw-bg-gray-100 tw-text-gray-400' }}">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">eTIMS Integration</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">Configure KRA eTIMS API settings</p>
                     </div>
                 </div>
             </div>
@@ -354,79 +460,6 @@
         </div>
     </div>
 
-    <!-- Subscription Settings & Pricing -->
-    <div class="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 lg:tw-grid-cols-3 xl:tw-grid-cols-5 tw-gap-4 sm:tw-gap-5 tw-mb-5">
-        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('registrationModal')">
-            <div class="tw-p-4 sm:tw-p-5">
-                <div class="tw-flex tw-items-center tw-gap-4">
-                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-blue-100 tw-text-blue-600">
-                        <i class="fas fa-user-plus"></i>
-                    </div>
-                    <div class="tw-flex-1 tw-min-w-0">
-                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.registration') }}</p>
-                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.configure_plans_pricing') }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('payrollModal')">
-            <div class="tw-p-4 sm:tw-p-5">
-                <div class="tw-flex tw-items-center tw-gap-4">
-                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-green-100 tw-text-green-600">
-                        <i class="fas fa-money-bill-wave"></i>
-                    </div>
-                    <div class="tw-flex-1 tw-min-w-0">
-                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.payroll') }}</p>
-                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.manage_payroll_tax_bands') }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('invoicingModal')">
-            <div class="tw-p-4 sm:tw-p-5">
-                <div class="tw-flex tw-items-center tw-gap-4">
-                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-yellow-100 tw-text-yellow-600">
-                        <i class="fas fa-file-invoice"></i>
-                    </div>
-                    <div class="tw-flex-1 tw-min-w-0">
-                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.invoicing') }}</p>
-                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.configure_invoice_settings') }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('systemModal')">
-            <div class="tw-p-4 sm:tw-p-5">
-                <div class="tw-flex tw-items-center tw-gap-4">
-                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-cyan-100 tw-text-cyan-600">
-                        <i class="fas fa-server"></i>
-                    </div>
-                    <div class="tw-flex-1 tw-min-w-0">
-                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.system') }}</p>
-                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.configure_auto_renewal_system') }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('companyModal')">
-            <div class="tw-p-4 sm:tw-p-5">
-                <div class="tw-flex tw-items-center tw-gap-4">
-                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-red-100 tw-text-red-600">
-                        <i class="fas fa-building"></i>
-                    </div>
-                    <div class="tw-flex-1 tw-min-w-0">
-                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.company_info') }}</p>
-                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.manage_company_branding') }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Registration Modal -->
     <div class="modal fade" id="registrationModal" tabindex="-1" aria-labelledby="registrationModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
@@ -486,13 +519,13 @@
                         </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                     <button type="submit" class="btn btn-primary px-4">
                         <span class="btn-text">{{ __('payment.update_settings') }}</span>
                         <span class="btn-loading d-none">
                             <span class="spinner-border spinner-border-sm" role="status"></span>
                         </span>
                     </button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                 </div>
               </form>
             </div>
@@ -596,13 +629,13 @@
                         </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                     <button type="submit" class="btn btn-success px-4">
                         <span class="btn-text">{{ __('payment.update_settings') }}</span>
                         <span class="btn-loading d-none">
                             <span class="spinner-border spinner-border-sm" role="status"></span>
                         </span>
                     </button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                 </div>
               </form>
             </div>
@@ -670,13 +703,13 @@
                         </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                     <button type="submit" class="btn btn-warning px-4">
                         <span class="btn-text">{{ __('payment.update_settings') }}</span>
                         <span class="btn-loading d-none">
                             <span class="spinner-border spinner-border-sm" role="status"></span>
                         </span>
                     </button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                 </div>
               </form>
             </div>
@@ -728,13 +761,13 @@
                         </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                     <button type="submit" class="btn btn-info px-4">
                         <span class="btn-text">{{ __('payment.update_settings') }}</span>
                         <span class="btn-loading d-none">
                             <span class="spinner-border spinner-border-sm" role="status"></span>
                         </span>
                     </button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                 </div>
               </form>
             </div>
@@ -793,50 +826,320 @@
                         </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                     <button type="submit" class="btn btn-danger px-4">
                         <span class="btn-text">{{ __('payment.update_settings') }}</span>
                         <span class="btn-loading d-none">
                             <span class="spinner-border spinner-border-sm" role="status"></span>
                         </span>
                     </button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                 </div>
               </form>
             </div>
         </div>
     </div>
 
-    <!-- Section 3: Manual Subscription Management -->
-    <div class="tw-bg-white tw-shadow-sm tw-rounded-xl tw-mb-5">
-        <div class="tw-p-4 sm:tw-p-5 tw-border-b tw-border-gray-100">
-            <div class="tw-flex tw-items-center tw-gap-3">
-                <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full tw-bg-emerald-100 tw-text-emerald-600">
-                    <i class="fas fa-hand-holding-usd"></i>
+    <!-- eTIMS Integration Modal -->
+    <div class="modal fade" id="etimsModal" tabindex="-1" aria-labelledby="etimsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="etimsModalLabel">
+                        <i class="fas fa-exchange-alt me-2"></i>eTIMS Integration Settings
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
-                <h5 class="tw-text-lg tw-font-semibold tw-text-gray-900 tw-mb-0">{{ __('payment.manual_subscription_management') }}</h5>
+                <form action="{{ route('admin.settings.update') }}" method="POST" class="settings-form" 
+                      onsubmit="return handleModalFormSubmit(event, this, 'etimsModal');">
+                    @csrf
+                    <!-- Hidden fields for required settings not in this modal -->
+                    <input type="hidden" name="monthly_price" value="{{ $settings?->monthly_price ?? 0 }}">
+                    <input type="hidden" name="quarterly_price" value="{{ $settings?->quarterly_price ?? 0 }}">
+                    <input type="hidden" name="yearly_price" value="{{ $settings?->yearly_price ?? 0 }}">
+                    <input type="hidden" name="grace_period_days" value="{{ $settings?->grace_period_days ?? 7 }}">
+                    <input type="hidden" name="recent_limit" value="{{ $settings?->recent_limit ?? 5 }}">
+                    
+                    <div class="modal-body">
+                        <div class="alert alert-info border-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Configure eTIMS API Integration</strong>
+                            <br><small class="text-dark">Set up automatic transmission of sales invoices to KRA when transactions are posted. Each item in an invoice can have different tax rates (0% Exempt or 16% VAT), and the system automatically assigns the correct tax code per item.</small>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-12">
+                                <label class="form-label fw-medium">eTIMS API URL</label>
+                                <input type="url" class="form-control" name="etims_api_url" 
+                                       value="{{ $settings?->etims_api_url ?? '' }}" 
+                                       placeholder="https://your-etims-api-url.com">
+                                <small class="text-muted">The base URL for your eTIMS API endpoint</small>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-12">
+                                <label class="form-label fw-medium">API Token</label>
+                                <textarea class="form-control" name="etims_api_token" rows="3" 
+                                          placeholder="Enter your eTIMS API authentication token">{{ $settings?->etims_api_token ?? '' }}</textarea>
+                                <small class="text-muted">Authentication token for API access</small>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-medium">Branch ID</label>
+                                <input type="text" class="form-control" name="etims_branch_id" 
+                                       value="{{ $settings?->etims_branch_id ?? '' }}" 
+                                       placeholder="e.g., 02" maxlength="10">
+                                <small class="text-muted">Your eTIMS branch identifier</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-medium">Auto Transmit (Products)</label>
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" type="checkbox" name="etims_auto_transmit" 
+                                           id="etimsAutoTransmit" value="1"
+                                           {{ ($settings?->etims_auto_transmit ?? false) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="etimsAutoTransmit">
+                                        Automatically transmit product sales
+                                    </label>
+                                </div>
+                                <small class="text-muted">Enable to send product invoices automatically when sales are posted</small>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-medium">Transmit Subscriptions</label>
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" type="checkbox" name="etims_transmit_subscriptions" 
+                                           id="etimsTransmitSubscriptions" value="1"
+                                           {{ ($settings?->etims_transmit_subscriptions ?? false) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="etimsTransmitSubscriptions">
+                                        Include subscription invoices
+                                    </label>
+                                </div>
+                                <small class="text-muted">Enable to also transmit subscription payments to eTIMS</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-medium">Transmit Registrations</label>
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" type="checkbox" name="etims_transmit_registrations" 
+                                           id="etimsTransmitRegistrations" value="1"
+                                           {{ ($settings?->etims_transmit_registrations ?? false) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="etimsTransmitRegistrations">
+                                        Include registration payments
+                                    </label>
+                                </div>
+                                <small class="text-muted">Enable to also transmit registration fees to eTIMS</small>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-light border">
+                            <div class="text-dark">
+                                <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                                <strong>Tax Code Information:</strong>
+                            </div>
+                            <ul class="mb-0 mt-2 small">
+                                <li><strong>Code A</strong> = Exempt (0%) - Applied to items with 0% tax or no tax set</li>
+                                <li><strong>Code B</strong> = VAT Standard Rate (16%) - Applied to items with 16% tax</li>
+                                <li><strong>Code E</strong> = Special Rate - Applied to items with other tax rates</li>
+                            </ul>
+                            <small class="d-block mt-2">Each item in the invoice gets its own tax code based on its tax rate. An invoice can contain items with different tax codes.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success px-4">
+                            <span class="btn-text">
+                                <i class="fas fa-save me-2"></i>Save eTIMS Settings
+                            </span>
+                            <span class="btn-loading d-none">
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                            </span>
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </form>
             </div>
         </div>
-        <div class="tw-p-4 sm:tw-p-5">
-            <div class="tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded-lg tw-p-4 tw-mb-5">
-                <div class="tw-flex tw-gap-3">
-                    <div class="tw-shrink-0">
-                        <i class="fas fa-info-circle tw-text-blue-600 tw-mt-0.5"></i>
-                    </div>
-                    <div class="tw-text-sm tw-text-blue-900">
-                        <span class="tw-font-semibold">Quick Creation:</span> Manually create subscriptions for users without M-Pesa payment. The system will use default pricing unless you specify a custom amount.
+    </div>
+
+    <!-- Subscription Enforcement Modal -->
+    <div class="modal fade" id="subscriptionEnforcementModal" tabindex="-1" aria-labelledby="subscriptionEnforcementModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-md">
+            <div class="modal-content">
+                <div class="modal-header {{ ($settings->subscription_required ?? false) ? 'bg-success' : 'bg-secondary' }} text-white">
+                    <h5 class="modal-title" id="subscriptionEnforcementModalLabel">
+                        <i class="fas fa-shield-alt me-2"></i>Subscription Enforcement
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center py-4">
+                        <div class="mb-4">
+                            <div class="d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px; border-radius: 50%; background-color: {{ ($settings->subscription_required ?? false) ? '#d1fae5' : '#e5e7eb' }};">
+                                <i class="fas fa-shield-alt" style="font-size: 36px; color: {{ ($settings->subscription_required ?? false) ? '#059669' : '#6b7280' }};"></i>
+                            </div>
+                        </div>
+                        
+                        <h4 class="mb-3">Current Status: 
+                            <span class="badge {{ ($settings->subscription_required ?? false) ? 'bg-success' : 'bg-secondary' }}">
+                                {{ ($settings->subscription_required ?? false) ? 'ENABLED' : 'DISABLED' }}
+                            </span>
+                        </h4>
+                        
+                        <p class="text-muted mb-4">
+                            @if($settings->subscription_required ?? false)
+                                <i class="fas fa-check-circle text-success me-1"></i>
+                                Users must have an active subscription to use the system.
+                            @else
+                                <i class="fas fa-info-circle text-secondary me-1"></i>
+                                Users can use the system without a subscription.
+                            @endif
+                        </p>
+
+                        <div class="alert {{ ($settings->subscription_required ?? false) ? 'alert-warning' : 'alert-info' }}">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            @if($settings->subscription_required ?? false)
+                                Disabling this will allow all users to access the system regardless of subscription status.
+                            @else
+                                Enabling this will require all users to have an active subscription to use the system.
+                            @endif
+                        </div>
                     </div>
                 </div>
-            </div>
-                    
-                    <form action="{{ route('admin.subscriptions.manual') }}" method="POST" class="ajax-form">
+                <div class="modal-footer">
+                    <form action="{{ route('admin.settings.toggle-subscription-requirement') }}" method="POST" id="subscription-toggle-form" class="d-inline">
                         @csrf
-                        <div class="row g-4 mb-4">
-                            <div class="col-lg-4">
-                                <label class="form-label fw-semibold">
+                        <button type="submit" class="btn {{ ($settings->subscription_required ?? false) ? 'btn-danger' : 'btn-success' }} px-4">
+                            <span class="btn-text">
+                                <i class="fas fa-{{ ($settings->subscription_required ?? false) ? 'times' : 'check' }} me-1"></i>
+                                {{ ($settings->subscription_required ?? false) ? 'Disable' : 'Enable' }} Enforcement
+                            </span>
+                            <span class="btn-loading d-none">
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                            </span>
+                        </button>
+                    </form>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- M-Pesa Credentials Modal -->
+    <div class="modal fade" id="mpesaCredentialsModal" tabindex="-1" aria-labelledby="mpesaCredentialsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="mpesaCredentialsModalLabel">
+                        <i class="fas fa-mobile-alt me-2"></i>Subscription M-Pesa Credentials
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form action="{{ route('admin.settings.update-subscription-mpesa') }}" method="POST" id="mpesa-credentials-form">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Configure separate M-Pesa credentials for subscription payments. Leave all fields blank to use default (.env) credentials.
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="subscription_mpesa_consumer_key" class="form-label fw-medium">Consumer Key</label>
+                                <input type="text" class="form-control" id="subscription_mpesa_consumer_key" 
+                                       name="subscription_mpesa_consumer_key" 
+                                       value="{{ $settings->subscription_mpesa_consumer_key ?? '' }}"
+                                       placeholder="Enter M-Pesa Consumer Key">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="subscription_mpesa_consumer_secret" class="form-label fw-medium">Consumer Secret</label>
+                                <input type="password" class="form-control" id="subscription_mpesa_consumer_secret" 
+                                       name="subscription_mpesa_consumer_secret" 
+                                       value="{{ $settings->subscription_mpesa_consumer_secret ?? '' }}"
+                                       placeholder="Enter M-Pesa Consumer Secret">
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label for="subscription_mpesa_shortcode" class="form-label fw-medium">Shortcode</label>
+                                <input type="text" class="form-control" id="subscription_mpesa_shortcode" 
+                                       name="subscription_mpesa_shortcode" 
+                                       value="{{ $settings->subscription_mpesa_shortcode ?? '' }}"
+                                       placeholder="e.g., 174379">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="subscription_mpesa_passkey" class="form-label fw-medium">Passkey</label>
+                                <input type="password" class="form-control" id="subscription_mpesa_passkey" 
+                                       name="subscription_mpesa_passkey" 
+                                       value="{{ $settings->subscription_mpesa_passkey ?? '' }}"
+                                       placeholder="Enter M-Pesa Passkey">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="subscription_mpesa_callback" class="form-label fw-medium">Callback URL</label>
+                                <input type="url" class="form-control" id="subscription_mpesa_callback" 
+                                       name="subscription_mpesa_callback" 
+                                       value="{{ $settings->subscription_mpesa_callback ?? '' }}"
+                                       placeholder="https://yourdomain.com/mpesa/callback">
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-start">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="toggle-password-visibility">
+                                <i class="fas fa-eye"></i> Show Credentials
+                            </button>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary px-4">
+                            <span class="btn-text">
+                                <i class="fas fa-save me-1"></i>Save M-Pesa Credentials
+                            </span>
+                            <span class="btn-loading d-none">
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                            </span>
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Subscription Modal -->
+    <div class="modal fade" id="manualSubscriptionModal" tabindex="-1" aria-labelledby="manualSubscriptionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="manualSubscriptionModalLabel">
+                        <i class="fas fa-hand-holding-usd me-2"></i>{{ __('payment.manual_subscription_management') }}
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form action="{{ route('admin.subscriptions.manual') }}" method="POST" class="ajax-form" id="manual-subscription-form">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <span class="fw-semibold">Quick Creation:</span> Manually create subscriptions for users without M-Pesa payment. The system will use default pricing unless you specify a custom amount.
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-medium">
                                     <i class="fas fa-user me-1 text-primary"></i>
                                     {{ __('payment.select_user') }} <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-select form-select-lg" name="user_id" required>
+                                <select class="form-select" name="user_id" required>
                                     <option value="">{{ __('payment.select_user') }}</option>
                                     @foreach($users ?? [] as $user)
                                     <option value="{{ $user->id }}">
@@ -845,23 +1148,26 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-lg-4">
-                                <label class="form-label fw-semibold">
+                            <div class="col-md-6">
+                                <label class="form-label fw-medium">
                                     <i class="fas fa-calendar-alt me-1 text-success"></i>
                                     {{ __('payment.billing_cycle') }} <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-select form-select-lg" name="billing_cycle" required>
+                                <select class="form-select" name="billing_cycle" required>
                                     <option value="monthly">{{ __('payment.monthly') }} - Ksh {{ number_format($settings->monthly_price ?? 0, 2) }}</option>
                                     <option value="quarterly">{{ __('payment.quarterly') }} - Ksh {{ number_format($settings->quarterly_price ?? 0, 2) }}</option>
                                     <option value="yearly">{{ __('payment.yearly') }} - Ksh {{ number_format($settings->yearly_price ?? 0, 2) }}</option>
                                 </select>
                             </div>
-                            <div class="col-lg-4">
-                                <label class="form-label fw-semibold">
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-12">
+                                <label class="form-label fw-medium">
                                     <i class="fas fa-money-bill-wave me-1 text-warning"></i>
-                                    {{ __('payment.custom_amount') }}
+                                    {{ __('payment.custom_amount') }} (Ksh)
                                 </label>
-                                <div class="input-group input-group-lg">
+                                <div class="input-group">
                                     <span class="input-group-text bg-light fw-semibold">Ksh</span>
                                     <input type="number" step="0.01" class="form-control" name="custom_amount" placeholder="Optional">
                                 </div>
@@ -871,20 +1177,20 @@
                                 </small>
                             </div>
                         </div>
-                        <div class="d-flex justify-content-end">
-                            <button type="submit" class="btn btn-success btn-lg px-5">
-                                <span class="btn-text">
-                                    <i class="fas fa-plus-circle me-2"></i>
-                                    {{ __('payment.create_manual_subscription') }}
-                                </span>
-                                <span class="btn-loading d-none">
-                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                    {{ __('payment.creating') }}
-                                </span>
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success px-4">
+                            <span class="btn-text">
+                                <i class="fas fa-plus-circle me-1"></i>
+                                {{ __('payment.create_manual_subscription') }}
+                            </span>
+                            <span class="btn-loading d-none">
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                            </span>
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -1350,32 +1656,59 @@
             if (previewBtn) {
                 previewBtn.addEventListener('click', async function () {
                     try {
+                        // Show loading state on button
+                        const originalText = previewBtn.innerHTML;
+                        previewBtn.disabled = true;
+                        previewBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Loading...';
+
                         const res = await fetch('{{ route('admin.settings.previewRegistrationEmail') }}', {
                             headers: { 'X-Requested-With': 'XMLHttpRequest' }
                         });
+                        
+                        // Reset button state
+                        previewBtn.disabled = false;
+                        previewBtn.innerHTML = originalText;
+                        
                         if (!res.ok) throw new Error('Failed to load preview');
                         const html = await res.text();
 
                         // Show modal with preview
+                        const modalId = 'previewEmailModal_' + Date.now();
                         const modalDiv = document.createElement('div');
                         modalDiv.className = 'modal fade';
-                        modalDiv.style.display = 'block';
+                        modalDiv.id = modalId;
+                        modalDiv.setAttribute('tabindex', '-1');
+                        modalDiv.setAttribute('role', 'dialog');
                         modalDiv.innerHTML = `
-                            <div class="modal-dialog modal-lg">
+                            <div class="modal-dialog modal-lg" role="document">
                                 <div class="modal-content">
                                     <div class="modal-header">
                                         <h5 class="modal-title">${DASHBOARD_I18N.registration_email_preview || 'Registration Email Preview'}</h5>
-                                        <button type="button" class="btn-close" aria-label="Close"></button>
+                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                            <span aria-hidden="true">&times;</span>
+                                        </button>
                                     </div>
                                     <div class="modal-body">${html}</div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                    </div>
                                 </div>
                             </div>`;
 
                         document.body.appendChild(modalDiv);
-                        // close handler
-                        modalDiv.querySelector('.btn-close').addEventListener('click', () => modalDiv.remove());
+                        
+                        // Initialize Bootstrap modal and show it
+                        $('#' + modalId).modal('show');
+                        
+                        // Remove modal from DOM when hidden
+                        $('#' + modalId).on('hidden.bs.modal', function () {
+                            $(this).remove();
+                        });
                     } catch (err) {
                         console.error(err);
+                        // Reset button state on error
+                        previewBtn.disabled = false;
+                        previewBtn.innerHTML = originalText;
                         showToast('error', DASHBOARD_I18N.unable_load_preview || 'Unable to load preview');
                     }
                 });
@@ -1575,40 +1908,89 @@
              * Update the subscription toggle UI without page reload
              */
             function updateSubscriptionToggleUI(isEnabled) {
-                const container = document.getElementById('subscription-toggle-form').closest('.tw-bg-white');
-                const iconCircle = container.querySelector('.tw-inline-flex.tw-items-center.tw-justify-center');
-                const statusText = container.querySelector('.tw-text-sm.tw-text-gray-600');
-                const submitBtn = container.querySelector('button[type="submit"]');
-                const btnText = submitBtn.querySelector('.btn-text');
-                const btnLoading = submitBtn.querySelector('.btn-loading');
+                // Close the modal
+                $('#subscriptionEnforcementModal').modal('hide');
                 
-                // Update icon circle colors
-                if (isEnabled) {
-                    iconCircle.className = 'tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-green-100 tw-text-green-600';
-                } else {
-                    iconCircle.className = 'tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-gray-100 tw-text-gray-400';
+                // Update the card's icon and text
+                const card = document.querySelector('[onclick="openModal(\'subscriptionEnforcementModal\')"]');
+                if (card) {
+                    const iconCircle = card.querySelector('.tw-inline-flex');
+                    const statusText = card.querySelectorAll('p')[1]; // Second p tag has the status
+                    
+                    // Update icon circle colors
+                    if (isEnabled) {
+                        iconCircle.className = 'tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-green-100 tw-text-green-600';
+                        statusText.innerHTML = 'Enabled: Users must have an active subscription';
+                    } else {
+                        iconCircle.className = 'tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-gray-100 tw-text-gray-400';
+                        statusText.innerHTML = 'Disabled: Users can use the system without subscription';
+                    }
                 }
                 
-                // Update status text
-                if (isEnabled) {
-                    statusText.innerHTML = '<span class="tw-text-green-600 tw-font-medium">Enabled:</span> Users must have an active subscription to use the system';
-                } else {
-                    statusText.innerHTML = '<span class="tw-text-gray-500 tw-font-medium">Disabled:</span> Users can use the system without a subscription';
+                // Update modal elements for next time it opens
+                const modal = document.getElementById('subscriptionEnforcementModal');
+                if (modal) {
+                    const modalHeader = modal.querySelector('.modal-header');
+                    const badge = modal.querySelector('.badge');
+                    const iconContainer = modal.querySelector('[style*="border-radius: 50%"]');
+                    const icon = iconContainer?.querySelector('i');
+                    const statusMessage = modal.querySelector('.text-muted');
+                    const alert = modal.querySelector('.alert');
+                    const submitBtn = modal.querySelector('button[type="submit"]');
+                    const btnText = submitBtn?.querySelector('.btn-text');
+                    const btnLoading = submitBtn?.querySelector('.btn-loading');
+                    
+                    // Update modal header color
+                    if (isEnabled) {
+                        modalHeader.className = 'modal-header bg-success text-white';
+                    } else {
+                        modalHeader.className = 'modal-header bg-secondary text-white';
+                    }
+                    
+                    // Update badge
+                    if (badge) {
+                        badge.className = isEnabled ? 'badge bg-success' : 'badge bg-secondary';
+                        badge.textContent = isEnabled ? 'ENABLED' : 'DISABLED';
+                    }
+                    
+                    // Update icon container
+                    if (iconContainer) {
+                        iconContainer.style.backgroundColor = isEnabled ? '#d1fae5' : '#e5e7eb';
+                    }
+                    if (icon) {
+                        icon.style.color = isEnabled ? '#059669' : '#6b7280';
+                    }
+                    
+                    // Update status message
+                    if (statusMessage) {
+                        statusMessage.innerHTML = isEnabled 
+                            ? '<i class="fas fa-check-circle text-success me-1"></i> Users must have an active subscription to use the system.'
+                            : '<i class="fas fa-info-circle text-secondary me-1"></i> Users can use the system without a subscription.';
+                    }
+                    
+                    // Update alert
+                    if (alert) {
+                        alert.className = isEnabled ? 'alert alert-warning' : 'alert alert-info';
+                        alert.innerHTML = isEnabled
+                            ? '<i class="fas fa-exclamation-triangle me-2"></i> Disabling this will allow all users to access the system regardless of subscription status.'
+                            : '<i class="fas fa-exclamation-triangle me-2"></i> Enabling this will require all users to have an active subscription to use the system.';
+                    }
+                    
+                    // Update button
+                    if (submitBtn) {
+                        submitBtn.className = isEnabled ? 'btn btn-danger px-4' : 'btn btn-success px-4';
+                    }
+                    if (btnText) {
+                        btnText.innerHTML = isEnabled 
+                            ? '<i class="fas fa-times me-1"></i>Disable Enforcement'
+                            : '<i class="fas fa-check me-1"></i>Enable Enforcement';
+                    }
+                    
+                    // Reset button state
+                    if (submitBtn) submitBtn.disabled = false;
+                    if (btnText) btnText.classList.remove('d-none');
+                    if (btnLoading) btnLoading.classList.add('d-none');
                 }
-                
-                // Update button
-                if (isEnabled) {
-                    submitBtn.className = 'btn btn-danger';
-                    btnText.innerHTML = '<i class="fas fa-times me-1"></i>Disable Subscription';
-                } else {
-                    submitBtn.className = 'btn btn-success';
-                    btnText.innerHTML = '<i class="fas fa-check me-1"></i>Enable Subscription';
-                }
-                
-                // Reset button state
-                submitBtn.disabled = false;
-                if (btnText) btnText.classList.remove('d-none');
-                if (btnLoading) btnLoading.classList.add('d-none');
             }
         })();
 
@@ -1680,6 +2062,88 @@
                     }
                 }, 200);
             }
+        }
+
+        // Toggle password visibility for M-Pesa credentials
+        const togglePasswordBtn = document.getElementById('toggle-password-visibility');
+        if (togglePasswordBtn) {
+            togglePasswordBtn.addEventListener('click', function() {
+                const passwordFields = [
+                    document.getElementById('subscription_mpesa_consumer_secret'),
+                    document.getElementById('subscription_mpesa_passkey')
+                ];
+
+                passwordFields.forEach(field => {
+                    if (field) {
+                        field.type = field.type === 'password' ? 'text' : 'password';
+                    }
+                });
+
+                const icon = this.querySelector('i');
+                if (icon.classList.contains('fa-eye')) {
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                    this.innerHTML = '<i class="fas fa-eye-slash"></i> Hide Credentials';
+                } else {
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                    this.innerHTML = '<i class="fas fa-eye"></i> Show Credentials';
+                }
+            });
+        }
+
+        // Handle M-Pesa credentials form submission
+        const mpesaForm = document.getElementById('mpesa-credentials-form');
+        if (mpesaForm) {
+            mpesaForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const btnText = submitBtn.querySelector('.btn-text');
+                const btnLoading = submitBtn.querySelector('.btn-loading');
+                
+                if (btnText) btnText.classList.add('d-none');
+                if (btnLoading) btnLoading.classList.remove('d-none');
+                submitBtn.disabled = true;
+
+                fetch(this.action, {
+                    method: 'POST',
+                    body: new FormData(this),
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Close modal
+                        $('#mpesaCredentialsModal').modal('hide');
+                        
+                        // Show success message
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success',
+                            text: data.message || 'M-Pesa credentials updated successfully',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        throw new Error(data.message || 'Failed to update credentials');
+                    }
+                })
+                .catch(error => {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: error.message || 'Failed to update M-Pesa credentials'
+                    });
+                })
+                .finally(() => {
+                    if (btnText) btnText.classList.remove('d-none');
+                    if (btnLoading) btnLoading.classList.add('d-none');
+                    submitBtn.disabled = false;
+                });
+            });
         }
     </script>
 @endpush

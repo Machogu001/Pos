@@ -749,7 +749,12 @@ Route::prefix('admin')->middleware(['auth', 'admin', 'AdminSidebarMenu'])->group
     // Settings
     Route::post('/settings/update', [AdminController::class, 'updateSettings'])->name('admin.settings.update');
     Route::post('/settings/toggle-subscription-requirement', [AdminController::class, 'toggleSubscriptionRequirement'])->name('admin.settings.toggle-subscription-requirement');
+    Route::post('/settings/update-subscription-mpesa', [AdminController::class, 'updateSubscriptionMpesaCredentials'])->name('admin.settings.update-subscription-mpesa');
     Route::get('/settings/preview-registration-email', [AdminController::class, 'previewRegistrationEmail'])->name('admin.settings.previewRegistrationEmail');
+
+    // eTIMS Integration
+    Route::post('/etims/transmit/{transaction}', [AdminController::class, 'transmitInvoiceToEtims'])->name('admin.etims.transmit');
+    Route::get('/etims/invoices', [AdminController::class, 'getEtimsInvoices'])->name('admin.etims.invoices');
 
     // ============================
     // Admin Subscription Routes

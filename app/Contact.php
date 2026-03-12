@@ -46,13 +46,21 @@ class Contact extends Authenticatable
      */
     public function scopeOnlySuppliers($query)
     {
-        if (auth()->check() && ! auth()->user()->can('supplier.view') && ! auth()->user()->can('supplier.view_own')) {
+        $is_admin = false;
+        if (auth()->check()) {
+            $user = auth()->user();
+            if (! empty($user->business_id)) {
+                $is_admin = $user->hasRole('Admin#'.$user->business_id);
+            }
+        }
+
+        if (auth()->check() && ! $is_admin && ! auth()->user()->can('supplier.view') && ! auth()->user()->can('supplier.view_own')) {
             abort(403, 'Unauthorized action.');
         }
 
         $query->whereIn('contacts.type', ['supplier', 'both']);
 
-        if (auth()->check() && ! auth()->user()->can('supplier.view') && auth()->user()->can('supplier.view_own')) {
+        if (auth()->check() && ! $is_admin && ! auth()->user()->can('supplier.view') && auth()->user()->can('supplier.view_own')) {
             $query->leftjoin('user_contact_access AS ucas', 'contacts.id', 'ucas.contact_id');
             $query->where(function ($q) {
                 $user_id = auth()->user()->id;
@@ -69,14 +77,17 @@ class Contact extends Authenticatable
      */
     public function scopeOnlyCustomers($query)
     {
-        //Commented because of issue in woocommerce sync
-        // if (auth()->check() && !auth()->user()->can('customer.view') && !auth()->user()->can('customer.view_own')) {
-        //     abort(403, 'Unauthorized action.');
-        // }
-
         $query->whereIn('contacts.type', ['customer', 'both']);
 
-        if (auth()->check() && ! auth()->user()->can('customer.view') && auth()->user()->can('customer.view_own')) {
+        $is_admin = false;
+        if (auth()->check()) {
+            $user = auth()->user();
+            if (! empty($user->business_id)) {
+                $is_admin = $user->hasRole('Admin#'.$user->business_id);
+            }
+        }
+
+        if (auth()->check() && ! $is_admin && ! auth()->user()->can('customer.view') && auth()->user()->can('customer.view_own')) {
             $query->leftjoin('user_contact_access AS ucas', 'contacts.id', 'ucas.contact_id');
             $query->where(function ($q) {
                 $user_id = auth()->user()->id;

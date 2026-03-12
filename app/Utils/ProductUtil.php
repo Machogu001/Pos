@@ -2673,6 +2673,18 @@ class ProductUtil extends Util
                                 ->orderBy('transactions.transaction_date', 'asc')
                                 ->get();
 
+        // CRITICAL FIX: Include stocktake adjustments from stock_histories table
+        $stocktake_history = StockHistory::where('variation_id', $variation_id)
+                                ->where('location_id', $location_id)
+                                ->where(function($q) {
+                                    $q->where('type', 'like', '%stocktake%')
+                                      ->orWhere('type', 'stocktake_increase')
+                                      ->orWhere('type', 'stocktake_decrease');
+                                })
+                                ->with('transaction')
+                                ->orderBy('created_at', 'asc')
+                                ->get();
+
         $stock_history_array = [];
         $stock = 0;
         $stock_in_second_unit = 0;
@@ -2819,6 +2831,38 @@ class ProductUtil extends Util
                     'stock_in_second_unit' => $this->roundQuantity($stock_in_second_unit),
                 ]);
             }
+        }
+
+        // CRITICAL FIX: Add stocktake adjustments from stock_histories table
+        foreach ($stocktake_history as $stocktake_line) {
+            $quantity_change = $stocktake_line->actual_adjustment;
+            $stock += $quantity_change;
+            
+            $stock_history_array[] = [
+                'date' => $stocktake_line->created_at,
+                'transaction_id' => $stocktake_line->transaction_id,
+                'contact_name' => null,
+                'supplier_business_name' => null,
+                'quantity_change' => $quantity_change,
+                'stock' => $this->roundQuantity($stock),
+                'type' => 'stocktake',
+                'type_label' => __('stocktake.stocktake'),
+                'ref_no' => $stocktake_line->reference_no ?? ($stocktake_line->transaction ? $stocktake_line->transaction->ref_no : ''),
+                'stock_in_second_unit' => $this->roundQuantity($stock_in_second_unit),
+                'additional_notes' => 'Old: ' . $this->roundQuantity($stocktake_line->old_quantity) . ' → New: ' . $this->roundQuantity($stocktake_line->new_quantity),
+            ];
+        }
+
+        // Sort all entries by date to maintain chronological order
+        usort($stock_history_array, function($a, $b) {
+            return strtotime($a['date']) - strtotime($b['date']);
+        });
+
+        // Recalculate running stock totals in chronological order to ensure accuracy
+        $stock = 0;
+        foreach ($stock_history_array as $key => $entry) {
+            $stock += $entry['quantity_change'];
+            $stock_history_array[$key]['stock'] = $this->roundQuantity($stock);
         }
 
         return array_reverse($stock_history_array);
