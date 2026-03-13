@@ -109,4 +109,10 @@ return [
     'register_and_get_started_in_minutes' => 'Register and get started in minutes',
     'already_registered' => 'Already have an account?',
     'login_here' => 'Login here',
+    'default_account_mappings' => 'Default account mappings (by transaction type)',
+    'default_account_mappings_help' => 'When no payment account is chosen manually, the system will auto-link payments to these accounts based on the transaction type (Sell, Purchase, Expense, Payroll).',
+    'default_account_sell' => 'Default Sell account',
+    'default_account_purchase' => 'Default Purchase account',
+    'default_account_expense' => 'Default Expense account',
+    'default_account_payroll' => 'Default Payroll account',
 ];

@@ -360,6 +360,231 @@ class AccountReportsController extends Controller
     }
 
     /**
+     * Show bank reconciliation upload & results page.
+     */
+    public function showBankReconciliation()
+    {
+        if (! auth()->user()->can('account.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $business_id = session()->get('user.business_id');
+        $accounts = Account::forDropdown($business_id, false);
+
+        return view('account_reports.bank_reconciliation')
+                ->with(compact('accounts'));
+    }
+
+    /**
+     * Download a CSV template for bank reconciliation upload.
+     */
+    public function downloadBankReconciliationTemplate()
+    {
+        if (! auth()->user()->can('account.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $fileName = 'bank_statement_template.csv';
+
+        $callback = function () {
+            $handle = fopen('php://output', 'w');
+
+            // Header row expected by uploadBankReconciliation
+            fputcsv($handle, ['Date', 'Amount', 'Description', 'Reference']);
+
+            // Example row for guidance
+            fputcsv($handle, [
+                now()->format('Y-m-d'),
+                '1234.56',
+                'Sample payment description',
+                'BANK-REF-001',
+            ]);
+
+            fclose($handle);
+        };
+
+        return response()->streamDownload($callback, $fileName, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
+    /**
+     * Handle uploaded bank statement and attempt reconciliation against transaction payments.
+     */
+    public function uploadBankReconciliation(Request $request)
+    {
+        if (! auth()->user()->can('account.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $business_id = session()->get('user.business_id');
+
+        $validated = $request->validate([
+            'statement' => 'required|file|mimes:csv,txt',
+            'account_id' => 'nullable|integer',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+        ]);
+
+        $file = $request->file('statement');
+        $handle = fopen($file->getRealPath(), 'r');
+        if (! $handle) {
+            return response()->json([
+                'success' => false,
+                'msg' => __('messages.something_went_wrong'),
+            ]);
+        }
+
+        $header = fgetcsv($handle, 0, ',');
+        if ($header === false) {
+            fclose($handle);
+
+            return response()->json([
+                'success' => false,
+                'msg' => __('lang_v1.no_data_for_date_range'),
+            ]);
+        }
+
+        $normalized_header = [];
+        foreach ($header as $index => $col) {
+            $normalized_header[$index] = strtolower(trim($col));
+        }
+
+        $date_index = array_search('date', $normalized_header, true);
+        $amount_index = array_search('amount', $normalized_header, true);
+        $description_index = array_search('description', $normalized_header, true);
+        $reference_index = array_search('reference', $normalized_header, true);
+
+        if ($date_index === false || $amount_index === false) {
+            fclose($handle);
+
+            return response()->json([
+                'success' => false,
+                'msg' => __('messages.custom_error_message', ['msg' => 'CSV must include Date and Amount columns.']),
+            ]);
+        }
+
+        $statement_lines = [];
+        $total_statement_amount = 0;
+
+        while (($row = fgetcsv($handle, 0, ',')) !== false) {
+            if (count(array_filter($row, function ($v) { return $v !== null && $v !== ''; })) === 0) {
+                continue;
+            }
+
+            $raw_date = $row[$date_index] ?? '';
+            $raw_amount = $row[$amount_index] ?? '';
+
+            if ($raw_date === '' || $raw_amount === '') {
+                continue;
+            }
+
+            try {
+                $date = \Carbon\Carbon::parse($raw_date)->format('Y-m-d');
+            } catch (\Exception $e) {
+                continue;
+            }
+
+            $amount_sanitized = preg_replace('/[^0-9\-\.]/', '', (string) $raw_amount);
+            if ($amount_sanitized === '' || ! is_numeric($amount_sanitized)) {
+                continue;
+            }
+
+            $amount = (float) $amount_sanitized;
+            $total_statement_amount += $amount;
+
+            $statement_lines[] = [
+                'date' => $date,
+                'amount' => $amount,
+                'description' => $description_index !== false ? ($row[$description_index] ?? '') : '',
+                'reference' => $reference_index !== false ? ($row[$reference_index] ?? '') : '',
+            ];
+        }
+
+        fclose($handle);
+
+        $matched = [];
+        $ambiguous = [];
+        $unmatched = [];
+        $total_matched_amount = 0;
+
+        $account_id = $validated['account_id'] ?? null;
+
+        foreach ($statement_lines as $line) {
+            $date = $line['date'];
+            $amount = $line['amount'];
+
+            $query = TransactionPayment::where('business_id', $business_id)
+                ->where('amount', $amount);
+
+            if (! empty($account_id) && $account_id !== 'none') {
+                $query->where('account_id', $account_id);
+            }
+
+            // Allow a small window around the statement date when matching
+            $start = \Carbon\Carbon::parse($date)->subDays(3)->format('Y-m-d');
+            $end = \Carbon\Carbon::parse($date)->addDays(3)->format('Y-m-d');
+
+            $query->whereBetween(DB::raw('date(paid_on)'), [$start, $end]);
+
+            if (! empty($validated['start_date']) && ! empty($validated['end_date'])) {
+                $extra_start = $validated['start_date'];
+                $extra_end = $validated['end_date'];
+                $query->whereBetween(DB::raw('date(paid_on)'), [$extra_start, $extra_end]);
+            }
+
+            $candidates = $query->with(['transaction'])->get();
+
+            if ($candidates->count() === 1) {
+                $payment = $candidates->first();
+                $matched[] = [
+                    'statement' => $line,
+                    'payment' => [
+                        'id' => $payment->id,
+                        'paid_on' => $payment->paid_on,
+                        'amount' => $payment->amount,
+                        'payment_ref_no' => $payment->payment_ref_no,
+                        'transaction_type' => optional($payment->transaction)->type,
+                        'transaction_id' => optional($payment->transaction)->id,
+                    ],
+                ];
+                $total_matched_amount += $amount;
+            } elseif ($candidates->count() > 1) {
+                $ambiguous[] = [
+                    'statement' => $line,
+                    'candidates' => $candidates->take(5)->map(function ($payment) {
+                        return [
+                            'id' => $payment->id,
+                            'paid_on' => $payment->paid_on,
+                            'amount' => $payment->amount,
+                            'payment_ref_no' => $payment->payment_ref_no,
+                            'transaction_type' => optional($payment->transaction)->type,
+                            'transaction_id' => optional($payment->transaction)->id,
+                        ];
+                    })->values(),
+                ];
+            } else {
+                $unmatched[] = $line;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'summary' => [
+                'total_statement_lines' => count($statement_lines),
+                'total_statement_amount' => $total_statement_amount,
+                'matched_count' => count($matched),
+                'ambiguous_count' => count($ambiguous),
+                'unmatched_count' => count($unmatched),
+                'total_matched_amount' => $total_matched_amount,
+            ],
+            'matched' => $matched,
+            'ambiguous' => $ambiguous,
+            'unmatched' => $unmatched,
+        ]);
+    }
+
+    /**
      * Shows form to link account with a payment.
      *
      * @return Response

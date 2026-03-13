@@ -183,26 +183,8 @@ $(document).ready(function() {
                 },
                 minLength: 2,
                 response: function(event, ui) {
-                    if (ui.content.length == 1) {
-                        ui.item = ui.content[0];
-
-                        var is_overselling_allowed = false;
-                        if($('input#is_overselling_allowed').length) {
-                            is_overselling_allowed = true;
-                        }
-                        var for_so = false;
-                        if ($('#sale_type').length && $('#sale_type').val() == 'sales_order') {
-                            for_so = true;
-                        }
-
-                        if ((ui.item.enable_stock == 1 && ui.item.qty_available > 0) || 
-                                (ui.item.enable_stock == 0) || is_overselling_allowed || for_so) {
-                            $(this)
-                                .data('ui-autocomplete')
-                                ._trigger('select', 'autocompleteselect', ui);
-                            $(this).autocomplete('close');
-                        }
-                    } else if (ui.content.length == 0) {
+                    // Show dropdown list like stocktake; do not auto-add single result
+                    if (ui.content.length == 0) {
                         toastr.error(LANG.no_products_found);
                         $('input#search_product').select();
                     }

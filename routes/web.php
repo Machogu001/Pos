@@ -536,6 +536,9 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
         Route::get('/balance-sheet', [AccountReportsController::class, 'balanceSheet']);
         Route::get('/trial-balance', [AccountReportsController::class, 'trialBalance']);
         Route::get('/payment-account-report', [AccountReportsController::class, 'paymentAccountReport']);
+        Route::get('/bank-reconciliation', [AccountReportsController::class, 'showBankReconciliation']);
+        Route::get('/bank-reconciliation/template', [AccountReportsController::class, 'downloadBankReconciliationTemplate']);
+        Route::post('/bank-reconciliation/upload', [AccountReportsController::class, 'uploadBankReconciliation']);
         Route::get('/link-account/{id}', [AccountReportsController::class, 'getLinkAccount']);
         Route::post('/link-account', [AccountReportsController::class, 'postLinkAccount']);
         Route::get('/cash-flow', [AccountController::class, 'cashFlow']);

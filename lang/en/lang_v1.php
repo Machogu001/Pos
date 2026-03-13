@@ -166,6 +166,7 @@ return [
     'product_sell_report' => 'Product Sell Report',
     'unit_sale_price' => 'Unit Sale Price',
     'contact_id' => 'Contact ID',
+    'reference' => 'Reference',
     'category_code_help' => 'Category code is same as <b>HSN code</b>',
     'sub_heading_line' => 'Sub Heading Line :_number_',
     'date_label' => 'Date Label',

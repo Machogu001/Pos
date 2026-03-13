@@ -4,7 +4,10 @@ namespace App;
 
 use App\Events\TransactionPaymentDeleted;
 use App\Events\TransactionPaymentUpdated;
+use App\Transaction;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 class TransactionPayment extends Model
 {
@@ -14,6 +17,41 @@ class TransactionPayment extends Model
      * @var array
      */
     protected $guarded = ['id'];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($payment) {
+            // Auto-link payments to configured default accounts by transaction type
+            // when no explicit account has been chosen.
+            try {
+                if (empty($payment->account_id) && $payment->method != 'advance' && ! empty($payment->transaction_id)) {
+                    $transaction = $payment->transaction ?: Transaction::find($payment->transaction_id);
+
+                    if ($transaction) {
+                        $transaction_type = $transaction->type ?? null;
+
+                        // 1) Try per-business mapping from common_settings
+                        $business_common = Session::get('business.common_settings', []);
+                        if (! empty($transaction_type)
+                            && ! empty($business_common['default_account_mappings'])
+                            && ! empty($business_common['default_account_mappings'][$transaction_type])) {
+                            $payment->account_id = $business_common['default_account_mappings'][$transaction_type];
+                        } else {
+                            // 2) Fallback to global config mapping (env-based)
+                            $mappings = config('constants.default_account_mappings', []);
+                            if (! empty($transaction_type) && ! empty($mappings[$transaction_type])) {
+                                $payment->account_id = $mappings[$transaction_type];
+                            }
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to set default account on TransactionPayment creating: '.$e->getMessage());
+            }
+        });
+    }
 
     /**
      * Get the phone record associated with the user.

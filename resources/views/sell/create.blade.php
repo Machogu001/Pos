@@ -908,6 +908,33 @@
 
 @include('sale_pos.partials.configure_search_modal')
 
+<style>
+	/* Make the Add Sale product autocomplete look like the stocktake inline dropdown */
+	.ui-autocomplete {
+		position: absolute;
+		background: #ffffff;
+		border: 1px solid #ddd;
+		border-radius: 4px;
+		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+		z-index: 1000;
+		max-height: 200px;
+		overflow-y: auto;
+		width: 100%;
+	}
+
+	.ui-menu .ui-menu-item-wrapper {
+		padding: 8px 12px;
+		cursor: pointer;
+		border-bottom: 1px solid #eee;
+	}
+
+	.ui-menu .ui-menu-item-wrapper.ui-state-active,
+	.ui-menu .ui-menu-item-wrapper.ui-state-focus {
+		background-color: #f0f8ff;
+		margin: 0;
+	}
+</style>
+
 @stop
 
 @section('javascript')

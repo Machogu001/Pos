@@ -649,6 +649,11 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                             __('account.payment_account_report'),
                             ['icon' => '', 'active' => request()->segment(1) == 'account' && request()->segment(2) == 'payment-account-report']
                         );
+                        $sub->url(
+                            action([\App\Http\Controllers\AccountReportsController::class, 'showBankReconciliation']),
+                            __('account.bank_reconciliation') ?? 'Bank Reconciliation',
+                            ['icon' => '', 'active' => request()->segment(1) == 'account' && request()->segment(2) == 'bank-reconciliation']
+                        );
                     },
                     ['icon' => '<svg aria-hidden="true" class="tw-size-5 tw-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                     <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>

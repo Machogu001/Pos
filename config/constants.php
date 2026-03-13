@@ -85,4 +85,19 @@ return [
     'show_payment_type_on_contact_pay' => false,
     'enable_gst_report_india' => env('ENABLE_GST_REPORT_INDIA', false),
     'enable_secondary_unit' => false, //Experimental feature, may depreciate
+
+    // Default ledger / payment account mappings by transaction type.
+    // These IDs should correspond to entries in the `accounts` table.
+    'default_account_mappings' => [
+        // Example (configure via .env or config override):
+        // 'sell' => env('DEFAULT_SELL_ACCOUNT_ID'),
+        // 'purchase' => env('DEFAULT_PURCHASE_ACCOUNT_ID'),
+        // 'expense' => env('DEFAULT_EXPENSE_ACCOUNT_ID'),
+        // 'payroll' => env('DEFAULT_PAYROLL_ACCOUNT_ID'),
+        // Leave null or unset to skip automatic linking for that type.
+        'sell' => env('DEFAULT_SELL_ACCOUNT_ID'),
+        'purchase' => env('DEFAULT_PURCHASE_ACCOUNT_ID'),
+        'expense' => env('DEFAULT_EXPENSE_ACCOUNT_ID'),
+        'payroll' => env('DEFAULT_PAYROLL_ACCOUNT_ID'),
+    ],
 ];
