@@ -7,12 +7,27 @@ use App\Models\Employee;
 
 class EmployeePolicy
 {
+    protected function hasEmployeePermission($user, string $legacyPermission): bool
+    {
+        $mappedPermissions = [
+            'employee.view' => 'hrm.employees',
+            'employee.create' => 'hrm.employees',
+            'employee.update' => 'hrm.employees',
+            'employee.delete' => 'hrm.employees',
+        ];
+
+        return $this->isAdmin($user)
+            || $user->can($legacyPermission)
+            || $user->can($mappedPermissions[$legacyPermission] ?? 'hrm.employees')
+            || $user->can('hrm.access');
+    }
+
     /**
      * Determine whether the user can view any employees.
      */
     public function viewAny($user)
     {
-        return $this->isAdmin($user) || $user->can('employee.view');
+        return $this->hasEmployeePermission($user, 'employee.view');
     }
 
     /**
@@ -20,7 +35,7 @@ class EmployeePolicy
      */
     public function view($user, Employee $employee = null)
     {
-        return $this->isAdmin($user) || $user->can('employee.view');
+        return $this->hasEmployeePermission($user, 'employee.view');
     }
 
     /**
@@ -28,7 +43,7 @@ class EmployeePolicy
      */
     public function create($user)
     {
-        return $this->isAdmin($user) || $user->can('employee.create');
+        return $this->hasEmployeePermission($user, 'employee.create');
     }
 
     /**
@@ -36,7 +51,7 @@ class EmployeePolicy
      */
     public function update($user, Employee $employee = null)
     {
-        return $this->isAdmin($user) || $user->can('employee.update');
+        return $this->hasEmployeePermission($user, 'employee.update');
     }
 
     /**
@@ -44,7 +59,7 @@ class EmployeePolicy
      */
     public function delete($user, Employee $employee = null)
     {
-        return $this->isAdmin($user) || $user->can('employee.delete');
+        return $this->hasEmployeePermission($user, 'employee.delete');
     }
 
     /**

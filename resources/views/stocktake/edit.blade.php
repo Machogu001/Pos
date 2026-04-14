@@ -1,36 +1,246 @@
 @extends('layouts.app')
 
-@section('title', __('stocktake.stocktake') . ' - ' . $stocktake->reference_no)
+@section('title', (session('business.name', config('app.name')) . ' - ' . __('stocktake.stocktake') . ' - ' . $stocktake->reference_no))
 
 @section('content')
-<div class="modal-dialog modal-xl" role="document">
-	<div class="modal-content">
-		<div class="modal-header">
-		   <style>
+<style>
+    .stocktake-page {
+        max-width: 1500px;
+        margin: 0 auto;
+    }
+    .stocktake-shell {
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+        overflow: hidden;
+    }
+    .stocktake-hero {
+        background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 24%),
+            linear-gradient(180deg, #ffffff 0%, #f3f8ff 100%);
+        color: #0f172a;
+        padding: 28px 30px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .stocktake-hero-topline {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: flex-start;
+    }
+    .stocktake-hero h1 {
+        margin: 0;
+        font-size: 1.55rem;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        color: #0f172a;
+    }
+    .stocktake-hero-subtitle {
+        color: #475569;
+        margin-top: 8px;
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+    .stocktake-hero-detail {
+        margin-top: 12px;
+        color: #64748b;
+        font-size: 0.95rem;
+    }
+    .stocktake-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: #eff6ff;
+        border: 1px solid #dbeafe;
+        font-weight: 500;
+        color: #0f172a;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+    }
+    .stocktake-actionbar {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
+    }
+    .stocktake-actionbar .btn {
+        border-radius: 12px;
+        padding: 0.72rem 1rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+    }
+    .stocktake-actionbar .dropdown-menu {
+        border-radius: 14px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.12);
+        min-width: 220px;
+    }
+    .stocktake-actionbar .dropdown-item {
+        padding-top: 0.7rem;
+        padding-bottom: 0.7rem;
+    }
+    .stocktake-content {
+        padding: 24px 26px 30px;
+    }
+    .stocktake-metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+    }
+    .stocktake-metric {
+        background: linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%);
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 18px 18px;
+        height: 100%;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.035);
+    }
+    .stocktake-metric-label {
+        color: #6b7280;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+    .stocktake-metric-value {
+        color: #111827;
+        font-size: 1rem;
+        font-weight: 500;
+        line-height: 1.5;
+    }
+    .stocktake-metric-value strong {
+        font-weight: 700;
+    }
+    .stocktake-status-text {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #0f172a;
+        font-weight: 700;
+    }
+    .stocktake-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 16px;
+    }
+    .stocktake-search-wrap {
+        width: 100%;
+        max-width: 460px;
+    }
+    .stocktake-search-wrap .input-group-text,
+    .stocktake-search-wrap .form-control,
+    .stocktake-search-wrap .btn {
+        border-radius: 12px;
+    }
+    .stocktake-search-wrap .input-group-text {
+        background: #f8fafc;
+        border-color: #d1d5db;
+        color: #64748b;
+    }
+    .stocktake-search-wrap .form-control {
+        height: 46px;
+        border-color: #d1d5db;
+        box-shadow: none;
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+    .stocktake-search-wrap .btn {
+        height: 46px;
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+    .stocktake-search-wrap .form-control:focus {
+        border-color: #93c5fd;
+        box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.12);
+    }
+    .stocktake-table-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+    }
+    .stocktake-table-card .table {
+        margin-bottom: 0;
+    }
+    .stocktake-table-card thead th {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        color: #fff;
+        border-color: #334155;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding-top: 14px;
+        padding-bottom: 14px;
+    }
+    .stocktake-table-card tbody td {
+        vertical-align: middle;
+        border-color: #edf2f7;
+        padding-top: 14px;
+        padding-bottom: 14px;
+    }
+    .stocktake-table-card tbody tr:hover {
+        background: #f8fafc;
+    }
+    .stocktake-table-card input.form-control {
+        border-radius: 10px;
+        border-color: #d1d5db;
+    }
+    .stocktake-table-card input.form-control:focus {
+        border-color: #93c5fd;
+        box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.10);
+    }
+    .variance-badge {
+        font-size: 0.9em;
+        min-width: 64px;
+        display: inline-block;
+        padding: 0.45rem 0.7rem;
+        border-radius: 999px;
+        font-weight: 700;
+        border: 1px solid transparent;
+    }
+    .variance-badge.variance-negative {
+        color: #b91c1c !important;
+        background: #fee2e2 !important;
+        border-color: #fecaca !important;
+    }
+    .variance-badge.variance-positive {
+        color: #166534 !important;
+        background: #dcfce7 !important;
+        border-color: #bbf7d0 !important;
+    }
+    .variance-badge.variance-neutral {
+        color: #475569 !important;
+        background: #e2e8f0 !important;
+        border-color: #cbd5e1 !important;
+    }
     .empty-state {
         padding: 3rem;
         text-align: center;
-        background-color: #f8f9fa;
-        border-radius: 4px;
+        background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+        border-radius: 16px;
         width: 100%;
+        border: 1px dashed #cbd5e1;
     }
     .empty-state-icon {
         font-size: 3rem;
-        color: #adb5bd;
+        color: #94a3b8;
         margin-bottom: 1rem;
     }
     .empty-state h4 {
         margin-bottom: 0.5rem;
-        color: #343a40;
+        color: #111827;
+        font-weight: 700;
     }
     .empty-state-subtext {
-        color: #6c757d;
+        color: #64748b;
         margin-bottom: 1.5rem;
-    }
-    .variance-badge {
-        font-size: 0.9em;
-        min-width: 50px;
-        display: inline-block;
     }
     .busy-overlay {
         position: fixed;
@@ -38,89 +248,345 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0,0,0,0.5);
+        background: rgba(15, 23, 42, 0.58);
         z-index: 9999;
         display: flex;
         justify-content: center;
         align-items: center;
         color: white;
         font-size: 1.5rem;
+        backdrop-filter: blur(4px);
+    }
+    .stocktake-footer-actions {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .stocktake-footer-actions .btn {
+        border-radius: 12px;
+        padding: 0.8rem 1.5rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        min-width: 160px;
+    }
+    .stocktake-footer-actions .btn-primary {
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.18);
+    }
+    .stocktake-footer-actions .btn-default {
+        border-color: #d1d5db;
+        color: #334155;
+        background: #fff;
+    }
+    .stocktake-section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+    .stocktake-section-title h4 {
+        margin: 0;
+        font-size: 1.02rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+    .stocktake-section-title .count {
+        color: #64748b;
+        font-size: 0.9rem;
+    }
+    .stocktake-note-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        background: #fff;
+        padding: 18px 20px;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.035);
+    }
+    .stocktake-note-card .label {
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.8rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+    .stocktake-note-card .value {
+        color: #111827;
+        font-weight: 500;
+        line-height: 1.55;
+    }
+    .stocktake-print-summary {
+        display: none;
+    }
+    .stocktake-print-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin: 0 0 18px;
+    }
+    .stocktake-print-summary-item {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 12px 14px;
+        background: #fff;
+    }
+    .stocktake-print-summary-label {
+        color: #64748b;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 4px;
+        font-weight: 700;
+    }
+    .stocktake-print-summary-value {
+        color: #111827;
+        font-size: 0.95rem;
+        font-weight: 600;
+        line-height: 1.45;
+    }
+    @media print {
+        body {
+            background: #fff !important;
+        }
+        .stocktake-page {
+            max-width: 100% !important;
+            padding: 0 !important;
+        }
+        .stocktake-shell {
+            box-shadow: none !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+        }
+        .stocktake-actionbar,
+        .stocktake-hero,
+        .stocktake-metrics-grid,
+        .stocktake-note-card,
+        .stocktake-section-title,
+        .stocktake-toolbar,
+        .stocktake-footer-actions,
+        #busy-overlay,
+        .main-header,
+        .main-sidebar,
+        .content-header,
+        .navbar,
+        footer,
+        .breadcrumb,
+        .btn,
+        #complete_stocktake {
+            display: none !important;
+        }
+        .stocktake-table-card,
+        .stocktake-metric,
+        .stocktake-note-card {
+            box-shadow: none !important;
+        }
+        .stocktake-table-card {
+            border: 1px solid #d1d5db !important;
+        }
+        .stocktake-table-card thead th {
+            background: #e5e7eb !important;
+            color: #111827 !important;
+            font-size: 0.72rem !important;
+            padding-top: 8px !important;
+            padding-bottom: 8px !important;
+        }
+        .stocktake-table-card tbody td {
+            font-size: 0.78rem !important;
+            padding-top: 8px !important;
+            padding-bottom: 8px !important;
+        }
+        .stocktake-table-card .form-control {
+            height: auto !important;
+            min-height: 0 !important;
+            padding: 0.25rem 0.45rem !important;
+            border: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            font-size: 0.78rem !important;
+        }
+        .stocktake-table-card .badge {
+            padding: 0.3rem 0.45rem !important;
+            min-width: 52px !important;
+            font-size: 0.76rem !important;
+        }
+        .stocktake-print-summary {
+            display: block !important;
+        }
+        .stocktake-print-summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+    }
+    @media (max-width: 1199px) {
+        .stocktake-metrics-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+    @media (max-width: 767px) {
+        .stocktake-page {
+            padding: 0 8px;
+        }
+        .stocktake-shell {
+            border-radius: 14px;
+        }
+        .stocktake-hero,
+        .stocktake-content {
+            padding-left: 16px;
+            padding-right: 16px;
+        }
+        .stocktake-metrics-grid {
+            grid-template-columns: 1fr;
+        }
+        .stocktake-footer-actions .btn {
+            width: 100%;
+            min-width: 0;
+        }
+        .stocktake-search-wrap {
+            max-width: 100%;
+        }
     }
 </style>
 
-<div class="row">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header bg-light">
-                <h3 class="card-title">
-                    <i class="fas fa-clipboard-list"></i> 
-                    @lang('stocktake.stocktake') - {{ $stocktake->reference_no }}
-                </h3>
-                @if($stocktake->status == 'in_progress')
-                <div class="card-tools">
-                    <button type="button" class="btn btn-success" id="complete_stocktake">
-                        <i class="fas fa-check-circle"></i> @lang('stocktake.complete_stocktake')
-                    </button>
+<div class="stocktake-page">
+    <div class="stocktake-shell">
+        <div class="stocktake-hero">
+            @php
+                $statusColors = [
+                    'completed' => 'success',
+                    'in_progress' => 'warning',
+                    'pending' => 'info',
+                    'cancelled' => 'danger'
+                ];
+                $color = $statusColors[$stocktake->status] ?? 'secondary';
+                $statusLabel = $stocktake->status == 'in_progress' ? __('stocktake.in_progress') : ($stocktake->status == 'completed' ? __('stocktake.completed') : ($stocktake->status == 'pending' ? __('stocktake.pending') : ($stocktake->status == 'cancelled' ? __('stocktake.cancelled') : ucfirst(str_replace('_', ' ', $stocktake->status)))));
+            @endphp
+            <div class="stocktake-hero-topline">
+                <div>
+                    <h1><i class="fas fa-clipboard-list mr-2 text-primary"></i>@lang('stocktake.stocktake') - {{ $stocktake->reference_no }}</h1>
+                    <div class="stocktake-hero-subtitle">{{ $stocktake->location->name }}</div>
+                    <div class="stocktake-hero-detail">
+                        {{ __('business.business_location') }}: <strong>{{ $stocktake->location->name }}</strong>
+                    </div>
                 </div>
-                @endif
+                <div class="text-right">
+                    <div class="stocktake-status-pill mb-2">
+                        <i class="fas fa-circle text-{{ $color }}" style="font-size: .55rem;"></i>
+                        {{ $statusLabel }}
+                    </div>
+                    <div class="stocktake-actionbar">
+                        <button type="button" class="btn btn-outline-primary" id="stocktake_export_btn">
+                            <i class="fas fa-file-export mr-1"></i> @lang('stocktake.export_stocktake')
+                        </button>
+                        <a href="javascript:window.print();" class="btn btn-outline-secondary">
+                            <i class="fas fa-print mr-1"></i> @lang('stocktake.print_stocktake')
+                        </a>
+                        <a href="{{ route('stocktakes.index') }}" class="btn btn-light border">
+                            <i class="fas fa-list mr-1 text-primary"></i> @lang('stocktake.view_stocktakes')
+                        </a>
+                    </div>
+                    @if($stocktake->status == 'in_progress')
+                    <div class="mt-2">
+                        <button type="button" class="btn btn-success btn-lg" id="complete_stocktake">
+                            <i class="fas fa-check-circle"></i> @lang('stocktake.complete_stocktake')
+                        </button>
+                    </div>
+                    @endif
+                </div>
             </div>
-            
-            <div class="card-body">
-                <!-- Summary Section -->
-                <div class="row mb-4">
-                    <div class="col-md-4">
-                        <p><strong><i class="fas fa-store"></i> @lang('business.business_location'):</strong> 
-                        {{ $stocktake->location->name }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <p><strong><i class="far fa-clock"></i> @lang('stocktake.started_at'):</strong> 
-                         {{ \Carbon\Carbon::parse($stocktake->transaction_date)->format(session('business.date_format', 'm/d/Y') . ' H:i') }}
-                        </p>
-                    </div>
-                    <div class="col-md-4">
-                        <p><strong><i class="fas fa-info-circle"></i> @lang('stocktake.status'):</strong> 
-    @php
-        $statusColors = [
-            'completed' => 'success',
-            'in_progress' => 'warning',
-            'pending' => 'info',
-            'cancelled' => 'danger'
-        ];
-        $color = $statusColors[$stocktake->status] ?? 'secondary';
-    @endphp
-    <span class="badge badge-{{ $color }}">
-        @if($stocktake->status == 'in_progress')
-            @lang('stocktake.in_progress')
-        @elseif($stocktake->status == 'completed')
-            @lang('stocktake.completed')
-        @elseif($stocktake->status == 'pending')
-            @lang('stocktake.pending')
-        @elseif($stocktake->status == 'cancelled')
-            @lang('stocktake.cancelled')
-        @else
-            {{ ucfirst(str_replace('_', ' ', $stocktake->status)) }}
-        @endif
-    </span>
-</p>
-                    </div>
-                </div>
+        </div>
 
-                @if($stocktake->additional_notes)
-                <div class="row mb-4">
-                    <div class="col-md-12">
-                        <p><strong><i class="fas fa-sticky-note"></i> @lang('stocktake.notes'):</strong> 
-                        {{ $stocktake->additional_notes }}</p>
+        <div class="stocktake-content">
+            <div class="stocktake-print-summary">
+                <h2 style="margin: 0 0 8px; font-size: 1.25rem; font-weight: 700; color: #0f172a;">
+                    {{ session('business.name', config('app.name')) }} - @lang('stocktake.stocktake') - {{ $stocktake->reference_no }}
+                </h2>
+                <div style="color: #64748b; margin-bottom: 14px;">
+                    {{ $stocktake->location->name }}
+                </div>
+                <div class="stocktake-print-summary-grid">
+                    <div class="stocktake-print-summary-item">
+                        <div class="stocktake-print-summary-label">@lang('business.business_location')</div>
+                        <div class="stocktake-print-summary-value">{{ $stocktake->location->name }}</div>
+                    </div>
+                    <div class="stocktake-print-summary-item">
+                        <div class="stocktake-print-summary-label">@lang('stocktake.started_at')</div>
+                        <div class="stocktake-print-summary-value">{{ \Carbon\Carbon::parse($stocktake->transaction_date)->format(session('business.date_format', 'm/d/Y') . ' H:i') }}</div>
+                    </div>
+                    <div class="stocktake-print-summary-item">
+                        <div class="stocktake-print-summary-label">@lang('stocktake.completed_at')</div>
+                        <div class="stocktake-print-summary-value">
+                            {{ $stocktake->completed_at ? \Carbon\Carbon::parse($stocktake->completed_at)->format(session('business.date_format', 'm/d/Y') . ' H:i') : __('stocktake.not_completed') }}
+                        </div>
+                    </div>
+                    <div class="stocktake-print-summary-item">
+                        <div class="stocktake-print-summary-label">@lang('stocktake.status')</div>
+                        <div class="stocktake-print-summary-value">{{ $statusLabel }}</div>
+                    </div>
+                    <div class="stocktake-print-summary-item">
+                        <div class="stocktake-print-summary-label">@lang('stocktake.created_by')</div>
+                        <div class="stocktake-print-summary-value">{{ $stocktake->createdBy?->user_full_name ?? $stocktake->createdBy?->username ?? '—' }}</div>
+                    </div>
+                    <div class="stocktake-print-summary-item">
+                        <div class="stocktake-print-summary-label">@lang('stocktake.additional_notes')</div>
+                        <div class="stocktake-print-summary-value">{{ $stocktake->additional_notes ?: '—' }}</div>
                     </div>
                 </div>
-                @endif
+            </div>
+
+            <div class="stocktake-metrics-grid mb-4">
+                <div class="stocktake-metric">
+                    <div class="stocktake-metric-label"><i class="fas fa-store mr-1"></i>@lang('business.business_location')</div>
+                    <div class="stocktake-metric-value">{{ $stocktake->location->name }}</div>
+                </div>
+                <div class="stocktake-metric">
+                    <div class="stocktake-metric-label"><i class="far fa-clock mr-1"></i>@lang('stocktake.started_at')</div>
+                    <div class="stocktake-metric-value">{{ \Carbon\Carbon::parse($stocktake->transaction_date)->format(session('business.date_format', 'm/d/Y') . ' H:i') }}</div>
+                </div>
+                <div class="stocktake-metric">
+                    <div class="stocktake-metric-label"><i class="fas fa-boxes mr-1"></i>@lang('stocktake.stocktake')</div>
+                    <div class="stocktake-metric-value"><strong>{{ $stocktake->items->count() }}</strong> items</div>
+                </div>
+                <div class="stocktake-metric">
+                    <div class="stocktake-metric-label"><i class="fas fa-user mr-1"></i>@lang('stocktake.created_by')</div>
+                    <div class="stocktake-metric-value">{{ $stocktake->createdBy?->user_full_name ?? $stocktake->createdBy?->username ?? '—' }}</div>
+                </div>
+            </div>
+
+            @if($stocktake->additional_notes)
+            <div class="stocktake-note-card mb-4">
+                <div class="label"><i class="fas fa-sticky-note mr-1"></i>@lang('stocktake.additional_notes')</div>
+                <div class="value">{{ $stocktake->additional_notes }}</div>
+            </div>
+            @endif
 
                 <!-- Stocktake Form -->
                 <form id="stocktake_form" action="{{ route('stocktakes.update', $stocktake->id) }}" method="POST">
                     @csrf
                     @method('PUT')
+
+                    <div class="stocktake-toolbar">
+                        <div class="stocktake-search-wrap">
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                </div>
+                                <input type="text" id="stocktake_item_search" class="form-control" placeholder="Search by product name or SKU">
+                                <div class="input-group-append">
+                                    <button type="button" class="btn btn-outline-secondary" id="clear_stocktake_item_search">Clear</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     
+                    <div class="stocktake-section-title">
+                        <h4>@lang('stocktake.stocktake_items') <span class="count">({{ $stocktake->items->count() }})</span></h4>
+                        <span class="count">{{ __('stocktake.export_stocktake') }} / {{ __('stocktake.print_stocktake') }}</span>
+                    </div>
+
+                    <div class="stocktake-table-card">
                     <div class="table-responsive">
-                        <table class="table table-bordered table-hover" id="stocktake_items_table">
+                        <table class="table table-hover" id="stocktake_items_table">
                             <thead class="thead-dark">
                                 <tr>
                                     <th width="30%">@lang('stocktake.product_name')</th>
@@ -133,7 +599,12 @@
                             </thead>
                             <tbody>
                                 @forelse($stocktake->items as $item)
-                                <tr>
+                                @php
+                                    $variance = ($item->counted_quantity ?? $item->system_quantity) - $item->system_quantity;
+                                    $varianceClass = $variance < 0 ? 'variance-negative' : ($variance > 0 ? 'variance-positive' : 'variance-neutral');
+                                @endphp
+                                <tr class="stocktake-item-row"
+                                    data-search="{{ strtolower($item->product->name . ' ' . ($item->variation->name ?? '') . ' ' . ($item->variation->sub_sku ?? '') . ' ' . ($item->product->sku ?? '')) }}">
                                     <td>
                                         <strong>{{ $item->product->name }}</strong>
                                         @if($item->variation->name != 'DUMMY')
@@ -150,8 +621,8 @@
                                         <input type="hidden" name="items[{{ $item->id }}][id]" value="{{ $item->id }}">
                                     </td>
                                     <td class="variance text-center">
-                                        <span class="badge variance-badge variance-value">
-                                            {{ ($item->counted_quantity ?? $item->system_quantity) - $item->system_quantity }}
+                                        <span class="badge variance-badge variance-value {{ $varianceClass }}">
+                                            {{ number_format($variance, 2) }}
                                         </span>
                                     </td>
                                     <td>
@@ -180,8 +651,16 @@
                                     </td>
                                 </tr>
                                 @endforelse
+                                @if(count($stocktake->items) > 0)
+                                <tr class="stocktake-no-results" style="display: none;">
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        No items match your search.
+                                    </td>
+                                </tr>
+                                @endif
                             </tbody>
                         </table>
+                    </div>
                     </div>
 
                     @if(count($stocktake->items) > 0)
@@ -195,15 +674,16 @@
                         </div>
                     </div>
 
-                    <div class="row mt-2">
+                    <div class="row mt-3">
                         <div class="col-md-12 text-center">
-                            <button type="submit" class="btn btn-primary px-5" id="save_stocktake">
-                                <i class="fas fa-save"></i> @lang('stocktake.save')
-                            </button>
-                            <!-- Add a back button with the correct route -->
-                            <a href="{{ route('stocktakes.index') }}" class="btn btn-default px-5 ml-2">
-                                <i class="fas fa-arrow-left"></i> @lang('stocktake.back')
-                            </a>
+                            <div class="stocktake-footer-actions">
+                                <button type="submit" class="btn btn-primary" id="save_stocktake">
+                                    <i class="fas fa-save"></i> @lang('stocktake.save')
+                                </button>
+                                <a href="{{ route('stocktakes.index') }}" class="btn btn-default">
+                                    <i class="fas fa-arrow-left"></i> @lang('stocktake.back')
+                                </a>
+                            </div>
                         </div>
                     </div>
                     @endif
@@ -211,6 +691,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 
 <div id="busy-overlay" class="busy-overlay" style="display: none;">
@@ -225,10 +706,92 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 $(document).ready(function() {
+    function openStocktakeExportPopup() {
+        if (typeof Swal === 'undefined') {
+            if (window.confirm('Export this stocktake as Excel? Click Cancel for PDF/Print.')) {
+                exportStocktakeFile('excel');
+            } else {
+                window.print();
+            }
+            return;
+        }
+
+        Swal.fire({
+            title: '@lang('stocktake.export_stocktake')',
+            text: 'Choose how you want to export this stocktake.',
+            icon: 'question',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: 'PDF',
+            denyButtonText: 'Excel',
+            cancelButtonText: '@lang('stocktake.cancel')',
+            customClass: {
+                confirmButton: 'btn btn-primary',
+                denyButton: 'btn btn-success',
+                cancelButton: 'btn btn-light'
+            },
+            buttonsStyling: false
+        }).then((result) => {
+            if (result.isConfirmed) {
+                exportStocktakeFile('pdf');
+            } else if (result.isDenied) {
+                exportStocktakeFile('excel');
+            }
+        });
+    }
+
+    function exportStocktakeFile(format) {
+        let url = "{{ route('stocktakes.export', $stocktake->id) }}";
+        const params = new URLSearchParams();
+        if (format) {
+            params.set('format', format);
+        }
+        if ([...params].length) {
+            url += '?' + params.toString();
+        }
+        window.location.href = url;
+    }
+
+    $(document).on('click', '#stocktake_export_btn', function(e) {
+        e.preventDefault();
+        openStocktakeExportPopup();
+    });
+
+    function filterStocktakeItems() {
+        var searchValue = ($('#stocktake_item_search').val() || '').toLowerCase().trim();
+        var visibleRows = 0;
+
+        $('.stocktake-item-row').each(function() {
+            var row = $(this);
+            var searchableText = (row.data('search') || '').toString();
+            var matches = searchValue === '' || searchableText.indexOf(searchValue) !== -1;
+
+            row.toggle(matches);
+
+            if (matches) {
+                visibleRows++;
+            }
+        });
+
+        $('.stocktake-no-results').toggle(visibleRows === 0);
+    }
+
+    $(document).on('input', '#stocktake_item_search', function() {
+        filterStocktakeItems();
+    });
+
+    $(document).on('click', '#clear_stocktake_item_search', function() {
+        $('#stocktake_item_search').val('');
+        filterStocktakeItems();
+        $('#stocktake_item_search').focus();
+    });
+
     // Initialize variance calculation on page load
     $('.counted_quantity').each(function() {
         calculateVariance($(this));
     });
+
+    filterStocktakeItems();
 
     // Calculate variance on quantity change
     $(document).on('input', '.counted_quantity', function() {
@@ -245,13 +808,13 @@ $(document).ready(function() {
         varianceElement.text(variance.toFixed(2));
         
         // Update styling based on variance
-        varianceElement.removeClass('badge-danger badge-success badge-warning');
+        varianceElement.removeClass('variance-negative variance-positive variance-neutral');
         if (variance < 0) {
-            varianceElement.addClass('badge-danger');
+            varianceElement.addClass('variance-negative');
         } else if (variance > 0) {
-            varianceElement.addClass('badge-success');
+            varianceElement.addClass('variance-positive');
         } else {
-            varianceElement.addClass('badge-warning');
+            varianceElement.addClass('variance-neutral');
         }
     }
 

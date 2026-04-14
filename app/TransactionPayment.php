@@ -4,8 +4,9 @@ namespace App;
 
 use App\Events\TransactionPaymentDeleted;
 use App\Events\TransactionPaymentUpdated;
+use App\Business;
 use App\Transaction;
-use Illuminate\Support\Facades\Session;
+use App\BusinessLocation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 
@@ -23,34 +24,178 @@ class TransactionPayment extends Model
         parent::boot();
 
         static::creating(function ($payment) {
-            // Auto-link payments to configured default accounts by transaction type
-            // when no explicit account has been chosen.
             try {
                 if (empty($payment->account_id) && $payment->method != 'advance' && ! empty($payment->transaction_id)) {
                     $transaction = $payment->transaction ?: Transaction::find($payment->transaction_id);
 
                     if ($transaction) {
-                        $transaction_type = $transaction->type ?? null;
-
-                        // 1) Try per-business mapping from common_settings
-                        $business_common = Session::get('business.common_settings', []);
-                        if (! empty($transaction_type)
-                            && ! empty($business_common['default_account_mappings'])
-                            && ! empty($business_common['default_account_mappings'][$transaction_type])) {
-                            $payment->account_id = $business_common['default_account_mappings'][$transaction_type];
-                        } else {
-                            // 2) Fallback to global config mapping (env-based)
-                            $mappings = config('constants.default_account_mappings', []);
-                            if (! empty($transaction_type) && ! empty($mappings[$transaction_type])) {
-                                $payment->account_id = $mappings[$transaction_type];
-                            }
-                        }
+                        $payment->account_id = static::resolveDefaultAccountId(
+                            $payment->method,
+                            $transaction->location ?? null,
+                            $transaction->business_id ?? null,
+                            $transaction->type ?? null
+                        );
                     }
+                } elseif (empty($payment->account_id) && $payment->method != 'advance') {
+                    $payment->account_id = static::resolveDefaultAccountId(
+                        $payment->method,
+                        null,
+                        $payment->business_id ?? null
+                    );
                 }
             } catch (\Exception $e) {
                 Log::error('Failed to set default account on TransactionPayment creating: '.$e->getMessage());
             }
         });
+    }
+
+    /**
+     * Resolve the default payment account for a payment method.
+     *
+     * @param  string|null  $method
+     * @param  \App\BusinessLocation|int|null  $location
+     * @param  int|null  $business_id
+     * @param  string|null  $transactionType
+     * @return int|null
+     */
+    public static function resolveDefaultAccountId($method, $location = null, $business_id = null, $transactionType = null)
+    {
+        if (empty($method) || $method === 'advance') {
+            return null;
+        }
+
+        if (empty($business_id) && auth()->check()) {
+            $business_id = auth()->user()->business_id;
+        }
+
+        if (is_numeric($location)) {
+            $location = BusinessLocation::find($location);
+        }
+
+        if (empty($location) && auth()->check()) {
+            $location = auth()->user()->getDefaultLocation();
+        }
+
+        if (empty($location) && ! empty($business_id)) {
+            $location = BusinessLocation::where('business_id', $business_id)
+                ->where('is_active', 1)
+                ->first();
+        }
+
+        if (empty($location) || empty($location->default_payment_accounts)) {
+            $paymentAccountId = static::resolveDefaultAccountMapping('payment', $business_id);
+
+            if (! empty($paymentAccountId)) {
+                return $paymentAccountId;
+            }
+
+            return static::resolveTransactionTypeDefaultAccountId($transactionType, $business_id);
+        }
+
+        $default_payment_accounts = json_decode($location->default_payment_accounts, true) ?: [];
+        if (! empty($default_payment_accounts[$method]['is_enabled']) && ! empty($default_payment_accounts[$method]['account'])) {
+            return (int) $default_payment_accounts[$method]['account'];
+        }
+
+        $paymentAccountId = static::resolveDefaultAccountMapping('payment', $business_id);
+
+        if (! empty($paymentAccountId)) {
+            return $paymentAccountId;
+        }
+
+        return static::resolveTransactionTypeDefaultAccountId($transactionType, $business_id);
+    }
+
+    /**
+     * Resolve a business-level default account by transaction type.
+     * Used as a fallback when no location/payment-method account is configured,
+     * and for invoice-level postings such as vendor payables.
+     *
+     * @param  string|null  $transactionType
+     * @param  int|null  $business_id
+     * @return int|null
+     */
+    public static function resolveTransactionTypeDefaultAccountId($transactionType, $business_id = null)
+    {
+        if (empty($transactionType)) {
+            return null;
+        }
+
+        $mappingKey = [
+            'expense_refund' => 'expense',
+            'purchase_return' => 'purchase',
+            'sell_return' => 'sell',
+        ][$transactionType] ?? $transactionType;
+
+        $accountId = static::resolveDefaultAccountMapping($mappingKey, $business_id);
+
+        if (! empty($accountId)) {
+            return $accountId;
+        }
+
+        return static::resolveDefaultAccountMapping('payment', $business_id);
+    }
+
+    /**
+     * Resolve a business-level default account by mapping key.
+     *
+     * @param  string|null  $mappingKey
+     * @param  int|null  $business_id
+     * @return int|null
+     */
+    public static function resolveDefaultAccountMapping($mappingKey, $business_id = null)
+    {
+        if (empty($mappingKey)) {
+            return null;
+        }
+
+        $mappingKey = [
+            'expense_refund' => 'expense',
+            'purchase_return' => 'purchase',
+            'sell_return' => 'sell',
+        ][$mappingKey] ?? $mappingKey;
+
+        $mappingFallbacks = [
+            'purchase_tax' => ['tax'],
+            'sales_tax' => ['tax'],
+        ];
+
+        if (empty($business_id) && auth()->check()) {
+            $business_id = auth()->user()->business_id;
+        }
+
+        if (! empty($business_id)) {
+            $business = Business::select('id', 'common_settings')->find($business_id);
+            $typeMappings = ! empty($business->common_settings['default_account_mappings'])
+                ? $business->common_settings['default_account_mappings']
+                : [];
+
+            if (! empty($typeMappings[$mappingKey])) {
+                return (int) $typeMappings[$mappingKey];
+            }
+
+            foreach ($mappingFallbacks[$mappingKey] ?? [] as $fallbackKey) {
+                if (! empty($typeMappings[$fallbackKey])) {
+                    return (int) $typeMappings[$fallbackKey];
+                }
+            }
+        }
+
+        $defaultMapping = config('constants.default_account_mappings.'.$mappingKey);
+
+        if (! empty($defaultMapping)) {
+            return (int) $defaultMapping;
+        }
+
+        foreach ($mappingFallbacks[$mappingKey] ?? [] as $fallbackKey) {
+            $defaultFallbackMapping = config('constants.default_account_mappings.'.$fallbackKey);
+
+            if (! empty($defaultFallbackMapping)) {
+                return (int) $defaultFallbackMapping;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -151,5 +296,13 @@ class TransactionPayment extends Model
     public function denominations()
     {
         return $this->morphMany(\App\CashDenomination::class, 'model');
+    }
+
+    /**
+     * Account transactions created from this payment.
+     */
+    public function account_transactions()
+    {
+        return $this->hasMany(\App\AccountTransaction::class, 'transaction_payment_id');
     }
 }

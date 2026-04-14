@@ -589,6 +589,25 @@ $(document).ready(function() {
         $('#modal_payment').modal('show');
     });
 
+    function showMpesaPaymentModal(payment_method_dropdown) {
+        var paymentRow = payment_method_dropdown.closest('.payment_row').get(0);
+        if (window.resetMpesaRowState && paymentRow) {
+            window.resetMpesaRowState(paymentRow, { clearPhone: true });
+        }
+
+        payment_method_dropdown.val('mpesa');
+        payment_method_dropdown.change();
+
+        $('#modal_payment').modal('show');
+
+        $('#modal_payment').one('shown.bs.modal', function() {
+            var mpesaPhoneInput = $(this).find('.payment_row').first().find('.mpesa-phone:visible').first();
+            if (mpesaPhoneInput.length) {
+                mpesaPhoneInput.focus().select();
+            }
+        });
+    }
+
     $('#modal_payment').one('shown.bs.modal', function() {
         $('#modal_payment')
             .find('input')
@@ -649,9 +668,14 @@ $(document).ready(function() {
         var payment_method_dropdown = $('#payment_rows_div')
             .find('.payment_types_dropdown')
             .first();
-        
-            payment_method_dropdown.val(pay_method);
-            payment_method_dropdown.change();
+
+        if (pay_method == 'mpesa') {
+            showMpesaPaymentModal(payment_method_dropdown);
+            return true;
+        }
+
+        payment_method_dropdown.val(pay_method);
+        payment_method_dropdown.change();
         if (pay_method == 'card') {
             $('div#card_details_modal').modal('show');
         } else if (pay_method == 'suspend') {

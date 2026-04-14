@@ -159,6 +159,7 @@
                 </span>
                 {!! Form::select("account_id", $accounts, !empty($payment_line->account_id) ? $payment_line->account_id : '' , ['class' => 'form-control select2', 'id' => "account_id", 'style' => 'width:100%;']); !!}
               </div>
+              <p class="help-block">@lang('lang_v1.transaction_payment_account_help')</p>
             </div>
           </div>
         @endif

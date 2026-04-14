@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\StockAdjustmentCreatedOrModified;
 use App\Stocktake;
 use App\StocktakeItem;
 use App\Transaction;
 use App\BusinessLocation;
+use App\Business;
 use App\Product;
 use App\ProductVariation;
 use App\PurchaseLine;
+use App\TransactionPayment;
 use App\Variation;
 use App\StockHistory;
 use App\Utils\ProductUtil;
@@ -16,6 +19,7 @@ use App\Utils\TransactionUtil;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Yajra\DataTables\Facades\DataTables;
 
 class StocktakeController extends Controller
@@ -36,13 +40,15 @@ class StocktakeController extends Controller
         $this->authorize('stocktake.view');
 
         $businessId = auth()->user()->business_id;
-        
-        $query = Stocktake::with([
-                'location', 
+        $filters = $request->only(['location_id', 'status', 'date_range', 'from_date', 'to_date', 'price_basis', 'search']);
+        $priceBasis = $request->get('price_basis', 'selling');
+
+        $baseQuery = Stocktake::with([
+                'location',
                 'createdBy',
-                'items' => function($q) {
+                'items' => function ($q) {
                     $q->with([
-                        'product:id,name,sku', 
+                        'product:id,name,sku',
                         'variation:id,name,sub_sku,sell_price_inc_tax,default_sell_price,default_purchase_price'
                     ]);
                 }
@@ -50,158 +56,219 @@ class StocktakeController extends Controller
             ->where('stocktakes.business_id', $businessId)
             ->select('stocktakes.*');
 
-        $permitted_locations = auth()->user()->permitted_locations();
-        if ($permitted_locations != 'all') {
-            $query->whereIn('location_id', $permitted_locations);
+        $permittedLocations = auth()->user()->permitted_locations();
+        if ($permittedLocations != 'all') {
+            $baseQuery->whereIn('location_id', $permittedLocations);
         }
 
-        if ($request->has('location_id') && !empty($request->location_id)) {
-            $query->where('location_id', $request->location_id);
+        if ($request->filled('location_id')) {
+            $baseQuery->where('location_id', $request->location_id);
         }
 
-        if ($request->has('status') && !empty($request->status)) {
-            $query->where('status', $request->status);
+        if ($request->filled('status')) {
+            $baseQuery->where('status', $request->status);
         }
+
+        $rangeMap = [
+            'today' => [now()->startOfDay()->toDateString(), now()->endOfDay()->toDateString()],
+            'yesterday' => [now()->subDay()->startOfDay()->toDateString(), now()->subDay()->endOfDay()->toDateString()],
+            'this_week' => [now()->startOfWeek()->toDateString(), now()->endOfWeek()->toDateString()],
+            'last_week' => [now()->subWeek()->startOfWeek()->toDateString(), now()->subWeek()->endOfWeek()->toDateString()],
+            'this_month' => [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()],
+            'last_month' => [now()->subMonthNoOverflow()->startOfMonth()->toDateString(), now()->subMonthNoOverflow()->endOfMonth()->toDateString()],
+        ];
+
+        $dateFrom = null;
+        $dateTo = null;
+        if ($request->filled('date_range') && $request->date_range !== 'custom' && isset($rangeMap[$request->date_range])) {
+            [$dateFrom, $dateTo] = $rangeMap[$request->date_range];
+        } elseif ($request->filled('date_range') && $request->date_range === 'custom') {
+            $dateFrom = $request->filled('from_date') ? $request->from_date : null;
+            $dateTo = $request->filled('to_date') ? $request->to_date : null;
+        } elseif ($request->filled('from_date') || $request->filled('to_date')) {
+            $dateFrom = $request->filled('from_date') ? $request->from_date : null;
+            $dateTo = $request->filled('to_date') ? $request->to_date : null;
+        }
+
+        if (!empty($dateFrom)) {
+            $baseQuery->whereDate('stocktakes.created_at', '>=', $dateFrom);
+        }
+
+        if (!empty($dateTo)) {
+            $baseQuery->whereDate('stocktakes.created_at', '<=', $dateTo);
+        }
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->search);
+            $baseQuery->where(function ($query) use ($search) {
+                $query->where('stocktakes.reference_no', 'like', '%' . $search . '%')
+                    ->orWhereHas('location', function ($locationQuery) use ($search) {
+                        $locationQuery->where('name', 'like', '%' . $search . '%');
+                    });
+            });
+        }
+
+        $statsQuery = clone $baseQuery;
+        $stats = [
+            'total' => (clone $statsQuery)->count(),
+            'total_stocktakes' => (clone $statsQuery)->count(),
+            'in_progress' => (clone $statsQuery)->where('status', 'in_progress')->count(),
+            'completed' => (clone $statsQuery)->where('status', 'completed')->count(),
+            'cancelled' => (clone $statsQuery)->where('status', 'cancelled')->count(),
+        ];
 
         if ($request->ajax()) {
-            $priceBasis = $request->get('price_basis', 'selling');
-            return DataTables::of($query)
+            $response = DataTables::of($baseQuery)
                 ->addColumn('action', function ($row) {
                     $html = '<div class="btn-group">';
-                    
+
                     if (auth()->user()->can('stocktake.view')) {
-                        $html .= '<a href="'.route('stocktakes.show', $row->id).'" class="btn btn-xs btn-primary">
-                            <i class="fa fa-eye"></i></a>';
+                        $html .= '<a href="' . route('stocktakes.show', $row->id) . '" class="btn btn-xs btn-primary"><i class="fa fa-eye"></i></a>';
                     }
-                    
+
                     if ($row->status !== 'completed' && auth()->user()->can('stocktake.update')) {
-                        $html .= '<a href="'.route('stocktakes.edit', $row->id).'" class="btn btn-xs btn-info">
-                            <i class="fa fa-edit"></i></a>';
+                        $html .= '<a href="' . route('stocktakes.edit', $row->id) . '" class="btn btn-xs btn-info"><i class="fa fa-edit"></i></a>';
                     }
-                    
+
                     if (auth()->user()->can('stocktake.complete') && $row->status === 'in_progress') {
-                        $html .= '<button data-href="'.route('stocktakes.complete', $row->id).'" 
-                            class="btn btn-xs btn-success complete-stocktake"
-                            title="'.__('stocktake.complete').'">
-                            <i class="fa fa-check"></i></button>';
+                        $html .= '<button data-href="' . route('stocktakes.complete', $row->id) . '" class="btn btn-xs btn-success complete-stocktake" title="' . __('stocktake.complete') . '"><i class="fa fa-check"></i></button>';
                     }
-                    
+
                     if (auth()->user()->can('stocktake.delete')) {
-                        $html .= '<button data-href="'.route('stocktakes.destroy', $row->id).'" 
-                            class="btn btn-xs btn-danger delete-stocktake"
-                            data-id="'.$row->id.'"
-                            data-status="'.$row->status.'"
-                            title="'.__('messages.delete').'"
-                            '.($row->status === 'completed' ? 'disabled' : '').'>
-                            <i class="fa fa-trash"></i></button>';
+                        $html .= '<button data-href="' . route('stocktakes.destroy', $row->id) . '" class="btn btn-xs btn-danger delete-stocktake" data-id="' . $row->id . '" data-status="' . $row->status . '" title="' . __('messages.delete') . '" ' . ($row->status === 'completed' ? 'disabled' : '') . '><i class="fa fa-trash"></i></button>';
                     }
-                    
+
                     $html .= '</div>';
+
                     return $html;
                 })
-                ->editColumn('status', function($row) {
+                ->editColumn('status', function ($row) {
                     $statuses = [
                         'in_progress' => '<span class="badge badge-warning">' . __('stocktake.in_progress') . '</span>',
                         'completed' => '<span class="badge badge-success">' . __('stocktake.completed') . '</span>',
-                        'cancelled' => '<span class="badge badge-danger">' . __('stocktake.cancelled') . '</span>'
+                        'cancelled' => '<span class="badge badge-danger">' . __('stocktake.cancelled') . '</span>',
                     ];
+
                     return $statuses[$row->status] ?? $row->status;
                 })
-                ->addColumn('product_count', function($row) {
+                ->addColumn('product_count', function ($row) {
                     return $row->items->count();
                 })
-                ->editColumn('reference_no', function($row) {
-                    return '<a href="'.route('stocktakes.show', $row->id).'">'.$row->reference_no.'</a>';
+                ->editColumn('reference_no', function ($row) {
+                    return '<a href="' . route('stocktakes.show', $row->id) . '">' . $row->reference_no . '</a>';
                 })
-                ->editColumn('transaction_date', function($row) {
+                ->editColumn('transaction_date', function ($row) {
                     return !empty($row->started_at) ? \Carbon\Carbon::parse($row->started_at)->format('Y-m-d H:i') : '-';
                 })
-                ->editColumn('completed_at', function($row) {
+                ->editColumn('completed_at', function ($row) {
                     return !empty($row->completed_at) ? \Carbon\Carbon::parse($row->completed_at)->format('Y-m-d H:i') : '-';
                 })
-                ->addColumn('adjustment_ref', function($row) {
+                ->addColumn('adjustment_ref', function ($row) {
                     if ($row->status === 'completed' && $row->adjustment_transaction_id) {
                         try {
                             $transaction = Transaction::find($row->adjustment_transaction_id);
+
                             if ($transaction) {
-                                return '<a href="'.route('stock-adjustment.show', $transaction->id).'">'.$transaction->ref_no.'</a>';
+                                return '<a href="' . route('stock-adjustment.show', $transaction->id) . '">' . $transaction->ref_no . '</a>';
                             }
                         } catch (\Exception $e) {
                             Log::error('Error loading adjustment transaction', [
                                 'stocktake_id' => $row->id,
                                 'transaction_id' => $row->adjustment_transaction_id,
-                                'error' => $e->getMessage()
+                                'error' => $e->getMessage(),
                             ]);
                         }
                     }
+
                     return '-';
                 })
-                // Add DataTable columns needed by the Blade template
-                ->addColumn('show_url', function($row) {
+                ->addColumn('show_url', function ($row) {
                     return route('stocktakes.show', $row->id);
                 })
-                ->addColumn('edit_url', function($row) {
+                ->addColumn('edit_url', function ($row) {
                     return route('stocktakes.edit', $row->id);
                 })
-                ->addColumn('delete_url', function($row) {
+                ->addColumn('delete_url', function ($row) {
                     return route('stocktakes.destroy', $row->id);
                 })
-                ->addColumn('complete_url', function($row) {
+                ->addColumn('complete_url', function ($row) {
                     return route('stocktakes.complete', $row->id);
                 })
-                ->addColumn('adjustment_url', function($row) {
+                ->addColumn('adjustment_url', function ($row) {
                     if ($row->status === 'completed' && $row->adjustment_transaction_id) {
                         return route('stock-adjustment.show', $row->adjustment_transaction_id);
                     }
+
                     return '#';
                 })
-                ->addColumn('can_edit', function($row) {
+                ->addColumn('can_edit', function ($row) {
                     return $row->status !== 'completed' && auth()->user()->can('stocktake.update');
                 })
-                ->addColumn('can_delete', function($row) {
+                ->addColumn('can_delete', function ($row) {
                     return auth()->user()->can('stocktake.delete') && $row->status !== 'completed';
                 })
-                ->addColumn('can_complete', function($row) {
+                ->addColumn('can_complete', function ($row) {
                     return $row->status === 'in_progress' && auth()->user()->can('stocktake.complete');
                 })
-                ->addColumn('variance_amount_raw', function($row) use ($priceBasis) {
+                ->addColumn('variance_amount_raw', function ($row) use ($priceBasis) {
                     try {
                         $total = 0.0;
+
                         foreach ($row->items as $item) {
-                            $unit_price = (float) ($item->effective_price ?? 0.0);
-                            $counted_qty = (float) ($item->counted_quantity ?? 0.0);
-                            $total += $counted_qty * $unit_price;
+                            $unitPrice = $priceBasis === 'purchase'
+                                ? (float) ($item->purchase_price ?? 0)
+                                : (float) ($item->effective_price ?? 0);
+                            $countedQty = (float) ($item->counted_quantity ?? 0);
+                            $total += $countedQty * $unitPrice;
                         }
+
                         return (float) $total;
                     } catch (\Exception $e) {
-                        Log::warning('Failed to compute total value for stocktake index row', ['stocktake_id' => $row->id, 'error' => $e->getMessage()]);
+                        Log::warning('Failed to compute total value for stocktake index row', [
+                            'stocktake_id' => $row->id,
+                            'error' => $e->getMessage(),
+                        ]);
+
                         return 0.0;
                     }
                 })
-                ->addColumn('variance_amount', function($row) use ($priceBasis) {
-                    $raw = 0.0;
+                ->addColumn('variance_amount', function ($row) use ($priceBasis) {
                     try {
-                        $raw = 0.0;
+                        $total = 0.0;
+
                         foreach ($row->items as $item) {
-                            $unit_price = (float) ($item->effective_price ?? 0.0);
-                            $counted_qty = (float) ($item->counted_quantity ?? 0.0);
-                            $raw += $counted_qty * $unit_price;
+                            $unitPrice = $priceBasis === 'purchase'
+                                ? (float) ($item->purchase_price ?? 0)
+                                : (float) ($item->effective_price ?? 0);
+                            $countedQty = (float) ($item->counted_quantity ?? 0);
+                            $total += $countedQty * $unitPrice;
                         }
+
+                        return $this->productUtil->num_f($total);
                     } catch (\Exception $e) {
-                        Log::warning('Failed to compute formatted total value for stocktake index row', ['stocktake_id' => $row->id, 'error' => $e->getMessage()]);
+                        Log::warning('Failed to compute formatted total value for stocktake index row', [
+                            'stocktake_id' => $row->id,
+                            'error' => $e->getMessage(),
+                        ]);
+
+                        return $this->productUtil->num_f(0);
                     }
-                    return $this->productUtil->num_f($raw);
                 })
-                ->addColumn('progress_percentage', function($row) {
-                    // Calculate progress percentage if needed
+                ->addColumn('progress_percentage', function ($row) {
                     return $row->status === 'in_progress' ? rand(30, 80) : 100;
                 })
                 ->rawColumns(['action', 'status', 'reference_no', 'adjustment_ref'])
                 ->make(true);
+
+            $payload = $response->getData(true);
+            $payload['stats'] = $stats;
+
+            return response()->json($payload);
         }
 
         $businessLocations = BusinessLocation::forDropdown($businessId, false);
-        return view('stocktake.index', compact('businessLocations'));
+
+        return view('stocktake.index', compact('businessLocations', 'stats', 'filters'));
     }
 
     public function create()
@@ -558,7 +625,7 @@ class StocktakeController extends Controller
                 'transaction_date' => now(),
                 'status' => 'received',
                 'payment_status' => 'paid',
-                'adjustment_type' => 'stocktake',
+                'is_stocktake' => 1,
                 'final_total' => 0,
                 'ref_no' => $this->generateStockAdjustmentRef($stocktake->business_id),
                 'created_by' => auth()->id(),
@@ -567,7 +634,7 @@ class StocktakeController extends Controller
 
             $transaction = Transaction::create($transaction_data);
 
-            $total_amount = 0;
+            $total_variance_value = 0.0;
             $processed_items = 0;
             $failed_items = 0;
 
@@ -642,9 +709,11 @@ class StocktakeController extends Controller
                         
                         // Calculate adjustment value for transaction
                         $variation = Variation::find($item->variation_id);
-                        $unit_price = $variation->default_purchase_price ?? $variation->default_sell_price ?? 0;
-                        $adjustment_value = abs($adjustment_amount) * $unit_price;
-                        $total_amount += $adjustment_value;
+                        $unit_price = ! empty($variation)
+                            ? ((float) ($variation->dpp_inc_tax ?: $variation->default_purchase_price ?: 0))
+                            : 0;
+                        $adjustment_value = round($adjustment_amount * $unit_price, 2);
+                        $total_variance_value += $adjustment_value;
 
                         // FIX: For stock adjustment lines, use the SIGNED adjustment amount
                         // This allows the system to properly track increases and decreases
@@ -686,10 +755,11 @@ class StocktakeController extends Controller
                 }
             }
 
-            // Update transaction with final total
+            // Update transaction with signed variance value so overages and shortages
+            // are recorded consistently in finance reports.
             $transaction->update([
-                'final_total' => abs($total_amount),
-                'total_before_tax' => abs($total_amount),
+                'final_total' => round($total_variance_value, 2),
+                'total_before_tax' => round($total_variance_value, 2),
             ]);
 
             // Update stocktake with transaction reference
@@ -700,6 +770,8 @@ class StocktakeController extends Controller
                 'adjustment_transaction_id' => $transaction->id,
             ]);
 
+            event(new StockAdjustmentCreatedOrModified($transaction, 'added'));
+
             DB::commit();
 
             Log::info('Stocktake completion process finished', [
@@ -707,7 +779,7 @@ class StocktakeController extends Controller
                 'transaction_id' => $transaction->id,
                 'processed_items' => $processed_items,
                 'failed_items' => $failed_items,
-                'total_adjustment_value' => $total_amount
+                'total_adjustment_value' => $total_variance_value
             ]);
 
             if ($failed_items > 0) {
@@ -948,8 +1020,81 @@ class StocktakeController extends Controller
         // Calculate summary for non-AJAX requests
         $summary = $this->calculateStocktakeSummary($filters, $businessId);
         $locations = $this->getFilterLocations();
+        $stocktakeAccountingAudit = $this->getStocktakeAccountingAudit($businessId, $filters);
 
-        return view('stocktake.history', compact('summary', 'locations', 'filters'));
+        return view('stocktake.history', compact('summary', 'locations', 'filters', 'stocktakeAccountingAudit'));
+    }
+
+    protected function getStocktakeAccountingAudit($businessId, array $filters = [])
+    {
+        $business = Business::select('id', 'common_settings')->find($businessId);
+        $commonSettings = !empty($business) && is_array($business->common_settings) ? $business->common_settings : [];
+        $cutoffDate = $commonSettings['stocktake_opening_balance_cutoff_date'] ?? null;
+        $openingStockEquityAccountId = (int) (TransactionPayment::resolveDefaultAccountMapping('opening_stock_equity', $businessId) ?: 0);
+
+        if (empty($cutoffDate) || empty($openingStockEquityAccountId)) {
+            return [
+                'cutoff_date' => $cutoffDate,
+                'opening_stock_equity_account_id' => $openingStockEquityAccountId,
+                'rows' => collect(),
+                'total_amount' => 0.0,
+            ];
+        }
+
+        $query = DB::table('transactions as t')
+            ->join('stocktakes as s', 's.adjustment_transaction_id', '=', 't.id')
+            ->join('account_transactions as at', function ($join) use ($openingStockEquityAccountId) {
+                $join->on('at.transaction_id', '=', 't.id')
+                    ->whereNull('at.deleted_at')
+                    ->where('at.account_id', '=', $openingStockEquityAccountId)
+                    ->whereIn('at.reff_no', [
+                        'stock_adjustment_inventory_opening_equity',
+                        'stock_adjustment_inventory_gain',
+                        'stock_adjustment_inventory_loss',
+                    ]);
+            })
+            ->leftJoin('business_locations as bl', 'bl.id', '=', 't.location_id')
+            ->whereNull('s.deleted_at')
+            ->where('t.business_id', $businessId)
+            ->where('t.type', 'stock_adjustment')
+            ->where('t.is_stocktake', 1)
+            ->whereDate('t.transaction_date', '<=', $cutoffDate);
+
+        $permittedLocations = auth()->user()->permitted_locations();
+        if ($permittedLocations != 'all') {
+            $query->whereIn('t.location_id', $permittedLocations);
+        }
+
+        if (! empty($filters['location_id'])) {
+            $query->where('t.location_id', $filters['location_id']);
+        }
+
+        if (! empty($filters['date_from'])) {
+            $query->whereDate('t.transaction_date', '>=', $filters['date_from']);
+        }
+
+        if (! empty($filters['date_to'])) {
+            $query->whereDate('t.transaction_date', '<=', $filters['date_to']);
+        }
+
+        $rows = $query->select([
+                's.reference_no as stocktake_reference_no',
+                't.ref_no as adjustment_reference_no',
+                't.transaction_date',
+                'bl.name as location_name',
+                'at.amount',
+                'at.type as posting_type',
+            ])
+            ->orderBy('t.transaction_date')
+            ->orderBy('s.reference_no')
+            ->get();
+
+        return [
+            'cutoff_date' => $cutoffDate,
+            'opening_stock_equity_account_id' => $openingStockEquityAccountId,
+            'rows' => $rows,
+            'total_amount' => (float) $rows->sum('amount'),
+        ];
     }
 
     public function getHistoryData(Request $request)
@@ -1233,6 +1378,212 @@ class StocktakeController extends Controller
         return $this->exportVarianceReport(new Request($filters));
     }
 
+    public function exportStocktake(Request $request, $id)
+    {
+        $this->authorize('stocktake.view');
+
+        $businessId = auth()->user()->business_id;
+        $stocktake = Stocktake::with([
+            'business',
+            'location',
+            'createdBy',
+            'completedBy',
+            'items' => function ($query) {
+                $query->with([
+                    'product:id,name,sku',
+                    'variation:id,name,sub_sku,default_purchase_price,sell_price_inc_tax,default_sell_price'
+                ]);
+            },
+        ])->where('business_id', $businessId)->findOrFail($id);
+
+        $format = strtolower($request->get('format', 'excel'));
+    $businessName = preg_replace('/[^A-Za-z0-9\-_]/', '-', $stocktake->business->name ?? 'business');
+    $referenceNo = preg_replace('/[^A-Za-z0-9\-_]/', '-', $stocktake->reference_no);
+    $fileName = $businessName . '-stocktake-' . $referenceNo . '-' . now()->format('Y-m-d-H-i-s');
+
+        $rows = collect($stocktake->items)->map(function ($item) use ($stocktake) {
+            $countedQuantity = (float) ($item->counted_quantity ?? $item->system_quantity);
+            $systemQuantity = (float) $item->system_quantity;
+            $variance = $countedQuantity - $systemQuantity;
+            $purchasePrice = (float) ($item->variation->default_purchase_price ?? 0);
+            $sellingPrice = (float) ($item->variation->sell_price_inc_tax ?? $item->variation->default_sell_price ?? 0);
+
+            return [
+                'reference_no' => $stocktake->reference_no,
+                'location' => $stocktake->location->name,
+                'started_at' => ! empty($stocktake->transaction_date) ? \Carbon\Carbon::parse($stocktake->transaction_date)->format('Y-m-d H:i') : '-',
+                'completed_at' => ! empty($stocktake->completed_at) ? \Carbon\Carbon::parse($stocktake->completed_at)->format('Y-m-d H:i') : '-',
+                'status' => ucfirst(str_replace('_', ' ', $stocktake->status)),
+                'created_by' => $stocktake->createdBy?->user_full_name ?? $stocktake->createdBy?->username ?? 'System',
+                'product_name' => $item->product->name ?? '-',
+                'sku' => $item->variation->sub_sku ?? $item->product->sku ?? '-',
+                'system_quantity' => $systemQuantity,
+                'counted_quantity' => $countedQuantity,
+                'variance' => $variance,
+                'variance_percent' => $systemQuantity != 0 ? round(($variance / $systemQuantity) * 100, 2) : 0,
+                'purchase_price' => $purchasePrice,
+                'selling_price' => $sellingPrice,
+                'value_variance_purchase' => $variance * $purchasePrice,
+                'value_variance_selling' => $variance * $sellingPrice,
+                'notes' => $item->notes ?? '',
+            ];
+        });
+
+        if ($format === 'csv') {
+            return response()->streamDownload(function () use ($rows) {
+                $handle = fopen('php://output', 'w');
+                fwrite($handle, "\xEF\xBB\xBF");
+
+                fputcsv($handle, [
+                    'Reference No',
+                    'Location',
+                    'Started At',
+                    'Completed At',
+                    'Status',
+                    'Created By',
+                    'Product Name',
+                    'SKU',
+                    'System Qty',
+                    'Counted Qty',
+                    'Variance',
+                    'Variance %',
+                    'Purchase Price',
+                    'Selling Price',
+                    'Value Variance (Purchase)',
+                    'Value Variance (Selling)',
+                    'Notes',
+                ]);
+
+                foreach ($rows as $row) {
+                    fputcsv($handle, [
+                        $row['reference_no'],
+                        $row['location'],
+                        $row['started_at'],
+                        $row['completed_at'],
+                        $row['status'],
+                        $row['created_by'],
+                        $row['product_name'],
+                        $row['sku'],
+                        $row['system_quantity'],
+                        $row['counted_quantity'],
+                        $row['variance'],
+                        $row['variance_percent'] . '%',
+                        $row['purchase_price'],
+                        $row['selling_price'],
+                        $row['value_variance_purchase'],
+                        $row['value_variance_selling'],
+                        $row['notes'],
+                    ]);
+                }
+
+                fclose($handle);
+            }, $fileName . '.csv', [
+                'Content-Type' => 'text/csv',
+            ]);
+        }
+
+        if ($format === 'pdf') {
+            $pdf = Pdf::loadView('stocktake.pdf', [
+                'stocktake' => $stocktake,
+                'rows' => $rows,
+            ])->setPaper('a4', 'portrait');
+
+            return $pdf->download($fileName . '.pdf');
+        }
+
+        if (class_exists('Maatwebsite\Excel\Facades\Excel')) {
+            return \Maatwebsite\Excel\Facades\Excel::download(
+                new class($rows) implements \Maatwebsite\Excel\Concerns\FromCollection, \Maatwebsite\Excel\Concerns\WithHeadings {
+                    protected $rows;
+
+                    public function __construct($rows)
+                    {
+                        $this->rows = $rows;
+                    }
+
+                    public function collection()
+                    {
+                        return $this->rows->map(function ($row) {
+                            return [
+                                $row['reference_no'],
+                                $row['location'],
+                                $row['started_at'],
+                                $row['completed_at'],
+                                $row['status'],
+                                $row['created_by'],
+                                $row['product_name'],
+                                $row['sku'],
+                                $row['system_quantity'],
+                                $row['counted_quantity'],
+                                $row['variance'],
+                                $row['variance_percent'] . '%',
+                                $row['purchase_price'],
+                                $row['selling_price'],
+                                $row['value_variance_purchase'],
+                                $row['value_variance_selling'],
+                                $row['notes'],
+                            ];
+                        });
+                    }
+
+                    public function headings(): array
+                    {
+                        return [
+                            'Reference No',
+                            'Location',
+                            'Started At',
+                            'Completed At',
+                            'Status',
+                            'Created By',
+                            'Product Name',
+                            'SKU',
+                            'System Qty',
+                            'Counted Qty',
+                            'Variance',
+                            'Variance %',
+                            'Purchase Price',
+                            'Selling Price',
+                            'Value Variance (Purchase)',
+                            'Value Variance (Selling)',
+                            'Notes',
+                        ];
+                    }
+                },
+                $fileName . '.xlsx'
+            );
+        }
+
+        return response()->streamDownload(function () use ($rows) {
+            $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, ['Reference No', 'Location', 'Started At', 'Completed At', 'Status', 'Created By', 'Product Name', 'SKU', 'System Qty', 'Counted Qty', 'Variance', 'Variance %', 'Purchase Price', 'Selling Price', 'Value Variance (Purchase)', 'Value Variance (Selling)', 'Notes']);
+            foreach ($rows as $row) {
+                fputcsv($handle, [
+                    $row['reference_no'],
+                    $row['location'],
+                    $row['started_at'],
+                    $row['completed_at'],
+                    $row['status'],
+                    $row['created_by'],
+                    $row['product_name'],
+                    $row['sku'],
+                    $row['system_quantity'],
+                    $row['counted_quantity'],
+                    $row['variance'],
+                    $row['variance_percent'] . '%',
+                    $row['purchase_price'],
+                    $row['selling_price'],
+                    $row['value_variance_purchase'],
+                    $row['value_variance_selling'],
+                    $row['notes'],
+                ]);
+            }
+            fclose($handle);
+        }, $fileName . '.csv', [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
     public function exportHistory(Request $request)
     {
         $this->authorize('stocktake.view');
@@ -1241,32 +1592,54 @@ class StocktakeController extends Controller
         $filters = $request->only(['location_id', 'date_from', 'date_to', 'format']);
 
         try {
-            $data = StockHistory::getExportData($filters);
             $format = $filters['format'] ?? 'excel';
             $fileName = 'stocktake-history-' . now()->format('Y-m-d-H-i-s');
 
-            if ($format === 'csv') {
-                return $this->exportHistoryAsCsv($data, $fileName);
-            } else {
-                return $this->exportHistoryAsExcel($data, $fileName);
+            $query = StockHistory::forHistoryPage()
+                ->whereHas('product', function ($q) use ($businessId) {
+                    $q->where('business_id', $businessId);
+                });
+
+            $permittedLocations = auth()->user()->permitted_locations();
+            if ($permittedLocations != 'all') {
+                $query->whereIn('stock_histories.location_id', $permittedLocations);
             }
 
+            if ($request->filled('location_id')) {
+                $query->where('stock_histories.location_id', $request->location_id);
+            }
+
+            if ($request->filled('date_from')) {
+                $query->whereDate('stock_histories.created_at', '>=', $request->date_from);
+            }
+
+            if ($request->filled('date_to')) {
+                $query->whereDate('stock_histories.created_at', '<=', $request->date_to);
+            }
+
+            $data = $query->orderByDesc('stock_histories.created_at')->get();
+
+            if ($format === 'csv') {
+                return $this->exportHistoryAsCsv($data, $fileName);
+            }
+
+            return $this->exportHistoryAsExcel($data, $fileName);
         } catch (\Exception $e) {
             Log::error('Error exporting stocktake history', [
                 'error' => $e->getMessage(),
-                'filters' => $filters
+                'filters' => $filters,
             ]);
 
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'msg' => __('messages.something_went_wrong')
+                    'msg' => __('messages.something_went_wrong') . ': ' . $e->getMessage(),
                 ], 500);
             }
 
             return back()->with('status', [
                 'success' => false,
-                'msg' => __('messages.something_went_wrong')
+                'msg' => __('messages.something_went_wrong'),
             ]);
         }
     }

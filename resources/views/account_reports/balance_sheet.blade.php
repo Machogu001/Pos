@@ -41,23 +41,31 @@
             <table class="table table-border-center no-border table-pl-12">
                 <thead>
                     <tr class="bg-gray">
-                        <th>@lang( 'account.liability')</th>
+                        <th>@lang('account.liabilities_and_equity')</th>
                         <th>@lang( 'account.assets')</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td>
-                            <table class="table">
-                                <tr>
-                                    <th>@lang('account.supplier_due'):</th>
-                                <td>
-                                    <input type="hidden" id="hidden_supplier_due" class="liability">
-                                    <span class="remote-data" id="supplier_due">
-                                        <i class="fas fa-sync fa-spin fa-fw"></i>
-                                    </span>
-                                </td>
-                                </tr>
+                            <table class="table" id="liabilities_table">
+                                <tbody>
+                                    <tr>
+                                        <th>@lang('account.supplier_due'):</th>
+                                        <td>
+                                            <input type="hidden" id="hidden_supplier_due" class="liability">
+                                            <span class="remote-data" id="supplier_due">
+                                                <i class="fas fa-sync fa-spin fa-fw"></i>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th colspan="2">@lang('account.account_balances'):</th>
+                                    </tr>
+                                </tbody>
+                                <tbody id="liability_account_balances" class="pl-20-td">
+                                    <tr><td colspan="2"><i class="fas fa-sync fa-spin fa-fw"></i></td></tr>
+                                </tbody>
                             </table>
                         </td>
                         <td>
@@ -85,19 +93,9 @@
                                         <th colspan="2">@lang('account.account_balances'):</th>
                                     </tr>
                                 </tbody>
-                                <tbody id="account_balances" class="pl-20-td">
+                                <tbody id="asset_account_balances" class="pl-20-td">
                                     <tr><td colspan="2"><i class="fas fa-sync fa-spin fa-fw"></i></td></tr>
                                 </tbody>
-                                {{--
-                                <tbody>
-                                    <tr>
-                                        <th colspan="2">@lang('account.capital_accounts'):</th>
-                                    </tr>
-                                </tbody>
-                                <tbody id="capital_account_balances" class="pl-20-td">
-                                    <tr><td colspan="2"><i class="fas fa-sync fa-spin fa-fw"></i></td></tr>
-                                </tbody>
-                                --}}
                             </table>
                         </td>
                     </tr>
@@ -167,8 +165,8 @@
             $(this).html(loader);
         });
 
-        $('table#assets_table tbody#account_balances').html('<tr><td colspan="2"><i class="fas fa-sync fa-spin fa-fw"></i></td></tr>');
-        $('table#assets_table tbody#capital_account_balances').html('<tr><td colspan="2"><i class="fas fa-sync fa-spin fa-fw"></i></td></tr>');
+        $('table#assets_table tbody#asset_account_balances').html('<tr><td colspan="2"><i class="fas fa-sync fa-spin fa-fw"></i></td></tr>');
+        $('table#liabilities_table tbody#liability_account_balances').html('<tr><td colspan="2"><i class="fas fa-sync fa-spin fa-fw"></i></td></tr>');
 
         var end_date = $('input#end_date').val();
         var location_id = $('#bal_sheet_location_id').val()
@@ -184,21 +182,26 @@
 
                 $('span#closing_stock').text(__currency_trans_from_en(result.closing_stock, true));
                 __write_number($('input#hidden_closing_stock'), result.closing_stock);
-                var account_balances = result.account_balances;
-                $('table#assets_table tbody#account_balances').html('');
-                for (var key in account_balances) {
-                    var accnt_bal = __currency_trans_from_en(result.account_balances[key]);
-                    var accnt_bal_with_sym = __currency_trans_from_en(result.account_balances[key], true);
-                    var account_tr = '<tr><td class="pl-20-td">' + key + ':</td><td><input type="hidden" class="asset" value="' + accnt_bal + '">' + accnt_bal_with_sym + '</td></tr>';
-                    $('table#assets_table tbody#account_balances').append(account_tr);
+                var asset_account_balances = result.asset_account_balances || [];
+                $('table#assets_table tbody#asset_account_balances').html('');
+                for (var i in asset_account_balances) {
+                    var assetAccount = asset_account_balances[i] || {};
+                    var assetSignedBalance = parseFloat(assetAccount.balance) || 0;
+                    var assetDisplayBalanceWithSym = __currency_trans_from_en(Math.abs(assetSignedBalance), true);
+                    var assetSide = assetAccount.side ? ' <small class="text-muted">' + (assetAccount.side === 'debit' ? 'Dr' : 'Cr') + '</small>' : '';
+                    var assetRow = '<tr><td class="pl-20-td">' + (assetAccount.name || '') + ':</td><td><input type="hidden" class="asset" value="' + Math.abs(assetSignedBalance) + '">' + assetDisplayBalanceWithSym + assetSide + '</td></tr>';
+                    $('table#assets_table tbody#asset_account_balances').append(assetRow);
                 }
-                var capital_account_details = result.capital_account_details;
-                $('table#assets_table tbody#capital_account_balances').html('');
-                for (var key in capital_account_details) {
-                    var accnt_bal = __currency_trans_from_en(result.capital_account_details[key]);
-                    var accnt_bal_with_sym = __currency_trans_from_en(result.capital_account_details[key], true);
-                    var account_tr = '<tr><td class="pl-20-td">' + key + ':</td><td><input type="hidden" class="asset" value="' + accnt_bal + '">' + accnt_bal_with_sym + '</td></tr>';
-                    $('table#assets_table tbody#capital_account_balances').append(account_tr);
+
+                var liability_account_balances = result.liability_account_balances || [];
+                $('table#liabilities_table tbody#liability_account_balances').html('');
+                for (var j in liability_account_balances) {
+                    var liabilityAccount = liability_account_balances[j] || {};
+                    var liabilitySignedBalance = parseFloat(liabilityAccount.balance) || 0;
+                    var liabilityDisplayBalanceWithSym = __currency_trans_from_en(Math.abs(liabilitySignedBalance), true);
+                    var liabilitySide = liabilityAccount.side ? ' <small class="text-muted">' + (liabilityAccount.side === 'debit' ? 'Dr' : 'Cr') + '</small>' : '';
+                    var liabilityRow = '<tr><td class="pl-20-td">' + (liabilityAccount.name || '') + ':</td><td><input type="hidden" class="liability" value="' + Math.abs(liabilitySignedBalance) + '">' + liabilityDisplayBalanceWithSym + liabilitySide + '</td></tr>';
+                    $('table#liabilities_table tbody#liability_account_balances').append(liabilityRow);
                 }
 
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\BusinessLocation;
 use App\Contact;
 use App\Events\TransactionPaymentAdded;
 use App\Events\TransactionPaymentUpdated;
@@ -218,6 +219,15 @@ class TransactionPaymentController extends Controller
                                         ->with(['contact', 'location'])
                                         ->first();
 
+            if (empty($payment_line->account_id)) {
+                $payment_line->account_id = TransactionPayment::resolveDefaultAccountId(
+                    $payment_line->method,
+                    $transaction->location ?? null,
+                    $transaction->business_id,
+                    $transaction->type
+                );
+            }
+
             $payment_types = $this->transactionUtil->payment_types($transaction->location);
 
             //Accounts
@@ -243,6 +253,9 @@ class TransactionPaymentController extends Controller
 
         try {
             $business_id = request()->session()->get('user.business_id');
+            $payment = TransactionPayment::where('method', '!=', 'advance')->findOrFail($id);
+            $transaction = Transaction::where('business_id', $business_id)
+                                ->find($payment->transaction_id);
 
             $inputs = $request->only(['amount', 'method', 'note', 'card_number', 'card_holder_name',
                 'card_transaction_number', 'card_type', 'card_month', 'card_year', 'card_security',
@@ -262,7 +275,14 @@ class TransactionPaymentController extends Controller
                 $inputs['account_id'] = $request->input('account_id');
             }
 
-            $payment = TransactionPayment::where('method', '!=', 'advance')->findOrFail($id);
+            if (empty($inputs['account_id']) && $inputs['method'] != 'advance') {
+                $inputs['account_id'] = TransactionPayment::resolveDefaultAccountId(
+                    $inputs['method'],
+                    $transaction->location ?? null,
+                    $transaction->business_id,
+                    $transaction->type
+                );
+            }
 
             if (! empty($request->input('denominations'))) {
                 $this->transactionUtil->updateCashDenominations($payment, $request->input('denominations'));
@@ -413,6 +433,12 @@ class TransactionPaymentController extends Controller
                 $payment_line = new TransactionPayment();
                 $payment_line->amount = $amount;
                 $payment_line->method = 'cash';
+                $payment_line->account_id = TransactionPayment::resolveDefaultAccountId(
+                    $payment_line->method,
+                    $transaction->location ?? null,
+                    $transaction->business_id,
+                    $transaction->type
+                );
                 $payment_line->paid_on = \Carbon::now()->toDateTimeString();
 
                 //Accounts
@@ -447,6 +473,14 @@ class TransactionPaymentController extends Controller
 
         if (request()->ajax()) {
             $business_id = request()->session()->get('user.business_id');
+            $default_location = auth()->user()->getDefaultLocation();
+            $location_dropdown = BusinessLocation::forDropdown($business_id, false);
+            $location_payment_accounts = BusinessLocation::where('business_id', $business_id)
+                ->active()
+                ->get(['id', 'default_payment_accounts'])
+                ->mapWithKeys(function ($location) {
+                    return [$location->id => json_decode($location->default_payment_accounts, true) ?: []];
+                });
 
             $due_payment_type = request()->input('type');
             $query = Contact::where('contacts.id', $contact_id)
@@ -523,6 +557,12 @@ class TransactionPaymentController extends Controller
             $contact_details->total_paid = empty($contact_details->total_paid) ? 0 : $contact_details->total_paid;
 
             $payment_line->method = 'cash';
+            $payment_line->account_id = TransactionPayment::resolveDefaultAccountId(
+                $payment_line->method,
+                $default_location,
+                $business_id,
+                $due_payment_type
+            );
             $payment_line->paid_on = \Carbon::now()->toDateTimeString();
 
             $payment_types = $this->transactionUtil->payment_types(null, false, $business_id);
@@ -531,7 +571,7 @@ class TransactionPaymentController extends Controller
             $accounts = $this->moduleUtil->accountsDropdown($business_id, true);
 
             return view('transaction_payment.pay_supplier_due_modal')
-                        ->with(compact('contact_details', 'payment_types', 'payment_line', 'due_payment_type', 'ob_due', 'amount_formated', 'accounts'));
+                        ->with(compact('contact_details', 'payment_types', 'payment_line', 'due_payment_type', 'ob_due', 'amount_formated', 'accounts', 'location_dropdown', 'location_payment_accounts', 'default_location'));
         }
     }
 

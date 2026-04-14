@@ -1,25 +1,37 @@
 @extends('layouts.app')
 
+@section('title', 'Companies')
+
 @section('content')
-<div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="mb-0">Companies</h2>
-        <a href="{{ route('hrm.companies.create') }}" class="btn btn-primary">Add Company</a>
-    </div>
+@include('hrm::partials.hrm_page_header', [
+    'title' => 'Companies',
+    'subtitle' => 'Maintain the business records used across HRM forms, payroll, and reporting.',
+    'actions' => (!empty($currentBusiness)
+        ? '<form action="'.route('hrm.companies.store').'" method="POST" style="display:inline-block;margin-right:8px;">'
+            .csrf_field().
+            '<input type="hidden" name="use_business_details" value="1">'
+                        .
+            '<input type="hidden" name="source_business_id" value="'.$currentBusiness->id.'">'
+                        .
+            '<button type="submit" class="btn btn-default">Use Current Business ('.e($currentBusiness->name).')</button>'
+          .'</form>'
+        : '')
+        .'<a href="'.route('hrm.companies.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> Add Company</a>'
+])
 
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
-
-    <p class="text-muted">Manage companies (these are used as the source for the Company dropdowns in HRM).</p>
-
-    <div class="card">
-        <div class="card-body p-0">
+<section class="content">
+    <div class="box box-primary">
+        <div class="box-header with-border">
+            <h3 class="box-title">Company Directory</h3>
+            <div class="box-tools pull-right">
+                <span class="label label-primary">{{ isset($companies) ? count($companies) : 0 }} shown</span>
+            </div>
+        </div>
+        <div class="box-body no-padding">
             <div class="table-responsive">
-                <table class="table table-striped mb-0">
+                <table class="table table-hover table-striped mb-0">
                     <thead>
                         <tr>
-                            <th>#</th>
                             <th>Name</th>
                             <th>Email</th>
                             <th>Phone</th>
@@ -30,14 +42,13 @@
                     <tbody>
                         @forelse($companies as $c)
                             <tr>
-                                <td>{{ $c->id }}</td>
-                                <td>{{ $c->name }}</td>
+                                <td><strong>{{ $c->name }}</strong></td>
                                 <td>{{ $c->email }}</td>
                                 <td>{{ $c->phone }}</td>
                                 <td>{{ $c->country }}</td>
                                 <td class="text-end">
-                                    <a href="{{ route('hrm.companies.edit', $c->id) }}" class="btn btn-sm btn-secondary">Edit</a>
-                                    <form action="{{ route('hrm.companies.destroy', $c->id) }}" method="POST" style="display:inline-block" onsubmit="return confirm('Delete this company?')">
+                                    <a href="{{ route('hrm.companies.edit', $c->id) }}" class="btn btn-sm btn-default">Edit</a>
+                                    <form action="{{ route('hrm.companies.destroy', $c->id) }}" method="POST" style="display:inline-block" data-hrm-confirm="Delete this company?" data-hrm-confirm-title="Delete Company">
                                         @csrf
                                         @method('DELETE')
                                         <button class="btn btn-sm btn-danger">Delete</button>
@@ -45,7 +56,21 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="text-center text-muted">No companies found.</td></tr>
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">
+                                    <p style="margin-bottom: 0;">No companies found.</p>
+                                    @if(!empty($currentBusiness))
+                                        <form action="{{ route('hrm.companies.store') }}" method="POST" style="display:inline-block">
+                                            @csrf
+                                            <input type="hidden" name="use_business_details" value="1">
+                                            <input type="hidden" name="source_business_id" value="{{ $currentBusiness->id }}">
+                                            <button type="submit" class="btn btn-sm btn-default">
+                                                Use Current Business ({{ $currentBusiness->name }})
+                                            </button>
+                                        </form>
+                                    @endif
+                                </td>
+                            </tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -54,9 +79,9 @@
     </div>
 
     @if(isset($totalRows) && $totalRows > (int)($perPage ?? 0) && isset($paginator))
-        <div class="mt-3">
+        <div class="text-right">
             {{ $paginator->appends(request()->query())->links() }}
         </div>
     @endif
-</div>
+</section>
 @endsection

@@ -146,9 +146,17 @@ Route::middleware(['setData'])->group(function () {
 
     Auth::routes();
 
+    Route::get('/login/otp', [App\Http\Controllers\Auth\LoginController::class, 'showOtpForm'])->name('login.otp.form');
+    Route::post('/login/otp', [App\Http\Controllers\Auth\LoginController::class, 'verifyOtp'])->name('login.otp.verify');
+    Route::post('/login/otp/resend', [App\Http\Controllers\Auth\LoginController::class, 'resendOtp'])->name('login.otp.resend');
+
     Route::get('/business/register', [BusinessController::class, 'getRegister'])->name('business.getRegister');
     Route::post('/business/register', [BusinessController::class, 'postRegister'])
     ->name('business.postRegister');
+    Route::post('/business/register/resume', [BusinessController::class, 'resumeRegistrationPayment'])->name('business.registration.resume');
+    Route::get('/business/register/resume/{payment}', [BusinessController::class, 'resumeRegistrationFromLink'])
+        ->middleware('signed')
+        ->name('business.registration.resume.link');
     Route::post('/business/register/check-username', [BusinessController::class, 'postCheckUsername'])->name('business.postCheckUsername');
     Route::post('/business/register/check-email', [BusinessController::class, 'postCheckEmail'])->name('business.postCheckEmail');
 
@@ -357,6 +365,8 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     Route::resource('roles', RoleController::class);
 
     Route::resource('users', ManageUserController::class);
+    Route::post('/users/{id}/toggle-otp', [ManageUserController::class, 'toggleOtpLoginEnabled'])
+        ->name('users.toggle_otp');
 
     Route::resource('group-taxes', GroupTaxController::class);
 
@@ -523,6 +533,8 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
 
     Route::prefix('account')->group(function () {
         Route::resource('/account', AccountController::class);
+        Route::post('/backfill-default-accounts', [AccountController::class, 'backfillDefaultAccounts'])
+            ->name('account.backfill_default_accounts');
         Route::get('/fund-transfer/{id}', [AccountController::class, 'getFundTransfer']);
         Route::post('/fund-transfer', [AccountController::class, 'postFundTransfer']);
         Route::get('/deposit/{id}', [AccountController::class, 'getDeposit']);
@@ -533,8 +545,14 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
         Route::get('/edit-account-transaction/{id}', [AccountController::class, 'editAccountTransaction']);
         Route::post('/update-account-transaction/{id}', [AccountController::class, 'updateAccountTransaction']);
         Route::get('/get-account-balance/{id}', [AccountController::class, 'getAccountBalance']);
+        Route::get('/dashboard', [AccountReportsController::class, 'dashboard']);
         Route::get('/balance-sheet', [AccountReportsController::class, 'balanceSheet']);
         Route::get('/trial-balance', [AccountReportsController::class, 'trialBalance']);
+        Route::get('/chart-of-accounts', [AccountReportsController::class, 'chartOfAccounts']);
+        Route::get('/general-ledger', [AccountReportsController::class, 'generalLedger']);
+        Route::get('/journal-entry', [AccountReportsController::class, 'journalEntry']);
+        Route::post('/journal-entry', [AccountReportsController::class, 'storeJournalEntry']);
+        Route::get('/profit-loss', [ReportController::class, 'getProfitLoss']);
         Route::get('/payment-account-report', [AccountReportsController::class, 'paymentAccountReport']);
         Route::get('/bank-reconciliation', [AccountReportsController::class, 'showBankReconciliation']);
         Route::get('/bank-reconciliation/template', [AccountReportsController::class, 'downloadBankReconciliationTemplate']);
@@ -679,6 +697,7 @@ Route::group([
     Route::get('/export/history', [StocktakeController::class, 'exportHistory'])->name('export.history');
     Route::get('/variance-report', [StocktakeController::class, 'varianceReport'])->name('variance_report');
     Route::get('/export-variance-report', [StocktakeController::class, 'quickExportVarianceReport'])->name('quickExportVarianceReport');
+    Route::get('/{id}/export', [StocktakeController::class, 'exportStocktake'])->name('export');
     Route::get('/stats/performance', [StocktakeController::class, 'getPerformanceMetrics'])->name('stats.performance');
 
     // === Debug & Maintenance Routes ===

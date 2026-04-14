@@ -1,25 +1,24 @@
 @extends('layouts.app')
 
+@section('title', 'Departments')
+
 @section('content')
-<div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="mb-0">Departments</h2>
-        <a href="{{ route('hrm.departments.create') }}" class="btn btn-primary">Create Department</a>
-    </div>
+@include('hrm::partials.hrm_page_header', [
+    'title' => 'Departments',
+    'subtitle' => 'Organize employees by department and assign the right department head.',
+    'actions' => '<a href="'.route('hrm.departments.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> Create Department</a>'
+])
 
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
-
-    <p class="text-muted">Manage departments and assign department heads.</p>
-
-    <div class="card">
-        <div class="card-body p-0">
+<section class="content">
+    <div class="box box-primary">
+        <div class="box-header with-border">
+            <h3 class="box-title">Department Directory</h3>
+        </div>
+        <div class="box-body no-padding">
             <div class="table-responsive">
-                <table class="table table-striped mb-0">
+                <table class="table table-hover table-striped mb-0">
                     <thead>
                         <tr>
-                            <th>#</th>
                             <th>Department</th>
                             <th>Company</th>
                             <th>Head</th>
@@ -33,26 +32,24 @@
                                 if(isset($employees) && $employees instanceof \Illuminate\Support\Collection){
                                     $head = $employees->firstWhere('id', $d->department_head);
                                 }
-                                if(!$head && isset($d->employee_head)){
-                                    $head = $d->employee_head;
-                                }
                                 $headLabel = '-';
                                 if($head){
                                     $headLabel = $head->username ?? trim((($head->firstname ?? '') . ' ' . ($head->lastname ?? '')));
+                                } elseif(!empty($d->employee_head)) {
+                                    $headLabel = $d->employee_head;
                                 }
                             @endphp
                             <tr data-id="{{ $d->id }}">
-                                <td>{{ $d->id }}</td>
-                                <td>{{ $d->department }}</td>
-                                <td>{{ optional($d->business)->name ?? ($d->business_id ?? '-') }}</td>
+                                <td><strong>{{ $d->department }}</strong></td>
+                                <td>{{ $d->company_name ?? '-' }}</td>
                                 <td class="head-cell">{{ $headLabel }}</td>
                                 <td class="text-end">
                                     <button type="button" class="btn btn-sm btn-primary set-head-btn" data-id="{{ $d->id }}" data-current="{{ $d->department_head ?? '' }}">Set Head</button>
                                     @if($d->department_head)
                                         <button type="button" class="btn btn-sm btn-warning remove-head-btn" data-id="{{ $d->id }}">Remove Head</button>
                                     @endif
-                                    <a href="{{ route('hrm.departments.edit', $d->id) }}" class="btn btn-sm btn-secondary">Edit</a>
-                                    <form action="{{ route('hrm.departments.destroy', $d->id) }}" method="POST" style="display:inline-block" onsubmit="return confirm('Delete this department?')">
+                                    <a href="{{ route('hrm.departments.edit', $d->id) }}" class="btn btn-sm btn-default">Edit</a>
+                                    <form action="{{ route('hrm.departments.destroy', $d->id) }}" method="POST" style="display:inline-block" data-hrm-confirm="Delete this department?" data-hrm-confirm-title="Delete Department">
                                         @csrf
                                         @method('DELETE')
                                         <button class="btn btn-sm btn-danger">Delete</button>
@@ -60,7 +57,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="text-center text-muted">No departments found.</td></tr>
+                            <tr><td colspan="4" class="text-center text-muted">No departments found.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -69,11 +66,11 @@
     </div>
 
     @if(isset($totalRows) && $totalRows > (int)($perPage ?? 0) && isset($paginator))
-        <div class="mt-3">
+        <div class="text-right">
             {{ $paginator->appends(request()->query())->links() }}
         </div>
     @endif
-</div>
+</section>
 
 @push('scripts')
 <script>
@@ -93,18 +90,18 @@ document.addEventListener('DOMContentLoaded', function(){
 
     // Inject modal markup for setting department head
     var modalHtml = `
-    <div class="modal fade" id="setHeadModal" tabindex="-1" aria-hidden="true">
+                <div class="modal fade" id="setHeadModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Set Department Head</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <div class="modal-body">
                     <div id="modalError" class="alert alert-danger d-none"></div>
                     <form id="setHeadForm">
                         <input type="hidden" name="department_id" id="modal_department_id" />
-                        <div class="mb-3">
+                        <div class="form-group">
                             <label for="modal_department_head" class="form-label">Select Employee</label>
                             <select id="modal_department_head" name="department_head" class="form-control">
                                 <option value="">-- None --</option>
@@ -117,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function(){
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
                     <button type="button" id="modalSaveHead" class="btn btn-primary">Save</button>
                 </div>
             </div>
@@ -127,12 +124,159 @@ document.addEventListener('DOMContentLoaded', function(){
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     var setHeadModalEl = document.getElementById('setHeadModal');
     var bsModal = (typeof bootstrap !== 'undefined' && setHeadModalEl) ? new bootstrap.Modal(setHeadModalEl) : null;
+    var employeeOptions = @json(($employees ?? collect())->map(function ($e) {
+        $empLabel = $e->username ?? trim((($e->firstname ?? '') . ' ' . ($e->lastname ?? '')));
+        return ['id' => (string) $e->id, 'label' => ($empLabel ?: ('Employee #'.$e->id))];
+    })->values());
+
+    function openSetHeadToastInput(id, current){
+        if(typeof Swal !== 'undefined' && typeof Swal.fire === 'function'){
+            var inputOptions = { '': '-- None --' };
+            employeeOptions.forEach(function(item){ inputOptions[item.id] = item.label; });
+            Swal.fire({
+                title: 'Set Department Head',
+                text: 'Select employee to set as head.',
+                input: 'select',
+                inputOptions: inputOptions,
+                inputValue: current || '',
+                showCancelButton: true,
+                confirmButtonText: 'Save',
+                cancelButtonText: 'Cancel',
+                preConfirm: function(value){
+                    return sendSetHead(id, value || '').then(function(data){
+                        if(data && data.success){ return data; }
+                        var msg = (data && data.message) ? data.message : 'Failed to set department head';
+                        if(typeof Swal.showValidationMessage === 'function'){
+                            Swal.showValidationMessage(msg);
+                        }
+                        return false;
+                    }).catch(function(){
+                        if(typeof Swal.showValidationMessage === 'function'){
+                            Swal.showValidationMessage('Request failed');
+                        }
+                        return false;
+                    });
+                }
+            }).then(function(result){
+                if(result && result.isConfirmed && result.value){
+                    updateHeadRow(id, result.value);
+                    showToast('Department head updated', 'success');
+                }
+            });
+            return;
+        }
+
+        var existing = document.getElementById('setHeadToastPrompt');
+        if(existing){ existing.remove(); }
+
+        var wrapper = document.createElement('div');
+        wrapper.id = 'setHeadToastPrompt';
+        wrapper.style.position = 'fixed';
+        wrapper.style.top = '50%';
+        wrapper.style.left = '50%';
+        wrapper.style.transform = 'translate(-50%, -50%)';
+        wrapper.style.width = '340px';
+        wrapper.style.maxWidth = 'calc(100vw - 30px)';
+        wrapper.style.background = '#ffffff';
+        wrapper.style.border = '1px solid #e5e7eb';
+        wrapper.style.borderRadius = '10px';
+        wrapper.style.boxShadow = '0 12px 30px rgba(0,0,0,0.15)';
+        wrapper.style.padding = '14px';
+        wrapper.style.zIndex = '3000';
+
+        wrapper.innerHTML = '' +
+            '<div style="font-weight:600; margin-bottom:8px;">Set Department Head</div>' +
+            '<div style="font-size:12px; color:#6b7280; margin-bottom:8px;">Select employee (or None to clear).</div>' +
+            '<select id="setHeadToastInput" class="form-control" style="margin-bottom:10px;"><option value="">-- None --</option></select>' +
+            '<div id="setHeadToastError" style="display:none; color:#dc2626; font-size:12px; margin-bottom:8px;"></div>' +
+            '<div style="display:flex; justify-content:flex-end; gap:8px;">' +
+                '<button type="button" id="setHeadToastCancel" class="btn btn-default btn-sm">Cancel</button>' +
+                '<button type="button" id="setHeadToastSave" class="btn btn-primary btn-sm">Save</button>' +
+            '</div>';
+
+        document.body.appendChild(wrapper);
+        var input = document.getElementById('setHeadToastInput');
+        if(input){
+            employeeOptions.forEach(function(item){
+                var opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = item.label;
+                input.appendChild(opt);
+            });
+            input.value = current || '';
+            input.focus();
+        }
+
+        function closePrompt(){
+            var node = document.getElementById('setHeadToastPrompt');
+            if(node){ node.remove(); }
+        }
+
+        document.getElementById('setHeadToastCancel').addEventListener('click', closePrompt);
+        document.getElementById('setHeadToastSave').addEventListener('click', function(){
+            var head = (document.getElementById('setHeadToastInput').value || '').trim();
+            var err = document.getElementById('setHeadToastError');
+            if(err){ err.style.display = 'none'; err.textContent = ''; }
+
+            sendSetHead(id, head).then(function(data){
+                if(data && data.success){
+                    updateHeadRow(id, data);
+                    closePrompt();
+                    showToast('Department head updated', 'success');
+                } else {
+                    var msg = (data && data.message) ? data.message : 'Failed to set department head';
+                    if(err){ err.textContent = msg; err.style.display = 'block'; }
+                    showToast(msg, 'error');
+                }
+            }).catch(function(){
+                if(err){ err.textContent = 'Request failed'; err.style.display = 'block'; }
+                showToast('Request failed', 'error');
+            });
+        });
+    }
+
+    function updateHeadRow(id, data){
+        var row = document.querySelector('tr[data-id="'+id+'"]');
+        if(!row){ return; }
+
+        var cell = row.querySelector('.head-cell');
+        if(cell){ cell.textContent = data.employee_name || '-'; }
+
+        var existingRemoveBtn = row.querySelector('.remove-head-btn');
+        if(data.department_head){
+            if(!existingRemoveBtn){
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn btn-sm btn-warning remove-head-btn';
+                btn.setAttribute('data-id', id);
+                btn.textContent = 'Remove Head';
+                var end = row.querySelector('.text-end');
+                var form = end ? end.querySelector('form') : null;
+                if(end){
+                    if(form) end.insertBefore(btn, form);
+                    else end.appendChild(btn);
+                }
+            }
+        } else if(existingRemoveBtn){
+            existingRemoveBtn.remove();
+        }
+    }
 
     function openSetHead(id, current){
         var md = document.getElementById('modal_department_id'); if(md) md.value = id;
         var sel = document.getElementById('modal_department_head'); if(sel) sel.value = current || '';
         var err = document.getElementById('modalError'); if(err) err.classList.add('d-none');
-        if(bsModal){ bsModal.show(); } else { var val = prompt('Enter employee id to set as head (or leave empty to clear):', current || ''); if(val !== null){ sendSetHead(id, val); } }
+        if(bsModal){
+            bsModal.show();
+            return;
+        }
+
+        if(typeof window.jQuery !== 'undefined' && setHeadModalEl && typeof window.jQuery.fn.modal === 'function'){
+            window.jQuery(setHeadModalEl).modal('show');
+            return;
+        }
+
+        openSetHeadToastInput(id, current);
     }
 
     function sendSetHead(id, head){
@@ -157,23 +301,12 @@ document.addEventListener('DOMContentLoaded', function(){
         var err = document.getElementById('modalError'); if(err) err.classList.add('d-none');
         sendSetHead(id, head).then(function(data){
             if(data && data.success){
-                var row = document.querySelector('tr[data-id="'+id+'"]');
-                if(row){
-                    var cell = row.querySelector('.head-cell');
-                    cell.textContent = data.employee_name || '-';
-                    // add remove button if needed
-                    if(data.department_head){
-                        if(!row.querySelector('.remove-head-btn')){
-                            var btn = document.createElement('button'); btn.type='button'; btn.className='btn btn-sm btn-warning remove-head-btn'; btn.setAttribute('data-id', id); btn.textContent='Remove Head';
-                            var end = row.querySelector('.text-end');
-                            // insert before the delete form if present
-                            var form = end.querySelector('form');
-                            if(form) end.insertBefore(btn, form); else end.appendChild(btn);
-                            btn.addEventListener('click', removeHeadHandler);
-                        }
-                    }
+                updateHeadRow(id, data);
+                if(bsModal) {
+                    bsModal.hide();
+                } else if(typeof window.jQuery !== 'undefined' && setHeadModalEl && typeof window.jQuery.fn.modal === 'function') {
+                    window.jQuery(setHeadModalEl).modal('hide');
                 }
-                if(bsModal) bsModal.hide();
                 showToast('Department head updated', 'success');
             } else {
                 var msg = (data && data.message) ? data.message : 'Failed to set department head';
@@ -183,16 +316,72 @@ document.addEventListener('DOMContentLoaded', function(){
         }).catch(function(){ if(err){ err.textContent = 'Request failed'; err.classList.remove('d-none'); } showToast('Request failed', 'error'); });
     });
 
+    function askRemoveHeadConfirm(){
+        if(typeof Swal !== 'undefined' && typeof Swal.fire === 'function'){
+            return Swal.fire({
+                title: 'Remove Department Head?',
+                text: 'This will clear the current department head.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, remove',
+                cancelButtonText: 'Cancel'
+            }).then(function(result){
+                return !!(result && result.isConfirmed);
+            });
+        }
+
+        return new Promise(function(resolve){
+            var existing = document.getElementById('removeHeadToastConfirm');
+            if(existing){ existing.remove(); }
+
+            var wrapper = document.createElement('div');
+            wrapper.id = 'removeHeadToastConfirm';
+            wrapper.style.position = 'fixed';
+            wrapper.style.top = '50%';
+            wrapper.style.left = '50%';
+            wrapper.style.transform = 'translate(-50%, -50%)';
+            wrapper.style.width = '340px';
+            wrapper.style.maxWidth = 'calc(100vw - 30px)';
+            wrapper.style.background = '#ffffff';
+            wrapper.style.border = '1px solid #e5e7eb';
+            wrapper.style.borderRadius = '10px';
+            wrapper.style.boxShadow = '0 12px 30px rgba(0,0,0,0.15)';
+            wrapper.style.padding = '14px';
+            wrapper.style.zIndex = '3000';
+
+            wrapper.innerHTML = '' +
+                '<div style="font-weight:600; margin-bottom:8px;">Remove Department Head?</div>' +
+                '<div style="font-size:12px; color:#6b7280; margin-bottom:10px;">This will clear the current department head.</div>' +
+                '<div style="display:flex; justify-content:flex-end; gap:8px;">' +
+                    '<button type="button" id="removeHeadToastCancel" class="btn btn-default btn-sm">Cancel</button>' +
+                    '<button type="button" id="removeHeadToastYes" class="btn btn-danger btn-sm">Yes, remove</button>' +
+                '</div>';
+
+            document.body.appendChild(wrapper);
+
+            function closeAndResolve(val){
+                var node = document.getElementById('removeHeadToastConfirm');
+                if(node){ node.remove(); }
+                resolve(!!val);
+            }
+
+            document.getElementById('removeHeadToastCancel').addEventListener('click', function(){ closeAndResolve(false); });
+            document.getElementById('removeHeadToastYes').addEventListener('click', function(){ closeAndResolve(true); });
+        });
+    }
+
     function removeHeadHandler(e){
         var id = this.getAttribute('data-id');
-        if(!confirm('Remove department head?')) return;
-        var url = baseUrl + '/hrm/departments/' + id + '/head';
-        fetch(url, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } }).then(function(r){ return r.json(); }).then(function(data){
-            if(data && data.success){
-                var row = document.querySelector('tr[data-id="'+id+'"]'); if(row){ row.querySelector('.head-cell').textContent = '-'; var btn = row.querySelector('.remove-head-btn'); if(btn) btn.remove(); }
-                showToast('Department head removed', 'success');
-            } else { showToast('Failed to remove head', 'error'); }
-        }).catch(function(){ showToast('Request failed', 'error'); });
+        askRemoveHeadConfirm().then(function(confirmed){
+            if(!confirmed){ return; }
+            var url = baseUrl + '/hrm/departments/' + id + '/head';
+            fetch(url, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } }).then(function(r){ return r.json(); }).then(function(data){
+                if(data && data.success){
+                    var row = document.querySelector('tr[data-id="'+id+'"]'); if(row){ row.querySelector('.head-cell').textContent = '-'; var btn = row.querySelector('.remove-head-btn'); if(btn) btn.remove(); }
+                    showToast('Department head removed', 'success');
+                } else { showToast('Failed to remove head', 'error'); }
+            }).catch(function(){ showToast('Request failed', 'error'); });
+        });
     }
 
     document.addEventListener('click', function(e){ var t = e.target; if(t && t.classList.contains('remove-head-btn')){ removeHeadHandler.call(t, e); } });

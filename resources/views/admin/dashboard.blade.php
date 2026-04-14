@@ -96,6 +96,23 @@
         </div>
     </div>
 
+    @php
+        $hrm_enabled = false;
+        $user = auth()->user();
+        $business = session('business') ?? null;
+        $enabled_modules = (array) ($business['enabled_modules'] ?? []);
+        if ($user) {
+            $has_hrm_perm = $user->can('hrm.access')
+                || $user->can('hrm.companies')
+                || $user->can('hrm.departments')
+                || $user->can('hrm.designations')
+                || $user->can('hrm.office_shifts')
+                || $user->can('hrm.employees')
+                || $user->can('hrm.payrolls');
+            $hrm_enabled = (in_array('hrm', $enabled_modules) || in_array('Hrm', $enabled_modules)) && $has_hrm_perm;
+        }
+    @endphp
+
     <!-- Management & Configuration Cards -->
     <div class="tw-grid tw-grid-cols-1 tw-gap-4 sm:tw-grid-cols-2 xl:tw-grid-cols-4 sm:tw-gap-5 tw-mb-5">
         <!-- Subscription Enforcement -->
@@ -208,6 +225,26 @@
                 </div>
             </div>
         </div>
+
+        @if($hrm_enabled)
+        <!-- HRM Module Shortcut -->
+        <a href="{{ url('/hrm') }}" class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-indigo-200 tw-cursor-pointer tw-flex tw-items-stretch">
+            <div class="tw-p-4 sm:tw-p-5 tw-flex tw-items-center tw-gap-4 tw-w-full">
+                <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-indigo-100 tw-text-indigo-600">
+                    <i class="fas fa-user-tie"></i>
+                </div>
+                <div class="tw-flex-1 tw-min-w-0">
+                    <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">Human Resource Management</p>
+                    <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">
+                        Open HRM (employees, leave, HR payroll, departments)
+                    </p>
+                </div>
+                <div class="tw-hidden sm:tw-flex tw-items-center tw-text-indigo-500">
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+            </div>
+        </a>
+        @endif
 
         <!-- Invoicing -->
         <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('invoicingModal')">

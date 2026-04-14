@@ -116,7 +116,7 @@
 @stop
 @section('javascript')
     <script src="{{ asset('js/purchase.js?v=' . $asset_v) }}"></script>
-    <script src="{{ asset('js/payment.js?v=' . $asset_v) }}"></script>
+    <script src="{{ asset('js/payment.js?v=' . filemtime(public_path('js/payment.js'))) }}"></script>
     <script>
         //Date range as a button
         $('#purchase_list_filter_date_range').daterangepicker(

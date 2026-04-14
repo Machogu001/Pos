@@ -3,6 +3,8 @@
 namespace App\Utils;
 
 use App\Barcode;
+use App\Account;
+use App\AccountType;
 use App\Business;
 use App\BusinessLocation;
 use App\Contact;
@@ -141,6 +143,8 @@ class BusinessUtil extends Util
             NotificationTemplate::create($notification_template);
         }
 
+        $this->provisionDefaultAccountMappings($business_id, $user_id);
+
         return true;
     }
 
@@ -196,6 +200,16 @@ class BusinessUtil extends Util
      */
     public function createNewBusiness($business_details)
     {
+        $enabledModules = ! empty($business_details['enabled_modules'])
+            ? (array) $business_details['enabled_modules']
+            : ['purchases', 'add_sale', 'pos_sale', 'stock_transfers', 'stock_adjustment', 'expenses', 'account'];
+
+        if (! in_array('account', $enabledModules, true)) {
+            $enabledModules[] = 'account';
+        }
+
+        $business_details['enabled_modules'] = array_values(array_unique($enabledModules));
+
         $business_details['sell_price_tax'] = 'includes';
 
         $business_details['default_profit_percent'] = 25;
@@ -222,6 +236,185 @@ class BusinessUtil extends Util
         $business = Business::create_business($business_details);
 
         return $business;
+    }
+
+    public function provisionDefaultAccountMappings($business_id, $user_id = null)
+    {
+        $business = Business::find($business_id);
+
+        if (empty($business)) {
+            return false;
+        }
+
+        $enabledModules = is_array($business->enabled_modules) ? $business->enabled_modules : [];
+        if (! in_array('account', $enabledModules, true)) {
+            return false;
+        }
+
+        $user_id = $user_id ?: $business->owner_id;
+        $commonSettings = Business::normalizeCommonSettings($business->common_settings ?: []);
+        $typeMappings = ! empty($commonSettings['default_account_mappings']) && is_array($commonSettings['default_account_mappings'])
+            ? $commonSettings['default_account_mappings']
+            : [];
+
+        $accountBlueprints = [
+            'sell' => ['name' => 'Sales/Revenue', 'candidates' => ['Sales/Revenue', 'Sales', 'Revenue'], 'number' => 4010, 'type' => 'Income', 'sub_type' => 'Sales Revenue'],
+            'purchase' => ['name' => 'Accounts Payable', 'candidates' => ['Accounts Payable', 'Trade Payables'], 'number' => 2010, 'type' => 'Liabilities', 'sub_type' => 'Payables'],
+            'expense' => ['name' => 'Office Expenses', 'candidates' => ['Office Expenses', 'Expenses'], 'number' => 6000, 'type' => 'Expenses', 'sub_type' => 'Operating Expenses'],
+            'payroll' => ['name' => 'Payroll', 'candidates' => ['Payroll', 'Payroll Expense'], 'number' => 6010, 'type' => 'Expenses', 'sub_type' => 'Operating Expenses'],
+            'payment' => ['name' => 'Bank', 'candidates' => ['Bank', 'Cash at Bank', 'Bank Account', 'Cash'], 'number' => 1010, 'type' => 'Assets', 'sub_type' => 'Cash & Bank'],
+            'cogs' => ['name' => 'Cost of Goods', 'candidates' => ['Cost of Goods', 'Cost of Goods Sold', 'COGS'], 'number' => 5010, 'type' => 'Expenses', 'sub_type' => 'Cost of Goods Sold'],
+            'inventory' => ['name' => 'Inventory', 'candidates' => ['Inventory', 'Stock'], 'number' => 1200, 'type' => 'Assets', 'sub_type' => 'Inventory'],
+            'inventory_gain' => ['name' => 'Inventory Gain', 'candidates' => ['Inventory Gain'], 'number' => 4090, 'type' => 'Income', 'sub_type' => 'Other Income'],
+            'inventory_loss' => ['name' => 'Inventory Loss', 'candidates' => ['Inventory Loss', 'Inventory Adjustment'], 'number' => 6090, 'type' => 'Expenses', 'sub_type' => 'Other Expenses (Inventory Adjustment)'],
+            'purchase_tax' => ['name' => 'Input VAT', 'candidates' => ['Input (Purchase) VAT 16 %', 'Input VAT', 'Purchase Tax'], 'number' => 1150, 'type' => 'Assets', 'sub_type' => 'Other Assets'],
+            'sales_tax' => ['name' => 'Output VAT', 'candidates' => ['Output (Sales) VAT 16 %', 'Output VAT', 'Sales Tax'], 'number' => 2105, 'type' => 'Liabilities', 'sub_type' => 'Taxes Payable'],
+            'accounts_receivable' => ['name' => 'Accounts Receivable', 'candidates' => ['Accounts Receivable', 'Trade Receivables'], 'number' => 1100, 'type' => 'Assets', 'sub_type' => 'Receivables'],
+            'opening_stock_equity' => ['name' => 'Opening Stock Equity', 'candidates' => ['Opening Stock Equity'], 'number' => 3100, 'type' => 'Equity', 'sub_type' => null],
+        ];
+
+        $updated = false;
+
+        foreach ($accountBlueprints as $mappingKey => $blueprint) {
+            $account = null;
+
+            if (! empty($typeMappings[$mappingKey])) {
+                $account = Account::where('business_id', $business_id)
+                    ->where('id', $typeMappings[$mappingKey])
+                    ->first();
+            }
+
+            if (empty($account)) {
+                $account = $this->findBusinessAccountByCandidates($business_id, $blueprint['candidates']);
+            }
+
+            if (empty($account)) {
+                $account = Account::create([
+                    'business_id' => $business_id,
+                    'name' => $blueprint['name'],
+                    'account_number' => $this->nextAvailableBusinessAccountNumber($business_id, $blueprint['number']),
+                    'account_type_id' => $this->ensureBusinessAccountTypeId($business_id, $blueprint['type'], $blueprint['sub_type'] ?? null),
+                    'created_by' => $user_id,
+                ]);
+            }
+
+            $targetAccountTypeId = $this->ensureBusinessAccountTypeId($business_id, $blueprint['type'], $blueprint['sub_type'] ?? null);
+            if (! empty($targetAccountTypeId) && (int) $account->account_type_id !== (int) $targetAccountTypeId) {
+                $account->account_type_id = $targetAccountTypeId;
+                $account->save();
+            }
+
+            if (($typeMappings[$mappingKey] ?? null) != $account->id) {
+                $typeMappings[$mappingKey] = $account->id;
+                $updated = true;
+            }
+        }
+
+        if (empty($typeMappings['tax']) && ! empty($typeMappings['sales_tax'])) {
+            $typeMappings['tax'] = $typeMappings['sales_tax'];
+            $updated = true;
+        }
+
+        if ($updated) {
+            $commonSettings['default_account_mappings'] = $typeMappings;
+            $business->common_settings = $commonSettings;
+            $business->save();
+        }
+
+        return true;
+    }
+
+    protected function findBusinessAccountByCandidates($business_id, array $candidates)
+    {
+        foreach ($candidates as $candidate) {
+            $account = Account::where('business_id', $business_id)
+                ->whereRaw('LOWER(name) = ?', [strtolower($candidate)])
+                ->first();
+
+            if (! empty($account)) {
+                return $account;
+            }
+        }
+
+        return null;
+    }
+
+    protected function ensureBusinessAccountTypeId($business_id, $typeLabel, $subTypeLabel = null)
+    {
+        $majorType = $this->ensureBusinessMajorAccountType($business_id, $typeLabel);
+
+        if (empty($subTypeLabel)) {
+            return ! empty($majorType) ? $majorType->id : null;
+        }
+
+        $normalizedSubTypeLabel = strtolower(trim((string) $subTypeLabel));
+
+        $accountType = AccountType::where('business_id', $business_id)
+            ->where('parent_account_type_id', $majorType->id)
+            ->whereRaw('LOWER(name) = ?', [$normalizedSubTypeLabel])
+            ->first();
+
+        if (! empty($accountType)) {
+            return $accountType->id;
+        }
+
+        $accountType = AccountType::create([
+            'business_id' => $business_id,
+            'name' => $subTypeLabel,
+            'parent_account_type_id' => $majorType->id,
+        ]);
+
+        return $accountType->id;
+    }
+
+    protected function ensureBusinessMajorAccountType($business_id, $typeLabel)
+    {
+        $typeLabel = strtolower(trim((string) $typeLabel));
+
+        $accountType = AccountType::where('business_id', $business_id)
+            ->where(function ($query) use ($typeLabel) {
+                $query->whereRaw('LOWER(name) = ?', [$typeLabel])
+                    ->orWhereHas('parent_account', function ($parentQuery) use ($typeLabel) {
+                        $parentQuery->whereRaw('LOWER(name) = ?', [$typeLabel]);
+                    });
+            })
+            ->orderByRaw('CASE WHEN parent_account_type_id IS NULL THEN 0 ELSE 1 END')
+            ->orderBy('id')
+            ->first();
+
+        if (! empty($accountType)) {
+            return $accountType;
+        }
+
+        $typeNameMap = [
+            'assets' => 'Assets',
+            'asset' => 'Assets',
+            'liabilities' => 'Liabilities',
+            'liability' => 'Liabilities',
+            'equity' => 'Equity',
+            'income' => 'Income',
+            'expenses' => 'Expenses',
+            'expense' => 'Expenses',
+        ];
+
+        return AccountType::create([
+            'business_id' => $business_id,
+            'name' => $typeNameMap[$typeLabel] ?? ucfirst($typeLabel),
+            'parent_account_type_id' => null,
+        ]);
+    }
+
+    protected function nextAvailableBusinessAccountNumber($business_id, $candidate)
+    {
+        $candidate = (int) $candidate;
+
+        while (Account::where('business_id', $business_id)
+            ->where('account_number', (string) $candidate)
+            ->exists()) {
+            $candidate++;
+        }
+
+        return (string) $candidate;
     }
 
     /**

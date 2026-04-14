@@ -1560,6 +1560,7 @@ function updateStockAdjustmentReport() {
     var loader = __fa_awesome();
     $('.total_amount').html(loader);
     $('.total_recovered').html(loader);
+    $('.total_stocktake_adjustment').html(loader);
     $('.total_normal').html(loader);
     $('.total_abnormal').html(loader);
 
@@ -1571,6 +1572,7 @@ function updateStockAdjustmentReport() {
         success: function(data) {
             $('.total_amount').html(__currency_trans_from_en(data.total_amount, true));
             $('.total_recovered').html(__currency_trans_from_en(data.total_recovered, true));
+                $('.total_stocktake_adjustment').html(__currency_trans_from_en(data.total_stocktake_adjustment, true));
             $('.total_normal').html(__currency_trans_from_en(data.total_normal, true));
             $('.total_abnormal').html(__currency_trans_from_en(data.total_abnormal, true));
         },

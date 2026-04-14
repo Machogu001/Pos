@@ -9,26 +9,34 @@ class LeavePolicy
 {
     public function viewAny($user)
     {
-        return $user->hasRole('Admin#' . session('business.id')) || $user->can('leave.view');
+        return $user->hasRole('Admin#' . session('business.id'))
+            || $user->can('leave.view')
+            || $user->can('hrm.leaves');
     }
 
     public function view($user, Leave $leave = null)
     {
-        return $user->hasRole('Admin#' . session('business.id')) || $user->can('leave.view');
+        return $this->viewAny($user);
     }
 
     public function create($user)
     {
-        return $user->hasRole('Admin#' . session('business.id')) || $user->can('leave.create');
+        return $user->hasRole('Admin#' . session('business.id'))
+            || $user->can('leave.create')
+            || $user->can('hrm.leaves');
     }
 
     public function update($user, Leave $leave = null)
     {
-        return $user->hasRole('Admin#' . session('business.id')) || $user->can('leave.update');
+        return $user->hasRole('Admin#' . session('business.id'))
+            || $user->can('leave.update')
+            || $user->can('hrm.leaves');
     }
 
     public function delete($user, Leave $leave = null)
     {
-        return $user->hasRole('Admin#' . session('business.id')) || $user->can('leave.delete');
+        return $user->hasRole('Admin#' . session('business.id'))
+            || $user->can('leave.delete')
+            || $user->can('hrm.leaves');
     }
 }

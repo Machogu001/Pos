@@ -277,15 +277,20 @@ class Stocktake extends Model
 
     public function getTotalVarianceValueAttribute(): float
     {
-        return $this->items->sum(fn ($item) =>
-            $item->variance * optional($item->variation)->default_sell_price
-        );
+        return $this->items->sum(fn ($item) => $item->value_variance);
     }
 
     public function getTotalCountedValueAttribute(): float
     {
         return $this->items->sum(fn ($item) =>
             $item->counted_quantity * optional($item->variation)->default_sell_price
+        );
+    }
+
+    public function getTotalCountedPurchaseValueAttribute(): float
+    {
+        return $this->items->sum(fn ($item) =>
+            $item->counted_quantity * $item->purchase_price
         );
     }
 
@@ -412,6 +417,7 @@ class Stocktake extends Model
             'payment_status'    => 'paid',
             'transaction_date'  => now(),
             'created_by'        => auth()->id(),
+            'is_stocktake'      => 1,
             'additional_notes'  => 'Stocktake adjustment for ' . $this->reference_no,
         ], $adjustmentData));
 

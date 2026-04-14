@@ -1,68 +1,77 @@
 @extends('layouts.app')
 
+@section('title', 'Create Payroll')
+
 @section('content')
-<div class="container">
-    <h2>Create Payroll</h2>
-    <form method="POST" action="{{ route('hrm.payrolls.store') }}">
-        @csrf
-        @include('hrm::partials.hrm_form_toolbar')
+@include('hrm::partials.hrm_page_header', [
+    'title' => 'Create Payroll',
+    'subtitle' => 'Process salary batches and keep posting status visible for accounting review.',
+    'actions' => '<a href="'.route('hrm.payrolls.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Payroll</a>'
+])
 
-        <div class="form-group">
-            <label>Company</label>
-            <select name="company_id" id="company_id" class="form-control">
-                <option value="">-- Select Company --</option>
-                @foreach($companies as $c)
-                    @php
-                        $isBusiness = isset($c->business_id) && $c->business_id == session('business.id');
-                        $label = $isBusiness ? 'Business - ' . $c->name : $c->name;
-                    @endphp
-                    <option value="{{ $c->id }}">{{ $label }}</option>
-                @endforeach
-            </select>
+<section class="content">
+    <div class="box box-success">
+        <div class="box-header with-border">
+            <h3 class="box-title">Payroll Batch</h3>
         </div>
-
-        <div class="form-group">
-            <label>Employee(s)</label>
-            <div class="d-flex gap-2 mb-2">
-                <div>
-                    <button type="button" id="select-all-employees" class="btn btn-sm btn-outline-secondary">Select all for company</button>
+        <form method="POST" action="{{ route('hrm.payrolls.store') }}">
+            @csrf
+            @include('hrm::partials.hrm_form_toolbar')
+            <div class="box-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Company</label>
+                            <select name="company_id" id="company_id" class="form-control">
+                                <option value="">-- Select Company --</option>
+                                @foreach($companies as $c)
+                                    @php
+                                        $isBusiness = isset($c->business_id) && $c->business_id == session('business.id');
+                                        $label = $isBusiness ? 'Business - ' . $c->name : $c->name;
+                                    @endphp
+                                    <option value="{{ $c->id }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Period Start</label>
+                            <input type="date" name="period_start" class="form-control" required />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Period End</label>
+                            <input type="date" name="period_end" class="form-control" required />
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <button type="button" id="clear-employees" class="btn btn-sm btn-outline-secondary">Clear selection</button>
+
+                <div class="form-group">
+                    <label>Employee(s)</label>
+                    <div class="btn-toolbar" style="margin-bottom:10px; gap:8px;">
+                        <button type="button" id="select-all-employees" class="btn btn-sm btn-default">Select all for company</button>
+                        <button type="button" id="clear-employees" class="btn btn-sm btn-default">Clear selection</button>
+                    </div>
+                    <select name="employee_id[]" id="employee_id" class="form-control" multiple size="8">
+                        @foreach($employees as $e)
+                            <option value="{{ $e->id }}">{{ $e->username ?? $e->name }}</option>
+                        @endforeach
+                    </select>
+                    <small class="form-text text-muted">Use Ctrl/Cmd+click to select multiple employees, or use the buttons above to select/clear.</small>
                 </div>
+
+                <hr />
+                <div id="selectedPayrollRows"></div>
             </div>
-            <select name="employee_id[]" id="employee_id" class="form-control" multiple size="8">
-                @foreach($employees as $e)
-                    <option value="{{ $e->id }}">{{ $e->username ?? $e->name }}</option>
-                @endforeach
-            </select>
-            <small class="form-text text-muted">Use Ctrl/Cmd+click to select multiple employees, or use the buttons above to select/clear.</small>
-        </div>
 
-        <div class="form-row">
-            <div class="form-group col-md-6">
-                <label>Period Start</label>
-                <input type="date" name="period_start" class="form-control" required />
+            <div class="box-footer text-right">
+                <button class="btn btn-success" id="createPayrollBtn"><i class="fa fa-save"></i> Create Payroll</button>
             </div>
-            <div class="form-group col-md-6">
-                <label>Period End</label>
-                <input type="date" name="period_end" class="form-control" required />
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label>Gross</label>
-            <input type="number" step="0.01" name="gross" class="form-control" required />
-        </div>
-
-        <hr />
-        <div id="selectedPayrollRows">
-            <!-- dynamically generated per-employee payroll rows will appear here -->
-        </div>
-
-        <button class="btn btn-success" id="createPayrollBtn">Create Payroll</button>
-    </form>
-</div>
+        </form>
+    </div>
+</section>
 
 @endsection
 
@@ -112,7 +121,7 @@
 
         selectAllBtn.addEventListener('click', function(){
             var companyId = companySelect.value;
-            if (!companyId) { alert('Please select a company first'); return; }
+            if (!companyId) { window.hrmAlert('Please select a company first'); return; }
             loadEmployeesForCompany(companyId, true);
         });
 
@@ -338,6 +347,7 @@
                     if(data && data.basic_salary){
                         var input = document.querySelector('#row-'+id+' .gross-input'); if(input) input.value = parseFloat(data.basic_salary).toFixed(2);
                         var bp = document.querySelector('#row-'+id+' input[name="basic_pay['+id+']"]'); if(bp) bp.value = parseFloat(data.basic_salary).toFixed(2);
+                        var ded = document.querySelector('#row-'+id+' .deductions-input'); if(ded) ded.value = parseFloat(data.default_deductions || 0).toFixed(2);
                         var ev = new Event('input',{bubbles:true}); input && input.dispatchEvent(ev);
                     }
                 } catch(e){}
@@ -350,7 +360,7 @@
         var form = document.querySelector('form');
         form.addEventListener('submit', function(e){
             var has = rowsContainer.querySelectorAll('[id^="row-"]').length > 0;
-            if(!has){ e.preventDefault(); alert('Please select at least one employee for payroll creation'); }
+            if(!has){ e.preventDefault(); window.hrmAlert('Please select at least one employee for payroll creation'); }
         });
 
     // expose for other scripts and handle deferred calls
@@ -377,17 +387,3 @@
 @endsection
 
 @push('scripts')
-<script>
-    // Debug AJAX POST for payrolls
-    (function(){
-        var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn btn-outline-primary mt-2'; btn.id = 'ajax-payrolls-debug'; btn.innerText = 'Send debug POST';
-        var container = document.querySelector('.container'); container.appendChild(btn);
-        var out = document.createElement('pre'); out.id = 'ajax-payrolls-result'; out.style.whiteSpace = 'pre-wrap'; container.appendChild(out);
-        btn.addEventListener('click', function(){
-            var form = document.querySelector('form'); var fd = new FormData(form);
-            fetch("{{ route('hrm.payrolls.debug') }}", { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }, body: fd })
-            .then(r=>r.json().catch(()=>r.text())).then(function(d){ out.textContent = JSON.stringify(d, null, 2); }).catch(function(e){ out.textContent = 'Error: '+e; });
-        });
-    })();
-</script>
-@endpush

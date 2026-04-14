@@ -6,33 +6,25 @@ use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use App\Models\Company;
 use App\Models\Designation;
-use App\Models\EmployeeExperience;
-use App\Models\EmployeeDocument;
 use App\Models\EmployeeAccount;
 use App\Models\Department;
 use App\Models\OfficeShift;
-use App\Models\Leave;
-use App\Models\LeaveType;
-use App\Models\Award;
-use App\Models\Travel;
-use App\Models\Complaint;
-use App\Models\Project;
-use App\Models\Task;
-use App\Models\Training;
 use App\utils\helpers;
 use App\Business;
 use App\User;
+use App\Services\Hrm\SystemUserEmployeeSyncService;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Illuminate\Http\Request;
-use Intervention\Image\ImageManagerStatic as Image;
+use Modules\Hrm\Http\Controllers\Concerns\AuditsHrmActions;
+use Modules\Hrm\Http\Requests\StoreEmployeeRequest;
+use Modules\Hrm\Http\Requests\UpdateEmployeeRequest;
 
 class EmployeesController extends Controller
 {
+    use AuditsHrmActions;
+
 
     /**
      * Resolve the authenticated user for authorization checks.
@@ -52,6 +44,9 @@ class EmployeesController extends Controller
         if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.employees'))) {
             abort(403);
         }
+
+        // Keep HRM employee list aligned with active system login users.
+        app(SystemUserEmployeeSyncService::class)->sync(session('business.id'));
         // How many items do you want to display.
         $perPageRaw = $request->limit ?? 10;
         if ($perPageRaw == "-1") {
@@ -109,11 +104,15 @@ class EmployeesController extends Controller
             $with[] = 'designation:id,designation';
         }
 
-        $employees = Employee::when(!empty($with), function($q) use ($with) {
+        $businessId = session('business.id');
+
+        $employees = Employee::when(!empty($with), function ($q) use ($with) {
                 return $q->with($with);
             })
             ->where('deleted_at', '=', null)
-            ->where('leaving_date' , NULL);
+            ->where('leaving_date', null)
+            // Multi-tenant: scope to current business
+            ->when($businessId, fn($q) => $q->where('business_id', $businessId));
 
          //Multiple Filter
         $Filtred = $helpers->filter($employees, $columns, $param, $request)
@@ -147,6 +146,7 @@ class EmployeesController extends Controller
                 $item['department_name'] = optional($employee->department)->department;
                 $item['designation_name'] = optional($employee->designation)->designation;
                 $item['office_shift_name'] = optional($employee->office_shift)->name;
+                $item['is_system_user'] = (bool) ($employee->is_system_user ?? false);
                 $data[] = $item;
             }
 
@@ -174,6 +174,7 @@ class EmployeesController extends Controller
             $item['department_name'] = optional($employee->department)->department;
             $item['designation_name'] = optional($employee->designation)->designation;
             $item['office_shift_name'] = optional($employee->office_shift)->name;
+            $item['is_system_user'] = (bool) ($employee->is_system_user ?? false);
             $data[] = $item;
         }
 
@@ -228,61 +229,53 @@ class EmployeesController extends Controller
 
   //----------------Store  Employee ---------------\\
 
-    public function store(Request $request)
+    public function store(StoreEmployeeRequest $request)
     {
-        $user = $this->getAuthUser($request);
-        if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.employees'))) {
-            abort(403);
+        $defaultLeave   = config('hrm.default_annual_leave', 21);
+        $totalLeave     = $request->filled('total_leave') ? intval($request->total_leave) : $defaultLeave;
+        $remainingLeave = $request->filled('remaining_leave') ? intval($request->remaining_leave) : $totalLeave;
+        $remainingLeave = min($totalLeave, max(0, $remainingLeave));
+
+        $emp = Employee::create([
+            'firstname'       => $request->firstname,
+            'lastname'        => $request->lastname,
+            // display_name: full name stored as username (not a login identifier)
+            'username'        => trim($request->firstname.' '.$request->lastname),
+            'email'           => $request->email,
+            'gender'          => $request->gender,
+            'phone'           => $request->phone,
+            'birth_date'      => $request->birth_date,
+            'country'         => $request->country,
+            'address'         => $request->address,
+            'city'            => $request->city,
+            'province'        => $request->province,
+            'zipcode'         => $request->zipcode,
+            'marital_status'  => $request->marital_status,
+            'employment_type' => $request->employment_type,
+            'basic_salary'    => $request->basic_salary,
+            'hourly_rate'     => $request->hourly_rate,
+            'company_id'      => $request->company_id,
+            'business_id'     => session('business.id'),
+            'department_id'   => $request->department_id,
+            'designation_id'  => $request->designation_id,
+            'office_shift_id' => $request->office_shift_id,
+            'joining_date'    => $request->joining_date,
+            'total_leave'     => $totalLeave,
+            'remaining_leave' => $remainingLeave,
+        ]);
+
+        $this->logHrmAudit('hrm.employee.created', [
+            'employee_id' => $emp->id,
+            'company_id' => $emp->company_id,
+            'department_id' => $emp->department_id,
+            'designation_id' => $emp->designation_id,
+        ], $emp);
+
+        if ($request->wantsJson() || $request->expectsJson()) {
+            return response()->json(['success' => true, 'employee' => $emp]);
         }
 
-            $this->validate($request, [
-                'firstname'      => 'required|string',
-                'lastname'       => 'required|string',
-                'gender'         => 'required',
-                'company_id'     => 'required',
-                // department, designation and office_shift are optional in the form ("--"),
-                // allow nulls so the record can be created and updated later via edit.
-                'department_id'  => 'nullable',
-                'designation_id' => 'nullable',
-                'office_shift_id'=> 'nullable',
-                'total_leave'    => 'nullable|integer|min:0',
-                'remaining_leave'=> 'nullable|integer|min:0',
-            ]);
-          
-            $data = [];
-            $data['firstname'] = $request['firstname'];
-            $data['lastname'] = $request['lastname'];
-            $data['username'] = $request['firstname'] .' '.$request['lastname'];
-            $data['country'] = $request['country'];
-            $data['email'] = $request['email'];
-            $data['gender'] = $request['gender'];
-            $data['phone'] = $request['phone'];
-            $data['birth_date'] = $request['birth_date'];
-            $data['company_id'] = $request['company_id'];
-            $data['department_id'] = $request['department_id'];
-            $data['designation_id'] = $request['designation_id'];
-            $data['office_shift_id'] = $request['office_shift_id'];
-            $data['joining_date'] = $request['joining_date'];
-            // Default annual leave entitlement (days) if not provided
-            $defaultLeave = config('hrm.default_annual_leave', 21);
-            $data['total_leave'] = isset($request->total_leave) ? intval($request->total_leave) : $defaultLeave;
-            // If remaining_leave provided, use it; otherwise initialize to total_leave
-            $data['remaining_leave'] = isset($request->remaining_leave) ? intval($request->remaining_leave) : $data['total_leave'];
-            // Ensure remaining_leave is not greater than total_leave and not negative
-            if ($data['remaining_leave'] > $data['total_leave']) {
-                $data['remaining_leave'] = $data['total_leave'];
-            }
-            if ($data['remaining_leave'] < 0) {
-                $data['remaining_leave'] = 0;
-            }
-
-            $emp = Employee::create($data);
-
-            if ($request->wantsJson() || $request->expectsJson()) {
-                return response()->json(['success' => true, 'employee' => $emp]);
-            }
-
-            return redirect()->route('hrm.employees.index')->with('success', 'Created successfully');
+        return redirect()->route('hrm.employees.index')->with('success', 'Employee created successfully.');
     }
 
    
@@ -336,18 +329,79 @@ class EmployeesController extends Controller
         } else {
             $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
         }
-    $office_shifts = Schema::hasTable('office_shifts') ? OfficeShift::where('company_id' , $employee->company_id)->where('deleted_at', '=', null)->get(['id','name']) : collect([]);
-    // Prefer company-scoped departments, but fall back to all departments so admin can assign one even
-    // when the employee has no company or the company has no departments yet.
-    if (Schema::hasTable('departments')) {
-        $departments = Department::where('company_id' , $employee->company_id)->where('deleted_at', '=', null)->get(['id','department','company_id']);
-        if ($departments->isEmpty()) {
-            $departments = Department::where('deleted_at', '=', null)->orderBy('id','desc')->get(['id','department','company_id']);
+
+        // Office shifts: prefer company-scoped, then fall back to all active shifts.
+        if (Schema::hasTable('office_shifts')) {
+            $officeShiftsQuery = OfficeShift::where('deleted_at', '=', null);
+            if (!empty($employee->company_id)) {
+                $officeShiftsQuery->where('company_id', $employee->company_id);
+            }
+            $office_shifts = $officeShiftsQuery->get(['id', 'name']);
+
+            if ($office_shifts->isEmpty()) {
+                $office_shifts = OfficeShift::where('deleted_at', '=', null)
+                    ->orderBy('name', 'asc')
+                    ->get(['id', 'name']);
+            }
+
+            // Keep current assignment selectable even if it falls outside filters.
+            if (!empty($employee->office_shift_id) && !$office_shifts->pluck('id')->contains($employee->office_shift_id)) {
+                $currentShift = OfficeShift::where('id', $employee->office_shift_id)->first(['id', 'name']);
+                if ($currentShift) {
+                    $office_shifts->prepend($currentShift);
+                }
+            }
+        } else {
+            $office_shifts = collect([]);
         }
-    } else {
-        $departments = collect([]);
-    }
-    $designations = Schema::hasTable('designations') ? Designation::where('department_id' , $employee->department_id)->where('deleted_at', '=', null)->get(['id','designation']) : collect([]);
+
+        // Prefer company-scoped departments, but fall back to all departments so admin can assign one even
+        // when the employee has no company or the company has no departments yet.
+        if (Schema::hasTable('departments')) {
+            $departments = Department::where('company_id' , $employee->company_id)->where('deleted_at', '=', null)->get(['id','department','company_id']);
+            if ($departments->isEmpty()) {
+                $departments = Department::where('deleted_at', '=', null)->orderBy('id','desc')->get(['id','department','company_id']);
+            }
+        } else {
+            $departments = collect([]);
+        }
+
+        // Designations: prefer department-scoped, then company-scoped, then all active designations.
+        if (Schema::hasTable('designations')) {
+            $designationsQuery = Designation::where('deleted_at', '=', null);
+            if (!empty($employee->department_id)) {
+                $designationsQuery->where('department_id', $employee->department_id);
+            }
+            $designations = $designationsQuery->get(['id', 'designation', 'department_id']);
+
+            if ($designations->isEmpty() && !empty($employee->company_id)) {
+                $departmentIds = Department::where('company_id', $employee->company_id)
+                    ->where('deleted_at', '=', null)
+                    ->pluck('id');
+                if ($departmentIds->isNotEmpty()) {
+                    $designations = Designation::whereIn('department_id', $departmentIds)
+                        ->where('deleted_at', '=', null)
+                        ->get(['id', 'designation', 'department_id']);
+                }
+            }
+
+            if ($designations->isEmpty()) {
+                $designations = Designation::where('deleted_at', '=', null)
+                    ->orderBy('designation', 'asc')
+                    ->get(['id', 'designation', 'department_id']);
+            }
+
+            // Keep current assignment selectable even if it falls outside filters.
+            if (!empty($employee->designation_id) && !$designations->pluck('id')->contains($employee->designation_id)) {
+                $currentDesignation = Designation::where('id', $employee->designation_id)->first(['id', 'designation', 'department_id']);
+                if ($currentDesignation) {
+                    $designations->prepend($currentDesignation);
+                }
+            }
+        } else {
+            $designations = collect([]);
+        }
+
         // If request expects JSON (AJAX/API), return JSON; otherwise render the classic Blade edit page
         if ($request->wantsJson() || $request->expectsJson()) {
             return response()->json([
@@ -378,6 +432,12 @@ class EmployeesController extends Controller
             $employee->suspended = true;
         }
         $employee->save();
+
+        $this->logHrmAudit('hrm.employee.suspension_toggled', [
+            'employee_id' => $employee->id,
+            'suspended' => (bool) $employee->suspended,
+            'action' => $action,
+        ], $employee);
 
         return response()->json(['success' => true, 'suspended' => (bool) $employee->suspended]);
     }
@@ -438,55 +498,34 @@ class EmployeesController extends Controller
 
      //---------------- UPDATE Employee -------------\\
 
-     public function update(Request $request, $id)
+     public function update(UpdateEmployeeRequest $request, $id)
      {
-         $user = $this->getAuthUser($request);
-         if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.employees'))) {
-             abort(403);
-         }
- 
-         $this->validate($request, [
-                'firstname'      => 'required|string',
-                'lastname'       => 'required|string',
-                'country'        => 'required|string',
-                'gender'         => 'required',
-                'phone'          => 'required',
-                'total_leave'    => 'required|integer|min:0',
-                'remaining_leave'=> 'required|integer|min:0|lte:total_leave',
-                'company_id'     => 'required',
-            'department_id'  => 'nullable',
-            'designation_id' => 'nullable',
-            'office_shift_id'=> 'nullable',
-            'basic_salary'   => 'nullable|numeric',
-            'hourly_rate'     => 'nullable|numeric',
-        ]);
-
-       
-        $data = [];
-        $data['firstname'] = $request['firstname'];
-        $data['lastname'] = $request['lastname'];
-        $data['username'] = $request['firstname'] .' '.$request['lastname'];
-        $data['country'] = $request['country'];
-        $data['email'] = $request['email'];
-        $data['gender'] = $request['gender'];
-        $data['phone'] = $request['phone'];
-        $data['birth_date'] = $request['birth_date'];
-        $data['company_id'] = $request['company_id'];
-        $data['department_id'] = $request['department_id'];
-        $data['designation_id'] = $request['designation_id'];
-        $data['office_shift_id'] = $request['office_shift_id'];
-        $data['joining_date'] = $request['joining_date'];
-    $data['notes'] = $request['notes'] ?? null;
-        $data['role_users_id'] = $request['role_users_id'];
-        $data['leaving_date'] = $request['leaving_date']?$request['leaving_date']:NULL;
-        $data['marital_status'] = $request['marital_status'];
-        $data['employment_type'] = $request['employment_type'];
-        $data['city'] = $request['city'];
-        $data['province'] = $request['province'];
-        $data['zipcode'] = $request['zipcode'];
-        $data['address'] = $request['address'];
-        $data['basic_salary'] = $request['basic_salary'];
-        $data['hourly_rate'] = $request['hourly_rate'];
+        $data = [
+            'firstname'       => $request->firstname,
+            'lastname'        => $request->lastname,
+            'username'        => $request->firstname . ' ' . $request->lastname,
+            'country'         => $request->country,
+            'email'           => $request->email,
+            'gender'          => $request->gender,
+            'phone'           => $request->phone,
+            'birth_date'      => $request->birth_date,
+            'company_id'      => $request->company_id,
+            'department_id'   => $request->department_id,
+            'designation_id'  => $request->designation_id,
+            'office_shift_id' => $request->office_shift_id,
+            'joining_date'    => $request->joining_date,
+            'notes'           => $request->notes,
+            'role_users_id'   => $request->role_users_id,
+            'leaving_date'    => $request->leaving_date ?: null,
+            'marital_status'  => $request->marital_status,
+            'employment_type' => $request->employment_type,
+            'city'            => $request->city,
+            'province'        => $request->province,
+            'zipcode'         => $request->zipcode,
+            'address'         => $request->address,
+            'basic_salary'    => $request->basic_salary,
+            'hourly_rate'     => $request->hourly_rate,
+        ];
 
         // calculation of total_leave & remaining_leave with sanitization
         $employee_leave_info = Employee::find($id);
@@ -517,6 +556,16 @@ class EmployeesController extends Controller
         
             Employee::find($id)->update($data);
 
+        $updatedEmployee = Employee::find($id);
+        if ($updatedEmployee) {
+            $this->logHrmAudit('hrm.employee.updated', [
+                'employee_id' => $updatedEmployee->id,
+                'company_id' => $updatedEmployee->company_id,
+                'department_id' => $updatedEmployee->department_id,
+                'designation_id' => $updatedEmployee->designation_id,
+            ], $updatedEmployee);
+        }
+
         if ($request->wantsJson() || $request->expectsJson()) {
             return response()->json(['success' => true]);
         }
@@ -533,9 +582,20 @@ class EmployeesController extends Controller
             abort(403);
         }
 
-        Employee::whereId($id)->update([
+        $update = [
             'deleted_at' => Carbon::now(),
+        ];
+
+        if (Schema::hasColumn('employees', 'sync_disabled')) {
+            $update['sync_disabled'] = 1;
+        }
+
+        Employee::whereId($id)->update($update);
+
+        $this->logHrmAudit('hrm.employee.soft_deleted', [
+            'employee_id' => $id,
         ]);
+
         return response()->json(['success' => true]);
     }
 
@@ -604,6 +664,11 @@ class EmployeesController extends Controller
         }
         $emp->deleted_at = null;
         $emp->save();
+
+        $this->logHrmAudit('hrm.employee.restored', [
+            'employee_id' => $emp->id,
+        ], $emp);
+
         return response()->json(['success' => true]);
     }
 
@@ -618,7 +683,13 @@ class EmployeesController extends Controller
         if (! $emp) {
             return response()->json(['success' => false], 404);
         }
+        $employeeSnapshotId = $emp->id;
         $emp->delete();
+
+        $this->logHrmAudit('hrm.employee.force_deleted', [
+            'employee_id' => $employeeSnapshotId,
+        ]);
+
         return response()->json(['success' => true]);
     }
 
@@ -646,11 +717,19 @@ class EmployeesController extends Controller
             return response()->json(collect([]));
         }
 
+        $deductionTotals = collect([]);
+        if (Schema::hasTable('employee_deductions')) {
+            $deductionTotals = DB::table('employee_deductions')
+                ->select('employee_id', DB::raw('SUM(amount) as total_amount'))
+                ->groupBy('employee_id')
+                ->pluck('total_amount', 'employee_id');
+        }
+
         $employees = Employee::where('company_id', $companyId)
             ->where('deleted_at', '=', null)
             ->orderBy('id', 'desc')
             ->get(['id','username','firstname','lastname','basic_salary'])
-            ->map(function($e){
+            ->map(function($e) use ($deductionTotals){
                 $label = $e->username ?: trim((($e->firstname ?? '') . ' ' . ($e->lastname ?? '')));
                 return [
                     'id' => $e->id,
@@ -658,6 +737,7 @@ class EmployeesController extends Controller
                     'firstname' => $e->firstname,
                     'lastname' => $e->lastname,
                     'basic_salary' => $e->basic_salary ?? 0,
+                    'default_deductions' => round((float) ($deductionTotals[$e->id] ?? 0), 2),
                     'name' => $label ?: ('Employee #'.$e->id),
                 ];
             });
@@ -730,6 +810,7 @@ class EmployeesController extends Controller
                         'firstname' => $emp->firstname,
                         'lastname' => $emp->lastname,
                         'basic_salary' => $emp->basic_salary ?? 0,
+                        'default_deductions' => round((float) ($deductionTotals[$emp->id] ?? 0), 2),
                         'name' => $label ?: ('Employee #'.$emp->id),
                     ]);
                 }

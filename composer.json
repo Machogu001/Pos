@@ -64,6 +64,11 @@
         "files": [
             "app/Http/helpers.php"
         ],
+        "exclude-from-classmap": [
+            "Modules/*/Database/",
+            "Modules/*/Entities.disabled/",
+            "app/Http/Controllers/Restaurant/"
+        ],
         "classmap": [
             "database"
         ],

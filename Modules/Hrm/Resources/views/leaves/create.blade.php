@@ -1,15 +1,20 @@
 @extends('layouts.app')
 
+@section('title', 'Create Leave')
+
 @section('content')
-<div class="container py-4">
-    <div class="card shadow-sm">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">Create Leave</h4>
-            <div>
-                <a href="{{ route('hrm.leaves.index') }}" class="btn btn-secondary">Back to Leaves</a>
-            </div>
+@include('hrm::partials.hrm_page_header', [
+    'title' => 'Create Leave',
+    'subtitle' => 'Submit a leave request using a structured and easy-to-review form.',
+    'actions' => '<a href="'.route('hrm.leaves.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Leaves</a>'
+])
+
+<section class="content">
+    <div class="box box-warning">
+        <div class="box-header with-border">
+            <h3 class="box-title">Leave Request</h3>
         </div>
-        <div class="card-body">
+        <div class="box-body">
             <form id="leaveForm" enctype="multipart/form-data">
                 @csrf
                 <div class="row mb-3">
@@ -93,13 +98,13 @@
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary">Create</button>
+                <div class="text-right">
+                    <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Create Leave</button>
                 </div>
             </form>
         </div>
     </div>
-</div>
+</section>
 
 @push('scripts')
 <script>
@@ -210,14 +215,14 @@
                         if (window.playSuccess) { window.playSuccess(); }
                         window.location = '{{ route('hrm.leaves.index') }}';
                     } else if (json && json.isvalid === false && json.remaining_leave) {
-                        if (window.toastr) { toastr.error(json.remaining_leave); } else { alert(json.remaining_leave); }
+                        if (window.toastr) { toastr.error(json.remaining_leave); } else { window.hrmAlert(json.remaining_leave); }
                         if (window.playError) { window.playError(); }
                     } else {
-                        if (window.toastr) { toastr.error('Create failed'); } else { alert('Error creating leave'); }
+                        if (window.toastr) { toastr.error('Create failed'); } else { window.hrmAlert('Error creating leave'); }
                         if (window.playError) { window.playError(); }
                     }
                 })
-                .catch((err) => { if (window.toastr) { toastr.error('Network error'); } else { alert('Network error'); } if (window.playError) { window.playError(); } });
+                .catch((err) => { if (window.toastr) { toastr.error('Network error'); } else { window.hrmAlert('Network error'); } if (window.playError) { window.playError(); } });
         });
     });
 </script>

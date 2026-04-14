@@ -1,17 +1,6 @@
 <?php
 
-namespace App\Models;
+// Canonical HRM models live in app/Models. This placeholder avoids duplicate
+// class discovery under the Modules PSR-4 path.
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-
-class LeaveType extends Model
-{
-    use HasFactory;
-
-    protected $dates = ['deleted_at'];
-
-    protected $fillable = [
-        'title'
-    ];
-}
+return;

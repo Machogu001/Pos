@@ -36,11 +36,17 @@
 
 <script src="{{ asset('js/vendor.js?v=' . $asset_v) }}"></script>
 
-@if (file_exists(public_path('js/lang/' . session()->get('user.language', config('app.locale')) . '.js')))
-    <script src="{{ asset('js/lang/' . session()->get('user.language', config('app.locale')) . '.js?v=' . $asset_v) }}">
+@php
+    $selected_lang = session()->get('user.language', config('app.locale'));
+    $selected_lang_path = public_path('js/lang/' . $selected_lang . '.js');
+    $fallback_lang_path = public_path('js/lang/en.js');
+@endphp
+
+@if (file_exists($selected_lang_path))
+    <script src="{{ asset('js/lang/' . $selected_lang . '.js?v=' . filemtime($selected_lang_path)) }}">
     </script>
 @else
-    <script src="{{ asset('js/lang/en.js?v=' . $asset_v) }}"></script>
+    <script src="{{ asset('js/lang/en.js?v=' . filemtime($fallback_lang_path)) }}"></script>
 @endif
 @php
     $business_date_format = session('business.date_format', config('constants.default_date_format'));
@@ -279,11 +285,11 @@
     var __new_notification_count_interval = "{{ config('constants.new_notification_count_interval', 60) }}000";
 </script>
 
-@if (file_exists(public_path('js/lang/' . session()->get('user.language', config('app.locale')) . '.js')))
-    <script src="{{ asset('js/lang/' . session()->get('user.language', config('app.locale')) . '.js?v=' . $asset_v) }}">
+@if (file_exists($selected_lang_path))
+    <script src="{{ asset('js/lang/' . $selected_lang . '.js?v=' . filemtime($selected_lang_path)) }}">
     </script>
 @else
-    <script src="{{ asset('js/lang/en.js?v=' . $asset_v) }}"></script>
+    <script src="{{ asset('js/lang/en.js?v=' . filemtime($fallback_lang_path)) }}"></script>
 @endif
 
 <script src="{{ asset('js/functions.js?v=' . $asset_v) }}"></script>

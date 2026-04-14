@@ -70,14 +70,6 @@
 
 <div class="tw-px-5 tw-py-4">
 
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show shadow-sm border-0" role="alert">
-            <i class="fas fa-check-circle me-2"></i>
-            {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
     @if(session('error'))
         <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0" role="alert">
             <i class="fas fa-exclamation-triangle me-2"></i>
@@ -317,7 +309,7 @@
 
                             <div class="mb-3">
                                 <label class="form-label">{{ __('payment.phone_number_format') }}</label>
-                                <input type="text" class="form-control" id="phone" placeholder="2547XXXXXXXX" required value="{{ $latestPayment->phone_number ?? '' }}">
+                                <input type="text" class="form-control" id="phone" placeholder="254712345678 / 0712345678 / 0112345678" required value="{{ $latestPayment->phone_number ?? '' }}">
                                 <div class="form-text">{{ __('payment.we_will_send') }}</div>
                             </div>
 
@@ -1018,11 +1010,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Button bindings
     if(createBtn){
         createBtn.addEventListener('click', function() {
-            const phone = phoneInput.value.trim();
-            if (!/^2547\d{8}$/.test(phone)) {
+            const phone = normalizeKenyanPhone(phoneInput.value);
+            if (!phone) {
                 responseDiv.innerHTML = '<div class="alert alert-danger">{{ __("payment.invalid_phone_format") }}</div>';
                 return;
             }
+            phoneInput.value = phone;
             
             // Check if this is a renewal or new subscription
             @if($userSubscription && ($userSubscription->status === 'pending' || $userSubscription->status === 'expired'))
@@ -1035,11 +1028,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if(stkBtn){
         stkBtn.addEventListener('click', function() {
-            const phone = phoneInput.value.trim();
-            if (!/^2547\d{8}$/.test(phone)) {
+            const phone = normalizeKenyanPhone(phoneInput.value);
+            if (!phone) {
                 responseDiv.innerHTML = '<div class="alert alert-danger">{{ __("payment.invalid_phone_format") }}</div>';
                 return;
             }
+            phoneInput.value = phone;
+                function normalizeKenyanPhone(rawPhone) {
+                    const digits = String(rawPhone || '').trim().replace(/[^\d+]/g, '');
+
+                    if (/^(07|01)\d{8}$/.test(digits)) {
+                        return `254${digits.slice(1)}`;
+                    }
+
+                    if (/^\+?254[17]\d{8}$/.test(digits)) {
+                        return digits.replace(/^\+/, '');
+                    }
+
+                    return null;
+                }
+
             
             // Check if this is a renewal or new subscription
             @if($userSubscription && ($userSubscription->status === 'pending' || $userSubscription->status === 'expired'))

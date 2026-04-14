@@ -1,0 +1,85 @@
+{
+  "generatedAt": "2026-04-12T11:05:31.026Z",
+  "baseUrl": "https://pos.bremac.co.ke",
+  "authenticated": true,
+  "pages": [
+    {
+      "path": "/hrm",
+      "url": "https://pos.bremac.co.ke/hrm",
+      "findings": [
+        {
+          "type": "heading-order",
+          "severity": "low",
+          "count": 1,
+          "message": "Possible heading level skips"
+        }
+      ]
+    },
+    {
+      "path": "/hrm/employees",
+      "url": "https://pos.bremac.co.ke/hrm/employees",
+      "findings": [
+        {
+          "type": "form-labels",
+          "severity": "high",
+          "count": 1,
+          "message": "Form controls without associated labels"
+        },
+        {
+          "type": "heading-order",
+          "severity": "low",
+          "count": 1,
+          "message": "Possible heading level skips"
+        }
+      ]
+    },
+    {
+      "path": "/hrm/attendances",
+      "url": "https://pos.bremac.co.ke/hrm/attendances",
+      "findings": [
+        {
+          "type": "heading-order",
+          "severity": "low",
+          "count": 1,
+          "message": "Possible heading level skips"
+        }
+      ]
+    },
+    {
+      "path": "/hrm/leaves",
+      "url": "https://pos.bremac.co.ke/hrm/leaves",
+      "findings": [
+        {
+          "type": "form-labels",
+          "severity": "high",
+          "count": 1,
+          "message": "Form controls without associated labels"
+        },
+        {
+          "type": "heading-order",
+          "severity": "low",
+          "count": 1,
+          "message": "Possible heading level skips"
+        }
+      ]
+    },
+    {
+      "path": "/hrm/payrolls",
+      "url": "https://pos.bremac.co.ke/hrm/payrolls",
+      "findings": [
+        {
+          "type": "form-labels",
+          "severity": "high",
+          "count": 2,
+          "message": "Form controls without associated labels"
+        },
+        {
+          "type": "heading-order",
+          "severity": "low",
+          "count": 1,
+          "message": "Possible heading level skips"
+        }
+      ]
+    }
+  ]
+}

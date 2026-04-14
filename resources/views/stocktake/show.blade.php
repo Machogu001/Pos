@@ -23,8 +23,8 @@
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     @if($stocktake->status !== 'completed' && auth()->user()->can('stocktake.update'))
-                        <a href="{{ route('stocktakes.edit', $stocktake->id) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-edit me-1"></i> @lang('messages.edit')
+                        <a href="{{ route('stocktakes.edit', $stocktake->id) }}" class="btn btn-sm btn-outline-primary" title="Open this stocktake to verify or correct stocktake data">
+                            <i class="fas fa-edit me-1"></i> Open to Verify Data
                         </a>
                     @endif
                     @if($stocktake->status === 'completed' && $stocktake->adjustment_transaction_id)
@@ -577,8 +577,8 @@
                 @if($stocktake->status !== 'completed' && auth()->user()->can('stocktake.complete'))
                     <div class="d-flex gap-2">
                         @if(auth()->user()->can('stocktake.update'))
-                        <a href="{{ route('stocktakes.edit', $stocktake->id) }}" class="btn btn-primary">
-                            <i class="fas fa-edit me-2"></i> @lang('messages.edit')
+                        <a href="{{ route('stocktakes.edit', $stocktake->id) }}" class="btn btn-primary" title="Open this stocktake to verify or correct stocktake data">
+                            <i class="fas fa-edit me-2"></i> Open to Verify Data
                         </a>
                         @endif
                         <button type="button" class="btn btn-success" id="complete_stocktake" 
@@ -594,6 +594,7 @@
 @endsection
 
 @section('javascript')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 $(document).ready(function() {
     // Initialize tooltips
@@ -662,14 +663,13 @@ $(document).ready(function() {
             pageLength: 25,
             lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "@lang('stocktake.all')"]],
             columnDefs: [
-                { responsivePriority: 1, targets: 0 }, // Product name
-                { responsivePriority: 2, targets: -3 }, // Variance
-                { responsivePriority: 3, targets: -4 }, // Counted quantity
-                { responsivePriority: 4, targets: -5 }, // System quantity
-                { orderable: false, targets: [1, 2, -1] } // Disable sorting for lot, expiry, adjustment type
+                { responsivePriority: 1, targets: 0 },
+                { responsivePriority: 2, targets: -3 },
+                { responsivePriority: 3, targets: -4 },
+                { responsivePriority: 4, targets: -5 },
+                { orderable: false, targets: [1, 2, -1] }
             ],
             initComplete: function() {
-                // Add custom search input styling
                 $('.dataTables_filter input').addClass('form-control form-control-sm');
                 $('.dataTables_length select').addClass('form-control form-control-sm');
             }
@@ -680,17 +680,62 @@ $(document).ready(function() {
     $('#complete_stocktake').click(function() {
         const $button = $(this);
         const url = $button.data('url');
-        
+
+        const submitCompletion = () => {
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(response => {
+                if (response.success) {
+                    window.location.href = response.redirect || window.location.href;
+                } else {
+                    Swal.fire({
+                        title: '@lang('stocktake.error')',
+                        text: response.msg || '@lang('stocktake.something_went_wrong')',
+                        icon: 'error',
+                        confirmButtonText: '@lang('messages.ok')'
+                    });
+                }
+            })
+            .catch(error => {
+                Swal.fire({
+                    title: '@lang('stocktake.error')',
+                    text: error.message || '@lang('stocktake.something_went_wrong')',
+                    icon: 'error',
+                    confirmButtonText: '@lang('messages.ok')'
+                });
+            });
+        };
+
+        if (typeof Swal === 'undefined') {
+            if (window.confirm('@lang('stocktake.complete_confirmation_message')')) {
+                submitCompletion();
+            }
+            return;
+        }
+
         Swal.fire({
-            title: '@lang('stocktake.confirm_complete_title')',
-            text: '@lang('stocktake.complete_confirmation_message')',
+            title: 'Commit Stocktake Without Verification?',
+            text: 'Are you sure you want to commit this stocktake without verifying the data? This will update inventory quantities.',
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#198754',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: '<i class="fas fa-check-circle me-1"></i> @lang('stocktake.yes_complete')',
-            cancelButtonText: '<i class="fas fa-times me-1"></i> @lang('messages.cancel')',
-            reverseButtons: true,
+            confirmButtonText: '@lang('stocktake.yes')',
+            cancelButtonText: '@lang('stocktake.no')',
+            reverseButtons: false,
             backdrop: true,
             showLoaderOnConfirm: true,
             preConfirm: () => {
@@ -714,31 +759,8 @@ $(document).ready(function() {
                 });
             }
         }).then((result) => {
-            if (result.isConfirmed) {
-                const response = result.value;
-                if (response.success) {
-                    Swal.fire({
-                        title: '@lang('stocktake.completed_success')',
-                        text: response.msg,
-                        icon: 'success',
-                        timer: 3000,
-                        showConfirmButton: false,
-                        willClose: () => {
-                            if (response.redirect) {
-                                window.location.href = response.redirect;
-                            } else {
-                                window.location.reload();
-                            }
-                        }
-                    });
-                } else {
-                    Swal.fire({
-                        title: '@lang('stocktake.error')',
-                        text: response.msg || '@lang('stocktake.something_went_wrong')',
-                        icon: 'error',
-                        confirmButtonText: '@lang('messages.ok')'
-                    });
-                }
+            if (result.isConfirmed && result.value && result.value.success) {
+                window.location.href = result.value.redirect || window.location.href;
             }
         });
     });

@@ -3,47 +3,48 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 
-// Debug: current user's roles, permissions, and HRM enablement (no permission gate)
+// Debug utilities: only load in local/dev to avoid exposing in production
 Route::group([
     'module' => 'Hrm',
     'namespace' => 'Modules\\Hrm\\Http\\Controllers',
     'middleware' => ['web', 'auth', 'SetSessionData', 'language', 'timezone']
 ], function () {
-    Route::get('/hrm/debug/access', function () {
-        $user = auth()->user();
-        $roles = $user ? $user->getRoleNames() : collect();
-        $perms = $user ? $user->getPermissionNames() : collect();
-        $enabled = session('business.enabled_modules') ?? [];
-        return response()->json([
-            'user_id' => $user ? $user->id : null,
-            'business_id' => $user ? $user->business_id : null,
-            'roles' => $roles,
-            'permissions' => $perms,
-            'hrm_enabled' => in_array('hrm', (array) $enabled),
-            'enabled_modules' => $enabled,
-        ]);
-    })->name('hrm.debug.access');
-
-    // Temporary: seed granular HRM permissions if missing
-    Route::post('/hrm/debug/seed-perms', function () {
-        $perms = [
-            'hrm.access',
-            'hrm.companies',
-            'hrm.departments',
-            'hrm.designations',
-            'hrm.office_shifts',
-            'hrm.employees',
-            'hrm.payrolls',
-        ];
-        foreach ($perms as $p) {
-            \Spatie\Permission\Models\Permission::firstOrCreate([
-                'name' => $p,
-                'guard_name' => 'web',
+    if (app()->environment('local')) {
+        Route::get('/hrm/debug/access', function () {
+            $user = auth()->user();
+            $roles = $user ? $user->getRoleNames() : collect();
+            $perms = $user ? $user->getPermissionNames() : collect();
+            $enabled = session('business.enabled_modules') ?? [];
+            return response()->json([
+                'user_id' => $user ? $user->id : null,
+                'business_id' => $user ? $user->business_id : null,
+                'roles' => $roles,
+                'permissions' => $perms,
+                'hrm_enabled' => in_array('hrm', (array) $enabled),
+                'enabled_modules' => $enabled,
             ]);
-        }
-        return response()->json(['ok' => true, 'seeded' => $perms]);
-    })->name('hrm.debug.seed_perms');
+        })->name('hrm.debug.access');
 
+        // Temporary: seed granular HRM permissions if missing
+        Route::post('/hrm/debug/seed-perms', function () {
+            $perms = [
+                'hrm.access',
+                'hrm.companies',
+                'hrm.departments',
+                'hrm.designations',
+                'hrm.office_shifts',
+                'hrm.employees',
+                'hrm.payrolls',
+            ];
+            foreach ($perms as $p) {
+                \Spatie\Permission\Models\Permission::firstOrCreate([
+                    'name' => $p,
+                    'guard_name' => 'web',
+                ]);
+            }
+            return response()->json(['ok' => true, 'seeded' => $perms]);
+        })->name('hrm.debug.seed_perms');
+    }
 });
 
 Route::group([
@@ -54,6 +55,8 @@ Route::group([
     'middleware' => ['web', 'auth', 'SetSessionData', 'language', 'timezone', 'AdminSidebarMenu', 'subscription']
 ], function () {
     Route::get('/hrm', [\Modules\Hrm\Http\Controllers\HrmController::class, 'index']);
+    Route::get('/hrm/reports', [\Modules\Hrm\Http\Controllers\ReportsController::class, 'index'])->name('hrm.reports.index');
+    Route::get('/hrm/reports/export/{section}/{format}', [\Modules\Hrm\Http\Controllers\ReportsController::class, 'export'])->name('hrm.reports.export');
 
     // Departments
     Route::resource('/hrm/departments', \Modules\Hrm\Http\Controllers\DepartmentsController::class, [
@@ -68,52 +71,52 @@ Route::group([
         'as' => 'hrm'
     ]);
 
-    // Temporary debug endpoint to help diagnose POST/proxy issues.
-    // Logs request headers and body and returns JSON. Remove after debugging.
-    Route::post('/hrm/companies/debug', function (Request $request) {
-        // Log headers and body for inspection
-        try {
-            $headers = [];
-            if (function_exists('getallheaders')) {
-                $headers = getallheaders();
+    // Temporary debug endpoints for POST/proxy issues.
+    // Only register them in local environment to keep production clean.
+    if (app()->environment('local')) {
+        Route::post('/hrm/companies/debug', function (Request $request) {
+            try {
+                $headers = [];
+                if (function_exists('getallheaders')) {
+                    $headers = getallheaders();
+                }
+            } catch (\Throwable $e) {
+                $headers = [];
             }
-        } catch (\Throwable $e) {
-            $headers = [];
-        }
-        logger()->info('HRM debug POST received', ['headers' => $headers, 'body' => $request->all()]);
-        return response()->json(['ok' => true, 'received' => $request->all()]);
-    })->name('hrm.companies.debug');
+            logger()->info('HRM debug POST received', ['headers' => $headers, 'body' => $request->all()]);
+            return response()->json(['ok' => true, 'received' => $request->all()]);
+        })->name('hrm.companies.debug');
 
-    // Additional debug endpoints for other HRM resources (temporary)
-    Route::post('/hrm/departments/debug', function (Request $request) {
-        try { $headers = function_exists('getallheaders') ? getallheaders() : []; } catch (\Throwable $e) { $headers = []; }
-        logger()->info('HRM debug POST received - departments', ['headers' => $headers, 'body' => $request->all()]);
-        return response()->json(['ok' => true, 'received' => $request->all()]);
-    })->name('hrm.departments.debug');
+        Route::post('/hrm/departments/debug', function (Request $request) {
+            try { $headers = function_exists('getallheaders') ? getallheaders() : []; } catch (\Throwable $e) { $headers = []; }
+            logger()->info('HRM debug POST received - departments', ['headers' => $headers, 'body' => $request->all()]);
+            return response()->json(['ok' => true, 'received' => $request->all()]);
+        })->name('hrm.departments.debug');
 
-    Route::post('/hrm/designations/debug', function (Request $request) {
-        try { $headers = function_exists('getallheaders') ? getallheaders() : []; } catch (\Throwable $e) { $headers = []; }
-        logger()->info('HRM debug POST received - designations', ['headers' => $headers, 'body' => $request->all()]);
-        return response()->json(['ok' => true, 'received' => $request->all()]);
-    })->name('hrm.designations.debug');
+        Route::post('/hrm/designations/debug', function (Request $request) {
+            try { $headers = function_exists('getallheaders') ? getallheaders() : []; } catch (\Throwable $e) { $headers = []; }
+            logger()->info('HRM debug POST received - designations', ['headers' => $headers, 'body' => $request->all()]);
+            return response()->json(['ok' => true, 'received' => $request->all()]);
+        })->name('hrm.designations.debug');
 
-    Route::post('/hrm/office_shifts/debug', function (Request $request) {
-        try { $headers = function_exists('getallheaders') ? getallheaders() : []; } catch (\Throwable $e) { $headers = []; }
-        logger()->info('HRM debug POST received - office_shifts', ['headers' => $headers, 'body' => $request->all()]);
-        return response()->json(['ok' => true, 'received' => $request->all()]);
-    })->name('hrm.office_shifts.debug');
+        Route::post('/hrm/office_shifts/debug', function (Request $request) {
+            try { $headers = function_exists('getallheaders') ? getallheaders() : []; } catch (\Throwable $e) { $headers = []; }
+            logger()->info('HRM debug POST received - office_shifts', ['headers' => $headers, 'body' => $request->all()]);
+            return response()->json(['ok' => true, 'received' => $request->all()]);
+        })->name('hrm.office_shifts.debug');
 
-    Route::post('/hrm/employees/debug', function (Request $request) {
-        try { $headers = function_exists('getallheaders') ? getallheaders() : []; } catch (\Throwable $e) { $headers = []; }
-        logger()->info('HRM debug POST received - employees', ['headers' => $headers, 'body' => $request->all()]);
-        return response()->json(['ok' => true, 'received' => $request->all()]);
-    })->name('hrm.employees.debug');
+        Route::post('/hrm/employees/debug', function (Request $request) {
+            try { $headers = function_exists('getallheaders') ? getallheaders() : []; } catch (\Throwable $e) { $headers = []; }
+            logger()->info('HRM debug POST received - employees', ['headers' => $headers, 'body' => $request->all()]);
+            return response()->json(['ok' => true, 'received' => $request->all()]);
+        })->name('hrm.employees.debug');
 
-    Route::post('/hrm/payrolls/debug', function (Request $request) {
-        try { $headers = function_exists('getallheaders') ? getallheaders() : []; } catch (\Throwable $e) { $headers = []; }
-        logger()->info('HRM debug POST received - payrolls', ['headers' => $headers, 'body' => $request->all()]);
-        return response()->json(['ok' => true, 'received' => $request->all()]);
-    })->name('hrm.payrolls.debug');
+        Route::post('/hrm/payrolls/debug', function (Request $request) {
+            try { $headers = function_exists('getallheaders') ? getallheaders() : []; } catch (\Throwable $e) { $headers = []; }
+            logger()->info('HRM debug POST received - payrolls', ['headers' => $headers, 'body' => $request->all()]);
+            return response()->json(['ok' => true, 'received' => $request->all()]);
+        })->name('hrm.payrolls.debug');
+    }
 
     // Designations
     Route::resource('/hrm/designations', \Modules\Hrm\Http\Controllers\DesignationsController::class, [
@@ -125,7 +128,18 @@ Route::group([
         'as' => 'hrm'
     ]);
 
-    // Payrolls
+    // Attendances
+    Route::resource('/hrm/attendances', \Modules\Hrm\Http\Controllers\AttendancesController::class, [
+        'as' => 'hrm'
+    ]);
+
+    // Holidays
+    Route::resource('/hrm/holidays', \Modules\Hrm\Http\Controllers\HolidayController::class, [
+        'as' => 'hrm'
+    ]);
+
+    // Payrolls — P9 must be declared before the resource to avoid route shadowing
+    Route::get('/hrm/payrolls/p9', [\Modules\Hrm\Http\Controllers\PayrollController::class, 'p9'])->name('hrm.payrolls.p9');
     Route::resource('/hrm/payrolls', \Modules\Hrm\Http\Controllers\PayrollController::class, [
         'as' => 'hrm'
     ]);
@@ -154,13 +168,22 @@ Route::group([
         'as' => 'hrm'
     ]);
 
+    // Serve leave attachments through auth-protected route (files stored in private storage)
+    Route::get('/hrm/leaves/{id}/attachment', [\Modules\Hrm\Http\Controllers\LeaveController::class, 'attachment'])
+        ->name('hrm.leaves.attachment');
+
     // HRM Settings (default leave)
+    Route::get('/hrm/settings', [\Modules\Hrm\Http\Controllers\SettingsController::class, 'index'])->name('hrm.settings.index');
     Route::get('/hrm/settings/leave', [\Modules\Hrm\Http\Controllers\SettingsController::class, 'editDefaultLeave'])->name('hrm.settings.leave.edit');
     Route::post('/hrm/settings/leave', [\Modules\Hrm\Http\Controllers\SettingsController::class, 'updateDefaultLeave'])->name('hrm.settings.leave.update');
 
     // HRM Settings: Enable/Disable core modules
     Route::get('/hrm/settings/modules', [\Modules\Hrm\Http\Controllers\SettingsController::class, 'editModules'])->name('hrm.settings.modules.edit');
     Route::post('/hrm/settings/modules', [\Modules\Hrm\Http\Controllers\SettingsController::class, 'updateModules'])->name('hrm.settings.modules.update');
+
+    // HRM Settings: Payroll posting accounts
+    Route::get('/hrm/settings/payroll', [\Modules\Hrm\Http\Controllers\SettingsController::class, 'editPayrollPosting'])->name('hrm.settings.payroll.edit');
+    Route::post('/hrm/settings/payroll', [\Modules\Hrm\Http\Controllers\SettingsController::class, 'updatePayrollPosting'])->name('hrm.settings.payroll.update');
 
     // Leave Types
     Route::resource('/hrm/leave_types', \Modules\Hrm\Http\Controllers\LeaveTypeController::class, [

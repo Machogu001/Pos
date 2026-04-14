@@ -215,8 +215,23 @@
             (function(){
                 try {
                     var msg = @json($flashMsg);
-                    if (window.toastr && msg) { toastr.success(msg); }
-                    if (msg) { window.playSuccess(); }
+                    if (msg) {
+                        if (typeof window.showToast === 'function') {
+                            window.showToast('success', msg);
+                        } else if (window.Swal) {
+                            const Toast = Swal.mixin({
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 4000,
+                                timerProgressBar: true
+                            });
+                            Toast.fire({ icon: 'success', title: msg });
+                        } else if (window.toastr) {
+                            toastr.success(msg);
+                        }
+                        window.playSuccess();
+                    }
                 } catch(e) {}
             })();
         </script>

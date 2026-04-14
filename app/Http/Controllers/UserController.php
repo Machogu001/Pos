@@ -69,15 +69,26 @@ class UserController extends Controller
         // validate client_pin if provided
         $request->validate([
             'client_pin' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z][A-Za-z0-9]*[A-Za-z]$/'],
+            'otp_login_enabled' => ['nullable', 'boolean'],
         ]);
 
         try {
             $user_id = $request->session()->get('user.id');
+            $user = User::find($user_id);
             $input = $request->only(['surname', 'first_name', 'last_name', 'email', 'language', 'marital_status',
                 'blood_group', 'contact_number', 'fb_link', 'twitter_link', 'social_media_1',
                 'social_media_2', 'permanent_address', 'current_address',
                 'guardian_name', 'custom_field_1', 'custom_field_2',
                 'custom_field_3', 'custom_field_4', 'id_proof_name', 'id_proof_number', 'gender', 'family_number', 'alt_number', 'client_pin' ]);
+
+            $input['otp_login_enabled'] = $request->boolean('otp_login_enabled');
+
+            if ($input['otp_login_enabled'] && empty($input['contact_number'] ?? $user->contact_number ?? null)) {
+                return back()->with('status', [
+                    'success' => 0,
+                    'msg' => __('A phone number is required before you can enable OTP login.'),
+                ]);
+            }
 
             if (! empty($request->input('dob'))) {
                 $input['dob'] = $this->moduleUtil->uf_date($request->input('dob'));
@@ -86,7 +97,6 @@ class UserController extends Controller
                 $input['bank_details'] = json_encode($request->input('bank_details'));
             }
 
-            $user = User::find($user_id);
             $user->update($input);
 
             Media::uploadMedia($user->business_id, $user, request(), 'profile_photo', true);
@@ -97,6 +107,7 @@ class UserController extends Controller
             $input['business_id'] = $business_id;
             // ensure client_pin is present in session copy
             $input['client_pin'] = $user->client_pin ?? null;
+            $input['otp_login_enabled'] = (bool) ($user->otp_login_enabled ?? false);
             session()->put('user', $input);
 
             $output = ['success' => 1,

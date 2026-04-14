@@ -125,8 +125,17 @@
     </div>
 @endif
 
+                    @if(session('status'))
+                        <div class="{{ session('status.success') ? 'tw-bg-green-100 tw-border-green-300 tw-text-green-800' : 'tw-bg-red-100 tw-border-red-300 tw-text-red-800' }} tw-border tw-px-4 tw-py-3 tw-rounded-lg tw-text-sm tw-font-medium">
+                            {{ session('status.msg') }}
+                        </div>
+                    @endif
+
                     <form method="POST" action="{{ route('login') }}" id="login-form">
                         {{ csrf_field() }}
+                        @php
+                            $otpDeliveryMethod = old('otp_delivery_method', 'sms');
+                        @endphp
                         <div class="form-group has-feedback {{ $errors->has('username') ? ' has-error' : '' }}">
                             <label class="tw-dw-form-control">
                                 <div class="tw-dw-label">
@@ -175,6 +184,24 @@
                             @if ($errors->has('password'))
                                 <span class="help-block">
                                     <strong>{{ $errors->first('password') }}</strong>
+                                </span>
+                            @endif
+                        </div>
+
+                        <div class="form-group {{ $errors->has('otp_delivery_method') ? ' has-error' : '' }}">
+                            <label class="tw-dw-form-control">
+                                <div class="tw-dw-label">
+                                    <span class="tw-text-xs md:tw-text-sm tw-font-medium tw-text-black">Send OTP via</span>
+                                </div>
+                                <select name="otp_delivery_method" class="tw-border tw-border-[#D1D5DA] tw-outline-none tw-h-12 tw-bg-transparent tw-rounded-lg tw-px-3 tw-font-medium tw-text-black">
+                                    <option value="sms" {{ $otpDeliveryMethod === 'sms' ? 'selected' : '' }}>SMS</option>
+                                    <option value="email" {{ $otpDeliveryMethod === 'email' ? 'selected' : '' }}>Email</option>
+                                </select>
+                            </label>
+                            <p class="tw-text-xs tw-text-gray-500 tw-mt-1">Choose how you want to receive your OTP.</p>
+                            @if ($errors->has('otp_delivery_method'))
+                                <span class="help-block">
+                                    <strong>{{ $errors->first('otp_delivery_method') }}</strong>
                                 </span>
                             @endif
                         </div>

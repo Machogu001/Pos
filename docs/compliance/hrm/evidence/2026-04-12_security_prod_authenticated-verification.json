@@ -1,0 +1,49 @@
+{
+  "generatedAt": "2026-04-12T11:15:00Z",
+  "baseUrl": "https://pos.bremac.co.ke",
+  "authenticated": true,
+  "authenticatedChecks": [
+    {"path": "/hrm", "status": 200, "url": "https://pos.bremac.co.ke/hrm"},
+    {"path": "/hrm/employees", "status": 200, "url": "https://pos.bremac.co.ke/hrm/employees"},
+    {"path": "/hrm/attendances", "status": 200, "url": "https://pos.bremac.co.ke/hrm/attendances"},
+    {"path": "/hrm/leaves", "status": 200, "url": "https://pos.bremac.co.ke/hrm/leaves"},
+    {"path": "/hrm/payrolls", "status": 200, "url": "https://pos.bremac.co.ke/hrm/payrolls"},
+    {"path": "/hrm/settings", "status": 200, "url": "https://pos.bremac.co.ke/hrm/settings"}
+  ],
+  "unauthenticatedChecks": [
+    {"path": "/hrm", "status": 200, "url": "https://pos.bremac.co.ke/login"},
+    {"path": "/hrm/employees", "status": 200, "url": "https://pos.bremac.co.ke/login"},
+    {"path": "/hrm/payrolls", "status": 200, "url": "https://pos.bremac.co.ke/login"}
+  ],
+  "formProtectionChecks": [
+    {
+      "path": "/hrm/attendances",
+      "csrfMetaPresent": true,
+      "forms": [
+        {"action": "https://pos.bremac.co.ke/hrm/attendances/2", "method": "POST", "hasCsrfField": true, "hasMethodField": true, "confirmHook": true},
+        {"action": "https://pos.bremac.co.ke/hrm/attendances/1", "method": "POST", "hasCsrfField": true, "hasMethodField": true, "confirmHook": true}
+      ]
+    },
+    {
+      "path": "/hrm/leaves",
+      "csrfMetaPresent": true,
+      "forms": []
+    },
+    {
+      "path": "/hrm/payrolls",
+      "csrfMetaPresent": true,
+      "forms": [
+        {"action": null, "method": "GET", "hasCsrfField": false, "hasMethodField": false, "confirmHook": false}
+      ]
+    }
+  ],
+  "mfa": {
+    "enforced": true,
+    "evidence": "Production login required OTP verification before protected HRM routes were accessible."
+  },
+  "sessionHeaders": {
+    "secureCookie": true,
+    "httpOnlySessionCookie": true,
+    "sameSite": "lax"
+  }
+}

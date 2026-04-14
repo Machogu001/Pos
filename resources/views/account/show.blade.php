@@ -56,7 +56,7 @@
                             {!! Form::label('transaction_type', __('account.transaction_type') . ':') !!}
                             <div class="input-group">
                                 <span class="input-group-addon"><i class="fas fa-exchange-alt"></i></span>
-                                {!! Form::select('transaction_type', ['' => __('messages.all'),'credit' => __('account.debit'), 'debit' => __('account.credit')], '', ['class' => 'form-control']) !!}
+                                {!! Form::select('transaction_type', ['' => __('messages.all'),'debit' => __('account.debit'), 'credit' => __('account.credit')], '', ['class' => 'form-control']) !!}
                             </div>
                         </div>
                     </div>
@@ -159,8 +159,8 @@
                                 {data: 'payment_details', name: 'tp.payment_ref_no'},
                                 {data: 'note', name: 'note'},
                                 {data: 'added_by', name: 'added_by'},
-                                {data: 'credit', name: 'amount', searchable: false},
                                 {data: 'debit', name: 'amount', searchable: false},
+                                {data: 'credit', name: 'amount', searchable: false},
                                 {data: 'balance', name: 'balance', searchable: false},
                                 {data: 'action', name: 'action', searchable: false}
                             ],
@@ -172,8 +172,8 @@
                                 var footer_total_credit = 0;
 
                                 for (var r in data){
-                                    footer_total_debit += $(data[r].credit).data('orig-value') ? parseFloat($(data[r].credit).data('orig-value')) : 0;
-                                    footer_total_credit += $(data[r].debit).data('orig-value') ? parseFloat($(data[r].debit).data('orig-value')) : 0;
+                                    footer_total_debit += $(data[r].debit).data('orig-value') ? parseFloat($(data[r].debit).data('orig-value')) : 0;
+                                    footer_total_credit += $(data[r].credit).data('orig-value') ? parseFloat($(data[r].credit).data('orig-value')) : 0;
                                 }
 
                                 $('.footer_total_debit').html(__currency_trans_from_en(footer_total_debit));
@@ -255,7 +255,11 @@
             url: '{{action([\App\Http\Controllers\AccountController::class, 'getAccountBalance'], [$account->id])}}',
             dataType: "json",
             success: function(data){
-                $('span#account_balance').text(__currency_trans_from_en(data.balance, true));
+                var displayBalance = __currency_trans_from_en(data.display_balance || 0, true);
+                if (data.balance_side) {
+                    displayBalance += ' ' + data.balance_side;
+                }
+                $('span#account_balance').text(displayBalance);
             }
         });
     }

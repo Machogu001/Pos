@@ -1,0 +1,74 @@
+{
+  "startedAt": "2026-04-12T11:05:07.087Z",
+  "baseUrl": "https://pos.bremac.co.ke",
+  "concurrency": 5,
+  "rounds": 10,
+  "authenticated": true,
+  "endpoints": [
+    {
+      "path": "/hrm",
+      "requests": 50,
+      "failures": 0,
+      "errorRate": 0,
+      "p50": 984.3,
+      "p95": 1683.3,
+      "p99": 1934.4,
+      "avg": 1017.33,
+      "statuses": {
+        "200": 50
+      }
+    },
+    {
+      "path": "/hrm/employees",
+      "requests": 50,
+      "failures": 0,
+      "errorRate": 0,
+      "p50": 952.5,
+      "p95": 1671.5,
+      "p99": 1732.7,
+      "avg": 956.73,
+      "statuses": {
+        "200": 50
+      }
+    },
+    {
+      "path": "/hrm/attendances",
+      "requests": 50,
+      "failures": 0,
+      "errorRate": 0,
+      "p50": 939,
+      "p95": 1731.5,
+      "p99": 1771.1,
+      "avg": 977.12,
+      "statuses": {
+        "200": 50
+      }
+    },
+    {
+      "path": "/hrm/leaves",
+      "requests": 50,
+      "failures": 0,
+      "errorRate": 0,
+      "p50": 916.9,
+      "p95": 1600.2,
+      "p99": 1830,
+      "avg": 938.61,
+      "statuses": {
+        "200": 50
+      }
+    },
+    {
+      "path": "/hrm/payrolls",
+      "requests": 50,
+      "failures": 0,
+      "errorRate": 0,
+      "p50": 878.4,
+      "p95": 1585.2,
+      "p99": 1677.2,
+      "avg": 916.31,
+      "statuses": {
+        "200": 50
+      }
+    }
+  ]
+}

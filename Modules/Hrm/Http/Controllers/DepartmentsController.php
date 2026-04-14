@@ -10,6 +10,7 @@ use App\Models\Employee;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 
 class DepartmentsController extends Controller
 {
@@ -57,20 +58,27 @@ class DepartmentsController extends Controller
         }
 
         // Build base query defensively: only join if the related tables/columns exist
+        $businessId = session('business.id');
+
         $departments = Department::query();
         if (Schema::hasColumn('departments', 'department_head') && Schema::hasTable('employees')) {
-            $departments = $departments->leftJoin('employees','employees.id','=','departments.department_head')
+            $departments = $departments->leftJoin('employees', 'employees.id', '=', 'departments.department_head')
                 ->selectRaw('departments.*, employees.username AS employee_head');
         } else {
             $departments = $departments->select('departments.*');
         }
-        if (Schema::hasTable('companies') && Schema::hasColumn('departments','company_id')) {
-            $departments = $departments->join('companies','companies.id','=','departments.company_id')
-                ->selectRaw((Schema::hasColumn('departments','department_head') ? '' : '') . ' companies.name AS company_name');
+        if (Schema::hasTable('companies') && Schema::hasColumn('departments', 'company_id')) {
+            $departments = $departments->leftJoin('companies', 'companies.id', '=', 'departments.company_id')
+                ->selectRaw('companies.name AS company_name');
         }
-        $departments = $departments->where('departments.deleted_at' , '=', null)
-
-        // Search With Multiple Param
+        $departments = $departments
+            ->where('departments.deleted_at', '=', null)
+            // Multi-tenant: scope to current business
+            ->when($businessId && Schema::hasColumn('departments', 'business_id'),
+                fn($q) => $q->where(function ($tenantQ) use ($businessId) {
+                    $tenantQ->where('departments.business_id', $businessId)
+                        ->orWhereNull('departments.business_id');
+                }))
             ->where(function ($query) use ($request) {
                 return $query->when($request->filled('search'), function ($query) use ($request) {
                     return $query->where('departments.department', 'LIKE', "%{$request->search}%");
@@ -98,9 +106,25 @@ class DepartmentsController extends Controller
             ]);
         }
 
-    $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','name']);
+    $companies = Company::where('deleted_at', '=', null)
+        ->when($businessId && Schema::hasColumn('companies', 'business_id'), function ($q) use ($businessId) {
+            return $q->where(function ($tenantQ) use ($businessId) {
+                $tenantQ->where('business_id', $businessId)
+                    ->orWhereNull('business_id');
+            });
+        })
+        ->orderBy('id', 'desc')
+        ->get(['id','name']);
     // include firstname/lastname for labels if username is missing
-    $employees = Employee::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','username','firstname','lastname']);
+    $employees = Employee::where('deleted_at', '=', null)
+        ->when($businessId && Schema::hasColumn('employees', 'business_id'), function ($q) use ($businessId) {
+            return $q->where(function ($tenantQ) use ($businessId) {
+                $tenantQ->where('business_id', $businessId)
+                    ->orWhereNull('business_id');
+            });
+        })
+        ->orderBy('id', 'desc')
+        ->get(['id','username','firstname','lastname']);
 
     // Pass the departments collection to the view so the list can be rendered
     return view('hrm::departments.index', compact('companies', 'employees', 'departments', 'totalRows', 'perPage', 'pageStart'));
@@ -113,8 +137,25 @@ class DepartmentsController extends Controller
             abort(403);
         }
 
-    $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','name']);
-    $employees = Employee::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','username','firstname','lastname']);
+    $businessId = session('business.id');
+    $companies = Company::where('deleted_at', '=', null)
+        ->when($businessId && Schema::hasColumn('companies', 'business_id'), function ($q) use ($businessId) {
+            return $q->where(function ($tenantQ) use ($businessId) {
+                $tenantQ->where('business_id', $businessId)
+                    ->orWhereNull('business_id');
+            });
+        })
+        ->orderBy('id', 'desc')
+        ->get(['id','name']);
+    $employees = Employee::where('deleted_at', '=', null)
+        ->when($businessId && Schema::hasColumn('employees', 'business_id'), function ($q) use ($businessId) {
+            return $q->where(function ($tenantQ) use ($businessId) {
+                $tenantQ->where('business_id', $businessId)
+                    ->orWhereNull('business_id');
+            });
+        })
+        ->orderBy('id', 'desc')
+        ->get(['id','username','firstname','lastname']);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -138,12 +179,35 @@ class DepartmentsController extends Controller
         request()->validate([
             'department'   => 'required|string',
             'company_id'   => 'required',
+            'department_head' => 'nullable|exists:employees,id',
         ]);
 
+        $headId = $request->input('department_head') ?: null;
+        $businessId = session('business.id');
+        if ($headId) {
+            $headAlreadyAssigned = Department::query()
+                ->whereNull('deleted_at')
+                ->where('department_head', $headId)
+                ->when($businessId && Schema::hasColumn('departments', 'business_id'), function ($q) use ($businessId) {
+                    return $q->where(function ($tenantQ) use ($businessId) {
+                        $tenantQ->where('business_id', $businessId)
+                            ->orWhereNull('business_id');
+                    });
+                })
+                ->exists();
+
+            if ($headAlreadyAssigned) {
+                throw ValidationException::withMessages([
+                    'department_head' => 'This employee is already assigned as a department head.',
+                ]);
+            }
+        }
+
         Department::create([
-            'department'        => $request['department'],
-            'company_id'        => $request['company_id'],
-            'department_head'   => $request['department_head']?$request['department_head']:Null,
+            'department'      => $request->department,
+            'company_id'      => $request->company_id,
+            'business_id'     => session('business.id'),
+            'department_head' => $headId,
         ]);
 
         if ($request->expectsJson()) {
@@ -155,9 +219,23 @@ class DepartmentsController extends Controller
 
     //------------ function show -----------\\
 
-    public function show($id){
-        //
-        
+    public function show(Request $request, $id)
+    {
+        $user = $this->getAuthUser($request);
+        if (! $user || (! $user->can('hrm.access') && ! $user->can('hrm.departments'))) {
+            abort(403);
+        }
+
+        $department = Department::with(['company'])->whereNull('deleted_at')->findOrFail($id);
+
+        if ($request->expectsJson()) {
+            return response()->json(['department' => $department]);
+        }
+
+        $companies = Company::whereNull('deleted_at')->orderBy('id', 'desc')->get(['id', 'name']);
+        $employees = Employee::whereNull('deleted_at')->orderBy('id', 'desc')->get(['id', 'username', 'firstname', 'lastname']);
+
+        return view('hrm::departments.edit', compact('department', 'companies', 'employees'));
     }
 
     //------------ function edit -----------\\
@@ -169,8 +247,25 @@ class DepartmentsController extends Controller
             abort(403);
         }
 
-    $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','name']);
-    $employees = Employee::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','username','firstname','lastname']);
+    $businessId = session('business.id');
+    $companies = Company::where('deleted_at', '=', null)
+        ->when($businessId && Schema::hasColumn('companies', 'business_id'), function ($q) use ($businessId) {
+            return $q->where(function ($tenantQ) use ($businessId) {
+                $tenantQ->where('business_id', $businessId)
+                    ->orWhereNull('business_id');
+            });
+        })
+        ->orderBy('id', 'desc')
+        ->get(['id','name']);
+    $employees = Employee::where('deleted_at', '=', null)
+        ->when($businessId && Schema::hasColumn('employees', 'business_id'), function ($q) use ($businessId) {
+            return $q->where(function ($tenantQ) use ($businessId) {
+                $tenantQ->where('business_id', $businessId)
+                    ->orWhereNull('business_id');
+            });
+        })
+        ->orderBy('id', 'desc')
+        ->get(['id','username','firstname','lastname']);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -195,12 +290,35 @@ class DepartmentsController extends Controller
         request()->validate([
             'department'   => 'required|string',
             'company_id'   => 'required',
+            'department_head' => 'nullable|exists:employees,id',
         ]);
+
+        $headId = $request->input('department_head') ?: null;
+        $businessId = session('business.id');
+        if ($headId) {
+            $headAlreadyAssigned = Department::query()
+                ->whereNull('deleted_at')
+                ->where('department_head', $headId)
+                ->where('id', '!=', $id)
+                ->when($businessId && Schema::hasColumn('departments', 'business_id'), function ($q) use ($businessId) {
+                    return $q->where(function ($tenantQ) use ($businessId) {
+                        $tenantQ->where('business_id', $businessId)
+                            ->orWhereNull('business_id');
+                    });
+                })
+                ->exists();
+
+            if ($headAlreadyAssigned) {
+                throw ValidationException::withMessages([
+                    'department_head' => 'This employee is already assigned as a department head.',
+                ]);
+            }
+        }
 
         Department::whereId($id)->update([
             'department'        => $request['department'],
             'company_id'        => $request['company_id'],
-            'department_head'   => $request['department_head']?$request['department_head']:Null,
+            'department_head'   => $headId,
         ]);
 
         if ($request->expectsJson()) {
@@ -223,6 +341,34 @@ class DepartmentsController extends Controller
         ]);
 
         $headId = $request->input('department_head') ?: null;
+
+        if ($headId) {
+            $businessId = session('business.id');
+            $headAlreadyAssigned = Department::query()
+                ->whereNull('deleted_at')
+                ->where('department_head', $headId)
+                ->where('id', '!=', $id)
+                ->when($businessId && Schema::hasColumn('departments', 'business_id'), function ($q) use ($businessId) {
+                    return $q->where(function ($tenantQ) use ($businessId) {
+                        $tenantQ->where('business_id', $businessId)
+                            ->orWhereNull('business_id');
+                    });
+                })
+                ->exists();
+
+            if ($headAlreadyAssigned) {
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This employee is already assigned as a department head.',
+                    ], 422);
+                }
+
+                throw ValidationException::withMessages([
+                    'department_head' => 'This employee is already assigned as a department head.',
+                ]);
+            }
+        }
 
         Department::whereId($id)->update([
             'department_head' => $headId,

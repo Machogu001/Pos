@@ -16,6 +16,7 @@ use App\Exceptions\PurchaseSellMismatch;
 use App\InvoiceScheme;
 use App\Product;
 use App\PurchaseLine;
+use App\Stocktake;
 use App\Restaurant\ResTable;
 use App\TaxRate;
 use App\Transaction;
@@ -73,6 +74,7 @@ class TransactionUtil extends Util
             'tax_id' => ! empty($input['tax_rate_id']) ? $input['tax_rate_id'] : null,
             'discount_type' => ! empty($input['discount_type']) ? $input['discount_type'] : null,
             'discount_amount' => $uf_data ? $this->num_uf($input['discount_amount']) : $input['discount_amount'],
+            'payment_status' => ! empty($input['payment_status']) ? $input['payment_status'] : 'due',
             'tax_amount' => $invoice_total['tax'],
             'final_total' => $final_total,
             'additional_notes' => ! empty($input['sale_note']) ? $input['sale_note'] : null,
@@ -4164,6 +4166,21 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
      */
     public function getOpeningClosingStock($business_id, $date, $location_id, $is_opening = false, $by_sale_price = false, $filters = [], $permitted_locations = null)
     {
+        if ($is_opening) {
+            $stocktake_value = $this->getOpeningStockFromLatestStocktake(
+                $business_id,
+                $date,
+                $location_id,
+                $by_sale_price,
+                $filters,
+                $permitted_locations
+            );
+
+            if (! is_null($stocktake_value)) {
+                return $stocktake_value;
+            }
+        }
+
         $query = PurchaseLine::join(
             'transactions as purchase',
             'purchase_lines.transaction_id',
@@ -4238,6 +4255,347 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
         $details = $query->first();
 
         return $details->stock;
+    }
+
+    public function getCurrentStockValue($business_id, $location_id = null, $filters = [], $permitted_locations = null)
+    {
+        $query = DB::table('variation_location_details as vld')
+            ->join('variations as v', 'vld.variation_id', '=', 'v.id')
+            ->join('products as p', 'v.product_id', '=', 'p.id')
+            ->leftJoin('business_locations as l', 'vld.location_id', '=', 'l.id')
+            ->where('p.business_id', $business_id)
+            ->whereIn('p.type', ['single', 'variable'])
+            ->where('p.enable_stock', 1);
+
+        if (! empty($filters['category_id'])) {
+            $query->where('p.category_id', $filters['category_id']);
+        }
+        if (! empty($filters['sub_category_id'])) {
+            $query->where('p.sub_category_id', $filters['sub_category_id']);
+        }
+        if (! empty($filters['brand_id'])) {
+            $query->where('p.brand_id', $filters['brand_id']);
+        }
+        if (! empty($filters['unit_id'])) {
+            $query->where('p.unit_id', $filters['unit_id']);
+        }
+
+        if (! empty($permitted_locations) && $permitted_locations !== 'all') {
+            $query->whereIn('vld.location_id', $permitted_locations);
+        }
+
+        if (! empty($location_id)) {
+            $query->where('vld.location_id', $location_id);
+        }
+
+        $stockValue = $query->select(DB::raw('SUM(
+                GREATEST(vld.qty_available, 0) * COALESCE(
+                    (SELECT pl.purchase_price_inc_tax
+                     FROM purchase_lines as pl
+                     JOIN transactions as t on pl.transaction_id = t.id
+                     WHERE pl.variation_id = v.id
+                       AND t.business_id = '.$business_id.
+                       (! empty($location_id) ? ' AND t.location_id = '.(int) $location_id : '').'
+                     ORDER BY pl.id DESC
+                     LIMIT 1),
+                    (SELECT pl_product.purchase_price_inc_tax
+                     FROM purchase_lines as pl_product
+                     JOIN transactions as t_product on pl_product.transaction_id = t_product.id
+                     WHERE pl_product.product_id = p.id
+                       AND t_product.business_id = '.$business_id.
+                       (! empty($location_id) ? ' AND t_product.location_id = '.(int) $location_id : '').'
+                     ORDER BY pl_product.id DESC
+                     LIMIT 1),
+                    v.dpp_inc_tax,
+                    0
+                )
+            ) as stock_value'))->value('stock_value');
+
+        return (float) $stockValue;
+    }
+
+    public function getStockValueForDate($business_id, $date, $location_id = null, $filters = [], $permitted_locations = null)
+    {
+        $as_of_date = ! empty($date)
+            ? \Carbon::parse($date)->toDateString()
+            : \Carbon::now()->toDateString();
+
+        $today = \Carbon::now()->toDateString();
+
+        if ($as_of_date >= $today) {
+            return $this->getCurrentStockValue($business_id, $location_id, $filters, $permitted_locations);
+        }
+
+        $historical_stock_value = $this->getHistoricalRemainingStockValue(
+            $business_id,
+            $as_of_date,
+            $location_id,
+            $filters,
+            $permitted_locations
+        );
+
+        return (float) ($historical_stock_value ?? 0);
+    }
+
+    protected function getOpeningStockFromLatestStocktake($business_id, $date, $location_id, $by_sale_price = false, $filters = [], $permitted_locations = null)
+    {
+        $query = Stocktake::with(['items.variation'])
+            ->where('business_id', $business_id)
+            ->where('status', Stocktake::STATUS_COMPLETED)
+            ->whereDate('completed_at', '<=', $date);
+
+        if (! empty($filters['user_id'])) {
+            $query->where('created_by', $filters['user_id']);
+        }
+
+        if (! empty($permitted_locations)) {
+            if ($permitted_locations != 'all') {
+                $query->whereIn('location_id', $permitted_locations);
+            }
+        }
+
+        if (! empty($location_id)) {
+            $query->where('location_id', $location_id);
+        }
+
+        $stocktake = $query->orderByDesc('completed_at')->orderByDesc('id')->first();
+
+        if (empty($stocktake)) {
+            return null;
+        }
+
+        return (float) $stocktake->items->sum(function ($item) use ($by_sale_price) {
+            $price = $by_sale_price
+                ? (float) $item->effective_price
+                : (float) $item->purchase_price;
+
+            return ((float) $item->counted_quantity) * $price;
+        });
+    }
+
+    protected function getHistoricalRemainingStockValue($business_id, $date, $location_id = null, $filters = [], $permitted_locations = null)
+    {
+        $current_stock = DB::table('variation_location_details as vld')
+            ->select('vld.variation_id', 'vld.product_id', DB::raw('SUM(vld.qty_available) as current_qty'))
+            ->groupBy('vld.variation_id', 'vld.product_id');
+
+        $purchases_after = DB::table('purchase_lines as pl')
+            ->join('transactions as t', 'pl.transaction_id', '=', 't.id')
+            ->where('t.business_id', $business_id)
+            ->whereIn('t.type', ['purchase', 'opening_stock', 'purchase_transfer', 'production_purchase'])
+            ->where('t.status', 'received')
+            ->whereDate('t.transaction_date', '>', $date)
+            ->select('pl.variation_id', 'pl.product_id', DB::raw('SUM(pl.quantity - COALESCE(pl.quantity_returned, 0)) as purchased_qty'))
+            ->groupBy('pl.variation_id', 'pl.product_id');
+
+        $sales_after = DB::table('transaction_sell_lines as tsl')
+            ->join('transactions as t', 'tsl.transaction_id', '=', 't.id')
+            ->where('t.business_id', $business_id)
+            ->where('t.type', 'sell')
+            ->where('t.status', 'final')
+            ->where(function ($query) {
+                $query->whereNull('t.sub_type')
+                    ->orWhere('t.sub_type', '!=', 'subscription_invoice');
+            })
+            ->whereDate('t.transaction_date', '>', $date)
+            ->select('tsl.variation_id', 'tsl.product_id', DB::raw('SUM(tsl.quantity - COALESCE(tsl.quantity_returned, 0)) as sold_qty'))
+            ->groupBy('tsl.variation_id', 'tsl.product_id');
+
+        $adjustments_after = DB::table('stock_adjustment_lines as sal')
+            ->join('transactions as t', 'sal.transaction_id', '=', 't.id')
+            ->where('t.business_id', $business_id)
+            ->where('t.type', 'stock_adjustment')
+            ->whereDate('t.transaction_date', '>', $date)
+            ->select('sal.variation_id', 'sal.product_id', DB::raw('SUM(sal.quantity) as adjustment_qty'))
+            ->groupBy('sal.variation_id', 'sal.product_id');
+
+        $sell_returns_after = DB::table('transactions as sr')
+            ->join('transaction_sell_lines as tsl', 'sr.return_parent_id', '=', 'tsl.transaction_id')
+            ->where('sr.business_id', $business_id)
+            ->where('sr.type', 'sell_return')
+            ->where('sr.status', 'final')
+            ->whereDate('sr.transaction_date', '>', $date)
+            ->select('tsl.variation_id', 'tsl.product_id', DB::raw('SUM(COALESCE(tsl.quantity_returned, 0)) as sell_return_qty'))
+            ->groupBy('tsl.variation_id', 'tsl.product_id');
+
+        $purchase_returns_after_from_parent = DB::table('transactions as pr')
+            ->join('purchase_lines as pl', 'pr.return_parent_id', '=', 'pl.transaction_id')
+            ->where('pr.business_id', $business_id)
+            ->where('pr.type', 'purchase_return')
+            ->where('pr.status', 'final')
+            ->whereNotNull('pr.return_parent_id')
+            ->whereDate('pr.transaction_date', '>', $date)
+            ->select('pl.variation_id', 'pl.product_id', DB::raw('SUM(COALESCE(pl.quantity_returned, 0)) as purchase_return_qty'))
+            ->groupBy('pl.variation_id', 'pl.product_id');
+
+        $purchase_returns_after_direct = DB::table('transactions as pr')
+            ->join('purchase_lines as pl', 'pr.id', '=', 'pl.transaction_id')
+            ->where('pr.business_id', $business_id)
+            ->where('pr.type', 'purchase_return')
+            ->where('pr.status', 'final')
+            ->whereNull('pr.return_parent_id')
+            ->whereDate('pr.transaction_date', '>', $date)
+            ->select('pl.variation_id', 'pl.product_id', DB::raw('SUM(COALESCE(pl.quantity_returned, 0)) as purchase_return_qty'))
+            ->groupBy('pl.variation_id', 'pl.product_id');
+
+        $purchase_returns_after = DB::query()
+            ->fromSub(
+                $purchase_returns_after_from_parent->unionAll($purchase_returns_after_direct),
+                'purchase_returns_after_raw'
+            )
+            ->select(
+                'purchase_returns_after_raw.variation_id',
+                'purchase_returns_after_raw.product_id',
+                DB::raw('SUM(purchase_returns_after_raw.purchase_return_qty) as purchase_return_qty')
+            )
+            ->groupBy('purchase_returns_after_raw.variation_id', 'purchase_returns_after_raw.product_id');
+
+        $transfer_out_after = DB::table('transactions as st')
+            ->join('transaction_sell_lines as tsl', 'st.id', '=', 'tsl.transaction_id')
+            ->where('st.business_id', $business_id)
+            ->where('st.type', 'sell_transfer')
+            ->where('st.status', 'final')
+            ->whereDate('st.transaction_date', '>', $date)
+            ->select('tsl.variation_id', 'tsl.product_id', DB::raw('SUM(COALESCE(tsl.quantity, 0)) as transfer_out_qty'))
+            ->groupBy('tsl.variation_id', 'tsl.product_id');
+
+        $transfer_in_after = DB::table('transactions as pt')
+            ->join('purchase_lines as pl', 'pt.id', '=', 'pl.transaction_id')
+            ->where('pt.business_id', $business_id)
+            ->where('pt.type', 'purchase_transfer')
+            ->where('pt.status', 'received')
+            ->whereDate('pt.transaction_date', '>', $date)
+            ->select('pl.variation_id', 'pl.product_id', DB::raw('SUM(COALESCE(pl.quantity, 0)) as transfer_in_qty'))
+            ->groupBy('pl.variation_id', 'pl.product_id');
+
+        if (! empty($permitted_locations) && $permitted_locations !== 'all') {
+            $current_stock->whereIn('vld.location_id', $permitted_locations);
+            $purchases_after->whereIn('t.location_id', $permitted_locations);
+            $sales_after->whereIn('t.location_id', $permitted_locations);
+            $adjustments_after->whereIn('t.location_id', $permitted_locations);
+            $sell_returns_after->whereIn('sr.location_id', $permitted_locations);
+            $purchase_returns_after_from_parent->whereIn('pr.location_id', $permitted_locations);
+            $purchase_returns_after_direct->whereIn('pr.location_id', $permitted_locations);
+            $transfer_out_after->whereIn('st.location_id', $permitted_locations);
+            $transfer_in_after->whereIn('pt.location_id', $permitted_locations);
+        }
+
+        if (! empty($location_id)) {
+            $current_stock->where('vld.location_id', $location_id);
+            $purchases_after->where('t.location_id', $location_id);
+            $sales_after->where('t.location_id', $location_id);
+            $adjustments_after->where('t.location_id', $location_id);
+            $sell_returns_after->where('sr.location_id', $location_id);
+            $purchase_returns_after_from_parent->where('pr.location_id', $location_id);
+            $purchase_returns_after_direct->where('pr.location_id', $location_id);
+            $transfer_out_after->where('st.location_id', $location_id);
+            $transfer_in_after->where('pt.location_id', $location_id);
+        }
+
+        if (! empty($filters['user_id'])) {
+            $purchases_after->where('t.created_by', $filters['user_id']);
+            $sales_after->where('t.created_by', $filters['user_id']);
+            $adjustments_after->where('t.created_by', $filters['user_id']);
+            $sell_returns_after->where('sr.created_by', $filters['user_id']);
+            $purchase_returns_after_from_parent->where('pr.created_by', $filters['user_id']);
+            $purchase_returns_after_direct->where('pr.created_by', $filters['user_id']);
+            $transfer_out_after->where('st.created_by', $filters['user_id']);
+            $transfer_in_after->where('pt.created_by', $filters['user_id']);
+        }
+
+        $query = DB::table('variations as v')
+            ->join('products as p', 'v.product_id', '=', 'p.id')
+            ->leftJoinSub($current_stock, 'current_stock', function ($join) {
+                $join->on('current_stock.variation_id', '=', 'v.id')
+                    ->on('current_stock.product_id', '=', 'p.id');
+            })
+            ->leftJoinSub($purchases_after, 'purchases_after', function ($join) {
+                $join->on('purchases_after.variation_id', '=', 'v.id')
+                    ->on('purchases_after.product_id', '=', 'p.id');
+            })
+            ->leftJoinSub($sales_after, 'sales_after', function ($join) {
+                $join->on('sales_after.variation_id', '=', 'v.id')
+                    ->on('sales_after.product_id', '=', 'p.id');
+            })
+            ->leftJoinSub($adjustments_after, 'adjustments_after', function ($join) {
+                $join->on('adjustments_after.variation_id', '=', 'v.id')
+                    ->on('adjustments_after.product_id', '=', 'p.id');
+            })
+            ->leftJoinSub($sell_returns_after, 'sell_returns_after', function ($join) {
+                $join->on('sell_returns_after.variation_id', '=', 'v.id')
+                    ->on('sell_returns_after.product_id', '=', 'p.id');
+            })
+            ->leftJoinSub($purchase_returns_after, 'purchase_returns_after', function ($join) {
+                $join->on('purchase_returns_after.variation_id', '=', 'v.id')
+                    ->on('purchase_returns_after.product_id', '=', 'p.id');
+            })
+            ->leftJoinSub($transfer_out_after, 'transfer_out_after', function ($join) {
+                $join->on('transfer_out_after.variation_id', '=', 'v.id')
+                    ->on('transfer_out_after.product_id', '=', 'p.id');
+            })
+            ->leftJoinSub($transfer_in_after, 'transfer_in_after', function ($join) {
+                $join->on('transfer_in_after.variation_id', '=', 'v.id')
+                    ->on('transfer_in_after.product_id', '=', 'p.id');
+            })
+            ->where('p.business_id', $business_id)
+            ->whereIn('p.type', ['single', 'variable'])
+            ->where('p.enable_stock', 1);
+
+        if (! empty($filters['category_id'])) {
+            $query->where('p.category_id', $filters['category_id']);
+        }
+        if (! empty($filters['sub_category_id'])) {
+            $query->where('p.sub_category_id', $filters['sub_category_id']);
+        }
+        if (! empty($filters['brand_id'])) {
+            $query->where('p.brand_id', $filters['brand_id']);
+        }
+        if (! empty($filters['unit_id'])) {
+            $query->where('p.unit_id', $filters['unit_id']);
+        }
+        if (! empty($filters['user_id'])) {
+            $query->where('p.created_by', $filters['user_id']);
+        }
+
+        $price_expression = 'COALESCE(
+            (SELECT pl.purchase_price_inc_tax
+             FROM purchase_lines as pl
+             JOIN transactions as t on pl.transaction_id = t.id
+             WHERE pl.variation_id = v.id
+               AND t.business_id = '.$business_id.
+               (! empty($location_id) ? ' AND t.location_id = '.(int) $location_id : '')."
+               AND date(t.transaction_date) <= '{$date}'
+             ORDER BY pl.id DESC
+             LIMIT 1),
+            (SELECT pl_product.purchase_price_inc_tax
+             FROM purchase_lines as pl_product
+             JOIN transactions as t_product on pl_product.transaction_id = t_product.id
+             WHERE pl_product.product_id = p.id
+               AND t_product.business_id = ".$business_id.
+               (! empty($location_id) ? ' AND t_product.location_id = '.(int) $location_id : '')."
+               AND date(t_product.transaction_date) <= '{$date}'
+             ORDER BY pl_product.id DESC
+             LIMIT 1),
+            v.dpp_inc_tax,
+            0
+        )";
+
+        $historical_stock_value = $query->selectRaw("SUM(
+            GREATEST(
+                COALESCE(current_stock.current_qty, 0)
+                - COALESCE(purchases_after.purchased_qty, 0)
+                + COALESCE(sales_after.sold_qty, 0)
+                - COALESCE(adjustments_after.adjustment_qty, 0)
+                - COALESCE(sell_returns_after.sell_return_qty, 0)
+                + COALESCE(purchase_returns_after.purchase_return_qty, 0)
+                + COALESCE(transfer_out_after.transfer_out_qty, 0)
+                - COALESCE(transfer_in_after.transfer_in_qty, 0),
+                0
+            ) * {$price_expression}
+        ) as stock_value")
+            ->value('stock_value');
+
+        return (float) ($historical_stock_value ?? 0);
     }
 
     /**
@@ -4882,7 +5240,9 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
         if (in_array('stock_adjustment', $transaction_types)) {
             $query->addSelect(
                 DB::raw("SUM(IF(transactions.type='stock_adjustment', final_total, 0)) as total_adjustment"),
-                DB::raw("SUM(IF(transactions.type='stock_adjustment', total_amount_recovered, 0)) as total_recovered")
+                DB::raw("SUM(IF(transactions.type='stock_adjustment', total_amount_recovered, 0)) as total_recovered"),
+                DB::raw("SUM(IF(transactions.type='stock_adjustment' AND transactions.is_stocktake = 1, final_total, 0)) as total_stocktake_adjustment"),
+                DB::raw("SUM(IF(transactions.type='stock_adjustment' AND COALESCE(transactions.is_stocktake, 0) = 0, -ABS(final_total), 0)) as total_adjustment_effect")
             );
         }
 
@@ -4954,6 +5314,14 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
             $output['total_recovered'] =
                 ! empty($transaction_totals->total_recovered) ?
                 $transaction_totals->total_recovered : 0;
+
+            $output['total_stocktake_adjustment'] =
+                ! empty($transaction_totals->total_stocktake_adjustment) ?
+                $transaction_totals->total_stocktake_adjustment : 0;
+
+            $output['total_adjustment_effect'] =
+                ! empty($transaction_totals->total_adjustment_effect) ?
+                $transaction_totals->total_adjustment_effect : 0;
         }
 
         if (in_array('purchase', $transaction_types)) {
@@ -6006,17 +6374,30 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
         $data['total_sell_return'] = $transaction_totals['total_sell_return_exc_tax'];
 
         $data['total_sell_round_off'] = ! empty($total_sell_round_off) ? $total_sell_round_off : 0;
+        $data['cogs'] = round(max(0, $data['opening_stock'] + $data['total_purchase'] - $data['closing_stock']), 2);
 
         //Expense
         $data['total_expense'] = $transaction_totals['total_expense'];
 
         //Stock adjustments
         $data['total_adjustment'] = $transaction_totals['total_adjustment'];
+        $data['total_adjustment_effect'] = ! empty($transaction_totals['total_adjustment_effect']) ? $transaction_totals['total_adjustment_effect'] : 0;
         $data['total_recovered'] = $transaction_totals['total_recovered'];
 
         // $data['closing_stock'] = $data['closing_stock'] - $data['total_adjustment'];
 
         $data['total_reward_amount'] = ! empty($total_reward_amount) ? $total_reward_amount : 0;
+
+        // Some ledgers do not maintain a complete sell-line to purchase-line mapping,
+        // which can cause the detailed gross-profit query to return the full sales value
+        // even when purchases exist. Fall back to the report's simpler sell minus purchase
+        // logic when the mapped result is missing or looks implausible.
+        $simple_gross_profit = $data['total_sell'] - $data['total_purchase'];
+        if (empty($gross_profit)
+            || ($data['total_purchase'] > 0 && round((float) $gross_profit, 2) >= round((float) $data['total_sell'], 2))
+        ) {
+            $gross_profit = $simple_gross_profit;
+        }
 
         $moduleUtil = new ModuleUtil();
 
@@ -6073,7 +6454,8 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
         //                         - $data['total_sell_return'];
         $data['net_profit'] = $module_total + $gross_profit
                                 + ($data['total_sell_round_off'] + $data['total_recovered'] + $data['total_sell_shipping_charge'] + $data['total_purchase_discount'] + $data['total_sell_additional_expense'] + $data['total_sell_return_discount']
-                                ) - ($data['total_reward_amount'] + $data['total_expense'] + $data['total_adjustment'] + $data['total_transfer_shipping_charges'] + $data['total_purchase_shipping_charge'] + $data['total_purchase_additional_expense'] + $data['total_sell_discount']
+                                + $data['total_adjustment_effect']
+                                ) - ($data['total_reward_amount'] + $data['total_expense'] + $data['total_transfer_shipping_charges'] + $data['total_purchase_shipping_charge'] + $data['total_purchase_additional_expense'] + $data['total_sell_discount']
                                 );
 
         //get gross profit from Project Module
@@ -6098,6 +6480,22 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
             }
         }
 
+        $ledgerProfitLoss = $this->getLedgerProfitLossSummary(
+            $business_id,
+            $start_date,
+            $end_date,
+            $location_id,
+            $user_id,
+            $permitted_locations
+        );
+
+        $data['total_sell'] = $ledgerProfitLoss['operating_income'];
+        $data['cogs'] = $ledgerProfitLoss['cogs'];
+        $data['total_expense'] = $ledgerProfitLoss['expenses'];
+        $data['total_adjustment_effect'] = $ledgerProfitLoss['inventory_adjustment_net'];
+        $gross_profit = $ledgerProfitLoss['gross_profit'];
+        $data['net_profit'] = $module_total + $ledgerProfitLoss['net_profit'];
+
         $data['gross_profit'] = $gross_profit;
 
         //get sub type for total sales
@@ -6118,6 +6516,130 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
         $data['total_sell_by_subtype'] = $sales_by_subtype;
 
         return $data;
+    }
+
+    protected function getLedgerProfitLossSummary($business_id, $start_date, $end_date, $location_id = null, $user_id = null, $permitted_locations = null)
+    {
+        $query = \App\Account::query()
+            ->join('account_transactions as AT', function ($join) use ($start_date, $end_date) {
+                $join->on('AT.account_id', '=', 'accounts.id')
+                    ->whereNull('AT.deleted_at');
+
+                if (! empty($start_date) && ! empty($end_date)) {
+                    $join->whereBetween(DB::raw('date(AT.operation_date)'), [$start_date, $end_date]);
+                } elseif (! empty($end_date)) {
+                    $join->whereDate('AT.operation_date', '<=', $end_date);
+                }
+            })
+            ->leftJoin('account_types as ats', 'accounts.account_type_id', '=', 'ats.id')
+            ->leftJoin('account_types as pat', 'ats.parent_account_type_id', '=', 'pat.id')
+            ->leftJoin('transactions as T', 'AT.transaction_id', '=', 'T.id')
+            ->where('accounts.business_id', $business_id)
+            ->select([
+                'accounts.id',
+                'accounts.name',
+                DB::raw('COALESCE(pat.name, ats.name) as account_type_label'),
+                DB::raw(\App\Account::typeAwareBalanceExpression('COALESCE(pat.name, ats.name)', 'AT.type', 'AT.amount', 'AT.sub_type').' as balance'),
+            ])
+            ->groupBy('accounts.id', 'accounts.name', 'ats.name', 'pat.name');
+
+        if (! empty($permitted_locations) && $permitted_locations != 'all') {
+            $query->where(function ($locationQuery) use ($permitted_locations) {
+                $locationQuery->whereNull('AT.transaction_id')
+                    ->orWhereIn('T.location_id', $permitted_locations);
+            });
+        }
+
+        if (! empty($location_id)) {
+            $query->where(function ($locationQuery) use ($location_id) {
+                $locationQuery->whereNull('AT.transaction_id')
+                    ->orWhere('T.location_id', $location_id);
+            });
+        }
+
+        if (! empty($user_id)) {
+            $query->where(function ($userQuery) use ($user_id) {
+                $userQuery->whereNull('AT.transaction_id')
+                    ->orWhere('T.created_by', $user_id);
+            });
+        }
+
+        $accounts = $query->get()->map(function ($account) {
+            $balance = (float) $account->balance;
+
+            return [
+                'id' => (int) $account->id,
+                'name' => $account->name,
+                'major_type' => \App\Account::majorTypeFromLabel($account->account_type_label),
+                'balance' => $balance,
+            ];
+        });
+
+        $cogsAccountId = (int) (\App\TransactionPayment::resolveDefaultAccountMapping('cogs', $business_id) ?: 0);
+        $inventoryGainAccountId = (int) (\App\TransactionPayment::resolveDefaultAccountMapping('inventory_gain', $business_id) ?: 0);
+        $inventoryLossAccountId = (int) (\App\TransactionPayment::resolveDefaultAccountMapping('inventory_loss', $business_id) ?: 0);
+
+        $incomeAccounts = $accounts->filter(function ($account) {
+            return $account['major_type'] === 'income';
+        });
+
+        $costAccounts = $accounts->filter(function ($account) {
+            return $account['major_type'] === 'cost';
+        });
+
+        $expenseAccounts = $accounts->filter(function ($account) {
+            return $account['major_type'] === 'expense';
+        });
+
+        $operatingIncome = (float) $incomeAccounts
+            ->reject(function ($account) use ($inventoryGainAccountId) {
+                return ($inventoryGainAccountId > 0 && $account['id'] === $inventoryGainAccountId)
+                    || strcasecmp($account['name'], 'Inventory Gain') === 0;
+            })
+            ->sum('balance');
+
+        $inventoryAdjustmentNet = (float) $incomeAccounts
+            ->filter(function ($account) use ($inventoryGainAccountId) {
+                return ($inventoryGainAccountId > 0 && $account['id'] === $inventoryGainAccountId)
+                    || strcasecmp($account['name'], 'Inventory Gain') === 0;
+            })
+            ->sum('balance');
+
+        $inventoryAdjustmentNet -= (float) $accounts
+            ->filter(function ($account) use ($inventoryLossAccountId) {
+                return ($inventoryLossAccountId > 0 && $account['id'] === $inventoryLossAccountId)
+                    || strcasecmp($account['name'], 'Inventory Loss') === 0;
+            })
+            ->sum('balance');
+
+        $cogs = (float) $accounts
+            ->filter(function ($account) use ($cogsAccountId) {
+                return ($cogsAccountId > 0 && $account['id'] === $cogsAccountId)
+                    || $account['major_type'] === 'cost'
+                    || strcasecmp($account['name'], 'Cost of Goods') === 0;
+            })
+            ->sum('balance');
+
+        $expenses = (float) $expenseAccounts
+            ->reject(function ($account) use ($cogsAccountId, $inventoryGainAccountId, $inventoryLossAccountId) {
+                return ($cogsAccountId > 0 && $account['id'] === $cogsAccountId)
+                    || ($inventoryGainAccountId > 0 && $account['id'] === $inventoryGainAccountId)
+                    || ($inventoryLossAccountId > 0 && $account['id'] === $inventoryLossAccountId)
+                    || in_array($account['name'], ['Inventory Gain', 'Inventory Loss', 'Inventory Adjustment', 'Cost of Goods'], true);
+            })
+            ->sum('balance');
+
+        $grossProfit = $operatingIncome - $cogs;
+        $netProfit = $grossProfit + $inventoryAdjustmentNet - $expenses;
+
+        return [
+            'operating_income' => round($operatingIncome, 4),
+            'cogs' => round($cogs, 4),
+            'expenses' => round($expenses, 4),
+            'inventory_adjustment_net' => round($inventoryAdjustmentNet, 4),
+            'gross_profit' => round($grossProfit, 4),
+            'net_profit' => round($netProfit, 4),
+        ];
     }
 
     /**
@@ -6380,7 +6902,17 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
             $inputs['account_id'] = $request->input('account_id');
         }
 
-        //get payment type (creditor debit)
+        if (empty($inputs['account_id'])) {
+            $location_id = $request->input('location_id');
+            $inputs['account_id'] = TransactionPayment::resolveDefaultAccountId(
+                $inputs['method'],
+                ! empty($location_id) ? $location_id : auth()->user()->getDefaultLocation(),
+                $business_id,
+                $due_payment_type
+            );
+        }
+
+        // get payment type for the payment account itself.
         $payment_type = AccountTransaction::getAccountTransactionType($due_payment_type);
 
         //if reverse payment

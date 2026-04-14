@@ -31,6 +31,6 @@ class UpdateAccountTransaction
             return true;
         }
 
-        AccountTransaction::updateAccountTransaction($event->transactionPayment, $event->transactionType);
+        AccountTransaction::syncPaymentAccountTransactions($event->transactionPayment, $event->transactionType);
     }
 }

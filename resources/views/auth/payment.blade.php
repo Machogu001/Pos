@@ -13,92 +13,110 @@
         }
         .container {
             max-width: 400px;
-            margin: auto;
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        h2 {
-            text-align: center;
-            margin-bottom: 25px;
-        }
-        label {
-            font-weight: bold;
-        }
-        input[type="text"],
-        input[type="number"],
-        textarea {
-            width: 100%;
-            padding: 10px;
-            margin-top: 6px;
-            margin-bottom: 16px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-        }
-        input[readonly] {
-            background-color: #f9f9f9;
-        }
-        button {
-            background-color: #28a745;
-            color: white;
-            padding: 12px;
-            width: 100%;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #218838;
-        }
-        .note {
-            font-size: 12px;
-            color: #666;
-            text-align: center;
-            margin-top: 10px;
-        }
-        .alert {
-            padding: 12px;
-            margin-bottom: 16px;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-        .alert-success {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        .alert-error {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>M-Pesa Payment</h2>
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <title>M-Pesa Payment</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                <style>
+                    body {
+                        background-color: #f8f9fa;
+                    }
 
-        {{-- Success/Error Messages --}}
-        @if (session('success'))
-            <div class="alert alert-success">{{ session('success') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="alert alert-error">{{ session('error') }}</div>
-        @endif
+                    .payment-container {
+                        max-width: 500px;
+                        margin: 60px auto;
+                        background: #fff;
+                        padding: 30px;
+                        border-radius: 12px;
+                        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+                    }
 
-        <form method="POST" action="{{ route('mpesa.initiate') }}">
-            @csrf
+                    .note {
+                        font-size: 0.9rem;
+                        color: #6c757d;
+                    }
 
-            <label for="phone_number">Phone Number</label>
-            <input
-                type="text"
-                id="phone_number"
-                name="phone_number"
-                placeholder="e.g. 2547XXXXXXXX"
-                required
-                pattern="^2547\d{8}$"
-                title="Use format like 2547XXXXXXXX"
-            >
+                    .form-control:read-only {
+                        background-color: #e9ecef;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container payment-container">
+                    <h3 class="text-center mb-4">M-Pesa Payment</h3>
+
+                    @if ($errors->any())
+                        <div class="alert alert-danger">
+                            <ul class="mb-0">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    <form method="POST" action="{{ route('business.payment.initiate') }}">
+                        @csrf
+
+                        <div class="mb-3">
+                            <label for="phone_number" class="form-label">Phone Number</label>
+                            <input type="text" id="phone_number" name="phone_number" class="form-control" placeholder="e.g. 254712345678, 0712345678, or 0112345678" pattern="^(?:\+?254|0)(?:7|1)\d{8}$" required title="Use 254712345678, 0712345678, or 0112345678" value="{{ old('phone_number') }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="amount" class="form-label">Amount (KES)</label>
+                            <input type="number" id="amount" name="amount" value="500" readonly class="form-control">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="note" class="form-label">Note (Optional)</label>
+                            <textarea id="note" name="note" rows="3" class="form-control" placeholder="Enter a note (optional)">{{ old('note') }}</textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100">Pay Now</button>
+
+                        <p class="note text-center mt-3">You will receive an M-Pesa prompt. Enter your PIN to complete the payment.</p>
+                    </form>
+                </div>
+
+                <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+                <script>
+                    (function () {
+                        function showToast(message, type) {
+                            var toast = document.createElement('div');
+                            toast.style.position = 'fixed';
+                            toast.style.right = '20px';
+                            toast.style.top = '20px';
+                            toast.style.zIndex = '9999';
+                            toast.style.padding = '12px 16px';
+                            toast.style.borderRadius = '10px';
+                            toast.style.color = '#fff';
+                            toast.style.boxShadow = '0 12px 30px rgba(0,0,0,0.18)';
+                            toast.style.background = type === 'error' ? '#dc3545' : '#198754';
+                            toast.textContent = message;
+                            document.body.appendChild(toast);
+
+                            setTimeout(function () {
+                                toast.remove();
+                            }, 3500);
+                        }
+
+                        document.addEventListener('DOMContentLoaded', function () {
+                            @if (session('success'))
+                                showToast(@json(session('success')), 'success');
+                            @endif
+
+                            @if (session('error'))
+                                showToast(@json(session('error')), 'error');
+                            @endif
+                        });
+                    })();
+                </script>
+            </body>
+            </html>
 
             <label for="amount">Amount (KES)</label>
             <input

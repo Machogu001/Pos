@@ -17,6 +17,9 @@ class HrmGranularPermissionsSeeder extends Seeder
             'hrm.office_shifts',
             'hrm.employees',
             'hrm.payrolls',
+            'hrm.leaves',
+            'hrm.attendances',
+            'hrm.holidays',
         ];
 
         foreach ($perms as $p) {

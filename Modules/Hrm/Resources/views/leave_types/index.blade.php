@@ -1,27 +1,35 @@
 @extends('layouts.app')
 
+@section('title', 'Leave Types')
+
 @section('content')
-<div class="container py-4">
-    <div class="card shadow-sm">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">Leave Types</h4>
-            <div>
-                <a href="{{ route('hrm.leave_types.create') }}" class="btn btn-primary">Create Leave Type</a>
+@include('hrm::partials.hrm_page_header', [
+    'title' => 'Leave Types',
+    'subtitle' => 'Define the leave categories available to employees and managers.',
+    'actions' => '<a href="'.route('hrm.leave_types.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> Create Leave Type</a>'
+])
+
+<section class="content">
+    <div class="box box-primary">
+        <div class="box-header with-border">
+            <h3 class="box-title">Leave Type Catalog</h3>
+            <div class="box-tools pull-right">
+                <span class="label label-info">Total types: {{ $totalRows ?? 0 }}</span>
             </div>
         </div>
-        <div class="card-body">
+        <div class="box-body">
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label for="search" class="form-label">Search</label>
                     <input id="search" class="form-control" placeholder="Search by name" oninput="applyFilters()" />
                 </div>
                 <div class="col-md-6 d-flex align-items-end justify-content-end">
-                    <small class="text-muted">Total types: {{ $totalRows ?? 0 }}</small>
+                    <small class="text-muted">Keep leave labels simple and consistent for approval workflows.</small>
                 </div>
             </div>
 
             <div class="table-responsive">
-                <table class="table table-hover align-middle">
+                <table class="table table-hover table-striped align-middle">
                     <thead class="table-light">
                         <tr>
                             <th>Name</th>
@@ -31,10 +39,10 @@
                     <tbody id="types_table_body">
                         @forelse($leave_types as $t)
                             <tr>
-                                <td>{{ $t['name'] ?? '-' }}</td>
+                                <td><strong>{{ $t['name'] ?? '-' }}</strong></td>
                                 <td class="text-end">
-                                    <a href="{{ route('hrm.leave_types.edit', $t['id']) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteType({{ $t['id'] }})">Delete</button>
+                                    <a href="{{ route('hrm.leave_types.edit', $t['id']) }}" class="btn btn-sm btn-default">Edit</a>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteType({{ $t['id'] }})">Delete</button>
                                 </td>
                             </tr>
                         @empty
@@ -46,9 +54,9 @@
                 </table>
             </div>
 
-            <div class="d-flex justify-content-between align-items-center mt-3">
-                <div></div>
-                <div>
+            <div class="row" style="margin-top:15px;">
+                <div class="col-md-6"></div>
+                <div class="col-md-6 text-right">
                     @if(isset($paginator))
                         {{ $paginator->appends(request()->query())->links() }}
                     @endif
@@ -56,7 +64,7 @@
             </div>
         </div>
     </div>
-</div>
+</section>
 
 @push('scripts')
 <script>
@@ -104,27 +112,29 @@
     }
 
     function deleteType(id) {
-        if (!confirm('Delete this type?')) return;
-        fetch(`${window.location.pathname}/${id}`, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            },
-            body: new URLSearchParams({ _method: 'DELETE' })
-        })
-        .then(r => r.json())
-        .then(json => {
-            if (json && json.success) {
-                if (window.toastr) { toastr.success('Deleted successfully'); }
-                if (window.playSuccess) { window.playSuccess(); }
-                applyFilters();
-            } else {
-                if (window.toastr) { toastr.error('Delete failed'); }
-                if (window.playError) { window.playError(); }
-            }
-        })
-        .catch(() => { if (window.toastr) { toastr.error('Delete failed'); } if (window.playError) { window.playError(); } });
+        window.hrmConfirm('Delete this type?', { title: 'Delete Leave Type', confirmButtonText: 'Delete' }).then(confirmed => {
+            if (!confirmed) return;
+            fetch(`${window.location.pathname}/${id}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: new URLSearchParams({ _method: 'DELETE' })
+            })
+            .then(r => r.json())
+            .then(json => {
+                if (json && json.success) {
+                    if (window.toastr) { toastr.success('Deleted successfully'); }
+                    if (window.playSuccess) { window.playSuccess(); }
+                    applyFilters();
+                } else {
+                    if (window.toastr) { toastr.error('Delete failed'); }
+                    if (window.playError) { window.playError(); }
+                }
+            })
+            .catch(() => { if (window.toastr) { toastr.error('Delete failed'); } if (window.playError) { window.playError(); } });
+        });
     }
 </script>
 @endpush

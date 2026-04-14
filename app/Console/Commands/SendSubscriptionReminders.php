@@ -77,6 +77,10 @@ class SendSubscriptionReminders extends Command
         } catch (\Exception $e) {
             Log::error('Subscription reminder error: '.$e->getMessage());
             $this->error('Error: '.$e->getMessage());
+
+            if (app()->environment('testing')) {
+                throw $e;
+            }
         }
     }
 
@@ -92,6 +96,8 @@ class SendSubscriptionReminders extends Command
         if (empty($user) || empty($user->email)) {
             return;
         }
+
+        $transactionUtil = app(TransactionUtil::class);
 
         $business = $user->business ?? null;
         $business_id = $business->id ?? null;
@@ -209,43 +215,14 @@ class SendSubscriptionReminders extends Command
             $tx->payment_status = 'due';
             $tx->save();
 
-            // Generate PDF attachment
-            $mpdf = $transactionUtil->getEmailAttachmentForGivenTransaction($business_id, $tx->id, true);
-
-            // Build notification data
-            $paymentLink = route('invoice_payment', ['token' => $tx->invoice_token ?? '']);
-            $subject = __('Invoice for subscription renewal - :plan', ['plan' => $subscription->plan_name]);
-                $body = "An invoice has been generated for your upcoming subscription renewal (ends on ". $subscription->end_date->toFormattedDateString() .").\n";
-            if ($vatAmount > 0) {
-                $body .= "Amount (ex VAT): ".number_format($amount,2)."\n";
-                $body .= "VAT (".$vatPercent."%): ".number_format($vatAmount,2)."\n";
-                $body .= "Total: ".number_format($finalAmount,2)."\n";
-            } else {
-                $body .= "Amount: ".number_format($amount,2)."\n";
-            }
-            $body .= "Pay now: ". $paymentLink;
-
-            $data = [
-                'subject' => $subject,
-                'email_body' => nl2br(e($body)),
-                'pdf' => $mpdf,
-                'pdf_name' => 'INVOICE-'.$tx->invoice_no.'.pdf',
-            ];
-
-            Notification::route('mail', $user->email)->notify(new CustomerNotification($data));
-
-            // Mark subscription invoice_sent_at to prevent duplicate sends
             try {
-                $subscription->invoice_sent_at = \Carbon\Carbon::now();
+                $subscription->invoice_sent_at = Carbon::now();
                 $subscription->save();
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Log::warning('Failed to set invoice_sent_at for subscription '.$subscription->id.': '.$e->getMessage());
             }
 
-            // Create or update a MpesaPayment record tying this renewal (if any) to the invoice
             try {
-                $renewalSub = null;
-                // If there's already a pending renewal for this subscription, use it; otherwise create one
                 $renewalSub = \App\Subscription::where('previous_subscription_id', $subscription->id)
                                 ->where('is_renewal', 1)
                                 ->where('status', 'pending')
@@ -253,23 +230,19 @@ class SendSubscriptionReminders extends Command
                                 ->first();
 
                 if (! $renewalSub) {
-                    // Create a renewal subscription that will start at current subscription end_date
                     $renewalSub = \App\Subscription::create([
                         'user_id' => $subscription->user_id,
                         'plan_name' => $subscription->plan_name . ' (Renewal)',
                         'billing_cycle' => $subscription->billing_cycle,
                         'amount' => $subscription->amount,
                         'start_date' => $subscription->end_date,
-                        'end_date' => (new \App\Http\Controllers\SubscriptionController())->calculateEndDate($subscription->billing_cycle, $subscription->end_date),
+                        'end_date' => $this->calculateRenewalEndDate($subscription->billing_cycle, $subscription->end_date),
                         'status' => 'pending',
                         'is_renewal' => 1,
                         'previous_subscription_id' => $subscription->id,
                     ]);
                 }
 
-                // Create (or reuse) a MpesaPayment to represent the expected renewal payment (pending)
-                // IMPORTANT: mpesa_payments.account_reference has a UNIQUE constraint and is intended
-                // to match the M-Pesa STK AccountReference. Do NOT reuse invoice numbers here.
                 $mpesa = \App\MpesaPayment::where('subscription_id', $renewalSub->id)
                     ->where('transaction_status', 'pending')
                     ->latest()
@@ -289,11 +262,12 @@ class SendSubscriptionReminders extends Command
 
                     $mpesa = \App\MpesaPayment::create([
                         'user_id' => $subscription->user_id,
+                        'business_id' => $subscription->user->business_id ?? null,
                         'subscription_id' => $renewalSub->id,
                         'phone_number' => $subscription->user->phone ?? null,
                         'amount' => $finalAmount,
                         'account_reference' => $accountRef,
-                        'payment_type' => 'subscription',
+                        'payment_type' => \App\MpesaPayment::TYPE_SUBSCRIPTION,
                         'transaction_status' => 'pending',
                         'first_name' => $subscription->user->first_name ?? null,
                         'last_name' => $subscription->user->last_name ?? null,
@@ -306,16 +280,46 @@ class SendSubscriptionReminders extends Command
                     ]);
                 }
 
-                // Link renewal subscription to the generated invoice tx and mpesa payment for robust mapping.
-                try {
-                    $renewalSub->pending_invoice_transaction_id = $tx->id;
-                    $renewalSub->pending_mpesa_payment_id = $mpesa->id ?? null;
-                    $renewalSub->save();
-                } catch (\Exception $e) {
-                    Log::warning('Failed to link renewal subscription ('.$renewalSub->id.') to invoice tx or mpesa payment: '.$e->getMessage());
-                }
-            } catch (\Exception $e) {
+                $renewalSub->pending_invoice_transaction_id = $tx->id;
+                $renewalSub->pending_mpesa_payment_id = $mpesa->id ?? null;
+                $renewalSub->save();
+
+                $subscription->pending_invoice_transaction_id = $tx->id;
+                $subscription->pending_mpesa_payment_id = $mpesa->id ?? null;
+                $subscription->save();
+            } catch (\Throwable $e) {
                 Log::warning('Failed to create renewal subscription or mpesa payment for subscription '.$subscription->id.': '.$e->getMessage());
+
+                if (app()->environment('testing')) {
+                    throw $e;
+                }
+            }
+
+            try {
+                $mpdf = $transactionUtil->getEmailAttachmentForGivenTransaction($business_id, $tx->id, true);
+
+                $paymentLink = route('invoice_payment', ['token' => $tx->invoice_token ?? '']);
+                $subject = __('Invoice for subscription renewal - :plan', ['plan' => $subscription->plan_name]);
+                $body = "An invoice has been generated for your upcoming subscription renewal (ends on ". $subscription->end_date->toFormattedDateString() .").\n";
+                if ($vatAmount > 0) {
+                    $body .= "Amount (ex VAT): ".number_format($amount,2)."\n";
+                    $body .= "VAT (".$vatPercent."%): ".number_format($vatAmount,2)."\n";
+                    $body .= "Total: ".number_format($finalAmount,2)."\n";
+                } else {
+                    $body .= "Amount: ".number_format($amount,2)."\n";
+                }
+                $body .= "Pay now: ". $paymentLink;
+
+                $data = [
+                    'subject' => $subject,
+                    'email_body' => nl2br(e($body)),
+                    'pdf' => $mpdf,
+                    'pdf_name' => 'INVOICE-'.$tx->invoice_no.'.pdf',
+                ];
+
+                Notification::route('mail', $user->email)->notify(new CustomerNotification($data));
+            } catch (\Throwable $e) {
+                Log::warning('Failed to send subscription invoice email for subscription '.$subscription->id.': '.$e->getMessage());
             }
 
             // Log activity
@@ -325,8 +329,12 @@ class SendSubscriptionReminders extends Command
             }
 
             $this->info('14-day invoice generated and emailed for subscription '.$subscription->id.' to '.$user->email);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Error creating invoice for subscription '.$subscription->id.': '.$e->getMessage());
+
+            if (app()->environment('testing')) {
+                throw $e;
+            }
         }
     }
 
@@ -399,5 +407,17 @@ class SendSubscriptionReminders extends Command
         } catch (\Exception $e) {
             Log::error('Error sending 7-day reminder for subscription '.$subscription->id.': '.$e->getMessage());
         }
+    }
+
+    protected function calculateRenewalEndDate($billingCycle, $startDate = null)
+    {
+        $start = $startDate ? Carbon::parse($startDate) : Carbon::now();
+
+        return match ($billingCycle) {
+            'monthly' => $start->copy()->addMonth(),
+            'quarterly' => $start->copy()->addMonths(3),
+            'yearly' => $start->copy()->addYear(),
+            default => $start->copy()->addMonth(),
+        };
     }
 }

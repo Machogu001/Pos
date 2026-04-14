@@ -1,10 +1,10 @@
 @extends('layouts.app')
-@section('title', __('lang_v1.payment_accounts'))
+@section('title', __('account.chart_of_accounts'))
 
 @section('content')
     <!-- Content Header (Page header) -->
     <section class="content-header">
-        <h1 class="tw-text-xl md:tw-text-3xl tw-font-bold tw-text-black">@lang('lang_v1.payment_accounts')
+        <h1 class="tw-text-xl md:tw-text-3xl tw-font-bold tw-text-black">@lang('account.chart_of_accounts')
             <small class="tw-text-sm md:tw-text-base tw-text-gray-700 tw-font-semibold">@lang('account.manage_your_account')</small>
         </h1>
     </section>
@@ -66,17 +66,24 @@
                                                 ) !!}
                                             </div>
                                             <div class="col-md-8">
-                                                    <button type="button" class="tw-dw-btn tw-bg-gradient-to-r tw-from-indigo-600 tw-to-blue-500 tw-font-bold tw-text-white tw-border-none tw-rounded-full btn-modal pull-right"
-                                                        data-container=".account_model"
-                                                        data-href="{{ action([\App\Http\Controllers\AccountController::class, 'create']) }}">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                                            class="icon icon-tabler icons-tabler-outline icon-tabler-plus">
-                                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                            <path d="M12 5l0 14" />
-                                                            <path d="M5 12l14 0" />
-                                                        </svg> @lang('messages.add')
+                                                <button type="button" class="tw-dw-btn tw-bg-gradient-to-r tw-from-indigo-600 tw-to-blue-500 tw-font-bold tw-text-white tw-border-none tw-rounded-full btn-modal pull-right"
+                                                    data-container=".account_model"
+                                                    data-href="{{ action([\App\Http\Controllers\AccountController::class, 'create']) }}">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                                        class="icon icon-tabler icons-tabler-outline icon-tabler-plus">
+                                                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                        <path d="M12 5l0 14" />
+                                                        <path d="M5 12l14 0" />
+                                                    </svg> @lang('messages.add')
+                                                </button>
+
+                                                @if(!empty($backfill_missing_count) && $backfill_missing_count > 0)
+                                                    <button type="button" id="backfill_default_accounts_btn" class="btn btn-warning pull-right" style="margin-right: 10px;">
+                                                        <i class="fa fa-magic"></i>
+                                                        {{ __('account.backfill_default_accounts') }}
                                                     </button>
+                                                @endif
                                             </div>
                                             {{-- @endcomponent --}}
                                         </div>
@@ -91,7 +98,8 @@
                                                             <th>@lang('lang_v1.account_sub_type')</th>
                                                             <th>@lang('account.account_number')</th>
                                                             <th>@lang('brand.note')</th>
-                                                            <th>@lang('lang_v1.balance')</th>
+                                                            <th>@lang('account.debit')</th>
+                                                            <th>@lang('account.credit')</th>
                                                             <th>@lang('lang_v1.account_details')</th>
                                                             <th>@lang('lang_v1.added_by')</th>
                                                             <th>@lang('messages.action')</th>
@@ -99,9 +107,10 @@
                                                     </thead>
                                                     <tfoot>
                                                         <tr class="bg-gray font-17 footer-total text-center">
-                                                            <td colspan="5"><strong>@lang('sale.total'):</strong></td>
-                                                            <td class="footer_total_balance"></td>
-                                                            <td colspan="3"></td>
+                                                            <td colspan="5"><strong>@lang('account.balance_summary'):</strong></td>
+                                                            <td class="footer_total_debit footer_total_side"></td>
+                                                            <td class="footer_total_credit footer_total_side"></td>
+                                                            <td colspan="2"></td>
                                                         </tr>
                                                     </tfoot>
                                                 </table>
@@ -211,6 +220,47 @@
 @endsection
 
 @section('javascript')
+    @parent
+    <script>
+        $(document).on('click', '#backfill_default_accounts_btn', function (e) {
+            e.preventDefault();
+
+            swal({
+                title: LANG.sure,
+                text: '{{ addslashes(__('account.backfill_default_accounts_confirm')) }}',
+                icon: 'warning',
+                buttons: true,
+                dangerMode: true,
+            }).then(function (willRun) {
+                if (!willRun) {
+                    return;
+                }
+
+                var url = "{{ route('account.backfill_default_accounts') }}";
+
+                $.ajax({
+                    method: 'POST',
+                    url: url,
+                    data: {
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function (result) {
+                        if (result.status === 'success') {
+                            toastr.success(result.msg || '{{ __('account.account_updated_success') }}');
+                            // Reload to update balances
+                            location.reload();
+                        } else {
+                            toastr.error(result.msg || '{{ __('messages.something_went_wrong') }}');
+                        }
+                    },
+                    error: function () {
+                        toastr.error('{{ __('messages.something_went_wrong') }}');
+                    }
+                });
+            });
+        });
+    </script>
+
     <script>
         $(document).ready(function() {
 
@@ -334,9 +384,15 @@
                     }
                 },
                 columnDefs: [{
-                    "targets": [6, 8],
+                    "targets": [7, 9],
                     "orderable": false,
                     "searchable": false
+                }, {
+                    "targets": [2],
+                    "visible": false
+                }, {
+                    "targets": [7],
+                    "visible": false
                 }],
                 columns: [{
                         data: 'name',
@@ -359,7 +415,12 @@
                         name: 'accounts.note'
                     },
                     {
-                        data: 'balance',
+                        data: 'debit_balance',
+                        name: 'balance',
+                        searchable: false
+                    },
+                    {
+                        data: 'credit_balance',
                         name: 'balance',
                         searchable: false
                     },
@@ -380,16 +441,30 @@
                     __currency_convert_recursively($('#other_account_table'));
                 },
                 "footerCallback": function(row, data, start, end, display) {
-                    var footer_total_balance = 0;
+                    var footer_total_debit = 0;
+                    var footer_total_credit = 0;
+
                     for (var r in data) {
-                        footer_total_balance += $(data[r].balance).data('orig-value') ? parseFloat($(
-                            data[r].balance).data('orig-value')) : 0;
+                        footer_total_debit += $(data[r].debit_balance).data('orig-value') ? parseFloat($(data[r].debit_balance).data('orig-value')) : 0;
+                        footer_total_credit += $(data[r].credit_balance).data('orig-value') ? parseFloat($(data[r].credit_balance).data('orig-value')) : 0;
                     }
 
-                    $('.footer_total_balance').html(__currency_trans_from_en(footer_total_balance));
+                    $('.footer_total_debit').html(
+                        '<div class="footer_total_side_label">@lang('account.debit')</div>' +
+                        '<div class="footer_total_side_amount">' + __currency_trans_from_en(footer_total_debit, true) + '</div>'
+                    );
+                    $('.footer_total_credit').html(
+                        '<div class="footer_total_side_label">@lang('account.credit')</div>' +
+                        '<div class="footer_total_side_amount">' + __currency_trans_from_en(footer_total_credit, true) + '</div>'
+                    );
                 }
             });
 
+        $('<style>\
+            #other_account_table tfoot .footer_total_side { white-space: normal; min-width: 0; }\
+            #other_account_table tfoot .footer_total_side_label { font-size: 11px; font-weight: 700; line-height: 1.2; }\
+            #other_account_table tfoot .footer_total_side_amount { font-size: 13px; line-height: 1.25; word-break: break-word; }\
+        </style>').appendTo('head');
         });
 
         $('#account_status').change(function() {

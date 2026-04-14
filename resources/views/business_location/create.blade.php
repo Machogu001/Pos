@@ -169,6 +169,11 @@
                 <hr>
                 <div class="col-sm-12">
                     <strong>@lang('lang_v1.payment_options'): @show_tooltip(__('lang_v1.payment_option_help'))</strong>
+                    <div class="alert alert-info" style="margin-top: 10px; margin-bottom: 10px;">
+                        <strong>@lang('lang_v1.location_payment_defaults_title')</strong>
+                        <br>
+                        @lang('lang_v1.location_payment_defaults_help')
+                    </div>
                     <div class="form-group">
                         <table class="table table-condensed table-striped">
                             <thead>

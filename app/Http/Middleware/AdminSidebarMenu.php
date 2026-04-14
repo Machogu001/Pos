@@ -25,7 +25,8 @@ class AdminSidebarMenu
         // Ensure current business exists as a Company record so it appears in company dropdowns
         try {
             $businessId = session('business.id') ?? null;
-            if (!empty($businessId)) {
+            $syncKey = $businessId ? 'sidebar_company_synced_' . $businessId : null;
+            if (!empty($businessId) && ! session()->has($syncKey)) {
                 $business = Business::find($businessId);
                 if ($business) {
                     // Prefer to find by business_id first
@@ -47,6 +48,8 @@ class AdminSidebarMenu
                             ]);
                         }
                     }
+
+                    session([$syncKey => true]);
                 }
             }
         } catch (\Exception $e) {
@@ -625,6 +628,11 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                     __('lang_v1.payment_accounts'),
                     function ($sub) {
                         $sub->url(
+                            action([\App\Http\Controllers\AccountReportsController::class, 'dashboard']),
+                            __('account.finance_dashboard'),
+                            ['icon' => '', 'active' => request()->segment(1) == 'account' && request()->segment(2) == 'dashboard']
+                        );
+                        $sub->url(
                             action([\App\Http\Controllers\AccountController::class, 'index']),
                             __('account.list_accounts'),
                             ['icon' => '', 'active' => request()->segment(1) == 'account' && request()->segment(2) == 'account']
@@ -638,6 +646,26 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                             action([\App\Http\Controllers\AccountReportsController::class, 'trialBalance']),
                             __('account.trial_balance'),
                             ['icon' => '', 'active' => request()->segment(1) == 'account' && request()->segment(2) == 'trial-balance']
+                        );
+                        $sub->url(
+                            action([\App\Http\Controllers\AccountReportsController::class, 'chartOfAccounts']),
+                            __('account.chart_of_accounts'),
+                            ['icon' => '', 'active' => request()->segment(1) == 'account' && request()->segment(2) == 'chart-of-accounts']
+                        );
+                        $sub->url(
+                            action([\App\Http\Controllers\AccountReportsController::class, 'generalLedger']),
+                            __('account.general_ledger'),
+                            ['icon' => '', 'active' => request()->segment(1) == 'account' && request()->segment(2) == 'general-ledger']
+                        );
+                        $sub->url(
+                            action([\App\Http\Controllers\AccountReportsController::class, 'journalEntry']),
+                            __('account.journal_entry'),
+                            ['icon' => '', 'active' => request()->segment(1) == 'account' && request()->segment(2) == 'journal-entry']
+                        );
+                        $sub->url(
+                            action([\App\Http\Controllers\ReportController::class, 'getProfitLoss']),
+                            __('report.profit_loss'),
+                            ['icon' => '', 'active' => request()->segment(1) == 'account' && request()->segment(2) == 'profit-loss']
                         );
                         $sub->url(
                             action([\App\Http\Controllers\AccountController::class, 'cashFlow']),
@@ -1018,6 +1046,14 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                 $menu->dropdown(
                     'HRM',
                     function ($sub) {
+                        // Dashboard
+                        try {
+                            if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.employees') || auth()->user()->can('hrm.payrolls') || auth()->user()->can('hrm.departments')) {
+                                $sub->url(action([\Modules\Hrm\Http\Controllers\HrmController::class, 'index']), 'Dashboard', ['icon' => '', 'active' => request()->segment(1) == 'hrm' && empty(request()->segment(2))]);
+                            }
+                        } catch (\Exception $e) {
+                        }
+
                         // Companies
                         try {
                             if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.companies')) {
@@ -1066,6 +1102,14 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                         } catch (\Exception $e) {
                         }
 
+                        // HRM Reports
+                        try {
+                            if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.payrolls')) {
+                                $sub->url(route('hrm.reports.index'), 'Reports', ['icon' => '', 'active' => request()->is('hrm/reports*')]);
+                            }
+                        } catch (\Exception $e) {
+                        }
+
                         // Leaves (Leave management) - show only to users with HRM leave permissions
                         try {
                             if (auth()->user()->can('leave.view') || auth()->user()->can('leave.create') || auth()->user()->can('leave.update')) {
@@ -1085,7 +1129,7 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                         // HRM Settings (default leave) - exposed to admins or users with business settings access
                         try {
                             if (auth()->user()->can('business_settings.access') || auth()->user()->hasRole('Admin#' . session('business.id'))) {
-                                $sub->url(action([\Modules\Hrm\Http\Controllers\SettingsController::class, 'editDefaultLeave']), 'HRM Settings', ['icon' => '', 'active' => request()->is('hrm/settings/leave')]);
+                                $sub->url(route('hrm.settings.index'), 'HRM Settings', ['icon' => '', 'active' => request()->is('hrm/settings*')]);
                                 // (Removed) HRM modules shortcut per request
                             }
                         } catch (\Exception $e) {

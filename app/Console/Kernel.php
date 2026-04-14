@@ -22,6 +22,8 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\ListUnconsumedMpesaPayments::class,
         \App\Console\Commands\SetDefaultLeave::class,
         \App\Console\Commands\SendSubscriptionReminders::class,
+        \App\Console\Commands\BackfillDefaultAccountTransactions::class,
+        \App\Console\Commands\RealignPaymentAccountMappings::class,
     ];
 
     /**

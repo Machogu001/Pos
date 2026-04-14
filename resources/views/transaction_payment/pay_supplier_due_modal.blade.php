@@ -5,6 +5,7 @@
 
     {!! Form::hidden("contact_id", $contact_details->contact_id); !!}
     {!! Form::hidden("due_payment_type", $due_payment_type); !!}
+  {!! Form::hidden('location_payment_accounts_map', json_encode($location_payment_accounts ?? []), ['id' => 'location_payment_accounts_map']); !!}
     <div class="modal-header">
       <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
       <h4 class="modal-title">@lang( 'purchase.add_payment' )</h4>
@@ -110,6 +111,22 @@
                     </div>
                 </div>
             </div>
+        @endif
+        @if(!empty($location_dropdown))
+        <div class="row">
+          <div class="col-md-4">
+            <div class="form-group">
+              {!! Form::label('location_id', __('purchase.location') . ':*') !!}
+              <div class="input-group">
+                <span class="input-group-addon">
+                  <i class="fas fa-map-marker-alt"></i>
+                </span>
+                {!! Form::select('location_id', $location_dropdown, !empty($default_location) ? $default_location->id : null, ['class' => 'form-control select2', 'id' => 'contact_due_location_id', 'required', 'style' => 'width:100%;']) !!}
+              </div>
+              <p class="help-block">Choose the branch paying this due so the correct default payment account is used.</p>
+            </div>
+          </div>
+        </div>
         @endif
       <div class="row payment_row">
         <div class="col-md-4">
@@ -222,6 +239,7 @@
                 </span>
                 {!! Form::select("account_id", $accounts, !empty($payment_line->account_id) ? $payment_line->account_id : '' , ['class' => 'form-control select2', 'id' => "account_id", 'style' => 'width:100%;']); !!}
               </div>
+              <p class="help-block">@lang('lang_v1.supplier_due_payment_account_help')</p>
             </div>
           </div>
         @endif
@@ -246,3 +264,78 @@
 
   </div><!-- /.modal-content -->
 </div><!-- /.modal-dialog -->
+
+  <script>
+    $(document).ready(function () {
+      var locationMapInput = document.getElementById('location_payment_accounts_map');
+      var locationMap = {};
+
+      if (locationMapInput && locationMapInput.value) {
+        try {
+          locationMap = JSON.parse(locationMapInput.value) || {};
+        } catch (e) {
+          locationMap = {};
+        }
+      }
+
+      function getLocationPaymentSettings() {
+        var locationId = $('#contact_due_location_id').val();
+        return locationId && locationMap[locationId] ? locationMap[locationId] : {};
+      }
+
+      function syncPaymentMethodsForLocation() {
+        var paymentSettings = getLocationPaymentSettings();
+        var enabledMethods = [];
+
+        Object.keys(paymentSettings).forEach(function (method) {
+          if (paymentSettings[method] && paymentSettings[method].is_enabled) {
+            enabledMethods.push(method);
+          }
+        });
+
+        var paymentTypeDropdown = $('.payment_types_dropdown');
+        paymentTypeDropdown.find('option').each(function () {
+          var optionValue = $(this).val();
+          if (!optionValue) {
+            return;
+          }
+
+          if (enabledMethods.length && enabledMethods.indexOf(optionValue) === -1) {
+            $(this).addClass('hide');
+          } else {
+            $(this).removeClass('hide');
+          }
+        });
+
+        if (enabledMethods.length && enabledMethods.indexOf(paymentTypeDropdown.val()) === -1) {
+          paymentTypeDropdown.val(enabledMethods[0]).trigger('change');
+        }
+      }
+
+      function syncPaymentAccountForLocation() {
+        var paymentSettings = getLocationPaymentSettings();
+        var paymentMethod = $('.payment_types_dropdown').val();
+        var accountDropdown = $('select#account_id');
+
+        if (!accountDropdown.length) {
+          return;
+        }
+
+        if (paymentMethod && paymentMethod !== 'advance' && paymentSettings[paymentMethod] && paymentSettings[paymentMethod].account) {
+          accountDropdown.val(paymentSettings[paymentMethod].account).trigger('change');
+        }
+      }
+
+      $(document).on('change', '#contact_due_location_id', function () {
+        syncPaymentMethodsForLocation();
+        syncPaymentAccountForLocation();
+      });
+
+      $(document).on('change', '.payment_types_dropdown', function () {
+        syncPaymentAccountForLocation();
+      });
+
+      syncPaymentMethodsForLocation();
+      syncPaymentAccountForLocation();
+    });
+  </script>

@@ -3,7 +3,7 @@
   <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Install {{ Session::get('business.name') }}</h5>
+        <div class="modal-title h5">Install {{ Session::get('business.name') }}</div>
         <button type="button" class="btn-close" id="pwa-modal-close-btn" data-bs-dismiss="modal" aria-label="Close" style="cursor: pointer;"></button>
       </div>
       <div class="modal-body text-center">

@@ -94,8 +94,6 @@
     <!-- Scripts -->
     <script src="{{ asset('js/login.js?v=' . $asset_v) }}"></script>
 
-    @yield('javascript')
-
     <script type="text/javascript">
         $(document).ready(function() {
             $('.select2_register').select2();

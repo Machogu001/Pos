@@ -4,13 +4,22 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 use App\MpesaPayment;
 use App\Http\Controllers\SubscriptionController;
 use App\Subscription;
+use App\Services\MobileSasaSmsService;
 use Carbon\Carbon;
 
 class MpesaCallbackController extends Controller
 {
+    protected $smsService;
+
+    public function __construct(MobileSasaSmsService $smsService)
+    {
+        $this->smsService = $smsService;
+    }
+
     public function handleCallback(Request $request)
 {
     Log::info('📩 M-Pesa Callback Received:', $request->all());
@@ -82,6 +91,8 @@ class MpesaCallbackController extends Controller
     $payment->result_code = $resultCode;
     $payment->result_desc = $resultDesc;
 
+    $shouldSendResumeSms = false;
+
     if ($resultCode == 0) {
         $metadata = collect($callback['CallbackMetadata']['Item'] ?? []);
 
@@ -121,6 +132,12 @@ class MpesaCallbackController extends Controller
             }
         }
 
+    $shouldSendResumeSms = empty($payment->paid_at)
+        && ($payment->payment_type ?? null) === MpesaPayment::TYPE_REGISTRATION
+        && empty($payment->business_id)
+        && empty($payment->consumed_at)
+        && ! empty($phone ?: $payment->phone_number);
+
     $payment->amount               = $amount;
     $payment->mpesa_receipt_number = $receipt;
     $payment->phone_number         = $phone;
@@ -136,6 +153,22 @@ class MpesaCallbackController extends Controller
     }
 
     $payment->save();
+
+    if ($shouldSendResumeSms) {
+        try {
+            $resumeUrl = BusinessController::registrationResumeUrlForPayment($payment);
+            $this->smsService->sendRegistrationResumeInstructions(
+                $payment->phone_number,
+                $payment->account_reference,
+                $resumeUrl
+            );
+        } catch (\Throwable $exception) {
+            Log::warning('Unable to send registration resume SMS', [
+                'payment_id' => $payment->id,
+                'message' => $exception->getMessage(),
+            ]);
+        }
+    }
 
     // Attempt to activate subscription immediately (if linked or discoverable)
     try {

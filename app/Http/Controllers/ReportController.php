@@ -1106,8 +1106,9 @@ class ReportController extends Controller
             $stock_adjustment_details = $query->select(
                 DB::raw('SUM(final_total) as total_amount'),
                 DB::raw('SUM(total_amount_recovered) as total_recovered'),
-                DB::raw("SUM(IF(adjustment_type = 'normal', final_total, 0)) as total_normal"),
-                DB::raw("SUM(IF(adjustment_type = 'abnormal', final_total, 0)) as total_abnormal")
+                DB::raw("SUM(IF(is_stocktake = 1, final_total, 0)) as total_stocktake_adjustment"),
+                DB::raw("SUM(IF(is_stocktake = 0 AND adjustment_type = 'normal', final_total, 0)) as total_normal"),
+                DB::raw("SUM(IF(is_stocktake = 0 AND adjustment_type = 'abnormal', final_total, 0)) as total_abnormal")
             )->first();
 
             return $stock_adjustment_details;
@@ -3686,7 +3687,11 @@ class ReportController extends Controller
             $statuses = array_merge($sell_statuses, $sales_order_statuses, $purchase_statuses);
 
             return Datatables::of($activities)
-                            ->editColumn('created_at', '{{@format_datetime($created_at)}}')
+                            ->editColumn('created_at', function ($row) {
+                                return ! empty($row->created_at)
+                                    ? date('d m Y H:i:s', strtotime($row->created_at))
+                                    : '-';
+                            })
                             ->addColumn('subject_type', function ($row) use ($transaction_types) {
                                 $subject_type = '';
                                 if ($row->subject_type == \App\Contact::class) {

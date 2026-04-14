@@ -7,6 +7,10 @@ return new class extends Migration
 {
     public function up()
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         // Drop trigger first to avoid "trigger already exists" error
         DB::unprepared("DROP TRIGGER IF EXISTS after_transaction_sell_line_insert");
 
@@ -34,6 +38,10 @@ return new class extends Migration
 
     public function down()
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::unprepared("DROP TRIGGER IF EXISTS after_transaction_sell_line_insert");
     }
 };

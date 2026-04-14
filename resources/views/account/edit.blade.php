@@ -17,6 +17,7 @@
              <div class="form-group">
                 {!! Form::label('account_number', __( 'account.account_number' ) .":*") !!}
                 {!! Form::text('account_number', $account->account_number, ['class' => 'form-control', 'required','placeholder' => __( 'account.account_number' ) ]); !!}
+                     <p class="help-block">Use your chart code order, for example 1000-1999 Assets, 2000-2999 Liabilities, 3000-3999 Equity/Capital, 4000-4999 Income, 5000-5999 COGS, 6000-7999 Expenses.</p>
             </div>
 
             <div class="form-group">

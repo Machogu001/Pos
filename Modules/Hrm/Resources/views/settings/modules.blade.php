@@ -3,20 +3,13 @@
 @section('title', __('HRM Module Settings'))
 
 @section('content')
-<section class="content-header">
-    <h1>HRM Settings - Enable/Disable Modules</h1>
-</section>
+@include('hrm::partials.hrm_page_header', [
+    'title' => 'HRM Module Settings',
+    'subtitle' => 'Enable or disable HRM modules and jump into payroll posting configuration.',
+    'actions' => '<a href="'.route('hrm.settings.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Settings</a>'
+])
 
 <section class="content">
-    @if(session('status'))
-        @php $status = session('status'); @endphp
-        @if(!empty($status['success']))
-            <div class="alert alert-success">{{ $status['msg'] ?? 'Settings updated successfully' }}</div>
-        @else
-            <div class="alert alert-danger">{{ $status['msg'] ?? 'Update failed' }}</div>
-        @endif
-    @endif
-
     <div class="box box-primary">
         <div class="box-header with-border">
             <h3 class="box-title">Toggle Modules</h3>
@@ -43,6 +36,16 @@
                 <button type="submit" class="btn btn-primary">Save Changes</button>
             </div>
         </form>
+    </div>
+
+    <div class="box box-info" style="margin-top: 20px;">
+        <div class="box-header with-border">
+            <h3 class="box-title">Payroll Accounting Setup</h3>
+        </div>
+        <div class="box-body">
+            <p class="help-block">Configure the accounts used when payroll is processed and posted to the chart of accounts.</p>
+            <a href="{{ route('hrm.settings.payroll.edit') }}" class="btn btn-info">Open Payroll Posting Settings</a>
+        </div>
     </div>
 </section>
 @endsection

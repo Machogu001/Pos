@@ -1,0 +1,14 @@
+{
+  "generatedAt": "2026-04-12T11:12:54Z",
+  "baseUrl": "https://pos.bremac.co.ke",
+  "authenticated": true,
+  "method": "browser navigation domcontentloaded timing",
+  "rounds": 3,
+  "pages": [
+    {"path": "/hrm", "runs": [649, 621, 521], "avg": 597},
+    {"path": "/hrm/employees", "runs": [601, 574, 568], "avg": 581},
+    {"path": "/hrm/attendances", "runs": [575, 487, 620], "avg": 561},
+    {"path": "/hrm/leaves", "runs": [531, 541, 510], "avg": 527},
+    {"path": "/hrm/payrolls", "runs": [574, 476, 582], "avg": 544}
+  ]
+}

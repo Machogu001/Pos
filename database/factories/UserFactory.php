@@ -28,10 +28,19 @@ class UserFactory extends Factory
     {
         static $password;
 
+        $firstName = $this->faker->firstName();
+        $surname = $this->faker->lastName();
+        $lastName = $this->faker->optional()->lastName();
+
         return [
-            'name' => $this->faker->name(),
+            'surname' => $surname,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'username' => $this->faker->unique()->userName(),
             'email' => $this->faker->unique()->safeEmail(),
+            'contact_number' => '2547' . $this->faker->numerify('######'),
             'password' => $password ?: $password = Hash::make('secret'),
+            'language' => 'en',
             'remember_token' => Str::random(10),
         ];
     }

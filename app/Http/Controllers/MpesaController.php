@@ -46,6 +46,31 @@ class MpesaController extends Controller
         return view('business.payment');
     }
 
+    private function generateUniqueAccountReference(?string $preferredReference = null, ?int $ignorePaymentId = null): string
+    {
+        $candidate = strtoupper(trim((string) $preferredReference));
+
+        if ($candidate !== '' && ! $this->accountReferenceExists($candidate, $ignorePaymentId)) {
+            return $candidate;
+        }
+
+        do {
+            $candidate = strtoupper(Str::random(8));
+        } while ($this->accountReferenceExists($candidate, $ignorePaymentId));
+
+        return $candidate;
+    }
+
+    private function accountReferenceExists(string $accountReference, ?int $ignorePaymentId = null): bool
+    {
+        return MpesaPayment::query()
+            ->when($ignorePaymentId, function ($query) use ($ignorePaymentId) {
+                $query->where('id', '!=', $ignorePaymentId);
+            })
+            ->where('account_reference', $accountReference)
+            ->exists();
+    }
+
     public function initiatePayment(Request $request)
     {
         // Allow this endpoint to be used by POS (which may only send phone & amount)
@@ -55,23 +80,26 @@ class MpesaController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'phone' => 'required|string|min:10|max:15',
             'amount' => 'nullable|numeric',
-            // allow caller to indicate the type of payment (sell, registration, subscription)
-            'payment_type' => 'nullable|string|in:registration,sell,subscription',
+            // allow caller to indicate the type of payment (sell, purchase, registration, subscription)
+            'payment_type' => 'nullable|string|in:registration,purchase,sell,subscription',
+            'account_reference' => 'nullable|string|max:255',
+            'registration_payment_id' => 'nullable|integer',
         ]);
 
         // Determine payment type early so we can pick the correct credential source.
         // Rule: subscription payments use admin-set subscription credentials; everything else uses .env.
-        $paymentType = $request->input('payment_type', 'registration');
+        $paymentType = $request->input('payment_type', MpesaPayment::TYPE_REGISTRATION);
 
         $referer = strtolower($request->header('referer') ?? '');
+        $refererPath = strtolower((string) parse_url($referer, PHP_URL_PATH));
         $isPosFlag = $request->input('is_pos') == 1 || $request->input('from_pos') == 1;
 
         // Check referer contains any of the known POS path segments
         $posPaths = ['/sale_pos', '/pos', '/sale-pos', '/sale_pos'];
         $refererContainsPos = false;
-        if (!empty($referer)) {
+        if (!empty($refererPath)) {
             foreach ($posPaths as $p) {
-                if (str_contains($referer, $p)) {
+                if (str_contains($refererPath, $p)) {
                     $refererContainsPos = true;
                     break;
                 }
@@ -79,15 +107,19 @@ class MpesaController extends Controller
         }
 
         // If this looks like a POS request, force 'sell' unless explicitly marked as 'subscription'
-        if ($paymentType !== 'subscription' && ($isPosFlag || $refererContainsPos)) {
-            $paymentType = 'sell';
+        if ($paymentType !== MpesaPayment::TYPE_SUBSCRIPTION && ($isPosFlag || $refererContainsPos)) {
+            $paymentType = MpesaPayment::TYPE_SELL;
+        }
+
+        if (! in_array($paymentType, [MpesaPayment::TYPE_REGISTRATION, MpesaPayment::TYPE_PURCHASE, MpesaPayment::TYPE_SELL, MpesaPayment::TYPE_SUBSCRIPTION], true)) {
+            $paymentType = MpesaPayment::TYPE_REGISTRATION;
         }
 
     $rawPhone = $request->phone;
-    $phone = preg_replace('/^(\+?254|0)/', '254', $rawPhone);
+    $phone = MpesaPayment::normalizePhoneNumber($rawPhone);
 
-        // Defensive validation: require Kenyan mobile format 2547XXXXXXXX
-        if (!preg_match('/^2547\d{8}$/', $phone)) {
+        // Defensive validation: accept local and international Kenyan mobile formats.
+        if (empty($phone)) {
             Log::warning('MpesaController initiatePayment called with invalid phone', [
                 'user_id' => auth()->id(),
                 'raw_phone' => $rawPhone,
@@ -96,7 +128,7 @@ class MpesaController extends Controller
 
             return response()->json([
                 'transaction_status' => 'error',
-                'message' => 'Invalid phone. Use 2547XXXXXXXX format.'
+                'message' => __('payment.invalid_phone_format')
             ], 422);
         }
 
@@ -104,7 +136,9 @@ class MpesaController extends Controller
     $settings = \App\AdminSetting::first();
     $amount = $request->input('amount');
     if (empty($amount)) {
-        $amount = $settings->registration_price ?? 5;
+        $amount = ! empty($settings) && ! is_null($settings->registration_price)
+            ? $settings->registration_price
+            : 5;
     }
 
     // Use subscription-specific M-Pesa credentials ONLY for subscription payments.
@@ -136,15 +170,58 @@ class MpesaController extends Controller
         ]);
 
         // Check for existing pending transaction
-        $payment = MpesaPayment::where('phone_number', $phone)
-            ->where('transaction_status', 'pending')
-            ->latest()
-            ->first();
+        $existingPaymentId = $paymentType === MpesaPayment::TYPE_REGISTRATION
+            ? ($request->integer('registration_payment_id') ?: session('registration_payment_id'))
+            : null;
 
-        if (!$payment) {
-            $accountRef = strtoupper(Str::random(8));
+        $requestedAccountRef = trim((string) $request->input('account_reference'));
+        if ($requestedAccountRef === '' && $paymentType === MpesaPayment::TYPE_REGISTRATION) {
+            $requestedAccountRef = trim((string) (session('account_reference') ?? session('account_ref')));
+        }
+
+        $payment = null;
+        if (! empty($existingPaymentId)) {
+            $payment = MpesaPayment::where('id', $existingPaymentId)
+                ->where(function ($query) use ($paymentType) {
+                    $query->whereNull('payment_type')
+                        ->orWhere('payment_type', $paymentType);
+                })
+                ->first();
+        }
+
+        if (! $payment && ! empty($requestedAccountRef)) {
+            $payment = MpesaPayment::where('account_reference', $requestedAccountRef)
+                ->where(function ($query) use ($paymentType) {
+                    $query->whereNull('payment_type')
+                        ->orWhere('payment_type', $paymentType);
+                })
+                ->latest()
+                ->first();
+        }
+
+        if (! $payment) {
+            $payment = MpesaPayment::where('phone_number', $phone)
+                ->whereIn('transaction_status', ['pending', 'failed'])
+                ->where(function ($query) use ($paymentType) {
+                    $query->whereNull('payment_type')
+                        ->orWhere('payment_type', $paymentType);
+                })
+                ->when(in_array($paymentType, [MpesaPayment::TYPE_SELL, MpesaPayment::TYPE_PURCHASE], true), function ($query) {
+                    $query->whereNull('consumed_by_transaction_id');
+                })
+                ->latest()
+                ->first();
+        }
+
+        if (! $payment) {
+            $accountRef = $this->generateUniqueAccountReference($requestedAccountRef ?: null);
         } else {
             $accountRef = $payment->account_reference;
+        }
+
+        $businessId = auth()->user()->business_id ?? null;
+        if ($paymentType === MpesaPayment::TYPE_REGISTRATION) {
+            $businessId = null;
         }
 
         // Send STK Push
@@ -158,6 +235,7 @@ class MpesaController extends Controller
                 if (!$payment) {
                     $payment = MpesaPayment::create([
                         'user_id' => auth()->id(), // ✅ Use auth()->id() instead of $userId
+                        'business_id' => $businessId,
                         'phone_number' => $phone,
                         'amount' => $amount,
                         'account_reference' => $accountRef,
@@ -172,9 +250,15 @@ class MpesaController extends Controller
                 } else {
                     $payment->update([
                         'user_id' => auth()->id(), // ✅ Fixed: Use auth()->id()
+                        'business_id' => $businessId,
                         'merchant_request_id' => $merchantRequestID,
                         'checkout_request_id' => $checkoutRequestID,
                         'payment_type' => $paymentType,
+                        'result_code' => null,
+                        'result_desc' => null,
+                        'mpesa_receipt_number' => null,
+                        'paid_at' => null,
+                        'transaction_status' => 'pending',
                         'first_name' => $request->first_name,
                         'middle_name' => $request->middle_name,
                         'last_name' => $request->last_name,
@@ -182,11 +266,17 @@ class MpesaController extends Controller
                 }
 
             // Store checkout request ID in session for status checking
-            session(['checkout_request_id' => $checkoutRequestID]);
+            session([
+                'checkout_request_id' => $checkoutRequestID,
+                'account_reference' => $accountRef,
+                'account_ref' => $accountRef,
+                'registration_payment_id' => $payment->id,
+            ]);
             session()->save();
 
             return response()->json([
                 'transaction_status' => 'success',
+                'payment_id' => $payment->id,
                 'account_ref' => $accountRef,
                 'checkout_request_id' => $checkoutRequestID, 
                 'message' => 'STK push sent. Enter PIN on your phone.',
@@ -194,7 +284,7 @@ class MpesaController extends Controller
         }
 
         Log::error('STK Push Failed', ['response' => $responseBody]);
-        $errorMessage = $responseBody['errorMessage'] ?? $responseBody['errorDesc'] ?? 'STK Push failed.';
+        $errorMessage = $responseBody['CustomerMessage'] ?? $responseBody['errorMessage'] ?? $responseBody['errorDesc'] ?? $responseBody['ResponseDescription'] ?? 'STK Push failed.';
         return response()->json(['transaction_status' => 'error', 'message' => $errorMessage], 400);
     }
 
@@ -360,48 +450,42 @@ class MpesaController extends Controller
         try {
             Log::info('MpesaController confirmPayment called');
             
-            // Try to get phone from session first
-            $phone = session('payment_phone');
-            $checkoutRequestId = session('checkout_request_id');
+            $registrationPaymentId = session('registration_payment_id') ?? $request->input('registration_payment_id');
+            $checkoutRequestId = session('checkout_request_id') ?? $request->input('checkout_request_id');
+            $accountReference = session('account_reference') ?? session('account_ref') ?? $request->input('account_reference') ?? $request->input('account_ref');
+            $phone = session('payment_phone') ?? $request->input('phone_number');
+            $normalizedPhone = $phone ? preg_replace('/[^0-9]/', '', $phone) : null;
             
             Log::info('Session payment_phone: ' . ($phone ?: 'empty'));
             Log::info('Session checkout_request_id: ' . ($checkoutRequestId ?: 'empty'));
+            Log::info('Session registration_payment_id: ' . ($registrationPaymentId ?: 'empty'));
             
-            // If we have checkout request ID, use that for more precise lookup
-            if ($checkoutRequestId) {
-                $payment = MpesaPayment::where('checkout_request_id', $checkoutRequestId)->first();
-                
-                if ($payment) {
-                    Log::info('Payment found by checkout ID: ' . $payment->id);
-                    return response()->json([
-                        'success' => true,
-                        'transaction_status' => $payment->transaction_status,
-                        'message' => 'Payment status: ' . $payment->transaction_status
-                    ]);
-                }
-            }
-            
-            // If session is empty, get the VERY LATEST payment (regardless of status)
-            if (!$phone) {
-                $latestPayment = MpesaPayment::latest()->first();
-                
-                if ($latestPayment) {
-                    $phone = $latestPayment->phone_number;
-                    Log::info('Found latest payment phone from DB: ' . $phone);
-                    
-                    // Update session for future requests
-                    session(['payment_phone' => $phone]);
-                    session()->save();
-                }
+            $paymentQuery = MpesaPayment::query()
+                ->where(function ($query) {
+                    $query->whereNull('payment_type')
+                        ->orWhere('payment_type', 'registration');
+                });
+
+            if (! empty($registrationPaymentId)) {
+                $paymentQuery->where('id', $registrationPaymentId);
+            } else {
+                $paymentQuery->where(function ($query) use ($checkoutRequestId, $accountReference, $normalizedPhone) {
+                    if (! empty($checkoutRequestId)) {
+                        $query->orWhere('checkout_request_id', $checkoutRequestId);
+                    }
+
+                    if (! empty($accountReference)) {
+                        $query->orWhere('account_reference', $accountReference);
+                    }
+
+                    if (! empty($normalizedPhone)) {
+                        $query->orWhere('phone_number', $normalizedPhone)
+                            ->orWhere('phone_number', ltrim($normalizedPhone, '+'));
+                    }
+                });
             }
 
-            // If still no phone, check the request for phone number
-            if (!$phone && $request->has('phone_number')) {
-                $phone = $request->phone_number;
-                Log::info('Using phone from request: ' . $phone);
-            }
-
-            if (!$phone) {
+            if (empty($registrationPaymentId) && empty($checkoutRequestId) && empty($accountReference) && empty($normalizedPhone)) {
                 Log::warning('No phone number found for payment confirmation');
                 return response()->json([
                     'success' => false,
@@ -409,27 +493,42 @@ class MpesaController extends Controller
                 ], 400);
             }
 
-            Log::info('Checking payment for phone: ' . $phone);
-            
-            // Check for successful payment - look for ANY payment with this phone
-            $payment = MpesaPayment::where('phone_number', $phone)
-                ->latest() // Get the most recent one
+            Log::info('Checking registration payment status', [
+                'registration_payment_id' => $registrationPaymentId,
+                'checkout_request_id' => $checkoutRequestId,
+                'account_reference' => $accountReference,
+                'phone' => $normalizedPhone,
+            ]);
+
+            $payment = $paymentQuery
+                ->latest()
                 ->first();
 
             if (!$payment) {
-                Log::warning('No payment found for phone: ' . $phone);
+                Log::warning('No registration payment found for confirmation');
                 return response()->json([
                     'success' => false,
-                    'message' => 'No payment found for this phone number'
+                    'message' => 'No registration payment found'
                 ], 404);
             }
 
             Log::info('Payment found with status: ' . $payment->transaction_status . ', ID: ' . $payment->id);
+            session([
+                'registration_payment_id' => $payment->id,
+                'payment_phone' => $payment->phone_number,
+                'checkout_request_id' => $payment->checkout_request_id,
+                'account_reference' => $payment->account_reference,
+                'account_ref' => $payment->account_reference,
+            ]);
+            session()->save();
             
-            // Return the actual payment status
             return response()->json([
                 'success' => true,
+                'payment_id' => $payment->id,
+                'checkout_request_id' => $payment->checkout_request_id,
+                'account_ref' => $payment->account_reference,
                 'transaction_status' => $payment->transaction_status,
+                'result_desc' => $payment->result_desc,
                 'message' => 'Payment status: ' . $payment->transaction_status
             ]);
 
@@ -459,8 +558,8 @@ public function checkPaymentStatus(Request $request)
         // First check database by checkout_request_id
         $payment = MpesaPayment::where('checkout_request_id', $checkoutRequestId)->first();
         
-        // If not found by checkout ID, try by phone (latest payment)
-        if (!$payment && $phone) {
+        // Only fall back to latest phone payment when no explicit checkout ID was provided.
+        if (!$payment && !$checkoutRequestId && $phone) {
             Log::info("Payment not found by checkout ID, trying by phone: " . $phone);
             $payment = MpesaPayment::where('phone_number', $phone)
                 ->orderBy('created_at', 'desc')
@@ -490,6 +589,7 @@ public function checkPaymentStatus(Request $request)
         // If payment is already successful, activate subscription
         if ($payment->transaction_status === 'paid') {
             Log::info("Payment already paid");
+            $resultDescription = $payment->result_desc ?: 'Payment confirmed';
 
             // Only attempt activation for subscription payments
             if (($payment->payment_type ?? null) === 'subscription') {
@@ -502,7 +602,11 @@ public function checkPaymentStatus(Request $request)
                 return response()->json([
                     'success' => true,
                     'status' => 'success',
-                    'message' => 'Payment confirmed and subscription activated!',
+                    'transaction_status' => 'paid',
+                    'message' => $resultDescription,
+                    'result_desc' => $resultDescription,
+                    'result_code' => $payment->result_code,
+                    'mpesa_receipt_number' => $payment->mpesa_receipt_number,
                     'activated' => $activationResult,
                     'payment_id' => $payment->id
                 ]);
@@ -515,9 +619,30 @@ public function checkPaymentStatus(Request $request)
             return response()->json([
                 'success' => true,
                 'status' => 'success',
-                'message' => 'Payment confirmed (non-subscription). No subscription action taken.',
+                'transaction_status' => 'paid',
+                'message' => $resultDescription,
+                'result_desc' => $resultDescription,
+                'result_code' => $payment->result_code,
+                'mpesa_receipt_number' => $payment->mpesa_receipt_number,
                 'activated' => false,
                 'payment_id' => $payment->id
+            ]);
+        }
+
+        if ($payment->transaction_status === 'failed') {
+            $resultDescription = $payment->result_desc ?: 'Payment failed';
+
+            DB::commit();
+
+            return response()->json([
+                'success' => false,
+                'status' => 'failed',
+                'transaction_status' => 'failed',
+                'message' => $resultDescription,
+                'result_desc' => $resultDescription,
+                'result_code' => $payment->result_code,
+                'mpesa_receipt_number' => $payment->mpesa_receipt_number,
+                'payment_id' => $payment->id,
             ]);
         }
 
@@ -548,7 +673,11 @@ public function checkPaymentStatus(Request $request)
                     return response()->json([
                         'success' => true,
                         'status' => 'success',
-                        'message' => 'Payment confirmed and subscription activated!',
+                        'transaction_status' => 'paid',
+                        'message' => $payment->result_desc ?: ($queryResult['result_desc'] ?? 'Payment confirmed'),
+                        'result_desc' => $payment->result_desc ?: ($queryResult['result_desc'] ?? 'Payment confirmed'),
+                        'result_code' => $payment->result_code,
+                        'mpesa_receipt_number' => $payment->mpesa_receipt_number,
                         'activated' => $activationResult,
                         'payment_id' => $payment->id
                     ]);
@@ -561,27 +690,92 @@ public function checkPaymentStatus(Request $request)
                 return response()->json([
                     'success' => true,
                     'status' => 'success',
-                    'message' => 'Payment confirmed (non-subscription). No subscription action taken.',
+                    'transaction_status' => 'paid',
+                    'message' => $payment->result_desc ?: ($queryResult['result_desc'] ?? 'Payment confirmed'),
+                    'result_desc' => $payment->result_desc ?: ($queryResult['result_desc'] ?? 'Payment confirmed'),
+                    'result_code' => $payment->result_code,
+                    'mpesa_receipt_number' => $payment->mpesa_receipt_number,
                     'activated' => false,
                     'payment_id' => $payment->id
                 ]);
             }
             
+            $payment->refresh();
+
+            if ($payment->transaction_status === 'paid') {
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'status' => 'success',
+                    'transaction_status' => 'paid',
+                    'message' => $payment->result_desc ?: 'Payment confirmed',
+                    'result_desc' => $payment->result_desc ?: 'Payment confirmed',
+                    'result_code' => $payment->result_code,
+                    'mpesa_receipt_number' => $payment->mpesa_receipt_number,
+                    'payment_id' => $payment->id,
+                ]);
+            }
+
+            if ($payment->transaction_status === 'failed') {
+                DB::commit();
+
+                return response()->json([
+                    'success' => false,
+                    'status' => 'failed',
+                    'transaction_status' => 'failed',
+                    'message' => $payment->result_desc ?: 'Payment failed',
+                    'result_desc' => $payment->result_desc ?: 'Payment failed',
+                    'result_code' => $payment->result_code,
+                    'mpesa_receipt_number' => $payment->mpesa_receipt_number,
+                    'payment_id' => $payment->id,
+                ]);
+            }
+
+            if (!empty($queryResult['transaction_status']) && $queryResult['transaction_status'] === 'failed') {
+                $payment->update([
+                    'transaction_status' => 'failed',
+                    'result_code' => $queryResult['result_code'] ?? $payment->result_code,
+                    'result_desc' => $queryResult['result_desc'] ?? $payment->result_desc,
+                ]);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => false,
+                    'status' => 'failed',
+                    'transaction_status' => 'failed',
+                    'message' => $queryResult['result_desc'] ?? $payment->result_desc ?? 'Payment failed',
+                    'result_desc' => $queryResult['result_desc'] ?? $payment->result_desc ?? 'Payment failed',
+                    'payment_id' => $payment->id,
+                    'result_code' => $queryResult['result_code'] ?? null,
+                    'mpesa_receipt_number' => $payment->mpesa_receipt_number,
+                ]);
+            }
+
             DB::commit();
             return response()->json([
                 'success' => true,
-                'status' => $payment->transaction_status,
-                'message' => 'Payment is still pending',
+                'status' => 'pending',
+                'transaction_status' => $payment->transaction_status,
+                'message' => $queryResult['result_desc'] ?? $payment->result_desc ?? 'Payment is still pending',
+                'result_desc' => $queryResult['result_desc'] ?? $payment->result_desc,
+                'result_code' => $queryResult['result_code'] ?? $payment->result_code,
+                'mpesa_receipt_number' => $payment->mpesa_receipt_number,
                 'payment_id' => $payment->id
             ]);
         }
 
         DB::commit();
         return response()->json([
-            'success' => true,
+            'success' => $payment->transaction_status !== 'failed',
             'status' => $payment->transaction_status,
-            'message' => 'Payment status: ' . $payment->transaction_status,
-            'payment_id' => $payment->id
+            'transaction_status' => $payment->transaction_status,
+            'message' => $payment->result_desc ?: ('Payment status: ' . $payment->transaction_status),
+            'result_desc' => $payment->result_desc,
+            'payment_id' => $payment->id,
+            'result_code' => $payment->result_code,
+            'mpesa_receipt_number' => $payment->mpesa_receipt_number,
         ]);
 
     } catch (Exception $e) {
@@ -732,6 +926,32 @@ public function queryMpesaPaymentStatus($requestOrCheckoutId = null)
         }
     }
 
+    $payment = null;
+    if (!empty($checkoutRequestId)) {
+        $payment = MpesaPayment::where('checkout_request_id', $checkoutRequestId)->latest()->first();
+    }
+
+        if (!$payment && empty($checkoutRequestId) && !empty($phone)) {
+        $normalized = preg_replace('/^(\+?254|0)/', '254', $phone);
+        $payment = MpesaPayment::where('phone_number', $normalized)->latest()->first();
+    }
+
+    if ($payment && in_array($payment->transaction_status, ['paid', 'failed'], true)) {
+        $resultDescription = $payment->result_desc ?: ('Payment status: ' . $payment->transaction_status);
+
+        return [
+            'success' => $payment->transaction_status === 'paid',
+            'status' => $payment->transaction_status,
+            'transaction_status' => $payment->transaction_status,
+            'checkout_request_id' => $payment->checkout_request_id,
+            'result_code' => $payment->result_code,
+            'result_desc' => $resultDescription,
+            'message' => $resultDescription,
+            'mpesa_receipt_number' => $payment->mpesa_receipt_number,
+            'payment_id' => $payment->id,
+        ];
+    }
+
     if (empty($checkoutRequestId)) {
         return ['success' => false, 'error' => 'Missing checkout_request_id', 'message' => 'Missing checkout_request_id'];
     }
@@ -768,21 +988,79 @@ public function queryMpesaPaymentStatus($requestOrCheckoutId = null)
 
         $responseData = $response->json();
 
+        if ($payment) {
+            $payment->refresh();
+
+            if (in_array($payment->transaction_status, ['paid', 'failed'], true)) {
+                $resultDescription = $payment->result_desc ?: ('Payment status: ' . $payment->transaction_status);
+
+                return [
+                    'success' => $payment->transaction_status === 'paid',
+                    'status' => $payment->transaction_status,
+                    'transaction_status' => $payment->transaction_status,
+                    'checkout_request_id' => $payment->checkout_request_id,
+                    'result_code' => $payment->result_code,
+                    'result_desc' => $resultDescription,
+                    'message' => $resultDescription,
+                    'mpesa_receipt_number' => $payment->mpesa_receipt_number,
+                    'payment_id' => $payment->id,
+                ];
+            }
+        }
+
         if (isset($responseData['ResultCode'])) {
-            // ResultCode 0 means success
-            if ($responseData['ResultCode'] == 0) {
+            $resultCode = (string) $responseData['ResultCode'];
+            $resultDescription = $responseData['ResultDesc'] ?? 'Payment status unavailable';
+
+            if ($resultCode === '4999') {
                 return [
                     'success' => true,
-                    'transaction_status' => 'success',
+                    'status' => 'pending',
+                    'transaction_status' => 'pending',
+                    'checkout_request_id' => $payment->checkout_request_id ?? $checkoutRequestId,
                     'result_code' => $responseData['ResultCode'],
-                    'result_desc' => $responseData['ResultDesc']
+                    'result_desc' => $resultDescription,
+                    'message' => $resultDescription,
+                    'mpesa_receipt_number' => $payment->mpesa_receipt_number ?? null,
+                    'payment_id' => $payment->id ?? null,
+                ];
+            }
+
+            // ResultCode 0 means success
+            if ($resultCode === '0') {
+                $resultDescription = $responseData['ResultDesc'] ?? 'Payment confirmed';
+                return [
+                    'success' => true,
+                    'status' => 'success',
+                    'transaction_status' => 'success',
+                    'checkout_request_id' => $payment->checkout_request_id ?? $checkoutRequestId,
+                    'result_code' => $responseData['ResultCode'],
+                    'result_desc' => $resultDescription,
+                    'message' => $resultDescription,
+                    'mpesa_receipt_number' => $payment->mpesa_receipt_number ?? null,
+                    'payment_id' => $payment->id ?? null,
                 ];
             } else {
+                $resultDescription = $responseData['ResultDesc'] ?? 'Payment failed';
+
+                if ($payment && $payment->transaction_status !== 'failed') {
+                    $payment->update([
+                        'transaction_status' => 'failed',
+                        'result_code' => $responseData['ResultCode'],
+                        'result_desc' => $resultDescription,
+                    ]);
+                }
+
                 return [
                     'success' => false,
+                    'status' => 'failed',
                     'transaction_status' => 'failed',
+                    'checkout_request_id' => $payment->checkout_request_id ?? $checkoutRequestId,
                     'result_code' => $responseData['ResultCode'],
-                    'result_desc' => $responseData['ResultDesc']
+                    'result_desc' => $resultDescription,
+                    'message' => $resultDescription,
+                    'mpesa_receipt_number' => $payment->mpesa_receipt_number ?? null,
+                    'payment_id' => $payment->id ?? null,
                 ];
             }
         }

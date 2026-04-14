@@ -3,6 +3,7 @@
 namespace Modules\Hrm\Http\Controllers;
 
 use App\Business;
+use App\Account;
 use App\AdminSetting;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -13,6 +14,32 @@ class SettingsController extends Controller
     protected function getAuthUser($request)
     {
         return $request->user('api') ?? $request->user() ?? auth()->user();
+    }
+    
+    public function index(Request $request)
+    {
+        $user = $this->getAuthUser($request);
+        $this->authorizeForUser($user, 'business_settings.access');
+        
+        $admin = Schema::hasTable('admin_settings') ? AdminSetting::first() : null;
+        $businessId = $user->business_id;
+        $accounts = Account::where('business_id', $businessId)->notClosed()->orderBy('name')->get(['id', 'name']);
+        
+        if ($request->wantsJson() || $request->expectsJson()) {
+            return response()->json([
+                'default_annual_leave' => $admin->default_annual_leave ?? config('hrm.default_annual_leave', 21),
+                'payroll_expense_account_id' => $admin->payroll_expense_account_id ?? null,
+                'payroll_clearing_account_id' => $admin->payroll_clearing_account_id ?? null,
+                'payroll_auto_post' => $admin->payroll_auto_post ?? true,
+                'accounts' => $accounts,
+            ]);
+        }
+        
+        return view('hrm::settings.index', [
+            'defaultLeave' => $admin->default_annual_leave ?? config('hrm.default_annual_leave', 21),
+            'settings' => $admin,
+            'accounts' => $accounts,
+        ]);
     }
 
     public function editDefaultLeave(Request $request)
@@ -52,7 +79,7 @@ class SettingsController extends Controller
         $admin->default_annual_leave = intval($request->input('default_annual_leave'));
         $admin->save();
 
-        return redirect()->back()->with('success', 'Updated successfully');
+        return redirect()->route('hrm.settings.index')->with('success', 'Updated successfully');
     }
 
     /**
@@ -130,5 +157,55 @@ class SettingsController extends Controller
         }
 
         return redirect()->route('hrm.settings.modules.edit')->with('success', 'Updated successfully');
+    }
+
+    public function editPayrollPosting(Request $request)
+    {
+        $user = $this->getAuthUser($request);
+        $this->authorizeForUser($user, 'business_settings.access');
+
+        $admin = Schema::hasTable('admin_settings') ? AdminSetting::first() : null;
+        $businessId = $user->business_id;
+        $accounts = Account::where('business_id', $businessId)->notClosed()->orderBy('name')->get(['id', 'name']);
+
+        if ($request->wantsJson() || $request->expectsJson()) {
+            return response()->json([
+                'settings' => [
+                    'payroll_expense_account_id' => $admin->payroll_expense_account_id ?? null,
+                    'payroll_clearing_account_id' => $admin->payroll_clearing_account_id ?? null,
+                    'payroll_auto_post' => $admin->payroll_auto_post ?? true,
+                ],
+                'accounts' => $accounts,
+            ]);
+        }
+
+        return view('hrm::settings.payroll', [
+            'settings' => $admin,
+            'accounts' => $accounts,
+        ]);
+    }
+
+    public function updatePayrollPosting(Request $request)
+    {
+        $user = $this->getAuthUser($request);
+        $this->authorizeForUser($user, 'business_settings.access');
+
+        $this->validate($request, [
+            'payroll_expense_account_id' => 'required|exists:accounts,id',
+            'payroll_clearing_account_id' => 'required|exists:accounts,id',
+            'payroll_auto_post' => 'nullable|boolean',
+        ]);
+
+        if (! Schema::hasTable('admin_settings')) {
+            return redirect()->back()->withErrors(['error' => 'Admin settings table missing']);
+        }
+
+        $admin = AdminSetting::first() ?: new AdminSetting();
+        $admin->payroll_expense_account_id = $request->input('payroll_expense_account_id');
+        $admin->payroll_clearing_account_id = $request->input('payroll_clearing_account_id');
+        $admin->payroll_auto_post = $request->boolean('payroll_auto_post', true);
+        $admin->save();
+
+        return redirect()->route('hrm.settings.index')->with('success', 'Updated successfully');
     }
 }

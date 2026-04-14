@@ -562,7 +562,9 @@ class SellPosController extends Controller
                     foreach ($input['payment'] as $pl) {
                         if (isset($pl['method']) && $pl['method'] === 'mpesa') {
                             // Require phone number when using MPESA as payment method
-                            $phoneProvided = !empty($pl['phone_number']) ? $pl['phone_number'] : ($request->input('contact_phone') ?? null);
+                            $phoneProvided = !empty($pl['mpesa_phone'])
+                                ? $pl['mpesa_phone']
+                                : (!empty($pl['phone_number']) ? $pl['phone_number'] : ($request->input('contact_phone') ?? null));
 
                                 // If phone is missing from user input, try to use the phone recorded on the mpesa_payments row
                                 $checkoutRequestId = $pl['checkout_request_id'] ?? '';
@@ -1633,6 +1635,29 @@ class SellPosController extends Controller
 
                         foreach ($input['payment'] as $pl) {
                             if (isset($pl['method']) && $pl['method'] === 'mpesa') {
+                                $phoneProvided = !empty($pl['mpesa_phone'])
+                                    ? $pl['mpesa_phone']
+                                    : (!empty($pl['phone_number']) ? $pl['phone_number'] : ($request->input('contact_phone') ?? null));
+
+                                if (empty($phoneProvided) && !empty($pl['checkout_request_id'])) {
+                                    try {
+                                        $mpesaRec = \App\MpesaPayment::where('checkout_request_id', $pl['checkout_request_id'])->first();
+                                        if ($mpesaRec && !empty($mpesaRec->phone_number)) {
+                                            $phoneProvided = $mpesaRec->phone_number;
+                                            \Log::info('SellPosController::update using phone from mpesa_payments', ['checkout_request_id' => $pl['checkout_request_id'], 'phone' => $phoneProvided, 'mpesa_payment_id' => $mpesaRec->id]);
+                                        }
+                                    } catch (\Exception $e) {
+                                        \Log::error('Error when looking up mpesa_payments for phone during finalize (update): '.$e->getMessage());
+                                    }
+                                }
+
+                                if (empty($phoneProvided)) {
+                                    DB::rollBack();
+                                    $output = ['success' => 0, 'msg' => __('validation.required', ['attribute' => 'phone number']) ?: 'Phone number required for MPESA payments.'];
+                                    \Log::info('SellPosController::update returning (mpesa_phone_missing)', ['output' => $output, 'user_id' => $user_id ?? null]);
+                                    return $output;
+                                }
+
                                 $mpesa_status = strtolower($pl['mpesa_status'] ?? '');
                                 $receipt = $pl['mpesa_receipt_number'] ?? '';
                                 $checkoutRequestId = $pl['checkout_request_id'] ?? '';

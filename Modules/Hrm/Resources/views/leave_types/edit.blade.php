@@ -1,36 +1,42 @@
 @extends('layouts.app')
 
+@section('title', 'Edit Leave Type')
+
 @section('content')
-<div class="container py-4">
-    <div class="card shadow-sm">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">Edit Leave Type</h4>
-            <div>
-                <a href="{{ route('hrm.leave_types.index') }}" class="btn btn-secondary">Back</a>
-            </div>
+@include('hrm::partials.hrm_page_header', [
+    'title' => 'Edit Leave Type',
+    'subtitle' => 'Rename the leave type used in HRM requests.',
+    'actions' => '<a href="'.route('hrm.leave_types.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Leave Types</a>'
+])
+
+<section class="content">
+    <div class="box box-primary">
+        <div class="box-header with-border">
+            <h3 class="box-title">Leave Type Details</h3>
         </div>
-        <div class="card-body">
+        <div class="box-body">
             <form id="typeForm">
                 @csrf
                 @method('PUT')
-                <div class="mb-3">
-                    <label class="form-label">Name</label>
+                <div class="form-group">
+                    <label class="form-label" for="name">Name</label>
                     <input id="name" name="name" class="form-control" />
                 </div>
-                <div class="d-flex justify-content-end">
-                    <button class="btn btn-primary">Save</button>
+                <div class="text-right">
+                    <a href="{{ route('hrm.leave_types.index') }}" class="btn btn-default">Cancel</a>
+                    <button class="btn btn-primary">Update Leave Type</button>
                 </div>
             </form>
         </div>
     </div>
-</div>
+</section>
 
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const idMatch = window.location.pathname.match(/\/(\d+)\/edit\/?$/);
         const id = idMatch ? idMatch[1] : null;
-        if (!id) { alert('Invalid id'); return; }
+        if (!id) { window.hrmAlert('Invalid id'); return; }
         // fetch the leave type via edit endpoint (returns JSON)
         fetch(window.location.pathname, { headers: { 'Accept': 'application/json' } })
             .then(r => r.json())
@@ -56,7 +62,7 @@
                     try { json = text ? JSON.parse(text) : null; } catch (e) { }
                     if (!r.ok) {
                         const body = json ? JSON.stringify(json) : text;
-                        alert('Request failed: ' + r.status + ' ' + r.statusText + '\n' + body);
+                        window.hrmAlert('Request failed: ' + r.status + ' ' + r.statusText);
                         return;
                     }
                     if (json && json.success) {
@@ -68,7 +74,7 @@
                         if (window.playError) { window.playError(); }
                     }
                 })
-                .catch((err) => { alert('Network error: ' + (err && err.message ? err.message : 'unknown')); });
+                .catch((err) => { window.hrmAlert('Network error: ' + (err && err.message ? err.message : 'unknown')); });
         });
     });
 </script>

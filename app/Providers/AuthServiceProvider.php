@@ -46,6 +46,7 @@ class AuthServiceProvider extends ServiceProvider
             \App\Models\Leave::class => \App\Policies\LeavePolicy::class,
             \App\Models\Payroll::class => \App\Policies\PayrollPolicy::class,
             \App\Models\Attendance::class => \App\Policies\AttendancePolicy::class,
+            \App\Models\Holiday::class => \App\Policies\HolidayPolicy::class,
         ];
 
         foreach ($policies as $model => $policy) {

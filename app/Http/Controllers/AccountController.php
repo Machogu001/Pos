@@ -34,6 +34,33 @@ class AccountController extends Controller
     }
 
     /**
+     * Backfill missing account transactions for existing payments using
+     * default account mappings. Admin-only helper, triggered from UI.
+     */
+    public function backfillDefaultAccounts()
+    {
+        if (! auth()->user()->can('account.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        try {
+            \Artisan::call('accounting:backfill-default-accounts');
+            $message = __('messages.success');
+            $type = 'success';
+        } catch (\Throwable $e) {
+            \Log::error('Backfill default accounts failed: '.$e->getMessage());
+            $message = __('messages.something_went_wrong');
+            $type = 'danger';
+        }
+
+        if (request()->ajax()) {
+            return response()->json(['status' => $type, 'msg' => $message]);
+        }
+
+        return redirect()->back()->with($type, $message);
+    }
+
+    /**
      * Display a listing of the resource.
      *
      * @return Response
@@ -68,7 +95,7 @@ class AccountController extends Controller
                                     'ats.name as account_type_name',
                                     'pat.name as parent_account_type_name',
                                     'accounts.account_details',
-                                    'is_closed', DB::raw("SUM( IF(AT.type='credit', amount, -1*amount) ) as balance"),
+                                    'is_closed', DB::raw(\App\Account::typeAwareBalanceExpression('COALESCE(pat.name, ats.name)', 'AT.type', 'AT.amount', 'AT.sub_type').' as balance'),
                                     DB::raw("CONCAT(COALESCE(u.surname, ''),' ',COALESCE(u.first_name, ''),' ',COALESCE(u.last_name,'')) as added_by"),
                                 ]);
 
@@ -100,24 +127,28 @@ class AccountController extends Controller
 
             $is_closed = request()->input('account_status') == 'closed' ? 1 : 0;
             $accounts->where('is_closed', $is_closed)
-                // ->whereNull('AT.deleted_at')
-                ->groupBy('accounts.id');
+                ->groupBy('accounts.id')
+                ->orderByRaw(\App\AccountType::majorTypeOrderCase('COALESCE(pat.name, ats.name)'))
+                ->orderByRaw("CASE WHEN accounts.account_number REGEXP '^[0-9]+$' THEN CAST(accounts.account_number AS UNSIGNED) ELSE 99999999 END")
+                ->orderBy('accounts.account_number')
+                ->orderBy('accounts.name');
 
             return DataTables::of($accounts)
-                            ->addColumn(
-                                'action',
-                                '<button data-href="{{action(\'App\Http\Controllers\AccountController@edit\',[$id])}}" data-container=".account_model" class="tw-dw-btn tw-dw-btn-xs tw-dw-btn-outline tw-dw-btn-primary btn-modal"><i class="glyphicon glyphicon-edit"></i> @lang("messages.edit")</button>
-                                <a href="{{action(\'App\Http\Controllers\AccountController@show\',[$id])}}" class="tw-dw-btn tw-dw-btn-outline tw-dw-btn-xs tw-dw-btn-warning btn-xs"><i class="fa fa-book"></i> @lang("account.account_book")</a>&nbsp;
-                                @if($is_closed == 0)
-                                <button data-href="{{action(\'App\Http\Controllers\AccountController@getFundTransfer\',[$id])}}" class="tw-dw-btn tw-dw-btn-xs tw-dw-btn-outline tw-dw-btn-info btn-modal" data-container=".view_modal"><i class="fa fa-exchange"></i> @lang("account.fund_transfer")</button>
+                            ->addColumn('action', function ($row) use ($is_closed) {
+                                $action = '<button data-href="'.action([\App\Http\Controllers\AccountController::class, 'edit'], [$row->id]).'" data-container=".account_model" class="tw-dw-btn tw-dw-btn-xs tw-dw-btn-outline tw-dw-btn-primary btn-modal"><i class="glyphicon glyphicon-edit"></i> '.__('messages.edit').'</button>';
+                                $action .= ' <a href="'.action([\App\Http\Controllers\AccountController::class, 'show'], [$row->id]).'" class="tw-dw-btn tw-dw-btn-outline tw-dw-btn-xs tw-dw-btn-warning btn-xs"><i class="fa fa-book"></i> '.__('account.account_book').'</a>';
 
-                                <button data-href="{{action(\'App\Http\Controllers\AccountController@getDeposit\',[$id])}}" class="tw-dw-btn tw-dw-btn-outline tw-dw-btn-xs tw-dw-btn-success btn-modal" data-container=".view_modal"><i class="fas fa-money-bill-alt"></i> @lang("account.deposit")</button>
+                                if ($is_closed == 0) {
+                                    $action .= ' <button data-href="'.action([\App\Http\Controllers\AccountController::class, 'getFundTransfer'], [$row->id]).'" class="tw-dw-btn tw-dw-btn-xs tw-dw-btn-outline tw-dw-btn-info btn-modal" data-container=".view_modal"><i class="fa fa-exchange"></i> '.__('account.fund_transfer').'</button>';
+                                    $action .= ' <button data-href="'.action([\App\Http\Controllers\AccountController::class, 'getDeposit'], [$row->id]).'" class="tw-dw-btn tw-dw-btn-outline tw-dw-btn-xs tw-dw-btn-success btn-modal" data-container=".view_modal"><i class="fas fa-money-bill-alt"></i> '.__('account.deposit').'</button>';
 
-                                <button data-url="{{action(\'App\Http\Controllers\AccountController@close\',[$id])}}" class="tw-dw-btn tw-dw-btn-outline tw-dw-btn-xs tw-dw-btn-error close_account"><i class="fa fa-power-off"></i> @lang("messages.close")</button>
-                                @elseif($is_closed == 1)
-                                    <button data-url="{{action(\'App\Http\Controllers\AccountController@activate\',[$id])}}" class="tw-dw-btn tw-dw-btn-outline tw-dw-btn-xs tw-dw-btn-success activate_account"><i class="fa fa-power-off"></i> @lang("messages.activate")</button>
-                                @endif'
-                            )
+                                    $action .= ' <button data-url="'.action([\App\Http\Controllers\AccountController::class, 'close'], [$row->id]).'" class="tw-dw-btn tw-dw-btn-outline tw-dw-btn-xs tw-dw-btn-error close_account"><i class="fa fa-power-off"></i> '.__('messages.close').'</button>';
+                                } else {
+                                    $action .= ' <button data-url="'.action([\App\Http\Controllers\AccountController::class, 'activate'], [$row->id]).'" class="tw-dw-btn tw-dw-btn-outline tw-dw-btn-xs tw-dw-btn-success activate_account"><i class="fa fa-power-off"></i> '.__('messages.activate').'</button>';
+                                }
+
+                                return $action;
+                            })
                             ->editColumn('name', function ($row) {
                                 if ($row->is_closed == 1) {
                                     return $row->name.' <small class="label pull-right bg-red no-print">'.__('account.closed').'</small><span class="print_section">('.__('account.closed').')</span>';
@@ -125,8 +156,23 @@ class AccountController extends Controller
                                     return $row->name;
                                 }
                             })
-                            ->editColumn('balance', function ($row) {
-                                return '<span class="balance" data-orig-value="'.$row->balance.'">'.$this->commonUtil->num_f($row->balance, true).'</span>';
+                            ->addColumn('debit_balance', function ($row) {
+                                $accountTypeLabel = ! empty($row->parent_account_type_name) ? $row->parent_account_type_name : $row->account_type_name;
+                                $displayBalance = \App\Account::getDisplayBalance($row->balance);
+                                $balanceSide = \App\Account::getBalanceSide($accountTypeLabel, $row->balance);
+
+                                $amount = $balanceSide === 'Dr' ? $displayBalance : 0;
+
+                                return '<span class="debit_balance" data-orig-value="'.$amount.'">'.($amount > 0 ? $this->commonUtil->num_f($amount, true) : '').'</span>';
+                            })
+                            ->addColumn('credit_balance', function ($row) {
+                                $accountTypeLabel = ! empty($row->parent_account_type_name) ? $row->parent_account_type_name : $row->account_type_name;
+                                $displayBalance = \App\Account::getDisplayBalance($row->balance);
+                                $balanceSide = \App\Account::getBalanceSide($accountTypeLabel, $row->balance);
+
+                                $amount = $balanceSide === 'Cr' ? $displayBalance : 0;
+
+                                return '<span class="credit_balance" data-orig-value="'.$amount.'">'.($amount > 0 ? $this->commonUtil->num_f($amount, true) : '').'</span>';
                             })
                             ->editColumn('account_type', function ($row) {
                                 $account_type = '';
@@ -163,7 +209,7 @@ class AccountController extends Controller
                             })
                             ->removeColumn('id')
                             ->removeColumn('is_closed')
-                            ->rawColumns(['action', 'balance', 'name', 'account_details'])
+                            ->rawColumns(['action', 'debit_balance', 'credit_balance', 'name', 'account_details'])
                             ->make(true);
         }
 
@@ -179,18 +225,27 @@ class AccountController extends Controller
                                     ->whereNull('account_id')
                                     ->count();
 
+        // Payments that have an account_id but no corresponding AccountTransaction yet
+        $backfill_missing_count = TransactionPayment::whereNotNull('account_id')
+                                ->whereNull('parent_id')
+                                ->where('method', '!=', 'advance')
+                                ->where('business_id', $business_id)
+                                ->whereDoesntHave('account_transactions')
+                                ->count();
+
         // $capital_account_count = Account::where('business_id', $business_id)
         //                             ->NotClosed()
         //                             ->where('account_type', 'capital')
         //                             ->count();
 
         $account_types = AccountType::where('business_id', $business_id)
-                                     ->whereNull('parent_account_type_id')
-                                     ->with(['sub_types'])
-                                     ->get();
+                         ->whereNull('parent_account_type_id')
+                         ->orderedForChart()
+                         ->with(['sub_types'])
+                         ->get();
 
         return view('account.index')
-                ->with(compact('not_linked_payments', 'account_types'));
+            ->with(compact('not_linked_payments', 'account_types', 'backfill_missing_count'));
     }
 
     /**
@@ -206,9 +261,10 @@ class AccountController extends Controller
 
         $business_id = session()->get('user.business_id');
         $account_types = AccountType::where('business_id', $business_id)
-                                     ->whereNull('parent_account_type_id')
-                                     ->with(['sub_types'])
-                                     ->get();
+                         ->whereNull('parent_account_type_id')
+                         ->orderedForChart()
+                         ->with(['sub_types'])
+                         ->get();
 
         return view('account.create')
                 ->with(compact('account_types'));
@@ -240,10 +296,12 @@ class AccountController extends Controller
                 $opening_bal = $request->input('opening_balance');
 
                 if (! empty($opening_bal)) {
+                    $account->loadMissing('account_type.parent_account');
+
                     $ob_transaction_data = [
                         'amount' => $this->commonUtil->num_uf($opening_bal),
                         'account_id' => $account->id,
-                        'type' => 'credit',
+                        'type' => $account->isDebitNormalAccount() ? 'debit' : 'credit',
                         'sub_type' => 'opening_balance',
                         'operation_date' => \Carbon::now(),
                         'created_by' => $user_id,
@@ -279,27 +337,50 @@ class AccountController extends Controller
         }
 
         $business_id = request()->session()->get('user.business_id');
+        $account = Account::where('business_id', $business_id)
+                        ->with(['account_type', 'account_type.parent_account'])
+                        ->findOrFail($id);
+        $accountTypeLabel = ! empty($account->account_type->parent_account)
+            ? $account->account_type->parent_account->name
+            : optional($account->account_type)->name;
+        $quotedAccountTypeLabel = DB::getPdo()->quote((string) $accountTypeLabel);
+        $runningBalanceExpression = \App\Account::typeAwareBalanceExpression(
+            $quotedAccountTypeLabel,
+            'account_transactions.type',
+            'account_transactions.amount',
+            'account_transactions.sub_type'
+        );
+        $currentRunningBalanceExpression = \App\Account::typeAwareBalanceExpression(
+            $quotedAccountTypeLabel,
+            'type',
+            'amount',
+            'sub_type'
+        );
 
         if (request()->ajax()) {
             $start_date = request()->input('start_date');
             $end_date = request()->input('end_date');
 
-            $before_bal_query = AccountTransaction::join(
-                'accounts as A',
-                'account_transactions.account_id',
-                '=',
-                'A.id'
-            )
-                    ->where('A.business_id', $business_id)
-                    ->where('A.id', $id)
-                    ->select([
-                        DB::raw('SUM(IF(account_transactions.type="credit", account_transactions.amount, -1 * account_transactions.amount)) as prev_bal'), ])
-                    ->where('account_transactions.operation_date', '<', $start_date)
-                    ->whereNull('account_transactions.deleted_at');
-            if (! empty(request()->input('type'))) {
-                $before_bal_query->where('account_transactions.type', request()->input('type'));
+            $bal_before_start_date = 0;
+            if (! empty($start_date)) {
+                $before_bal_query = AccountTransaction::join(
+                    'accounts as A',
+                    'account_transactions.account_id',
+                    '=',
+                    'A.id'
+                )
+                        ->where('A.business_id', $business_id)
+                        ->where('A.id', $id)
+                        ->select([
+                            DB::raw($runningBalanceExpression.' as prev_bal'), ])
+                        ->where('account_transactions.operation_date', '<', $start_date)
+                        ->whereNull('account_transactions.deleted_at');
+                if (! empty(request()->input('type'))) {
+                    $before_bal_query->where('account_transactions.type', request()->input('type'));
+                }
+
+                $bal_before_start_date = (float) optional($before_bal_query->first())->prev_bal;
             }
-            $bal_before_start_date = $before_bal_query->first()->prev_bal;
 
             $accounts = AccountTransaction::join(
                 'accounts as A',
@@ -356,6 +437,7 @@ class AccountController extends Controller
                              ->groupBy('account_transactions.id')
                              //->orderBy('account_transactions.id', 'asc')
                              ->orderBy('account_transactions.operation_date', 'asc');
+
             if (! empty(request()->input('type'))) {
                 $accounts->where('account_transactions.type', request()->input('type'));
             }
@@ -426,23 +508,40 @@ class AccountController extends Controller
 
                                 return '';
                             })
-                            ->addColumn('balance', function ($row) use ($bal_before_start_date, $start_date) {
+                            ->addColumn('balance', function ($row) use ($bal_before_start_date, $start_date, $currentRunningBalanceExpression, $accountTypeLabel) {
                                 //TODO:: Need to fix same balance showing for transactions having same operation date
-                                $current_bal = AccountTransaction::where('account_id',
-                                                    $row->account_id)
-                                                ->where('operation_date', '>=', $start_date)
+                                $currentBalanceQuery = AccountTransaction::where('account_id', $row->account_id)
                                                 ->where('operation_date', '<=', $row->operation_date)
-                                                ->select(DB::raw("SUM(IF(type='credit', amount, -1 * amount)) as balance"))
-                                                ->first()->balance;
-                                $bal = $bal_before_start_date + $current_bal;
+                                                ->whereNull('deleted_at');
 
-                                return '<span class="balance" data-orig-value="'.$bal.'">'.$this->commonUtil->num_f($bal, true).'</span>';
+                                if (! empty($start_date)) {
+                                    $currentBalanceQuery->where('operation_date', '>=', $start_date);
+                                }
+
+                                $current_bal = (float) optional($currentBalanceQuery
+                                                ->select(DB::raw($currentRunningBalanceExpression.' as balance'))
+                                                ->first())->balance;
+                                $bal = $bal_before_start_date + $current_bal;
+                                $displayBalance = \App\Account::getDisplayBalance($bal);
+                                $balanceSide = \App\Account::getBalanceSide($accountTypeLabel, $bal);
+
+                                return '<span class="balance" data-orig-value="'.$bal.'" data-display-value="'.$displayBalance.'" data-balance-side="'.$balanceSide.'">'.$this->commonUtil->num_f($displayBalance, true).(! empty($balanceSide) ? ' <small class="text-muted">'.$balanceSide.'</small>' : '').'</span>';
                             })
                             ->editColumn('operation_date', function ($row) {
                                 return $this->commonUtil->format_date($row->operation_date, true);
                             })
                             ->editColumn('sub_type', function ($row) {
                                 return $this->__getPaymentDetails($row);
+                            })
+                            ->editColumn('note', function ($row) {
+                                $systemNotes = [
+                                    'sell_payment_account',
+                                    'sell_payment_receivable',
+                                    'purchase_payment_account',
+                                    'purchase_payment_payable',
+                                ];
+
+                                return in_array($row->note, $systemNotes) ? '' : $row->note;
                             })
                             ->editColumn('action', function ($row) {
                                 $action = '';
@@ -475,10 +574,6 @@ class AccountController extends Controller
                             ->rawColumns(['credit', 'debit', 'balance', 'sub_type', 'action', 'payment_details'])
                             ->make(true);
         }
-        $account = Account::where('business_id', $business_id)
-                        ->with(['account_type', 'account_type.parent_account'])
-                        ->findOrFail($id);
-
         return view('account.show')
                 ->with(compact('account'));
     }
@@ -501,6 +596,7 @@ class AccountController extends Controller
 
             $account_types = AccountType::where('business_id', $business_id)
                                      ->whereNull('parent_account_type_id')
+                                     ->orderedForChart()
                                      ->with(['sub_types'])
                                      ->get();
 
@@ -567,7 +663,7 @@ class AccountController extends Controller
 
                 $account_transaction = AccountTransaction::findOrFail($id);
 
-                if (in_array($account_transaction->sub_type, ['fund_transfer', 'deposit'])) {
+                if (in_array($account_transaction->sub_type, ['fund_transfer', 'deposit', 'journal_entry'])) {
                     //Delete transfer transaction for fund transfer
                     if (! empty($account_transaction->transfer_transaction_id)) {
                         $transfer_transaction = AccountTransaction::findOrFail($account_transaction->transfer_transaction_id);
@@ -643,10 +739,13 @@ class AccountController extends Controller
 
             $from_account = Account::where('business_id', $business_id)
                             ->NotClosed()
+                            ->TransferEligible()
+                            ->with(['account_type.parent_account'])
                             ->find($id);
 
             $to_accounts = Account::where('business_id', $business_id)
                             ->NotClosed()
+                            ->TransferEligible()
                             ->pluck('name', 'id');
 
             return view('account.transfer')
@@ -673,6 +772,17 @@ class AccountController extends Controller
             $to = $request->input('to_account');
             $note = $request->input('note');
             if (! empty($amount)) {
+                $from_account = Account::where('business_id', $business_id)
+                    ->with(['account_type.parent_account'])
+                    ->findOrFail($from);
+                $to_account = Account::where('business_id', $business_id)
+                    ->with(['account_type.parent_account'])
+                    ->findOrFail($to);
+
+                if ($from_account->isProfitAndLossAccount() || $to_account->isProfitAndLossAccount()) {
+                    throw new \Exception(__('messages.something_went_wrong'));
+                }
+
                 $debit_data = [
                     'amount' => $amount,
                     'account_id' => $from,
@@ -741,10 +851,13 @@ class AccountController extends Controller
 
             $account = Account::where('business_id', $business_id)
                             ->NotClosed()
+                            ->TransferEligible()
+                            ->with(['account_type.parent_account'])
                             ->find($id);
 
             $from_accounts = Account::where('business_id', $business_id)
                             ->NotClosed()
+                            ->TransferEligible()
                             ->pluck('name', 'id');
 
             return view('account.deposit')
@@ -772,7 +885,12 @@ class AccountController extends Controller
             $note = $request->input('note');
 
             $account = Account::where('business_id', $business_id)
+                            ->with(['account_type.parent_account'])
                             ->findOrFail($account_id);
+
+            if ($account->isProfitAndLossAccount()) {
+                throw new \Exception(__('messages.something_went_wrong'));
+            }
 
             if (! empty($amount)) {
                 $credit_data = [
@@ -788,6 +906,14 @@ class AccountController extends Controller
 
                 $from_account = $request->input('from_account');
                 if (! empty($from_account)) {
+                    $from_account_model = Account::where('business_id', $business_id)
+                        ->with(['account_type.parent_account'])
+                        ->findOrFail($from_account);
+
+                    if ($from_account_model->isProfitAndLossAccount()) {
+                        throw new \Exception(__('messages.something_went_wrong'));
+                    }
+
                     $debit_data = $credit_data;
                     $debit_data['type'] = 'debit';
                     $debit_data['account_id'] = $from_account;
@@ -838,8 +964,16 @@ class AccountController extends Controller
             ->whereNull('AT.deleted_at')
             ->where('accounts.business_id', $business_id)
             ->where('accounts.id', $id)
-            ->select('accounts.*', DB::raw("SUM( IF(AT.type='credit', amount, -1 * amount) ) as balance"))
+            ->leftJoin('account_types as ats', 'accounts.account_type_id', '=', 'ats.id')
+            ->leftJoin('account_types as pat', 'ats.parent_account_type_id', '=', 'pat.id')
+            ->select('accounts.*', 'ats.name as account_type_name', 'pat.name as parent_account_type_name', DB::raw(\App\Account::typeAwareBalanceExpression('COALESCE(pat.name, ats.name)', 'AT.type', 'AT.amount', 'AT.sub_type').' as balance'))
             ->first();
+
+        if (! empty($account)) {
+            $accountTypeLabel = ! empty($account->parent_account_type_name) ? $account->parent_account_type_name : $account->account_type_name;
+            $account->display_balance = \App\Account::getDisplayBalance($account->balance);
+            $account->balance_side = \App\Account::getBalanceSide($accountTypeLabel, $account->balance);
+        }
 
         return $account;
     }
@@ -864,6 +998,8 @@ class AccountController extends Controller
                 '=',
                 'A.id'
                 )
+                ->leftJoin('account_types as ats', 'A.account_type_id', '=', 'ats.id')
+                ->leftJoin('account_types as pat', 'ats.parent_account_type_id', '=', 'pat.id')
                 ->leftjoin(
                     'transaction_payments as TP',
                     'account_transactions.transaction_payment_id',
@@ -1032,11 +1168,18 @@ class AccountController extends Controller
                 ->addColumn('debit', '@if($type == "debit")<span class="debit" data-orig-value="{{$amount}}">@format_currency($amount)</span>@endif')
                 ->addColumn('credit', '@if($type == "credit")<span class="debit" data-orig-value="{{$amount}}">@format_currency($amount)</span>@endif')
                 ->addColumn('balance', function ($row) {
-                    $balance = AccountTransaction::where('account_id',
-                                        $row->account_id)
+                    $balance = AccountTransaction::join('accounts as A', 'account_transactions.account_id', '=', 'A.id')
+                                    ->leftJoin('account_types as ats', 'A.account_type_id', '=', 'ats.id')
+                                    ->leftJoin('account_types as pat', 'ats.parent_account_type_id', '=', 'pat.id')
+                                    ->where('account_transactions.account_id', $row->account_id)
                                     ->where('operation_date', '<=', $row->operation_date)
-                                    ->whereNull('deleted_at')
-                                    ->select(DB::raw("SUM(IF(type='credit', amount, -1 * amount)) as balance"))
+                                    ->whereNull('account_transactions.deleted_at')
+                                    ->select(DB::raw(\App\Account::typeAwareBalanceExpression(
+                                        'COALESCE(pat.name, ats.name)',
+                                        'account_transactions.type',
+                                        'account_transactions.amount',
+                                        'account_transactions.sub_type'
+                                    ).' as balance'))
                                     ->first()->balance;
 
                     return '<span class="balance" data-orig-value="'.$balance.'">'.$this->commonUtil->num_f($balance, true).'</span>';
@@ -1048,10 +1191,17 @@ class AccountController extends Controller
                                         '=',
                                         'A.id'
                                     )
+                                    ->leftJoin('account_types as ats', 'A.account_type_id', '=', 'ats.id')
+                                    ->leftJoin('account_types as pat', 'ats.parent_account_type_id', '=', 'pat.id')
                                     ->where('A.business_id', $business_id)
                                     ->where('operation_date', '<=', $row->operation_date)
                                     ->whereNull('account_transactions.deleted_at')
-                                    ->select(DB::raw("SUM(IF(type='credit', amount, -1 * amount)) as balance"));
+                                    ->select(DB::raw(\App\Account::typeAwareBalanceExpression(
+                                        'COALESCE(pat.name, ats.name)',
+                                        'account_transactions.type',
+                                        'account_transactions.amount',
+                                        'account_transactions.sub_type'
+                                    ).' as balance'));
 
                     if (! empty(request()->input('type'))) {
                         $query->where('type', request()->input('type'));
@@ -1101,13 +1251,19 @@ class AccountController extends Controller
         } else {
             if (! empty($row->transaction->type)) {
                 if ($row->transaction->type == 'purchase') {
-                    $details = __('lang_v1.purchase').'<br><b>'.__('purchase.supplier').':</b> '.$row->transaction->contact->full_name_with_business.'<br><b>'.
+                    $headline = in_array($row->note, ['purchase_payment_account', 'purchase_payment_payable'])
+                        ? __('lang_v1.payment_paid')
+                        : __('lang_v1.purchase');
+                    $details = $headline.'<br><b>'.__('purchase.supplier').':</b> '.$row->transaction->contact->full_name_with_business.'<br><b>'.
                     __('purchase.ref_no').':</b> <a href="#" data-href="'.action([\App\Http\Controllers\PurchaseController::class, 'show'], [$row->transaction->id]).'" class="btn-modal" data-container=".view_modal">'.$row->transaction->ref_no.'</a>';
                 } elseif ($row->transaction->type == 'expense') {
                     $details = __('lang_v1.expense').'<br><b>'.__('purchase.ref_no').':</b>'.$row->transaction->ref_no;
                 } elseif ($row->transaction->type == 'sell') {
                     $is_return = $row->is_return == 1 ? ' ('.__('lang_v1.change_return').')' : '';
-                    $details = __('sale.sale').$is_return.'<br><b>'.__('contact.customer').':</b> '.$row->transaction->contact->full_name_with_business.'<br><b>'.
+                    $headline = in_array($row->note, ['sell_payment_account', 'sell_payment_receivable'])
+                        ? __('lang_v1.payment_received')
+                        : __('sale.sale');
+                    $details = $headline.$is_return.'<br><b>'.__('contact.customer').':</b> '.$row->transaction->contact->full_name_with_business.'<br><b>'.
                     __('sale.invoice_no').':</b> <a href="#" data-href="'.action([\App\Http\Controllers\SellController::class, 'show'], [$row->transaction->id]).'" class="btn-modal" data-container=".view_modal">'.$row->transaction->invoice_no.'</a>';
                 }
             } else {
@@ -1272,6 +1428,12 @@ class AccountController extends Controller
                 $account_transaction->account_id = $request->input('account_id');
             }            
 
+            $account_transaction->loadMissing(['account.account_type.parent_account']);
+
+            if (! empty($account_transaction->account) && $account_transaction->account->isProfitAndLossAccount() && in_array($account_transaction->sub_type, ['fund_transfer', 'deposit'], true)) {
+                throw new \Exception(__('messages.something_went_wrong'));
+            }
+
             $account_transaction->save();
 
             if (! empty($account_transaction->transfer_transaction)) {
@@ -1286,6 +1448,12 @@ class AccountController extends Controller
                 }
                 if ($account_transaction->sub_type == 'fund_transfer') {
                     $transfer_transaction->account_id = $request->input('to_account');
+                }
+
+                $transfer_transaction->loadMissing(['account.account_type.parent_account']);
+
+                if (! empty($transfer_transaction->account) && $transfer_transaction->account->isProfitAndLossAccount() && in_array($transfer_transaction->sub_type, ['fund_transfer', 'deposit'], true)) {
+                    throw new \Exception(__('messages.something_went_wrong'));
                 }
 
                 $transfer_transaction->save();

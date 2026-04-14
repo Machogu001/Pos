@@ -3,6 +3,7 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class System extends Model
 {
@@ -35,6 +36,10 @@ class System extends Model
      */
     public static function getProperty($key)
     {
+        if (! Schema::hasTable('system')) {
+            return null;
+        }
+
         $row = System::where('key', $key)
                 ->first();
 
@@ -53,6 +58,10 @@ class System extends Model
      */
     public static function getProperties($keys, $pluck = false)
     {
+        if (! Schema::hasTable('system')) {
+            return $pluck ? collect() : [];
+        }
+
         if ($pluck == true) {
             return System::whereIn('key', $keys)
                 ->pluck('value', 'key');
@@ -71,6 +80,10 @@ class System extends Model
      */
     public static function getCurrency()
     {
+        if (! Schema::hasTable('system')) {
+            return null;
+        }
+
         $c_id = System::where('key', 'app_currency_id')
                 ->first()
                 ->value;
@@ -89,6 +102,10 @@ class System extends Model
      */
     public static function setProperty($key, $value)
     {
+        if (! Schema::hasTable('system')) {
+            return;
+        }
+
         System::where('key', $key)
             ->update(['value' => $value]);
     }
@@ -101,6 +118,10 @@ class System extends Model
      */
     public static function removeProperty($key)
     {
+        if (! Schema::hasTable('system')) {
+            return;
+        }
+
         System::where('key', $key)
             ->delete();
     }
@@ -114,6 +135,10 @@ class System extends Model
      */
     public static function addProperty($key, $value)
     {
+        if (! Schema::hasTable('system')) {
+            return;
+        }
+
         System::updateOrCreate(
             ['key' => $key],
             ['value' => $value]

@@ -27,6 +27,22 @@ class EventServiceProvider extends ServiceProvider
         \App\Events\TransactionPaymentDeleted::class => [
             \App\Listeners\DeleteAccountTransaction::class,
         ],
+
+        \App\Events\PurchaseCreatedOrModified::class => [
+            \App\Listeners\SyncPurchaseDefaultAccountTransaction::class,
+        ],
+
+        \App\Events\SellCreatedOrModified::class => [
+            \App\Listeners\SyncSellDefaultAccountTransaction::class,
+        ],
+
+        \App\Events\ExpenseCreatedOrModified::class => [
+            \App\Listeners\SyncExpenseDefaultAccountTransaction::class,
+        ],
+
+        \App\Events\StockAdjustmentCreatedOrModified::class => [
+            \App\Listeners\SyncStockAdjustmentAccountTransaction::class,
+        ],
     ];
 
     /**

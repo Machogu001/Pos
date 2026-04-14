@@ -1,0 +1,128 @@
+This is the corrected store() method structure:
+
+public function store(Request $request)
+{
+    $this->authorizeForUser($this->getAuthUser($request), 'create', Attendance::class);
+
+    $this->validate($request, [
+        'company_id'     => 'required',
+        'employee_id'    => 'required',
+        'date'           => 'required',
+        'clock_in'       => 'required',
+        'clock_out'      => 'required',
+    ]);
+
+    $user_auth = auth()->user();
+    $data['user_id'] = $user_auth->id;
+
+    $employee_id  = $request->employee_id;
+    $date  = $request->date;
+    $company_id  = $request->company_id;
+    $clock_in  = $request->clock_in;
+    $clock_out  = $request->clock_out;
+
+    try {
+        $ci_ts  = strtotime($clock_in);
+        $co_ts  = strtotime($clock_out);
+        if ($ci_ts === false || $co_ts === false) {
+            throw new \Exception('Invalid clock time format');
+        }
+        $clock_in  = new DateTime(date('Y-m-d H:i', $ci_ts));
+        $clock_out  = new DateTime(date('Y-m-d H:i', $co_ts));
+    } catch (Exception $e) {
+        if (! ($request->wantsJson() || $request->expectsJson())) {
+            return back()->withInput()->with('error', 'Invalid clock times. Please enter valid times.');
+        }
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+    }
+
+    $employee = Employee::with('office_shift')->findOrFail($employee_id);
+    
+    $day_now = Carbon::parse($request->date)->format('l');
+    $day_in_now = strtolower($day_now) . '_in';
+    $day_out_now = strtolower($day_now) . '_out';
+
+    $shift_in  = $employee->office_shift ? $employee->office_shift->$day_in_now : null;
+    $shift_out = $employee->office_shift ? $employee->office_shift->$day_out_now : null;
+
+    if ($shift_in == null) {
+        $data['employee_id'] = $employee_id;
+        $data['company_id'] = $company_id;
+        $data['date'] = $date;
+        $data['clock_in'] = $clock_in->format('H:i');
+        $data['clock_out'] = $clock_out->format('H:i');
+        $data['status'] = 'present';
+
+        $work_duration = $clock_in->diff($clock_out)->format('%H:%I');
+        $data['total_work'] = $work_duration;
+        $data['depart_early'] = '00:00';
+        $data['late_time'] = '00:00';
+        $data['overtime'] = '00:00';
+        $data['clock_in_out'] = 0;
+
+        Attendance::create($data);
+
+        if (! ($request->wantsJson() || $request->expectsJson())) {
+            return redirect()->route('hrm.attendances.index')->with('success', 'Created successfully');
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    // Has shift assigned
+    try {
+        $shift_in_ts   = strtotime($shift_in);
+        $shift_out_ts  = strtotime($shift_out);
+        if ($shift_in_ts === false || $shift_out_ts === false) {
+            throw new \Exception('Invalid shift time format');
+        }
+        $shift_in  = new DateTime(date('Y-m-d H:i', $shift_in_ts));
+        $shift_out  = new DateTime(date('Y-m-d H:i', $shift_out_ts));
+    } catch (Exception $e) {
+        if (! ($request->wantsJson() || $request->expectsJson())) {
+            return back()->withInput()->with('error', 'Invalid shift times. Please contact admin.');
+        }
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+    }
+
+    if ($clock_in > $shift_in) {
+        $time_diff = $shift_in->diff($clock_in)->format('%H:%I');
+        $data['clock_in'] = $clock_in->format('H:i');
+        $data['late_time'] = $time_diff;
+    } else {
+        $data['clock_in'] = $shift_in->format('H:i');
+        $data['late_time'] = '00:00';
+    }
+
+    if ($clock_out < $shift_out) {
+        $time_diff = $shift_out->diff($clock_out)->format('%H:%I');
+        $data['clock_out'] = $clock_out->format('H:i');
+        $data['depart_early'] = $time_diff;
+        $data['overtime'] = '00:00';
+    } elseif ($clock_out > $shift_out) {
+        $time_diff = $shift_out->diff($clock_out)->format('%H:%I');
+        $data['clock_out'] = $clock_out->format('H:i');
+        $data['overtime'] = $time_diff;
+        $data['depart_early'] = '00:00';
+    } else {
+        $data['clock_out'] = $shift_out->format('H:i');
+        $data['overtime'] = '00:00';
+        $data['depart_early'] = '00:00';
+    }
+
+    $data['status'] = 'present';
+    $work_duration = $clock_in->diff($clock_out)->format('%H:%I');
+    $data['total_work'] = $work_duration;
+    $data['clock_in_out'] = 0;
+    $data['company_id'] = $company_id;
+    $data['clock_in_ip'] = '';
+    $data['clock_out_ip'] = '';
+
+    Attendance::create($data);
+
+    if (! ($request->wantsJson() || $request->expectsJson())) {
+        return redirect()->route('hrm.attendances.index')->with('success', 'Created successfully');
+    }
+
+    return response()->json(['success' => true]);
+}

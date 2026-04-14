@@ -29,5 +29,34 @@ class OfficeShift extends Model
         return $this->hasOne('App\Models\Company', 'id', 'company_id');
     }
 
+    public function employees()
+    {
+        return $this->hasMany('App\Models\Employee', 'office_shift_id');
+    }
+
+    /**
+     * Get the shift times for a given day name (e.g. "Monday").
+     * Returns ['in' => '08:00', 'out' => '17:00'] or ['in' => null, 'out' => null] when off.
+     */
+    public function getTimesForDay(string $dayName): array
+    {
+        $key = strtolower($dayName);
+        $inCol  = $key . '_in';
+        $outCol = $key . '_out';
+        return [
+            'in'  => $this->$inCol  ?? null,
+            'out' => $this->$outCol ?? null,
+        ];
+    }
+
+    /**
+     * Return true when the given day is an active working day on this shift.
+     */
+    public function isWorkingDay(string $dayName): bool
+    {
+        $times = $this->getTimesForDay($dayName);
+        return ! empty($times['in']) && ! empty($times['out']);
+    }
+
 
 }

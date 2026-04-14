@@ -1,58 +1,76 @@
 <?php
 
 namespace Modules\Hrm\Http\Controllers;
-use App\Http\Controllers\Controller;
 
-use App\Models\Employee;
-use App\Models\Company;
-use App\Models\Designation;
-use App\Models\EmployeeExperience;
-use App\Models\EmployeeDocument;
-use App\Models\EmployeeAccount;
+use App\Http\Controllers\Controller;
 use App\Models\Department;
+use App\Models\Designation;
+use App\Models\Employee;
 use App\Models\OfficeShift;
-use App\Models\Leave;
-use App\Models\LeaveType;
-use App\Models\Award;
-use App\Models\Travel;
-use App\Models\Complaint;
-use App\Models\Project;
-use App\Models\Task;
-use App\Models\Training;
-use App\utils\helpers;
-use Carbon\Carbon;
-use DB;
 use Illuminate\Http\Request;
 
+/**
+ * Internal AJAX helpers — returns dependent-dropdown data.
+ * Every method requires hrm.access or the relevant feature permission.
+ */
 class CoreController extends Controller
 {
+    protected function authorizeHrm(Request $request): void
+    {
+        $user = $request->user('api') ?? $request->user() ?? auth()->user();
+
+        if (! $user || (
+            ! $user->can('hrm.access') &&
+            ! $user->can('hrm.employees') &&
+            ! $user->can('hrm.departments') &&
+            ! $user->can('hrm.designations') &&
+            ! $user->can('hrm.office_shifts')
+        )) {
+            abort(403);
+        }
+    }
 
     public function Get_designations_by_department(Request $request)
     {
-        $designations = Designation::where('department_id' , $request->id)->where('deleted_at', '=', null)->get();
+        $this->authorizeHrm($request);
+
+        $designations = Designation::where('department_id', $request->id)
+            ->whereNull('deleted_at')
+            ->get(['id', 'designation']);
 
         return response()->json($designations);
     }
 
     public function Get_departments_by_company(Request $request)
     {
-        $departments = Department::where('company_id' , $request->id)->where('deleted_at', '=', null)->get();
+        $this->authorizeHrm($request);
+
+        $departments = Department::where('company_id', $request->id)
+            ->whereNull('deleted_at')
+            ->get(['id', 'department']);
 
         return response()->json($departments);
     }
 
     public function Get_office_shift_by_company(Request $request)
     {
-        $office_shifts = OfficeShift::where('company_id' , $request->id)->where('deleted_at', '=', null)->get(['id','name']);
+        $this->authorizeHrm($request);
+
+        $office_shifts = OfficeShift::where('company_id', $request->id)
+            ->whereNull('deleted_at')
+            ->get(['id', 'name']);
 
         return response()->json($office_shifts);
     }
 
     public function Get_employees_by_company(Request $request)
     {
-        $employees = Employee::where('company_id' , $request->id)->where('deleted_at', '=', null)->get(['id','username']);
+        $this->authorizeHrm($request);
+
+        $employees = Employee::where('company_id', $request->id)
+            ->whereNull('deleted_at')
+            ->get(['id', 'username', 'firstname', 'lastname']);
 
         return response()->json($employees);
     }
-
 }

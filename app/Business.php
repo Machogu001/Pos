@@ -41,6 +41,40 @@ class Business extends Model
         'weighing_scale_setting' => 'array',
     ];
 
+    public static function normalizeCommonSettings($commonSettings = [])
+    {
+        $commonSettings = is_array($commonSettings) ? $commonSettings : [];
+
+        $defaultMappings = config('constants.default_account_mappings', []);
+        $typeMappings = ! empty($commonSettings['default_account_mappings']) && is_array($commonSettings['default_account_mappings'])
+            ? $commonSettings['default_account_mappings']
+            : [];
+
+        foreach ($defaultMappings as $mappingKey => $defaultAccountId) {
+            if (empty($typeMappings[$mappingKey]) && ! empty($defaultAccountId)) {
+                $typeMappings[$mappingKey] = (int) $defaultAccountId;
+            }
+        }
+
+        if (empty($typeMappings['purchase_tax']) && ! empty($typeMappings['tax'])) {
+            $typeMappings['purchase_tax'] = $typeMappings['tax'];
+        }
+
+        if (empty($typeMappings['sales_tax']) && ! empty($typeMappings['tax'])) {
+            $typeMappings['sales_tax'] = $typeMappings['tax'];
+        }
+
+        if (empty($typeMappings['tax']) && ! empty($typeMappings['sales_tax'])) {
+            $typeMappings['tax'] = $typeMappings['sales_tax'];
+        }
+
+        if (! empty($typeMappings)) {
+            $commonSettings['default_account_mappings'] = $typeMappings;
+        }
+
+        return $commonSettings;
+    }
+
     /**
      * Returns the date formats
      */
@@ -109,6 +143,8 @@ class Business extends Model
      */
     public static function create_business($details)
     {
+        $details['common_settings'] = self::normalizeCommonSettings($details['common_settings'] ?? []);
+
         $business = Business::create($details);
         return $business;
     }
@@ -123,6 +159,10 @@ class Business extends Model
     public static function update_business($business_id, $details)
     {
         if (! empty($details)) {
+            if (array_key_exists('common_settings', $details)) {
+                $details['common_settings'] = self::normalizeCommonSettings($details['common_settings']);
+            }
+
             Business::where('id', $business_id)->update($details);
         }
     }

@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-04-12T11:11:10.290Z",
+  "baseUrl": "https://pos.bremac.co.ke",
+  "authenticated": true,
+  "pages": [
+    {
+      "path": "/hrm",
+      "url": "https://pos.bremac.co.ke/hrm",
+      "findings": []
+    },
+    {
+      "path": "/hrm/employees",
+      "url": "https://pos.bremac.co.ke/hrm/employees",
+      "findings": []
+    },
+    {
+      "path": "/hrm/attendances",
+      "url": "https://pos.bremac.co.ke/hrm/attendances",
+      "findings": []
+    },
+    {
+      "path": "/hrm/leaves",
+      "url": "https://pos.bremac.co.ke/hrm/leaves",
+      "findings": []
+    },
+    {
+      "path": "/hrm/payrolls",
+      "url": "https://pos.bremac.co.ke/hrm/payrolls",
+      "findings": []
+    }
+  ]
+}

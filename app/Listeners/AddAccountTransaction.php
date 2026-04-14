@@ -42,29 +42,19 @@ class AddAccountTransaction
             return true;
         }
 
-        // //Create new account transaction
-        if (! empty($event->formInput['account_id']) && $event->transactionPayment->method != 'advance') {
-            $type = ! empty($event->transactionPayment->payment_type) ? $event->transactionPayment->payment_type : AccountTransaction::getAccountTransactionType($event->formInput['transaction_type']);
-            $account_transaction_data = [
-                'amount' => $event->formInput['amount'],
-                'account_id' => $event->formInput['account_id'],
-                'type' => $type,
-                'operation_date' => $event->transactionPayment->paid_on,
-                'created_by' => $event->transactionPayment->created_by,
-                'transaction_id' => $event->transactionPayment->transaction_id,
-                'transaction_payment_id' => $event->transactionPayment->id,
-            ];
+        // Create new account transaction. Prefer explicit account_id from the form,
+        // but fall back to the auto-mapped account_id on the TransactionPayment
+        // (resolved from location/payment method or business transaction mappings).
+        $accountId = ! empty($event->formInput['account_id'])
+            ? $event->formInput['account_id']
+            : $event->transactionPayment->account_id;
 
-            //If change return then set type as debit
-            if ($event->formInput['transaction_type'] == 'sell' && isset($event->formInput['is_return']) && $event->formInput['is_return'] == 1) {
-                $account_transaction_data['type'] = 'debit';
-            }
-
-            if ($event->formInput['transaction_type'] == 'hms_booking' && isset($event->formInput['is_return']) && $event->formInput['is_return'] == 1) {
-                $account_transaction_data['type'] = 'debit';
-            }
-
-            AccountTransaction::createAccountTransaction($account_transaction_data);
+        if (! empty($accountId) && $event->transactionPayment->method != 'advance') {
+            AccountTransaction::syncPaymentAccountTransactions(
+                $event->transactionPayment,
+                $event->formInput['transaction_type'] ?? null,
+                $accountId
+            );
         }
     }
 }

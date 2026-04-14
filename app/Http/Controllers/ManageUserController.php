@@ -131,7 +131,9 @@ class ManageUserController extends Controller
         try {
             // Validate client PIN format if provided
             $request->validate([
+                'contact_number' => ['required', 'string', 'max:20'],
                 'client_pin' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z][A-Za-z0-9]*[A-Za-z]$/'],
+                'otp_login_enabled' => ['nullable', 'boolean'],
             ]);
             if (! empty($request->input('dob'))) {
                 $request['dob'] = $this->moduleUtil->uf_date($request->input('dob'));
@@ -188,6 +190,27 @@ class ManageUserController extends Controller
            ->get();
 
         return view('manage_user.show')->with(compact('user', 'view_partials', 'users', 'activities'));
+    }
+
+    public function signInAsUser($id)
+    {
+        if (! auth()->user()->can('user.impersonate')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $business_id = request()->session()->get('user.business_id');
+
+        $user = User::where('business_id', $business_id)
+            ->findOrFail($id);
+
+        if ($user->id === auth()->user()->id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        Auth::login($user);
+        request()->session()->regenerate();
+
+        return redirect('/home');
     }
 
     /**
@@ -254,7 +277,17 @@ class ManageUserController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
+        $canToggleOtp = auth()->user()->can('user.otp.toggle');
+        $canChangeStatus = auth()->user()->can('user.status.change');
+        $canChangePassword = auth()->user()->can('user.password.reset');
+
         try {
+            $request->validate([
+                'contact_number' => ['required', 'string', 'max:20'],
+                'client_pin' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z][A-Za-z0-9]*[A-Za-z]$/'],
+                'otp_login_enabled' => ['nullable', 'boolean'],
+            ]);
+
             $user_data = $request->only(['surname', 'first_name', 'last_name', 'email', 'selected_contacts', 'marital_status',
                 'blood_group', 'contact_number', 'fb_link', 'twitter_link', 'social_media_1',
                 'social_media_2', 'permanent_address', 'current_address',
@@ -264,6 +297,15 @@ class ManageUserController extends Controller
             $user_data['status'] = ! empty($request->input('is_active')) ? 'active' : 'inactive';
 
             $user_data['is_enable_service_staff_pin'] = ! empty($request->input('is_enable_service_staff_pin')) ? true : false;
+            $user_data['otp_login_enabled'] = $request->boolean('otp_login_enabled');
+
+            if (! $canChangeStatus) {
+                unset($user_data['status']);
+            }
+
+            if (! $canToggleOtp) {
+                unset($user_data['otp_login_enabled']);
+            }
 
             $business_id = request()->session()->get('user.business_id');
 
@@ -280,6 +322,10 @@ class ManageUserController extends Controller
             }
 
             if (! empty($request->input('password'))) {
+                if (! $canChangePassword) {
+                    abort(403, 'Unauthorized action.');
+                }
+
                 $user_data['password'] = $user_data['allow_login'] == 1 ? Hash::make($request->input('password')) : null;
             }
 
@@ -380,6 +426,58 @@ class ManageUserController extends Controller
         return redirect('users')->with('status', $output);
     }
 
+    /**
+     * Toggle OTP login for a user from the profile card.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function toggleOtpLoginEnabled(Request $request, $id)
+    {
+        if (! auth()->user()->can('user.otp.toggle')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        try {
+            $request->validate([
+                'otp_login_enabled' => ['nullable', 'boolean'],
+            ]);
+
+            $business_id = request()->session()->get('user.business_id');
+
+            if (auth()->user()->can('superadmin')) {
+                $user = User::findOrFail($id);
+            } else {
+                $user = User::where('business_id', $business_id)->findOrFail($id);
+            }
+
+            $enableOtp = $request->boolean('otp_login_enabled');
+
+            if ($enableOtp && empty($user->contact_number)) {
+                return back()->with('status', [
+                    'success' => 0,
+                    'msg' => 'Add a phone number before enabling OTP login.',
+                ]);
+            }
+
+            $user->otp_login_enabled = $enableOtp;
+            $user->save();
+
+            return back()->with('status', [
+                'success' => 1,
+                'msg' => $enableOtp ? 'Two-Factor Authentication enabled successfully.' : 'Two-Factor Authentication disabled successfully.',
+            ]);
+        } catch (\Exception $e) {
+            \Log::emergency('File:'.$e->getFile().'Line:'.$e->getLine().'Message:'.$e->getMessage());
+
+            return back()->with('status', [
+                'success' => 0,
+                'msg' => __('messages.something_went_wrong'),
+            ]);
+        }
+    }
+
     private function getAdmins()
     {
         $business_id = request()->session()->get('user.business_id');
@@ -456,27 +554,4 @@ class ManageUserController extends Controller
         return $roles;
     }
 
-    /**
-     * Signes in from user id
-     *
-     * @param  int  $id
-     */
-    public function signInAsUser($id)
-    {
-        if (! auth()->user()->can('superadmin') && empty(session('previous_user_id'))) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        $user_id = auth()->user()->id;
-        $username = auth()->user()->username;
-        session()->flush();
-
-        if (request()->has('save_current')) {
-            session(['previous_user_id' => $user_id, 'previous_username' => $username]);
-        }
-
-        Auth::loginUsingId($id);
-
-        return redirect()->route('home');
-    }
 }

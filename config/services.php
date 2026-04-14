@@ -31,4 +31,10 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'mobilesasa' => [
+        'token' => env('SMS_API_TOKEN'),
+        'sender_id' => env('SMS_SENDER_ID'),
+        'base_url' => env('SMS_API_BASE_URL', 'https://api.mobilesasa.com/v1'),
+    ],
+
 ];

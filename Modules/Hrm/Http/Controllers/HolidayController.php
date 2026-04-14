@@ -30,6 +30,7 @@ class HolidayController extends Controller
         $order = $request->SortField;
         $dir = $request->SortType;
 
+        $data = [];
         $holidays = Holiday::with('company')->where('deleted_at', '=', null)
 
         // Search With Multiple Param
@@ -64,13 +65,23 @@ class HolidayController extends Controller
 
             $item['id'] = $holiday->id;
             $item['title'] = $holiday->title;
-            $item['company_id'] = $holiday['company']->id;
-            $item['company_name'] = $holiday['company']->name;
+            $item['company_id'] = optional($holiday['company'])->id;
+            $item['company_name'] = optional($holiday['company'])->name;
             $item['start_date'] = $holiday->start_date;
             $item['end_date'] = $holiday->end_date;
             $item['description'] = $holiday->description;
             
             $data[] = $item;
+        }
+
+        if (! ($request->wantsJson() || $request->expectsJson())) {
+            $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id', 'name']);
+
+            return view('hrm::holidays.index', [
+                'holidays' => $data,
+                'companies' => $companies,
+                'totalRows' => $totalRows,
+            ]);
         }
 
         return response()->json([
@@ -86,6 +97,11 @@ class HolidayController extends Controller
         $this->authorizeForUser($this->getAuthUser($request), 'create', Holiday::class);
 
         $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','name']);
+
+        if (! ($request->wantsJson() || $request->expectsJson())) {
+            return view('hrm::holidays.create', compact('companies'));
+        }
+
         return response()->json([
             'companies' =>$companies,
         ]);
@@ -112,6 +128,10 @@ class HolidayController extends Controller
             'description'     => $request['description'],
         ]);
 
+        if (! ($request->wantsJson() || $request->expectsJson())) {
+            return redirect()->route('hrm.holidays.index')->with('success', 'Created successfully');
+        }
+
         return response()->json(['success' => true]);
     }
 
@@ -128,8 +148,15 @@ class HolidayController extends Controller
         $this->authorizeForUser($this->getAuthUser($request), 'update', Holiday::class);
 
         $companies = Company::where('deleted_at', '=', null)->orderBy('id', 'desc')->get(['id','name']);
+        $holiday = Holiday::findOrFail($id);
+
+        if (! ($request->wantsJson() || $request->expectsJson())) {
+            return view('hrm::holidays.edit', compact('companies', 'holiday'));
+        }
+
         return response()->json([
             'companies' =>$companies,
+            'holiday' => $holiday,
         ]);
 
     }
@@ -155,6 +182,10 @@ class HolidayController extends Controller
             'description'     => $request['description'],
         ]);
 
+        if (! ($request->wantsJson() || $request->expectsJson())) {
+            return redirect()->route('hrm.holidays.index')->with('success', 'Updated successfully');
+        }
+
         return response()->json(['success' => true]);
     }
 
@@ -168,6 +199,10 @@ class HolidayController extends Controller
             'deleted_at' => Carbon::now(),
         ]);
 
+
+        if (! ($request->wantsJson() || $request->expectsJson())) {
+            return redirect()->route('hrm.holidays.index')->with('success', 'Deleted successfully');
+        }
 
         return response()->json(['success' => true]);
     }

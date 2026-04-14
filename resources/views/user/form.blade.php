@@ -23,10 +23,6 @@
 </div>
 <div class="clearfix"></div>
 <div class="form-group col-md-3">
-    {!! Form::label('contact_number', __( 'lang_v1.mobile_number' ) . ':') !!}
-    {!! Form::text('contact_number', !empty($user->contact_number) ? $user->contact_number : null, ['class' => 'form-control', 'placeholder' => __( 'lang_v1.mobile_number') ]); !!}
-</div>
-<div class="form-group col-md-3">
     {!! Form::label('alt_number', __( 'business.alternate_number' ) . ':') !!}
     {!! Form::text('alt_number', !empty($user->alt_number) ? $user->alt_number : null, ['class' => 'form-control', 'placeholder' => __( 'business.alternate_number') ]); !!}
 </div>

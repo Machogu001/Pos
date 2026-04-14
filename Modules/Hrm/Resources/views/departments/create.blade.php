@@ -1,89 +1,84 @@
 @extends('layouts.app')
 
+@section('title', 'Create Department')
+
 @section('content')
-<div class="container">
-    <h2>Create Department</h2>
-    <form method="POST" action="{{ route('hrm.departments.store') }}">
-        @csrf
-        @include('hrm::partials.hrm_form_toolbar')
+@include('hrm::partials.hrm_page_header', [
+    'title' => 'Create Department',
+    'subtitle' => 'Define a department and assign it to the right company and department head.',
+    'actions' => '<a href="'.route('hrm.departments.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Departments</a>'
+])
 
-        <div class="form-group mb-3">
-            <label for="department">Department</label>
-            <input type="text" name="department" id="department" class="form-control" value="{{ old('department') }}" placeholder="e.g. Sales, Support" required />
+<section class="content">
+    <div class="box box-primary">
+        <div class="box-header with-border">
+            <h3 class="box-title">Department Details</h3>
         </div>
+        <form method="POST" action="{{ route('hrm.departments.store') }}">
+            @csrf
+            @include('hrm::partials.hrm_form_toolbar')
 
-        <div class="form-group mb-3">
-            <label for="company_id">Company</label>
-            <select name="company_id" id="company_id" class="form-control" required>
-                @foreach($companies as $c)
-                    @php
-                        $isBusiness = isset($c->business_id) && $c->business_id == session('business.id');
-                        $label = $isBusiness ? 'Business - ' . $c->name : $c->name;
-                    @endphp
-                    <option value="{{ $c->id }}" @if(old('company_id', isset($default_company_id) ? $default_company_id : null) == $c->id) selected @endif>{{ $label }}</option>
-                @endforeach
-            </select>
-        </div>
-
-        <div class="form-group mb-3">
-            <label for="department_head">Department Head (optional)</label>
-            @if(isset($employees) && count($employees) > 0)
-                <div class="d-flex gap-2">
-                    <select name="department_head" id="department_head" class="form-control">
-                        <option value="">-- None --</option>
-                        @foreach($employees as $e)
-                            @php $empLabel = $e->username ?? trim((($e->firstname ?? '') . ' ' . ($e->lastname ?? ''))); @endphp
-                            <option value="{{ $e->id }}" @if(old('department_head') == $e->id) selected @endif>{{ $empLabel ?: 'Employee #'.$e->id }}</option>
-                        @endforeach
-                    </select>
-                    <a href="{{ route('hrm.employees.create') }}" class="btn btn-outline-secondary" target="_blank" rel="noopener">Add Employee</a>
+            <div class="box-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="department">Department</label>
+                            <input type="text" name="department" id="department" class="form-control" value="{{ old('department') }}" placeholder="e.g. Sales, Support" required />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="company_id">Company</label>
+                            <select name="company_id" id="company_id" class="form-control" required>
+                                @foreach($companies as $c)
+                                    @php
+                                        $isBusiness = isset($c->business_id) && $c->business_id == session('business.id');
+                                        $label = $isBusiness ? 'Business - ' . $c->name : $c->name;
+                                    @endphp
+                                    <option value="{{ $c->id }}" @if(old('company_id', isset($default_company_id) ? $default_company_id : null) == $c->id) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
                 </div>
-            @else
-                <div class="d-flex align-items-center gap-2">
-                    <div class="text-muted">No employees available to select as head.</div>
-                    <a href="{{ route('hrm.employees.create') }}" class="btn btn-primary" target="_blank" rel="noopener">Add Department Head</a>
+
+                <div class="form-group">
+                    <label for="department_head">Department Head <small class="text-muted">optional</small></label>
+                    @if(isset($employees) && count($employees) > 0)
+                        <div class="input-group">
+                            <select name="department_head" id="department_head" class="form-control">
+                                <option value="">-- None --</option>
+                                @foreach($employees as $e)
+                                    @php $empLabel = $e->username ?? trim((($e->firstname ?? '') . ' ' . ($e->lastname ?? ''))); @endphp
+                                    <option value="{{ $e->id }}" @if(old('department_head') == $e->id) selected @endif>{{ $empLabel ?: 'Employee #'.$e->id }}</option>
+                                @endforeach
+                            </select>
+                            <span class="input-group-btn">
+                                <a href="{{ route('hrm.employees.create') }}" class="btn btn-default" target="_blank" rel="noopener">Add Employee</a>
+                            </span>
+                        </div>
+                    @else
+                        <div class="alert alert-info">No employees available to select as head. <a href="{{ route('hrm.employees.create') }}">Create one first</a>.</div>
+                    @endif
+                    @error('department_head')
+                        <div class="text-danger small">{{ $message }}</div>
+                    @enderror
                 </div>
-            @endif
-            @error('department_head')
-                <div class="text-danger small">{{ $message }}</div>
-            @enderror
-        </div>
 
-        <div class="form-group mb-3">
-            <label for="description">Description (optional)</label>
-            <textarea name="description" id="description" class="form-control">{{ old('description') }}</textarea>
-        </div>
+                <div class="form-group">
+                    <label for="description">Description <small class="text-muted">optional</small></label>
+                    <textarea name="description" id="description" class="form-control" rows="4">{{ old('description') }}</textarea>
+                </div>
 
-        @error('department')
-            <div class="text-danger small">{{ $message }}</div>
-        @enderror
+                @error('department')
+                    <div class="text-danger small">{{ $message }}</div>
+                @enderror
+            </div>
 
-        
-    </form>
-</div>
+            <div class="box-footer text-right">
+                <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Save Department</button>
+            </div>
+        </form>
+    </div>
+</section>
 @endsection
-
-    @push('scripts')
-    <script>
-        // Debug AJAX POST for departments
-        (function(){
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'btn btn-outline-primary mt-2';
-            btn.id = 'ajax-departments-debug';
-            btn.innerText = 'Send debug POST';
-            var container = document.querySelector('.container');
-            container.appendChild(btn);
-            var out = document.createElement('pre'); out.id = 'ajax-departments-result'; out.style.whiteSpace = 'pre-wrap'; container.appendChild(out);
-            btn.addEventListener('click', function(){
-                var form = document.querySelector('form');
-                var fd = new FormData(form);
-                fetch("{{ route('hrm.departments.debug') }}", {
-                    method: 'POST',
-                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    body: fd
-                }).then(r=>r.json().catch(()=>r.text())).then(function(d){ out.textContent = JSON.stringify(d, null, 2); }).catch(function(e){ out.textContent = 'Error: '+e; });
-            });
-        })();
-    </script>
-    @endpush

@@ -1,19 +1,27 @@
 @extends('layouts.app')
 
+@section('title', 'Leaves')
+
 @section('content')
-<div class="container py-4">
-	<div class="card shadow-sm">
-		<div class="card-header d-flex justify-content-between align-items-center">
-			<h4 class="mb-0">Leaves</h4>
-			<div>
-				<a href="{{ route('hrm.leaves.create') }}" class="btn btn-primary">Create Leave</a>
+@include('hrm::partials.hrm_page_header', [
+	'title' => 'Leaves',
+	'subtitle' => 'Review leave applications, approvals, and employee time off at a glance.',
+	'actions' => '<a href="'.route('hrm.leaves.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> Create Leave</a>'
+])
+
+<section class="content">
+	<div class="box box-primary">
+		<div class="box-header with-border">
+			<h2 class="box-title h3">Leave Register</h2>
+			<div class="box-tools pull-right">
+				<span class="label label-info">Total leaves: {{ $totalRows ?? 0 }}</span>
 			</div>
 		</div>
-		<div class="card-body">
+		<div class="box-body">
 			<div class="row mb-3">
 				<div class="col-md-3">
 					<label for="company_filter" class="form-label">Company</label>
-					<select id="company_filter" class="form-select" onchange="applyFilters()">
+					<select id="company_filter" class="form-control" onchange="applyFilters()">
 						<option value="">All companies</option>
 						@if(isset($companies))
 							@foreach($companies as $c)
@@ -27,12 +35,12 @@
 					<input id="search" class="form-control" placeholder="Search by employee, leave type, company or department" oninput="applyFilters()" />
 				</div>
 				<div class="col-md-5 d-flex align-items-end justify-content-end">
-					<small class="text-muted">Total leaves: {{ $totalRows ?? 0 }}</small>
+					<small class="text-muted">Classic list view with live filtering.</small>
 				</div>
 			</div>
 
 			<div class="table-responsive">
-				<table class="table table-hover align-middle">
+				<table class="table table-hover table-striped align-middle">
 					<thead class="table-light">
 						<tr>
 							<th>Employee</th>
@@ -47,15 +55,17 @@
 					<tbody id="leaves_table_body">
 						@forelse($leaves as $l)
 							<tr>
-								<td>{{ $l['employee_name'] ?? '-' }}</td>
+								<td><strong>{{ $l['employee_name'] ?? '-' }}</strong></td>
 								<td>{{ $l['leave_type_title'] ?? '-' }}</td>
 								<td>{{ $l['start_date'] ?? '-' }}</td>
 								<td>{{ $l['end_date'] ?? '-' }}</td>
 								<td>{{ $l['days'] ?? 0 }}</td>
-								<td>{{ ucfirst($l['status'] ?? '-') }}</td>
+								<td>
+									<span class="label label-default">{{ ucfirst($l['status'] ?? '-') }}</span>
+								</td>
 								<td class="text-end">
-									<a href="{{ route('hrm.leaves.edit', $l['id']) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
-									<button class="btn btn-sm btn-outline-danger" onclick="deleteLeave({{ $l['id'] }})">Delete</button>
+									<a href="{{ route('hrm.leaves.edit', $l['id']) }}" class="btn btn-sm btn-default">Edit</a>
+									<button class="btn btn-sm btn-danger" onclick="deleteLeave({{ $l['id'] }})">Delete</button>
 								</td>
 							</tr>
 						@empty
@@ -67,10 +77,10 @@
 				</table>
 			</div>
 
-			<div class="d-flex justify-content-between align-items-center mt-3">
-				<div>
-					<label class="me-2">Per page:</label>
-					<select id="per_page" class="form-select d-inline-block" style="width:120px" onchange="changePerPage()">
+			<div class="row" style="margin-top:15px;">
+				<div class="col-md-6">
+					<label for="leaves_per_page" class="me-2">Per page:</label>
+					<select id="leaves_per_page" class="form-control d-inline-block" style="width:120px" onchange="changePerPage()" aria-label="Leaves per page">
 						<option value="10">10</option>
 						<option value="25">25</option>
 						<option value="50">50</option>
@@ -78,8 +88,7 @@
 						<option value="-1">All</option>
 					</select>
 				</div>
-
-				<div>
+				<div class="col-md-6 text-right">
 					@if(isset($paginator))
 						{{ $paginator->appends(request()->query())->links() }}
 					@endif
@@ -87,7 +96,7 @@
 			</div>
 		</div>
 	</div>
-</div>
+</section>
 
 @push('scripts')
 <script>
@@ -115,7 +124,7 @@
 	}
 
 	function changePerPage() {
-		const per = document.getElementById('per_page').value;
+		const per = document.getElementById('leaves_per_page').value;
 		const params = new URLSearchParams(window.location.search);
 		if (per) params.set('limit', per); else params.delete('limit');
 		params.delete('page');
@@ -155,27 +164,29 @@
 	}
 
 	function deleteLeave(id) {
-		if (!confirm('Delete this leave?')) return;
-		fetch(`${window.location.pathname}/${id}`, {
-			method: 'POST',
-			headers: {
-				'X-CSRF-TOKEN': '{{ csrf_token() }}',
-				'Accept': 'application/json'
-			},
-			body: new URLSearchParams({ _method: 'DELETE' })
-		})
-		.then(r => r.json())
-		.then(json => {
-			if (json && json.success) {
-				if (window.toastr) { toastr.success('Deleted successfully'); }
-				if (window.playSuccess) { window.playSuccess(); }
-				applyFilters();
-			} else {
-				if (window.toastr) { toastr.error('Delete failed'); }
-				if (window.playError) { window.playError(); }
-			}
-		})
-		.catch(() => { if (window.toastr) { toastr.error('Delete failed'); } if (window.playError) { window.playError(); } });
+		window.hrmConfirm('Delete this leave?', { title: 'Delete Leave', confirmButtonText: 'Delete' }).then(confirmed => {
+			if (!confirmed) return;
+			fetch(`${window.location.pathname}/${id}`, {
+				method: 'POST',
+				headers: {
+					'X-CSRF-TOKEN': '{{ csrf_token() }}',
+					'Accept': 'application/json'
+				},
+				body: new URLSearchParams({ _method: 'DELETE' })
+			})
+			.then(r => r.json())
+			.then(json => {
+				if (json && json.success) {
+					if (window.toastr) { toastr.success('Deleted successfully'); }
+					if (window.playSuccess) { window.playSuccess(); }
+					applyFilters();
+				} else {
+					if (window.toastr) { toastr.error('Delete failed'); }
+					if (window.playError) { window.playError(); }
+				}
+			})
+			.catch(() => { if (window.toastr) { toastr.error('Delete failed'); } if (window.playError) { window.playError(); } });
+		});
 	}
 
 	// Preselect per-page from query string and filters
@@ -184,7 +195,7 @@
 		const per = params.get('limit');
 		const company = params.get('company_id');
 		const search = params.get('search');
-		if (per) document.getElementById('per_page').value = per;
+		if (per) document.getElementById('leaves_per_page').value = per;
 		if (company) document.getElementById('company_filter').value = company;
 		if (search) document.getElementById('search').value = search;
 	})();

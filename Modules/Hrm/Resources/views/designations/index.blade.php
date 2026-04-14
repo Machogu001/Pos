@@ -1,25 +1,24 @@
 @extends('layouts.app')
 
+@section('title', 'Designations')
+
 @section('content')
-<div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="mb-0">Designations</h2>
-        <a href="{{ route('hrm.designations.create') }}" class="btn btn-primary">Add Designation</a>
-    </div>
+@include('hrm::partials.hrm_page_header', [
+    'title' => 'Designations',
+    'subtitle' => 'Maintain job titles and map them to departments and companies.',
+    'actions' => '<a href="'.route('hrm.designations.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> Add Designation</a>'
+])
 
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
-
-    <p class="text-muted">List of designations and their departments/companies.</p>
-
-    <div class="card">
-        <div class="card-body p-0">
+<section class="content">
+    <div class="box box-primary">
+        <div class="box-header with-border">
+            <h3 class="box-title">Designation Register</h3>
+        </div>
+        <div class="box-body no-padding">
             <div class="table-responsive">
-                <table class="table table-striped mb-0">
+                <table class="table table-hover table-striped mb-0">
                     <thead>
                         <tr>
-                            <th>#</th>
                             <th>Designation</th>
                             <th>Company</th>
                             <th>Department</th>
@@ -29,26 +28,25 @@
                     <tbody>
                         @forelse($designations_for_view ?? [] as $d)
                             <tr>
-                                <td>{{ $d['id'] }}</td>
-                                <td>{{ $d['designation'] }}</td>
+                                <td><strong>{{ $d['designation'] }}</strong></td>
                                 <td>{{ $d['company_name'] }}</td>
                                 <td>{{ $d['department_name'] }}</td>
                                 <td class="text-end">
-                                    <a href="{{ route('hrm.designations.edit', $d['id']) }}" class="btn btn-sm btn-secondary">Edit</a>
+                                    <a href="{{ route('hrm.designations.edit', $d['id']) }}" class="btn btn-sm btn-default">Edit</a>
                                     <form action="{{ route('hrm.designations.destroy', $d['id']) }}" method="POST" style="display:inline-block">
                                         @csrf
                                         @method('DELETE')
-                                        <button class="btn btn-sm btn-danger" onclick="return confirm('Delete?')">Delete</button>
+                                        <button class="btn btn-sm btn-danger" data-hrm-confirm-submit="1" data-hrm-confirm="Delete this designation?" data-hrm-confirm-title="Delete Designation">Delete</button>
                                     </form>
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="text-center text-muted">No designations found.</td></tr>
+                            <tr><td colspan="4" class="text-center text-muted">No designations found.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
-</div>
+</section>
 @endsection

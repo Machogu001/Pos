@@ -31,8 +31,9 @@ class AccountTypeController extends Controller
         $business_id = session()->get('user.business_id');
 
         $account_types = AccountType::where('business_id', $business_id)
-                                     ->whereNull('parent_account_type_id')
-                                     ->get();
+                         ->whereNull('parent_account_type_id')
+                         ->orderedForChart()
+                         ->get();
 
         return view('account_types.create')
                 ->with(compact('account_types'));
@@ -98,8 +99,9 @@ class AccountTypeController extends Controller
                                      ->findOrFail($id);
 
         $account_types = AccountType::where('business_id', $business_id)
-                                     ->whereNull('parent_account_type_id')
-                                     ->get();
+                         ->whereNull('parent_account_type_id')
+                         ->orderedForChart()
+                         ->get();
 
         return view('account_types.edit')
                 ->with(compact('account_types', 'account_type'));

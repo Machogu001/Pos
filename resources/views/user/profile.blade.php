@@ -138,7 +138,6 @@
             </div>
         @endcomponent
     </div>
-</div>
 @include('user.edit_profile_form_part', ['bank_details' => !empty($user->bank_details) ? json_decode($user->bank_details, true) : null])
 <div class="row">
     <div class="col-md-12 text-center">

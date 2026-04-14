@@ -138,4 +138,14 @@ LANG = {
     'authentication_successfull': 'Authentication successfull',
     'please_enter' : 'Please enter ',
     'or_more_characters' : 'or more characters',
+
+    // Payment translations used in browser-side JS
+    'payment.send_stk': 'Send STK',
+    'payment.retry_stk': 'Retry STK',
+    'payment.initiating_payment': 'Initiating payment... please wait.',
+    'payment.intiating_payment': 'Initiating payment... please wait.',
+    'payment.stk_sent': 'STK push sent. Enter PIN on your phone.',
+    'payment.payment_initiation_failed': 'Payment initiation failed. Please try again.',
+    'payment.mpesa_phone_required': 'M-Pesa phone number is required.',
+    'payment.invalid_phone_format': 'Invalid phone number format. Use 254712345678, 0712345678, or 0112345678.',
 };

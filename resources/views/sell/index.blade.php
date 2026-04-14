@@ -374,5 +374,5 @@
             });
         });
     </script>
-    <script src="{{ asset('js/payment.js?v=' . $asset_v) }}"></script>
+    <script src="{{ asset('js/payment.js?v=' . filemtime(public_path('js/payment.js'))) }}"></script>
 @endsection

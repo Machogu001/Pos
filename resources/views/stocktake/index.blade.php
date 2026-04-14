@@ -58,7 +58,7 @@
                                         @lang('stocktake.total_stocktakes')
                                     </p>
                                     <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-font-bold tw-tracking-tight" id="total-stocktakes">
-                                        -
+                                        {{ $stats['total'] ?? $stats['total_stocktakes'] ?? '-' }}
                                     </p>
                                 </div>
                             </div>
@@ -77,7 +77,7 @@
                                         @lang('stocktake.in_progress')
                                     </p>
                                     <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-font-bold tw-tracking-tight" id="in-progress-stocktakes">
-                                        -
+                                        {{ $stats['in_progress'] ?? '-' }}
                                     </p>
                                 </div>
                             </div>
@@ -96,7 +96,7 @@
                                         @lang('stocktake.completed')
                                     </p>
                                     <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-font-bold tw-tracking-tight" id="completed-stocktakes">
-                                        -
+                                        {{ $stats['completed'] ?? '-' }}
                                     </p>
                                 </div>
                             </div>
@@ -115,7 +115,7 @@
                                         @lang('stocktake.cancelled')
                                     </p>
                                     <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-font-bold tw-tracking-tight" id="cancelled-stocktakes">
-                                        -
+                                        {{ $stats['cancelled'] ?? '-' }}
                                     </p>
                                 </div>
                             </div>
@@ -143,10 +143,10 @@
                                         <label class="form-label fw-semibold text-secondary mb-2">
                                             <i class="fas fa-map-marker-alt me-1 text-primary"></i>@lang('business.location')
                                         </label>
-                                        <select class="form-control select2" id="location_filter" name="location_id">
+                                            <select class="form-control select2" id="location_filter" name="location_id">
                                             <option value="">@lang('stocktake.all')</option>
                                             @foreach($businessLocations as $key => $value)
-                                                <option value="{{ $key }}">{{ $value }}</option>
+                                                <option value="{{ $key }}" @selected(($filters['location_id'] ?? '') == $key)>{{ $value }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -154,35 +154,35 @@
                                         <label class="form-label fw-semibold text-secondary mb-2">
                                             <i class="fas fa-info-circle me-1 text-primary"></i>@lang('stocktake.status')
                                         </label>
-                                        <select class="form-control select2" id="status_filter" name="status">
+                                            <select class="form-control select2" id="status_filter" name="status">
                                             <option value="">@lang('stocktake.all')</option>
-                                            <option value="in_progress">@lang('stocktake.in_progress')</option>
-                                            <option value="completed">@lang('stocktake.completed')</option>
-                                            <option value="cancelled">@lang('stocktake.cancelled')</option>
+                                                <option value="in_progress" @selected(($filters['status'] ?? '') === 'in_progress')>@lang('stocktake.in_progress')</option>
+                                                <option value="completed" @selected(($filters['status'] ?? '') === 'completed')>@lang('stocktake.completed')</option>
+                                                <option value="cancelled" @selected(($filters['status'] ?? '') === 'cancelled')>@lang('stocktake.cancelled')</option>
                                         </select>
                                     </div>
                                     <div class="col-lg-3 col-md-6">
                                         <label class="form-label fw-semibold text-secondary mb-2">
                                             <i class="fas fa-calendar-alt me-1 text-primary"></i>@lang('stocktake.date_range')
                                         </label>
-                                        <select class="form-control select2" id="date_range_filter" name="date_range">
+                                            <select class="form-control select2" id="date_range_filter" name="date_range">
                                             <option value="">@lang('stocktake.all')</option>
-                                            <option value="today">@lang('stocktake.today')</option>
-                                            <option value="yesterday">@lang('stocktake.yesterday')</option>
-                                            <option value="this_week">@lang('stocktake.this_week')</option>
-                                            <option value="last_week">@lang('stocktake.last_week')</option>
-                                            <option value="this_month">@lang('stocktake.this_month')</option>
-                                            <option value="last_month">@lang('stocktake.last_month')</option>
-                                            <option value="custom">@lang('stocktake.custom_range')</option>
+                                            <option value="today" @selected(($filters['date_range'] ?? '') === 'today')>@lang('stocktake.today')</option>
+                                            <option value="yesterday" @selected(($filters['date_range'] ?? '') === 'yesterday')>@lang('stocktake.yesterday')</option>
+                                            <option value="this_week" @selected(($filters['date_range'] ?? '') === 'this_week')>@lang('stocktake.this_week')</option>
+                                            <option value="last_week" @selected(($filters['date_range'] ?? '') === 'last_week')>@lang('stocktake.last_week')</option>
+                                            <option value="this_month" @selected(($filters['date_range'] ?? '') === 'this_month')>@lang('stocktake.this_month')</option>
+                                            <option value="last_month" @selected(($filters['date_range'] ?? '') === 'last_month')>@lang('stocktake.last_month')</option>
+                                            <option value="custom" @selected(($filters['date_range'] ?? '') === 'custom')>@lang('stocktake.custom_range')</option>
                                         </select>
                                     </div>
                                     <div class="col-lg-3 col-md-6">
                                         <label class="form-label fw-semibold text-secondary mb-2">
                                             <i class="fas fa-dollar-sign me-1 text-primary"></i>@lang('stocktake.price_basis')
                                         </label>
-                                        <select class="form-control" id="price_basis_filter" name="price_basis">
-                                            <option value="selling">@lang('stocktake.price_basis_selling')</option>
-                                            <option value="purchase">@lang('stocktake.price_basis_purchase')</option>
+                                            <select class="form-control" id="price_basis_filter" name="price_basis">
+                                            <option value="selling" @selected(($filters['price_basis'] ?? 'selling') === 'selling')>@lang('stocktake.price_basis_selling')</option>
+                                            <option value="purchase" @selected(($filters['price_basis'] ?? '') === 'purchase')>@lang('stocktake.price_basis_purchase')</option>
                                         </select>
                                     </div>
                                 </div>
@@ -207,19 +207,19 @@
                                         <label class="form-label fw-semibold text-secondary mb-2">
                                             <i class="fas fa-calendar-day me-1 text-primary"></i>@lang('stocktake.custom_from_date')
                                         </label>
-                                        <input type="date" class="form-control" id="from_date_filter" name="from_date">
+                                        <input type="date" class="form-control" id="from_date_filter" name="from_date" value="{{ $filters['from_date'] ?? '' }}">
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-semibold text-secondary mb-2">
                                             <i class="fas fa-calendar-check me-1 text-primary"></i>@lang('stocktake.custom_to_date')
                                         </label>
-                                        <input type="date" class="form-control" id="to_date_filter" name="to_date">
+                                        <input type="date" class="form-control" id="to_date_filter" name="to_date" value="{{ $filters['to_date'] ?? '' }}">
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-semibold text-secondary mb-2">
                                             <i class="fas fa-search me-1 text-primary"></i>@lang('stocktake.search_reference')
                                         </label>
-                                        <input type="text" class="form-control" id="search_filter" name="search" placeholder="@lang('stocktake.enter_reference')">
+                                        <input type="text" class="form-control" id="search_filter" name="search" placeholder="@lang('stocktake.enter_reference')" value="{{ $filters['search'] ?? '' }}">
                                     </div>
                                 </div>
                             </form>
@@ -251,7 +251,7 @@
         </div>
     </div>
     <div class="card-body p-0">
-        <div class="table-responsive">
+        <div class="stocktake-table-scroll">
             <table class="table table-hover align-middle mb-0" id="stocktakes-table" style="width:100%">
                 <thead class="tw-bg-gray-50">
                     <tr>
@@ -360,6 +360,10 @@
         transform: translateY(-1px);
         transition: all 0.2s ease;
     }
+
+    .stocktake-table-scroll .table-hover tbody tr:hover {
+        transform: none;
+    }
     
     .card {
         transition: box-shadow 0.2s ease-in-out;
@@ -451,6 +455,44 @@
             padding: 0 !important;
         }
     }
+
+    .stocktake-table-scroll {
+        display: block;
+        overflow: hidden;
+        scrollbar-gutter: stable;
+    }
+
+    .stocktake-table-scroll .dataTables_wrapper,
+    .stocktake-table-scroll .dataTables_scroll,
+    .stocktake-table-scroll .dataTables_scrollHead,
+    .stocktake-table-scroll .dataTables_scrollBody {
+        overflow-x: hidden !important;
+    }
+
+    .stocktake-table-scroll .dataTables_scrollBody {
+        overflow-y: scroll !important;
+    }
+
+    .stocktake-table-scroll table,
+    .dataTables_scrollBody table {
+        width: 100% !important;
+        table-layout: fixed;
+    }
+
+    .stocktake-table-scroll th,
+    .stocktake-table-scroll td,
+    .dataTables_scrollBody th,
+    .dataTables_scrollBody td {
+        word-break: break-word;
+        white-space: normal;
+    }
+
+    .stocktake-table-scroll thead th {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: #f8fafc;
+    }
 </style>
 @endsection
 
@@ -473,6 +515,10 @@ $(document).ready(function() {
     var table = $('#stocktakes-table').DataTable({
         processing: true,
         serverSide: true,
+        scrollY: '360px',
+        scrollCollapse: false,
+        scrollX: false,
+        autoWidth: false,
         ajax: {
             url: "{{ route('stocktakes.index') }}",
             data: function(d) {
@@ -758,7 +804,7 @@ $(document).ready(function() {
     // Update statistics cards
     function updateStats(json) {
         if (json && json.stats) {
-            $('#total-stocktakes').text(json.stats.total || 0);
+            $('#total-stocktakes').text(json.stats.total ?? json.stats.total_stocktakes ?? 0);
             $('#in-progress-stocktakes').text(json.stats.in_progress || 0);
             $('#completed-stocktakes').text(json.stats.completed || 0);
             $('#cancelled-stocktakes').text(json.stats.cancelled || 0);
@@ -1189,6 +1235,18 @@ $(document).ready(function() {
 </script>
 
 <style>
+    html, body {
+        overflow-x: hidden !important;
+        max-width: 100%;
+    }
+
+    .container-fluid,
+    .content,
+    .content-wrapper {
+        overflow-x: hidden !important;
+        max-width: 100%;
+    }
+
     /* Modern Card Hover Effects */
     .hover-lift {
         transition: all 0.3s ease;
@@ -1212,8 +1270,18 @@ $(document).ready(function() {
 
     #stocktakes-table tbody tr:hover {
         background-color: #f8f9fa;
-        transform: scale(1.005);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    #stocktakes-table tbody tr:hover > td {
+        transform: none !important;
+    }
+
+    #stocktakes-table .btn:hover,
+    .stocktake-table-scroll .btn:hover {
+        transform: none !important;
+        box-shadow: none !important;
     }
 
     /* Status badge styles */
@@ -1244,8 +1312,8 @@ $(document).ready(function() {
     }
 
     .btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: none !important;
+        box-shadow: none !important;
     }
 
     /* DataTables button styling */

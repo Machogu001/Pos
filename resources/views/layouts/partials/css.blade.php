@@ -8,6 +8,8 @@
 
 @yield('css')
 
+@yield('styles')
+
 <!-- app css -->
 <link rel="stylesheet" href="{{ asset('css/app.css?v='.$asset_v) }}">
 

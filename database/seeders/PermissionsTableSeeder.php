@@ -19,6 +19,10 @@ class PermissionsTableSeeder extends Seeder
             ['name' => 'user.create'],
             ['name' => 'user.update'],
             ['name' => 'user.delete'],
+            ['name' => 'user.impersonate'],
+            ['name' => 'user.status.change'],
+            ['name' => 'user.password.reset'],
+            ['name' => 'user.otp.toggle'],
 
             ['name' => 'supplier.view'],
             ['name' => 'supplier.create'],

@@ -129,6 +129,7 @@
 					</span>
 					{!! Form::select("payment[$row_index][account_id]", $accounts, !empty($payment_line['account_id']) ? $payment_line['account_id'] : '' , ['class' => 'form-control select2 account-dropdown', 'id' => !$readonly ? "account_$row_index" : "account_advance_$row_index", 'style' => 'width:100%;', 'disabled' => $readonly]); !!}
 				</div>
+				<p class="help-block">@lang('lang_v1.runtime_payment_account_help')</p>
 			</div>
 		</div>
 	@endif

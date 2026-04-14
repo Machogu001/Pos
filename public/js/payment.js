@@ -191,6 +191,178 @@ $(document).on('submit', 'form#transaction_payment_add_form', function(e){
     
 })
 
+function normalizeKenyanPhone(rawPhone) {
+    const digits = String(rawPhone || '').trim().replace(/[^\d+]/g, '');
+
+    if (/^(07|01)\d{8}$/.test(digits)) {
+        return '254' + digits.slice(1);
+    }
+
+    if (/^\+?254[17]\d{8}$/.test(digits)) {
+        return digits.replace(/^\+/, '');
+    }
+
+    return null;
+}
+
+function translatePaymentText(key, fallback) {
+    try {
+        if (typeof __translate === 'function') {
+            const translated = __translate(key);
+            if (translated && translated !== key) {
+                return translated;
+            }
+        }
+    } catch (error) {
+        console.warn('Payment translation lookup failed for', key, error);
+    }
+
+    return fallback;
+}
+
+function notifyMpesaStkSent(message) {
+    const successMessage = message || translatePaymentText('payment.stk_sent', 'STK push sent. Enter PIN on your phone.');
+
+    if (window.showToast) {
+        window.showToast('success', successMessage);
+    } else if (window.toastr) {
+        toastr.success(successMessage);
+    }
+
+    if (window.playSuccess) {
+        window.playSuccess();
+    }
+}
+
+function getMpesaStatusMessage(data, fallback) {
+    if (data && typeof data.result_desc === 'string' && data.result_desc.trim() !== '') {
+        return data.result_desc.trim();
+    }
+
+    if (data && typeof data.message === 'string' && data.message.trim() !== '') {
+        return data.message.trim();
+    }
+
+    return fallback;
+}
+
+function isMpesaFinalResponse(data) {
+    if (!data || typeof data !== 'object') {
+        return false;
+    }
+
+    const status = String(data.status || data.transaction_status || '').trim().toLowerCase();
+    const resultCode = data.result_code === null || typeof data.result_code === 'undefined'
+        ? ''
+        : String(data.result_code).trim();
+
+    if (['paid', 'success', 'failed', 'error', 'not_found'].includes(status)) {
+        return true;
+    }
+
+    if (status === 'pending') {
+        return false;
+    }
+
+    if (resultCode !== '') {
+        return resultCode !== '4999';
+    }
+
+    return false;
+}
+
+function setMpesaStatusBadge(statusBadge, tone, message) {
+    const badgeClasses = {
+        success: 'badge bg-success',
+        warning: 'badge bg-warning',
+        danger: 'badge bg-danger',
+        info: 'badge bg-info'
+    };
+
+    const badgeClass = badgeClasses[tone] || badgeClasses.info;
+    statusBadge.html('<span class="' + badgeClass + '"></span>');
+    statusBadge.find('span').text(message);
+}
+
+function startMpesaRetryCountdown(button, seconds) {
+    const retrySeconds = Math.max(1, parseInt(seconds, 10) || 59);
+    const baseLabel = button.data('baseLabel') || button.text().trim() || translatePaymentText('payment.send_stk', 'Send STK');
+    const retryUntil = Date.now() + (retrySeconds * 1000);
+    const existingTimer = button.data('retryTimerId');
+
+    button.data('baseLabel', baseLabel);
+    button.data('retryUntil', retryUntil);
+
+    if (existingTimer) {
+        window.clearInterval(existingTimer);
+    }
+
+    const render = () => {
+        const remainingSeconds = Math.max(0, Math.ceil((retryUntil - Date.now()) / 1000));
+
+        if (remainingSeconds > 0) {
+            button.prop('disabled', true).text(baseLabel + ' (' + remainingSeconds + 's)');
+            return;
+        }
+
+        button.prop('disabled', false).text(baseLabel);
+        window.clearInterval(button.data('retryTimerId'));
+        button.removeData('retryTimerId');
+        button.removeData('retryUntil');
+    };
+
+    render();
+    button.data('retryTimerId', window.setInterval(render, 250));
+}
+
+function stopMpesaRetryCountdown(button) {
+    if (!button || !button.length) {
+        return;
+    }
+
+    const timerId = button.data('retryTimerId');
+    const baseLabel = button.data('baseLabel') || translatePaymentText('payment.send_stk', 'Send STK');
+
+    if (timerId) {
+        window.clearInterval(timerId);
+    }
+
+    button.prop('disabled', false).text(baseLabel);
+    button.removeData('retryTimerId');
+    button.removeData('retryUntil');
+}
+
+function setMpesaRetryButton(button) {
+    if (!button || !button.length) {
+        return;
+    }
+
+    stopMpesaRetryCountdown(button);
+    button.data('baseLabel', translatePaymentText('payment.retry_stk', 'Retry STK'));
+    button.prop('disabled', false).text(translatePaymentText('payment.retry_stk', 'Retry STK'));
+}
+
+async function readJsonResponse(response, contextLabel) {
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+        const responseJson = await response.json();
+        if (!response.ok) {
+            const error = new Error(responseJson.message || 'Request failed');
+            error.payload = responseJson;
+            error.status = response.status;
+            throw error;
+        }
+
+        return responseJson;
+    }
+
+    if (!response.ok || !contentType.includes('application/json')) {
+        const responseText = await response.text();
+        console.error(contextLabel + ' unexpected response:', responseText);
+        throw new Error('Unexpected server response');
+    }
+}
+
 // M-Pesa STK Push for Purchase Payments
 $(document).on('click', '.send-mpesa-stk-purchase', async function(e) {
     e.preventDefault();
@@ -203,11 +375,16 @@ $(document).on('click', '.send-mpesa-stk-purchase', async function(e) {
     const statusInput = form.find('.mpesa_status');
     const statusBadge = form.find('.mpesa-status-badge');
 
+    const retryUntil = Number(btn.data('retryUntil') || 0);
+    if (retryUntil > Date.now()) {
+        return;
+    }
+
     const phone = phoneInput.val().trim();
     const amount = __read_number(amountInput);
 
     if (!phone) {
-        toastr.error(__translate('payment.mpesa_phone_required'));
+        toastr.error(translatePaymentText('payment.mpesa_phone_required', 'M-Pesa phone number is required.'));
         return;
     }
 
@@ -216,14 +393,16 @@ $(document).on('click', '.send-mpesa-stk-purchase', async function(e) {
         return;
     }
 
-    // Normalize phone
-    let normalizedPhone = phone.replace(/^\+/, '');
-    if (/^0?7\d{8}$/.test(normalizedPhone)) {
-        normalizedPhone = '254' + normalizedPhone.replace(/^0/, '');
+    const normalizedPhone = normalizeKenyanPhone(phone);
+    if (!normalizedPhone) {
+        toastr.error(translatePaymentText('payment.invalid_phone_format', 'Invalid phone number format. Use 254712345678, 0712345678, or 0112345678.'));
+        return;
     }
 
-    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> ' + __translate('payment.initiating_payment'));
-    statusBadge.html('<i class="fas fa-spinner fa-spin"></i> Initiating...');
+    let retryCountdownStarted = false;
+
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> ' + translatePaymentText('payment.initiating_payment', 'Initiating payment... please wait.'));
+    setMpesaStatusBadge(statusBadge, 'info', translatePaymentText('payment.initiating_payment', 'Initiating payment... please wait.'));
 
     try {
         const response = await fetch('/mpesa/initiate', {
@@ -239,25 +418,34 @@ $(document).on('click', '.send-mpesa-stk-purchase', async function(e) {
             })
         });
 
-        const data = await response.json();
+        const data = await readJsonResponse(response, 'mpesa.initiate purchase');
+        const checkoutRequestId = data.checkout_request_id || data.checkoutRequestId || '';
 
-        if (data.success) {
-            checkoutInput.val(data.checkoutRequestId);
-            toastr.success(__translate('payment.stk_sent'));
-            statusBadge.html('<span class="badge bg-warning">Pending</span>');
+        if (data.success || checkoutRequestId) {
+            checkoutInput.val(checkoutRequestId);
+            notifyMpesaStkSent(data.message || translatePaymentText('payment.stk_sent', 'STK push sent. Enter PIN on your phone.'));
+            setMpesaStatusBadge(statusBadge, 'warning', getMpesaStatusMessage(data, 'STK push sent. Enter PIN on your phone.'));
+            retryCountdownStarted = true;
+            startMpesaRetryCountdown(btn, 59);
             
             // Start polling for status
-            pollMpesaStatusPurchase(data.checkoutRequestId, statusBadge, receiptInput, statusInput);
+            pollMpesaStatusPurchase(checkoutRequestId, normalizedPhone, statusBadge, receiptInput, statusInput);
         } else {
             toastr.error(data.message || __translate('payment.payment_initiation_failed'));
-            statusBadge.html('<span class="badge bg-danger">Failed</span>');
+            setMpesaStatusBadge(statusBadge, 'danger', getMpesaStatusMessage(data, 'Payment initiation failed'));
+            setMpesaRetryButton(btn);
         }
     } catch (error) {
         console.error('Error:', error);
-        toastr.error(__translate('payment.payment_initiation_failed'));
-        statusBadge.html('<span class="badge bg-danger">Error</span>');
+        toastr.error(error.message || translatePaymentText('payment.payment_initiation_failed', 'Payment initiation failed. Please try again.'));
+        setMpesaStatusBadge(statusBadge, 'danger', error.message || 'Payment initiation failed');
+        setMpesaRetryButton(btn);
     } finally {
-        btn.prop('disabled', false).html(__translate('payment.send_stk'));
+        if (!retryCountdownStarted) {
+            if (btn.text().trim() === translatePaymentText('payment.initiating_payment', 'Initiating payment... please wait.')) {
+                btn.prop('disabled', false).text(translatePaymentText('payment.send_stk', 'Send STK'));
+            }
+        }
     }
 });
 
@@ -266,20 +454,23 @@ $(document).on('click', '.check-mpesa-status-purchase', async function(e) {
     e.preventDefault();
     const btn = $(this);
     const form = $('#transaction_payment_add_form');
+    const sendBtn = form.find('.send-mpesa-stk-purchase');
     const checkoutInput = form.find('.checkout_request_id');
+    const phoneInput = form.find('.mpesa-phone');
     const statusBadge = form.find('.mpesa-status-badge');
     const receiptInput = form.find('.mpesa_receipt_number');
     const statusInput = form.find('.mpesa_status');
 
     const checkoutRequestId = checkoutInput.val();
+    const normalizedPhone = normalizeKenyanPhone(phoneInput.val().trim());
 
-    if (!checkoutRequestId) {
+    if (!checkoutRequestId && !normalizedPhone) {
         toastr.error('No M-Pesa transaction to check');
         return;
     }
 
     btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Checking...');
-    statusBadge.html('<i class="fas fa-spinner fa-spin"></i> Checking...');
+    setMpesaStatusBadge(statusBadge, 'info', 'Checking...');
 
     try {
         const response = await fetch('/payment/check-status', {
@@ -288,38 +479,49 @@ $(document).on('click', '.check-mpesa-status-purchase', async function(e) {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
-            body: JSON.stringify({ checkoutRequestId: checkoutRequestId })
+            body: JSON.stringify({ checkout_request_id: checkoutRequestId, phone: normalizedPhone })
         });
 
-        const data = await response.json();
+        const data = await readJsonResponse(response, 'payment.checkStatus purchase');
 
-        if (data.status === 'paid') {
+        if (isMpesaFinalResponse(data)) {
+            stopMpesaRetryCountdown(sendBtn);
+        }
+
+        if (data.status === 'paid' || data.status === 'success') {
             receiptInput.val(data.mpesa_receipt_number);
             statusInput.val('paid');
-            statusBadge.html('<span class="badge bg-success">Paid - ' + data.mpesa_receipt_number + '</span>');
-            toastr.success('Payment confirmed: ' + data.mpesa_receipt_number);
+            const paidMessage = getMpesaStatusMessage(data, 'Payment confirmed') + (data.mpesa_receipt_number ? ' - ' + data.mpesa_receipt_number : '');
+            setMpesaStatusBadge(statusBadge, 'success', paidMessage);
+            toastr.success(paidMessage);
         } else if (data.status === 'pending') {
-            statusBadge.html('<span class="badge bg-warning">Pending</span>');
-            toastr.info('Payment is still pending');
+            const pendingMessage = getMpesaStatusMessage(data, 'Payment is still pending');
+            setMpesaStatusBadge(statusBadge, 'warning', pendingMessage);
+            toastr.info(pendingMessage);
         } else {
-            statusBadge.html('<span class="badge bg-danger">Failed</span>');
-            toastr.error(data.message || 'Payment failed');
+            const failedMessage = getMpesaStatusMessage(data, 'Payment failed');
+            setMpesaStatusBadge(statusBadge, 'danger', failedMessage);
+            toastr.error(failedMessage);
+            setMpesaRetryButton(sendBtn);
         }
     } catch (error) {
         console.error('Error:', error);
-        toastr.error('Error checking payment status');
-        statusBadge.html('<span class="badge bg-danger">Error</span>');
+        toastr.error(error.message || 'Error checking payment status');
+        setMpesaStatusBadge(statusBadge, 'danger', error.message || 'Error checking payment status');
+        setMpesaRetryButton(sendBtn);
     } finally {
-        btn.prop('disabled', false).html(__translate('payment.check_status'));
+        btn.prop('disabled', false).html(translatePaymentText('payment.check_status', 'Check Status'));
     }
 });
 
 // Poll M-Pesa status for purchase payments
-function pollMpesaStatusPurchase(checkoutRequestId, statusBadge, receiptInput, statusInput, attempts = 0) {
+function pollMpesaStatusPurchase(checkoutRequestId, phone, statusBadge, receiptInput, statusInput, attempts = 0) {
     if (attempts >= 20) { // Stop after 20 attempts (60 seconds)
-        statusBadge.html('<span class="badge bg-warning">Timeout - Check Status</span>');
+        setMpesaStatusBadge(statusBadge, 'warning', 'Timeout - Check Status');
         return;
     }
+
+    const sendBtn = $('#transaction_payment_add_form').find('.send-mpesa-stk-purchase');
 
     setTimeout(async () => {
         try {
@@ -329,26 +531,35 @@ function pollMpesaStatusPurchase(checkoutRequestId, statusBadge, receiptInput, s
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                 },
-                body: JSON.stringify({ checkoutRequestId: checkoutRequestId })
+                body: JSON.stringify({ checkout_request_id: checkoutRequestId, phone: phone })
             });
 
-            const data = await response.json();
+            const data = await readJsonResponse(response, 'payment.checkStatus purchase poll');
 
-            if (data.status === 'paid') {
+            if (isMpesaFinalResponse(data)) {
+                stopMpesaRetryCountdown(sendBtn);
+            }
+
+            if (data.status === 'paid' || data.status === 'success') {
                 receiptInput.val(data.mpesa_receipt_number);
                 statusInput.val('paid');
-                statusBadge.html('<span class="badge bg-success">Paid - ' + data.mpesa_receipt_number + '</span>');
-                toastr.success('Payment confirmed: ' + data.mpesa_receipt_number);
+                const paidMessage = getMpesaStatusMessage(data, 'Payment confirmed') + (data.mpesa_receipt_number ? ' - ' + data.mpesa_receipt_number : '');
+                setMpesaStatusBadge(statusBadge, 'success', paidMessage);
+                toastr.success(paidMessage);
             } else if (data.status === 'pending') {
+                setMpesaStatusBadge(statusBadge, 'warning', getMpesaStatusMessage(data, 'Payment is still pending'));
                 // Continue polling
-                pollMpesaStatusPurchase(checkoutRequestId, statusBadge, receiptInput, statusInput, attempts + 1);
+                pollMpesaStatusPurchase(checkoutRequestId, phone, statusBadge, receiptInput, statusInput, attempts + 1);
             } else {
-                statusBadge.html('<span class="badge bg-danger">Failed</span>');
-                toastr.error(data.message || 'Payment failed');
+                const failedMessage = getMpesaStatusMessage(data, 'Payment failed');
+                setMpesaStatusBadge(statusBadge, 'danger', failedMessage);
+                toastr.error(failedMessage);
+                setMpesaRetryButton(sendBtn);
             }
         } catch (error) {
             console.error('Polling error:', error);
-            pollMpesaStatusPurchase(checkoutRequestId, statusBadge, receiptInput, statusInput, attempts + 1);
+            setMpesaRetryButton(sendBtn);
+            pollMpesaStatusPurchase(checkoutRequestId, phone, statusBadge, receiptInput, statusInput, attempts + 1);
         }
     }, 3000); // Check every 3 seconds
 }

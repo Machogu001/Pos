@@ -51,7 +51,7 @@
                         <th>@lang('account.supplier_due'):</th>
                         <td>&nbsp;</td>
                         <td>
-                            <input type="hidden" id="hidden_supplier_due" class="debit">
+                            <input type="hidden" id="hidden_supplier_due" class="credit">
                             <span class="remote-data" id="supplier_due">
                                 <i class="fas fa-sync fa-spin fa-fw"></i>
                             </span>
@@ -60,7 +60,7 @@
                     <tr>
                         <th>@lang('account.customer_due'):</th>
                         <td>
-                            <input type="hidden" id="hidden_customer_due" class="credit">
+                            <input type="hidden" id="hidden_customer_due" class="debit">
                             <span class="remote-data" id="customer_due">
                                 <i class="fas fa-sync fa-spin fa-fw"></i>
                             </span>
@@ -89,12 +89,12 @@
                     <tr class="bg-gray">
                         <th>@lang('sale.total')</th>
                         <td>
-                            <span class="remote-data" id="total_credit">
+                            <span class="remote-data" id="total_debit">
                                 <i class="fas fa-sync fa-spin fa-fw"></i>
                             </span>
                         </td>
                         <td>
-                            <span class="remote-data" id="total_debit">
+                            <span class="remote-data" id="total_credit">
                                 <i class="fas fa-sync fa-spin fa-fw"></i>
                             </span>
                         </td>
@@ -137,7 +137,6 @@
             $(this).html(loader);
         });
 
-        $('table#trial_balance_table tbody#capital_account_balances_details').html('<tr><td colspan="3"><i class="fas fa-sync fa-spin fa-fw"></i></td></tr>');
         $('table#trial_balance_table tbody#account_balances_details').html('<tr><td colspan="3"><i class="fas fa-sync fa-spin fa-fw"></i></td></tr>');
 
         var end_date = $('input#end_date').val();
@@ -152,22 +151,25 @@
                 $('span#customer_due').text(__currency_trans_from_en(result.customer_due, true));
                 __write_number($('input#hidden_customer_due'), result.customer_due);
 
-                var account_balances = result.account_balances;
+                var account_balances = result.account_balances || [];
                 $('table#trial_balance_table tbody#account_balances_details').html('');
-                for (var key in account_balances) {
-                    var accnt_bal = __currency_trans_from_en(result.account_balances[key]);
-                    var accnt_bal_with_sym = __currency_trans_from_en(result.account_balances[key], true);
-                    var account_tr = '<tr><td class="pl-20-td">' + key + ':</td><td><input type="hidden" class="credit" value="' + accnt_bal + '">' + accnt_bal_with_sym + '</td><td>&nbsp;</td></tr>';
-                    $('table#trial_balance_table tbody#account_balances_details').append(account_tr);
-                }
+                for (var i in account_balances) {
+                    var account = account_balances[i] || {};
+                    var raw_balance = parseFloat(account.display_balance) || 0;
+                    var accnt_bal = __currency_trans_from_en(raw_balance);
+                    var accnt_bal_with_sym = __currency_trans_from_en(raw_balance, true);
+                    var account_tr = '<tr><td class="pl-20-td">' + (account.name || '') + ':</td>';
 
-                var capital_account_details = result.capital_account_details;
-                $('table#trial_balance_table tbody#capital_account_balances_details').html('');
-                for (var key in capital_account_details) {
-                    var accnt_bal = __currency_trans_from_en(result.capital_account_details[key]);
-                    var accnt_bal_with_sym = __currency_trans_from_en(result.capital_account_details[key], true);
-                    var account_tr = '<tr><td class="pl-20-td">' + key + ':</td><td><input type="hidden" class="credit" value="' + accnt_bal + '">' + accnt_bal_with_sym + '</td><td>&nbsp;</td></tr>';
-                    $('table#trial_balance_table tbody#capital_account_balances_details').append(account_tr);
+                    if (account.side === 'debit') {
+                        account_tr += '<td><input type="hidden" class="debit" value="' + accnt_bal + '">' + accnt_bal_with_sym + '</td><td>&nbsp;</td>';
+                    } else if (account.side === 'credit') {
+                        account_tr += '<td>&nbsp;</td><td><input type="hidden" class="credit" value="' + accnt_bal + '">' + accnt_bal_with_sym + '</td>';
+                    } else {
+                        account_tr += '<td>&nbsp;</td><td>&nbsp;</td>';
+                    }
+
+                    account_tr += '</tr>';
+                    $('table#trial_balance_table tbody#account_balances_details').append(account_tr);
                 }
 
                 var total_debit = 0;

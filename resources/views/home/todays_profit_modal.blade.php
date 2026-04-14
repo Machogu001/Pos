@@ -3,7 +3,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-        <h4 class="modal-title" id="myModalLabel">@lang('home.todays_profit')</h4>
+        <div class="modal-title h4" id="myModalLabel">@lang('home.todays_profit')</div>
       </div>
       <div class="modal-body">
         <input type="hidden" id="modal_today" value="{{\Carbon::now()->format('Y-m-d')}}">

@@ -31,6 +31,10 @@ class User extends Authenticatable
      */
     protected $hidden = ['password', 'remember_token'];
 
+    protected $casts = [
+        'otp_login_enabled' => 'boolean',
+    ];
+
     // change api guard to web
     protected $guard_name = 'web';
 
@@ -192,6 +196,11 @@ class User extends Authenticatable
         return $this->media->display_url ?? 'https://ui-avatars.com/api/?name='.$this->first_name;
     }
 
+    public function getPhoneAttribute()
+    {
+        return $this->contact_number ?? null;
+    }
+
     public function permitted_locations($business_id = null)
     {
         if ($this->can('access_all_locations')) {
@@ -240,6 +249,17 @@ class User extends Authenticatable
         return $permitted === 'all'
             ? $this->business->locations()
             : $this->business->locations()->whereIn('id', $permitted);
+    }
+
+    /**
+     * Check if a user has specific selected contacts assigned to them.
+     * Used to decide whether to enforce contact-level access restrictions.
+     */
+    public static function isSelectedContacts($user_id): bool
+    {
+        $user = self::withCount('contactAccess')->find($user_id);
+
+        return $user ? ($user->contact_access_count > 0) : false;
     }
 
     /**

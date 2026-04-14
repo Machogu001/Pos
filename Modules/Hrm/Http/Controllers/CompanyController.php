@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Department;
 use App\Models\Company;
+use App\Business;
 use Carbon\Carbon;
 use DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class CompanyController extends Controller
@@ -32,7 +34,9 @@ class CompanyController extends Controller
             try {
                 \Artisan::call('passport:keys');
             } catch (\Throwable $e) {
-                // Swallow to avoid breaking request flow; logging will show if needed.
+                Log::warning('HRM company controller could not generate Passport keys', [
+                    'exception' => $e->getMessage(),
+                ]);
             }
         }
     }
@@ -79,7 +83,15 @@ class CompanyController extends Controller
             $order = 'id';
         }
 
+        $businessId = session('business.id');
+
         $companies = Company::where('deleted_at', '=', null)
+            ->when($businessId && Schema::hasColumn('companies', 'business_id'), function ($q) use ($businessId) {
+                return $q->where(function ($subQ) use ($businessId) {
+                    $subQ->where('business_id', $businessId)
+                        ->orWhereNull('business_id');
+                });
+            })
 
         // Search With Multiple Param
             ->where(function ($query) use ($request) {
@@ -113,7 +125,12 @@ class CompanyController extends Controller
         }
 
     // Pass computed data to the view so the HTML listing can render companies
-    return view('hrm::companies.index', compact('companies', 'totalRows', 'perPage', 'pageStart'));
+        $currentBusiness = null;
+        if ($businessId) {
+            $currentBusiness = Business::find($businessId);
+        }
+
+    return view('hrm::companies.index', compact('companies', 'totalRows', 'perPage', 'pageStart', 'currentBusiness'));
     }
 
     //----------- Store new Company --------------\\
@@ -122,21 +139,62 @@ class CompanyController extends Controller
     {
         $this->authorizeForUser($this->getAuthUser($request), 'create', Company::class);
 
+        $businessId = session('business.id');
+        $useBusinessDetails = $request->boolean('use_business_details');
+        $sourceBusinessId = $request->input('source_business_id') ?: $businessId;
+
         request()->validate([
-            'name'      => 'required|string',
+            'name' => ($useBusinessDetails ? 'nullable' : 'required') . '|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:255',
+            'country' => 'nullable|string|max:255',
+            'source_business_id' => ($useBusinessDetails ? 'required' : 'nullable') . '|integer|exists:business,id',
         ]);
 
-        Company::create([
-            'name'    => $request['name'],
-            'email'   => $request['email'],
-            'phone'   => $request['phone'],
-            'country' => $request['country'],
-            'nssf_percent' => $request->input('nssf_percent'),
-            'shif_percent' => $request->input('shif_percent'),
-            'housing_percent' => $request->input('housing_percent'),
-            'tax_percent' => $request->input('tax_percent'),
-            'personal_relief' => $request->input('personal_relief'),
-        ]);
+        if ($useBusinessDetails && $sourceBusinessId) {
+            $sourceBusiness = Business::findOrFail($sourceBusinessId);
+            $location = DB::table('business_locations')
+                ->where('business_id', $sourceBusiness->id)
+                ->whereNull('deleted_at')
+                ->orderBy('id')
+                ->first();
+
+            $payload = [
+                'business_id' => $sourceBusiness->id,
+                'name' => $request->filled('name') ? $request->name : $sourceBusiness->name,
+                'email' => $request->filled('email') ? $request->email : ($location->email ?? null),
+                'phone' => $request->filled('phone') ? $request->phone : ($location->mobile ?? null),
+                'country' => $request->filled('country') ? $request->country : ($location->country ?? null),
+                'nssf_percent' => $request->input('nssf_percent'),
+                'shif_percent' => $request->input('shif_percent'),
+                'housing_percent' => $request->input('housing_percent'),
+                'tax_percent' => $request->input('tax_percent'),
+                'personal_relief' => $request->input('personal_relief'),
+            ];
+
+            $existing = Company::where('business_id', $sourceBusiness->id)
+                ->whereNull('deleted_at')
+                ->first();
+
+            if ($existing) {
+                $existing->update($payload);
+            } else {
+                Company::create($payload);
+            }
+        } else {
+            Company::create([
+                'business_id' => $businessId,
+                'name' => $request->name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'country' => $request->country,
+                'nssf_percent' => $request->input('nssf_percent'),
+                'shif_percent' => $request->input('shif_percent'),
+                'housing_percent' => $request->input('housing_percent'),
+                'tax_percent' => $request->input('tax_percent'),
+                'personal_relief' => $request->input('personal_relief'),
+            ]);
+        }
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
@@ -158,8 +216,13 @@ class CompanyController extends Controller
     {
         $this->authorizeForUser($this->getAuthUser($request), 'create', Company::class);
 
-        // If companies table doesn't exist yet, just render the view (empty form)
-        return view('hrm::companies.create');
+        $currentBusiness = null;
+        $businessId = session('business.id');
+        if ($businessId) {
+            $currentBusiness = Business::find($businessId);
+        }
+
+        return view('hrm::companies.create', compact('currentBusiness'));
     }
 
     //----------- Show form to edit Company --------------\\
@@ -245,7 +308,15 @@ class CompanyController extends Controller
     
     public function Get_all_Company()
     {
+        $businessId = session('business.id');
+
         $companies = Company::where('deleted_at', '=', null)
+        ->when($businessId && Schema::hasColumn('companies', 'business_id'), function ($q) use ($businessId) {
+            return $q->where(function ($subQ) use ($businessId) {
+                $subQ->where('business_id', $businessId)
+                    ->orWhereNull('business_id');
+            });
+        })
         ->orderBy('id', 'desc')
         ->get(['id','name']);
 

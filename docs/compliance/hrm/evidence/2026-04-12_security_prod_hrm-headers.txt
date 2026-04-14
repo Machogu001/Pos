@@ -1,0 +1,14 @@
+HTTP/2 302 
+date: Sun, 12 Apr 2026 10:54:36 GMT
+content-type: text/html; charset=utf-8
+location: https://pos.bremac.co.ke/login
+cache-control: no-cache, private
+server: cloudflare
+set-cookie: XSRF-TOKEN=eyJpdiI6IlB3ZlZscitvN3dKLzVPTXREeTRhVUE9PSIsInZhbHVlIjoiRnB2UlhnL0Z5TDg0aEZqVXJ2MkR1c0FDeTUyRi9Pc2pPaFF5TWN1WE1xTjVsYUt3eHFON2RSOTVMYlhhRmJ6TWhXTjdYV0RFdjZpeHFXbFh2SmczcTVEL3JhTDcxRm9YSFRoNDNQZi94eitYWEg0M2tZMVNCR1VQWGJtQ2FJUFQiLCJtYWMiOiIwMmUyMDkyZDIxNTVmNGQ4OTVkYzkxYTcxYWM2YTgwZTY0ZGEyNGRlNDc3NTI3MDAxMmNmMDI5MmU5ZTYzOGYzIiwidGFnIjoiIn0%3D; expires=Sun, 12 Apr 2026 11:09:36 GMT; Max-Age=900; path=/; domain=.bremac.co.ke; secure; samesite=lax
+set-cookie: pos_session=eyJpdiI6IjhvR1ZlMVIrTzdlUlNjMGI2R0tlWmc9PSIsInZhbHVlIjoiOVZ4VU8yYmJ1S1hRRnRhbEh4OERPYzlJbjh5QldLVUlRMmdWOFlmUmhFZmQ4TjVoUWk1amxMOFB2ZWpPdkVuTVlJK0FKVmN0VDh0Z0hxbDFqcUQzbnB6Mjh3ZVNaYlFPeGNpSTlmbitNTWtPNG1iK0N4TWo1T0dRK29vSnNvdy8iLCJtYWMiOiI1ZWZiZGNmMmM5MDExOTk5NGFmNmRhNWM2ZDkwZjJiZjIyYTZiZmJjMWM2Yzg5ODRjNjc0NWJkYzVjMzBmNDMzIiwidGFnIjoiIn0%3D; path=/; domain=.bremac.co.ke; secure; httponly; samesite=lax
+cf-cache-status: DYNAMIC
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=63i7edBrpdpP2ORJiwaouLm%2FE0JgOoSyxRWqUq2CBBGh9v%2B2UOJuQWRv9yE5XiiwoBtR1xACjycuLf8orUYsf2xzPzyIF1xgZIHvnOcEpWl8f8Ar3N%2BtmobUvLmFjjkVKwgF"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+cf-ray: 9eb1b1a54ed373a9-JNB
+alt-svc: h3=":443"; ma=86400
+

@@ -56,7 +56,7 @@
 <!-- /.content -->
 @stop
 @section('javascript')
-<script src="{{ asset('js/payment.js?v=' . $asset_v) }}"></script>
+<script src="{{ asset('js/payment.js?v=' . filemtime(public_path('js/payment.js'))) }}"></script>
 <script>
     $(document).ready(function(){
         $('#sell_list_filter_date_range').daterangepicker(

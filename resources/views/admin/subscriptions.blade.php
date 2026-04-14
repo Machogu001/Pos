@@ -28,14 +28,6 @@
     <!-- Success/Error Messages -->
     <div id="ajaxAlerts"></div>
 
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show shadow-sm border-0" role="alert">
-            <i class="fas fa-check-circle me-2"></i>
-            {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
     @if(session('error'))
         <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0" role="alert">
             <i class="fas fa-exclamation-triangle me-2"></i>

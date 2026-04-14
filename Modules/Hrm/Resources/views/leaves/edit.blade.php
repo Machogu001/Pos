@@ -1,94 +1,119 @@
 @extends('layouts.app')
 
+@section('title', 'Edit Leave')
+
 @section('content')
-<div class="container py-4">
-    <div class="card shadow-sm">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">Edit Leave</h4>
-            <div>
-                <a href="{{ route('hrm.leaves.index') }}" class="btn btn-secondary">Back to Leaves</a>
-            </div>
+@include('hrm::partials.hrm_page_header', [
+    'title' => 'Edit Leave',
+    'subtitle' => 'Review and update an existing leave request.',
+    'actions' => '<a href="'.route('hrm.leaves.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Leaves</a>'
+])
+
+<section class="content">
+    <div class="box box-primary">
+        <div class="box-header with-border">
+            <h3 class="box-title">Leave Details</h3>
         </div>
-        <div class="card-body">
+        <div class="box-body">
             <form id="leaveForm" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
                 <input type="hidden" id="leave_id" />
-                <div class="row mb-3">
+                <div class="row">
                     <div class="col-md-6">
-                        <label class="form-label">Company</label>
-                        <select id="company_id" name="company_id" class="form-select"></select>
+                        <div class="form-group">
+                            <label class="form-label" for="company_id">Company</label>
+                            <select id="company_id" name="company_id" class="form-control select2"></select>
+                        </div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Leave Type</label>
-                        <select id="leave_type_id" name="leave_type_id" class="form-select"></select>
-                    </div>
-                </div>
-
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Employee</label>
-                        <select id="employee_id" name="employee_id" class="form-select"></select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Department</label>
-                        <select id="department_id" name="department_id" class="form-select"></select>
+                        <div class="form-group">
+                            <label class="form-label" for="leave_type_id">Leave Type</label>
+                            <select id="leave_type_id" name="leave_type_id" class="form-control select2"></select>
+                        </div>
                     </div>
                 </div>
 
-                <div class="row mb-3">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label" for="employee_id">Employee</label>
+                            <select id="employee_id" name="employee_id" class="form-control select2"></select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label" for="department_id">Department</label>
+                            <select id="department_id" name="department_id" class="form-control select2"></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
                     <div class="col-md-3">
-                        <label class="form-label">Start Date</label>
-                        <input type="date" id="start_date" name="start_date" class="form-control" />
+                        <div class="form-group">
+                            <label class="form-label" for="start_date">Start Date</label>
+                            <input type="date" id="start_date" name="start_date" class="form-control" />
+                        </div>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">End Date</label>
-                        <input type="date" id="end_date" name="end_date" class="form-control" />
+                        <div class="form-group">
+                            <label class="form-label" for="end_date">End Date</label>
+                            <input type="date" id="end_date" name="end_date" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label" for="half_day">Half Day</label>
+                            <select id="half_day" name="half_day" class="form-control">
+                                <option value="0">No</option>
+                                <option value="1">Yes</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label" for="status">Status</label>
+                            <select id="status" name="status" class="form-control">
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Reason</label>
-                    <textarea id="reason" name="reason" class="form-control" rows="3"></textarea>
-                </div>
-
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label class="form-label">Attachment</label>
-                        <input type="file" id="attachment" name="attachment" class="form-control" />
-                        <div id="current_attachment" class="mt-2"></div>
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="form-group">
+                            <label class="form-label" for="reason">Reason</label>
+                            <textarea id="reason" name="reason" class="form-control" rows="4"></textarea>
+                        </div>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Half Day</label>
-                        <select id="half_day" name="half_day" class="form-select">
-                            <option value="0">No</option>
-                            <option value="1">Yes</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Status</label>
-                        <select id="status" name="status" class="form-select">
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved</option>
-                            <option value="rejected">Rejected</option>
-                        </select>
+                        <div class="form-group">
+                            <label class="form-label" for="attachment">Attachment</label>
+                            <input type="file" id="attachment" name="attachment" class="form-control" />
+                            <div id="current_attachment" class="mt-2"></div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary">Save</button>
+                <div class="text-right">
+                    <a href="{{ route('hrm.leaves.index') }}" class="btn btn-default">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Update Leave</button>
                 </div>
             </form>
         </div>
     </div>
-</div>
+</section>
 
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const idMatch = window.location.pathname.match(/\/(\d+)\/edit\/?$/);
         const leaveId = idMatch ? idMatch[1] : null;
-        if (!leaveId) { alert('Invalid leave id'); return; }
+        if (!leaveId) { window.hrmAlert('Invalid leave id'); return; }
         document.getElementById('leave_id').value = leaveId;
 
         // fetch edit metadata and the leave
@@ -119,7 +144,7 @@
                 if (leave.attachment) {
                     const cur = document.getElementById('current_attachment');
                     const link = document.createElement('a');
-                    link.href = '/images/leaves/' + leave.attachment;
+                    link.href = '/hrm/leaves/' + leave.id + '/attachment';
                     link.target = '_blank';
                     link.textContent = leave.attachment;
                     cur.appendChild(link);
@@ -144,7 +169,7 @@
                         });
                 }
             })
-            .catch(() => { alert('Failed to load leave data'); });
+            .catch(() => { window.hrmAlert('Failed to load leave data'); });
 
         document.getElementById('company_id').addEventListener('change', (e) => {
             const id = e.target.value;
@@ -184,7 +209,7 @@
                     try { json = text ? JSON.parse(text) : null; } catch (e) { /* not JSON */ }
                     if (!r.ok) {
                         const body = json ? JSON.stringify(json) : text;
-                        alert('Request failed: ' + r.status + ' ' + r.statusText + '\n' + body);
+                        window.hrmAlert('Request failed: ' + r.status + ' ' + r.statusText);
                         return;
                     }
                     if (json && json.success) {
@@ -192,12 +217,12 @@
                         return;
                     }
                     if (json && json.isvalid === false && json.remaining_leave) {
-                        alert(json.remaining_leave);
+                        window.hrmAlert(json.remaining_leave);
                         return;
                     }
-                    alert('Error saving leave');
+                    window.hrmAlert('Error saving leave');
                 })
-                .catch((err) => { alert('Network error: ' + (err && err.message ? err.message : 'unknown')); });
+                .catch((err) => { window.hrmAlert('Network error: ' + (err && err.message ? err.message : 'unknown')); });
         });
     });
 </script>

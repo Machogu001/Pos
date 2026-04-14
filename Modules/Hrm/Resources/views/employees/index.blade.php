@@ -1,19 +1,27 @@
 @extends('layouts.app')
 
+@section('title', 'Employees')
+
 @section('content')
-<div class="container py-4">
-    <div class="card shadow-sm">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">Employees</h4>
-            <div>
-                <a href="{{ route('hrm.employees.create') }}" class="btn btn-primary">Create Employee</a>
+@include('hrm::partials.hrm_page_header', [
+    'title' => 'Employees',
+    'subtitle' => 'Track staff records, assignments, and personnel information in one place.',
+    'actions' => '<a href="'.route('hrm.employees.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> Create Employee</a>'
+])
+
+<section class="content">
+    <div class="box box-primary">
+        <div class="box-header with-border">
+            <h2 class="box-title h3">Employee Register</h2>
+            <div class="box-tools pull-right">
+                <span class="label label-info">Total employees: {{ $totalRows ?? 0 }}</span>
             </div>
         </div>
-        <div class="card-body">
+        <div class="box-body">
             <div class="row mb-3">
                 <div class="col-md-4">
                     <label for="company_filter" class="form-label">Company</label>
-                    <select id="company_filter" class="form-select" onchange="applyFilters()">
+                    <select id="company_filter" class="form-control" onchange="applyFilters()">
                         <option value="">All companies</option>
                         @foreach($companies as $c)
                             <option value="{{ $c->id }}">{{ $c->name }}</option>
@@ -25,12 +33,12 @@
                     <input id="search" class="form-control" placeholder="Search by name or username" oninput="applyFilters()" />
                 </div>
                 <div class="col-md-4 d-flex align-items-end justify-content-end">
-                    <small class="text-muted">Total employees: {{ $totalRows ?? 0 }}</small>
+                    <small class="text-muted">Use the filters to narrow the staff list.</small>
                 </div>
             </div>
 
             <div class="table-responsive">
-                <table class="table table-hover align-middle">
+                <table class="table table-hover table-striped align-middle">
                     <thead class="table-light">
                         <tr>
                             <th>Name</th>
@@ -44,18 +52,23 @@
                     <tbody id="employees_table_body">
                         @forelse($employees as $emp)
                             <tr>
-                                <td>{{ $emp['firstname'] ?? '' }} {{ $emp['lastname'] ?? '' }}</td>
+                                <td>
+                                    <strong>{{ $emp['firstname'] ?? '' }} {{ $emp['lastname'] ?? '' }}</strong>
+                                    @if(!empty($emp['is_system_user']))
+                                        <span class="label label-warning" style="margin-left:6px;">System User</span>
+                                    @endif
+                                </td>
                                 <td>{{ $emp['department_name'] ?? '-' }}</td>
                                 <td>{{ $emp['designation_name'] ?? '-' }}</td>
                                 <td>{{ $emp['office_shift_name'] ?? '-' }}</td>
                                 <td>{{ $emp['phone'] ?? '-' }}</td>
                                 <td class="text-end">
-                                    <a href="{{ route('hrm.employees.show', $emp['id']) }}" class="btn btn-sm btn-outline-primary">View</a>
-                                    <a href="{{ route('hrm.employees.edit', $emp['id']) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                    <a href="{{ route('hrm.employees.show', $emp['id']) }}" class="btn btn-sm btn-default">View</a>
+                                    <a href="{{ route('hrm.employees.edit', $emp['id']) }}" class="btn btn-sm btn-default">Edit</a>
                                     <form action="{{ route('hrm.employees.destroy', $emp['id']) }}" method="POST" style="display:inline-block">
                                         @csrf
                                         @method('DELETE')
-                                        <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this employee?')">Delete</button>
+                                        <button class="btn btn-sm btn-danger" data-hrm-confirm-submit="1" data-hrm-confirm="{{ !empty($emp['is_system_user']) ? 'Remove this system user from employee list?' : 'Delete this employee?' }}" data-hrm-confirm-title="{{ !empty($emp['is_system_user']) ? 'Remove System User' : 'Delete Employee' }}">{{ !empty($emp['is_system_user']) ? 'Remove' : 'Delete' }}</button>
                                     </form>
                                 </td>
                             </tr>
@@ -67,27 +80,27 @@
                     </tbody>
                 </table>
             </div>
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                    <div>
-                        <label class="me-2">Per page:</label>
-                        <select id="per_page" class="form-select d-inline-block" style="width:120px" onchange="changePerPage()">
-                            <option value="10" {{ request('limit') == 10 ? 'selected' : '' }}>10</option>
-                            <option value="25" {{ request('limit') == 25 ? 'selected' : '' }}>25</option>
-                            <option value="50" {{ request('limit') == 50 ? 'selected' : '' }}>50</option>
-                            <option value="100" {{ request('limit') == 100 ? 'selected' : '' }}>100</option>
-                            <option value="-1" {{ request('limit') == '-1' ? 'selected' : '' }}>All</option>
-                        </select>
-                    </div>
 
-                    <div>
-                        @if(isset($paginator))
-                            {{ $paginator->appends(request()->query())->links() }}
-                        @endif
-                    </div>
+            <div class="row" style="margin-top:15px;">
+                <div class="col-md-6">
+                    <label for="employees_per_page" class="me-2">Per page:</label>
+                    <select id="employees_per_page" class="form-control d-inline-block" style="width:120px" onchange="changePerPage()" aria-label="Employees per page">
+                        <option value="10" {{ request('limit') == 10 ? 'selected' : '' }}>10</option>
+                        <option value="25" {{ request('limit') == 25 ? 'selected' : '' }}>25</option>
+                        <option value="50" {{ request('limit') == 50 ? 'selected' : '' }}>50</option>
+                        <option value="100" {{ request('limit') == 100 ? 'selected' : '' }}>100</option>
+                        <option value="-1" {{ request('limit') == '-1' ? 'selected' : '' }}>All</option>
+                    </select>
                 </div>
+                <div class="col-md-6 text-right">
+                    @if(isset($paginator))
+                        {{ $paginator->appends(request()->query())->links() }}
+                    @endif
+                </div>
+            </div>
         </div>
     </div>
-</div>
+</section>
 
 @push('scripts')
 <script>
@@ -129,7 +142,7 @@
     }
 
     function changePerPage() {
-        const per = document.getElementById('per_page').value;
+        const per = document.getElementById('employees_per_page').value;
         const params = new URLSearchParams(window.location.search);
         if (per) params.set('limit', per); else params.delete('limit');
         params.delete('page');
@@ -146,8 +159,12 @@
         }
         json.employees.forEach(emp => {
             const tr = document.createElement('tr');
+            const sourceBadge = emp.is_system_user ? '<span class="label label-warning" style="margin-left:6px;">System User</span>' : '';
+            const removeLabel = emp.is_system_user ? 'Remove' : 'Delete';
+            const removeConfirm = emp.is_system_user ? 'Remove this system user from employee list?' : 'Delete this employee?';
+            const removeTitle = emp.is_system_user ? 'Remove System User' : 'Delete Employee';
             tr.innerHTML = `
-                <td>${emp.firstname || ''} ${emp.lastname || ''}</td>
+                <td><strong>${emp.firstname || ''} ${emp.lastname || ''}</strong>${sourceBadge}</td>
                 <td>${emp.department_name || '-'}</td>
                 <td>${emp.designation_name || '-'}</td>
                 <td>${emp.office_shift_name || '-'}</td>
@@ -155,6 +172,11 @@
                 <td class="text-end">
                     <a href="${window.location.pathname}/${emp.id}" class="btn btn-sm btn-outline-primary">View</a>
                     <a href="${window.location.pathname}/${emp.id}/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
+                    <form action="${window.location.pathname}/${emp.id}" method="POST" style="display:inline-block">
+                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="_method" value="DELETE">
+                        <button class="btn btn-sm btn-danger" data-hrm-confirm-submit="1" data-hrm-confirm="${removeConfirm}" data-hrm-confirm-title="${removeTitle}">${removeLabel}</button>
+                    </form>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -171,8 +193,10 @@
     // Preselect filters from query string on load
     (function() {
         const params = new URLSearchParams(window.location.search);
+        const per = params.get('limit');
         const company = params.get('company_id');
         const search = params.get('search');
+        if (per) document.getElementById('employees_per_page').value = per;
         if (company) document.getElementById('company_filter').value = company;
         if (search) document.getElementById('search').value = search;
     })();

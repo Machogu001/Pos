@@ -18,6 +18,9 @@ class AdminSetting extends Model
         'subscription_required',
         'grace_period_days',
         'recent_limit',
+        'payroll_expense_account_id',
+        'payroll_clearing_account_id',
+        'payroll_auto_post',
         // HRM defaults
         'default_annual_leave',
         // Company / Invoice fields
@@ -50,6 +53,7 @@ class AdminSetting extends Model
     protected $casts = [
         'auto_renewal' => 'boolean',
         'subscription_required' => 'boolean',
+        'payroll_auto_post' => 'boolean',
         'etims_auto_transmit' => 'boolean',
     ];
 }

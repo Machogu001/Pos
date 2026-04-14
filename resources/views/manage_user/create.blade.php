@@ -41,6 +41,32 @@
         </div>
       </div>
 
+      <div class="col-md-4">
+        <div class="form-group">
+          {!! Form::label('contact_number', 'Phone No:*') !!}
+            {!! Form::text('contact_number', null, ['class' => 'form-control', 'required', 'placeholder' => 'Phone No' ]); !!}
+        </div>
+      </div>
+
+      @can('user.otp.toggle')
+      <div class="col-md-3">
+        <div class="otp-card">
+          <div class="otp-card__header">
+            <div>
+              <div class="otp-card__label">Two-Factor Authentication</div>
+              <div class="otp-card__hint">Require OTP after password login</div>
+            </div>
+            <label class="otp-switch" title="Toggle OTP login">
+              <input type="checkbox" name="otp_login_enabled" value="1" id="otp_login_enabled">
+              <span class="otp-slider"></span>
+            </label>
+          </div>
+          <div class="otp-card__status is-off" id="otp_login_enabled_status">Disabled</div>
+          <div class="otp-card__phone">Phone: {{ old('contact_number') ? old('contact_number') : 'Not set yet' }}</div>
+        </div>
+      </div>
+      @endcan
+
       <div class="col-md-2">
         <div class="form-group">
           <div class="checkbox">
@@ -203,10 +229,130 @@
   </div>
 {!! Form::close() !!}
   @stop
+
+@section('styles')
+<style>
+  .otp-card {
+    padding: 14px 16px;
+    border: 1px solid #dbe2ea;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    min-height: 120px;
+  }
+
+  .otp-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .otp-card__label {
+    font-weight: 700;
+    color: #111827;
+    font-size: 0.95rem;
+  }
+
+  .otp-card__hint,
+  .otp-card__phone {
+    color: #6b7280;
+    font-size: 0.85rem;
+    margin-top: 3px;
+  }
+
+  .otp-card__status {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-top: 10px;
+  }
+
+  .otp-card__status.is-on {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .otp-card__status.is-off {
+    background: #e5e7eb;
+    color: #374151;
+  }
+
+  .otp-switch {
+    position: relative;
+    display: inline-block;
+    width: 54px;
+    height: 30px;
+    margin: 0;
+    flex: 0 0 auto;
+  }
+
+  .otp-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .otp-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #cbd5e1;
+    transition: 0.25s;
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+  }
+
+  .otp-slider:before {
+    position: absolute;
+    content: '';
+    height: 22px;
+    width: 22px;
+    left: 4px;
+    top: 4px;
+    background-color: white;
+    transition: 0.25s;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+  }
+
+  .otp-switch input:checked + .otp-slider {
+    background-color: #2563eb;
+  }
+
+  .otp-switch input:checked + .otp-slider:before {
+    transform: translateX(24px);
+  }
+
+  .otp-switch input:disabled + .otp-slider {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+</style>
+@endsection
 @section('javascript')
 <script type="text/javascript">
   __page_leave_confirmation('#user_add_form');
   $(document).ready(function(){
+    function syncOtpStatusLabel() {
+      var enabled = $('#otp_login_enabled').is(':checked');
+      $('#otp_login_enabled_status')
+        .toggleClass('is-on', enabled)
+        .toggleClass('is-off', !enabled)
+        .text(enabled ? 'Enabled' : 'Disabled');
+    }
+
+    syncOtpStatusLabel();
+
+    $('#otp_login_enabled').on('change', function() {
+      syncOtpStatusLabel();
+    });
+
     $('#selected_contacts').on('ifChecked', function(event){
       $('div.selected_contacts_div').removeClass('hide');
     });

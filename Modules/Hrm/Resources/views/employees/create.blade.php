@@ -1,99 +1,139 @@
 @extends('layouts.app')
 
+@section('title', 'Create Employee')
+
 @section('content')
-<div class="container">
-    <h2>Create Employee</h2>
-    <form method="POST" action="{{ route('hrm.employees.store') }}">
-        @csrf
-        @include('hrm::partials.hrm_form_toolbar')
-        <div class="form-group">
-            <label>First name</label>
-            <input name="firstname" class="form-control" placeholder="First name" required />
+@include('hrm::partials.hrm_page_header', [
+    'title' => 'Create Employee',
+    'subtitle' => 'Register staff with department, designation, shift, and leave entitlement details.',
+    'actions' => '<a href="'.route('hrm.employees.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Employees</a>'
+])
+
+<section class="content">
+    <div class="box box-primary">
+        <div class="box-header with-border">
+            <h3 class="box-title">Employee Profile</h3>
         </div>
-        <div class="form-group">
-            <label>Last name</label>
-            <input name="lastname" class="form-control" placeholder="Last name" />
-        </div>
-        <div class="form-group">
-            <label>Gender</label>
-            <select name="gender" class="form-control">
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Company</label>
-                <select name="company_id" id="company_id" class="form-control select2">
-                    @foreach($companies as $c)
-                        <option value="{{ $c->id }}">
-                            @if($c->business_id)
-                                <span class="badge badge-info">Business</span>
-                            @endif
-                            {{ $c->name }}
-                        </option>
-                    @endforeach
-                </select>
-        @include('hrm::partials.field_error', ['field' => 'company_id'])
-        </div>
-        <div class="form-group">
-            <label>Department <small class="text-muted">(optional)</small></label>
-            <select name="department_id" class="form-control">
-                <option value="">-- Select Department (optional) --</option>
-                @foreach($departments as $d)
-                    <option value="{{ $d->id }}">{{ $d->department }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Designation <small class="text-muted">(optional)</small></label>
-            <select name="designation_id" class="form-control">
-                <option value="">-- Select Designation (optional) --</option>
-                @foreach($designations as $d)
-                    <option value="{{ $d->id }}">{{ $d->designation }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Office shift <small class="text-muted">(optional)</small></label>
-            <select name="office_shift_id" class="form-control">
-                <option value="">-- Select Office Shift (optional) --</option>
-                @foreach($office_shifts as $os)
-                    <option value="{{ $os->id }}">{{ $os->name }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Email</label>
-            <input name="email" type="email" class="form-control" placeholder="user@example.com" />
-        </div>
-        <div class="form-group">
-            <label>Phone</label>
-            <input name="phone" class="form-control" placeholder="07xxxxxxxx" />
-        </div>
-        <div class="form-group">
-            <label>Total annual leave (days)</label>
-            <input id="total_leave" name="total_leave" type="number" min="0" step="1" class="form-control" value="{{ old('total_leave', config('hrm.default_annual_leave', 21)) }}" />
-            <small class="form-text text-muted">Set the employee's total annual leave entitlement in days.</small>
-        </div>
-        <div class="form-group">
-            <label>Remaining leave (days)</label>
-            <input id="remaining_leave" name="remaining_leave" type="number" min="0" step="1" class="form-control" value="{{ old('remaining_leave', config('hrm.default_annual_leave', 21)) }}" />
-            <small id="remaining_help" class="form-text text-muted">If left empty the remaining leave will be initialized to the total entitlement.</small>
-        </div>
-        
-    </form>
-</div>
+        <form method="POST" action="{{ route('hrm.employees.store') }}">
+            @csrf
+            @include('hrm::partials.hrm_form_toolbar')
+            <div class="box-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>First name</label>
+                            <input name="firstname" class="form-control" placeholder="First name" required />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Last name</label>
+                            <input name="lastname" class="form-control" placeholder="Last name" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Gender</label>
+                            <select name="gender" class="form-control">
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Company</label>
+                            <select name="company_id" id="company_id" class="form-control select2">
+                                @foreach($companies as $c)
+                                    <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                @endforeach
+                            </select>
+                            @include('hrm::partials.field_error', ['field' => 'company_id'])
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input name="email" type="email" class="form-control" placeholder="user@example.com" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Department <small class="text-muted">optional</small></label>
+                            <select name="department_id" class="form-control">
+                                <option value="">-- Select Department (optional) --</option>
+                                @foreach($departments as $d)
+                                    <option value="{{ $d->id }}">{{ $d->department }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Designation <small class="text-muted">optional</small></label>
+                            <select name="designation_id" class="form-control">
+                                <option value="">-- Select Designation (optional) --</option>
+                                @foreach($designations as $d)
+                                    <option value="{{ $d->id }}">{{ $d->designation }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Office shift <small class="text-muted">optional</small></label>
+                            <select name="office_shift_id" class="form-control">
+                                <option value="">-- Select Office Shift (optional) --</option>
+                                @foreach($office_shifts as $os)
+                                    <option value="{{ $os->id }}">{{ $os->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input name="phone" class="form-control" placeholder="07xxxxxxxx" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Total annual leave (days)</label>
+                            <input id="total_leave" name="total_leave" type="number" min="0" step="1" class="form-control" value="{{ old('total_leave', config('hrm.default_annual_leave', 21)) }}" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Remaining leave (days)</label>
+                            <input id="remaining_leave" name="remaining_leave" type="number" min="0" step="1" class="form-control" value="{{ old('remaining_leave', config('hrm.default_annual_leave', 21)) }}" />
+                        </div>
+                    </div>
+                </div>
+
+                <p class="help-block">If remaining leave is left empty it will be initialized to the total entitlement.</p>
+            </div>
+            <div class="box-footer text-right">
+                <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Save Employee</button>
+            </div>
+        </form>
+    </div>
+</section>
 @endsection
 
 @push('scripts')
-        <script>
-    // Debug AJAX POST for employees + client-side leave validation
+<script>
+    // Client-side leave validation
     document.addEventListener('DOMContentLoaded', function(){
-        var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn btn-outline-primary mt-2'; btn.id = 'ajax-employees-debug'; btn.innerText = 'Send debug POST';
-        var container = document.querySelector('.container'); container.appendChild(btn);
-        var out = document.createElement('pre'); out.id = 'ajax-employees-result'; out.style.whiteSpace = 'pre-wrap'; container.appendChild(out);
-
         // Helper: show brief message under remaining_help
         function showRemainingMessage(msg, isError){
             var help = document.getElementById('remaining_help');
@@ -135,12 +175,6 @@
                 // allow submit; server-side will also validate
             });
         }
-
-        btn.addEventListener('click', function(){
-            var form = document.querySelector('form'); var fd = new FormData(form);
-            fetch("{{ route('hrm.employees.debug') }}", { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }, body: fd })
-            .then(r=>r.json().catch(()=>r.text())).then(function(d){ out.textContent = JSON.stringify(d, null, 2); }).catch(function(e){ out.textContent = 'Error: '+e; });
-        });
     });
 </script>
 @endpush

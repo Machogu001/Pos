@@ -1,0 +1,66 @@
+{
+  "generatedAt": "2026-04-12T10:53:49.831Z",
+  "baseUrl": "https://pos.bremac.co.ke",
+  "pages": [
+    {
+      "path": "/hrm",
+      "url": "https://pos.bremac.co.ke/hrm",
+      "findings": [
+        {
+          "type": "form-labels",
+          "severity": "high",
+          "count": 5,
+          "message": "Form controls without associated labels"
+        }
+      ]
+    },
+    {
+      "path": "/hrm/employees",
+      "url": "https://pos.bremac.co.ke/hrm/employees",
+      "findings": [
+        {
+          "type": "form-labels",
+          "severity": "high",
+          "count": 5,
+          "message": "Form controls without associated labels"
+        }
+      ]
+    },
+    {
+      "path": "/hrm/attendances",
+      "url": "https://pos.bremac.co.ke/hrm/attendances",
+      "findings": [
+        {
+          "type": "form-labels",
+          "severity": "high",
+          "count": 5,
+          "message": "Form controls without associated labels"
+        }
+      ]
+    },
+    {
+      "path": "/hrm/leaves",
+      "url": "https://pos.bremac.co.ke/hrm/leaves",
+      "findings": [
+        {
+          "type": "form-labels",
+          "severity": "high",
+          "count": 5,
+          "message": "Form controls without associated labels"
+        }
+      ]
+    },
+    {
+      "path": "/hrm/payrolls",
+      "url": "https://pos.bremac.co.ke/hrm/payrolls",
+      "findings": [
+        {
+          "type": "form-labels",
+          "severity": "high",
+          "count": 5,
+          "message": "Form controls without associated labels"
+        }
+      ]
+    }
+  ]
+}

@@ -32,6 +32,7 @@
                         data-pay_method="cash" title="@lang('tooltip.express_checkout')"> <i class="fas fa-money-bill-alt"
                             aria-hidden="true"></i> @lang('lang_v1.express_checkout_cash')</button>
                 @endif
+
                 @if (empty($edit))
                     <button type="button" class="tw-font-bold tw-text-white tw-cursor-pointer tw-text-xs md:tw-text-sm tw-bg-red-600 tw-p-2 tw-rounded-md tw-w-[5.5rem] tw-flex tw-flex-row tw-items-center tw-justify-center tw-gap-1" id="pos-cancel"> <i
                             class="fas fa-window-close"></i> @lang('sale.cancel')</button>
@@ -88,6 +89,12 @@
                     </button>
                 @endif
 
+                <button type="button"
+                    class="tw-font-bold tw-text-gray-700 tw-cursor-pointer tw-text-xs md:tw-text-sm tw-flex tw-flex-col tw-items-center tw-justify-center tw-gap-1 no-print pos-express-finalize @if (!array_key_exists('mpesa', $payment_types)) hide @endif @if ($is_mobile) col-xs-6 @endif"
+                    data-pay_method="mpesa" title="@lang('payment.mpesa')">
+                    <i class="fas fa-mobile-alt tw-text-[#0b6e4f]" aria-hidden="true"></i> @lang('payment.mpesa')
+                </button>
+
                 @if (!Gate::check('disable_pay_checkout') || auth()->user()->can('superadmin') || auth()->user()->can('admin'))
                     <button type="button"
                         class="tw-hidden md:tw-flex md:tw-flex-row md:tw-items-center md:tw-justify-center md:tw-gap-1 tw-font-bold tw-text-white tw-cursor-pointer tw-text-xs md:tw-text-sm tw-bg-[#001F3E] tw-rounded-md tw-p-2 tw-w-[8.5rem] @if (!$is_mobile)  @endif no-print @if ($pos_settings['disable_pay_checkout'] != 0) hide @endif"
@@ -101,7 +108,6 @@
                         data-pay_method="cash" title="@lang('tooltip.express_checkout')"> <i class="fas fa-money-bill-alt"
                             aria-hidden="true"></i> @lang('lang_v1.express_checkout_cash')</button>
                 @endif
-
 
                 @if (empty($edit))
                     <button type="button"
@@ -145,6 +151,73 @@
         </div>
     </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.__posMpesaActionBound) {
+        return;
+    }
+    window.__posMpesaActionBound = true;
+
+    document.addEventListener('click', function(event) {
+        var mpesaButton = event.target.closest('button.pos-express-finalize[data-pay_method="mpesa"]');
+        if (!mpesaButton) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        if ($('table#pos_table tbody').find('.product_row').length <= 0) {
+            if (window.toastr && window.LANG && LANG.no_products_added) {
+                toastr.warning(LANG.no_products_added);
+            }
+            return false;
+        }
+
+        if ($('#reward_point_enabled').length && typeof isValidatRewardPoint === 'function') {
+            var validateRewardPoint = isValidatRewardPoint();
+            if (!validateRewardPoint.is_valid) {
+                if (window.toastr) {
+                    toastr.error(validateRewardPoint.msg);
+                }
+                return false;
+            }
+        }
+
+        var totalPayable = typeof __read_number === 'function' ? __read_number($('input#final_total_input')) : 0;
+        var totalPaying = typeof __read_number === 'function' ? __read_number($('input#total_paying_input')) : 0;
+        if (totalPayable > totalPaying) {
+            var balanceDue = totalPayable - totalPaying;
+            var firstRowAmount = $('#payment_rows_div').find('.payment-amount').first();
+            var firstRowValue = typeof __read_number === 'function' ? __read_number(firstRowAmount) : 0;
+            if (typeof __write_number === 'function') {
+                __write_number(firstRowAmount, firstRowValue + balanceDue);
+            } else {
+                firstRowAmount.val(firstRowValue + balanceDue);
+            }
+            firstRowAmount.trigger('change');
+        }
+
+        var paymentMethodDropdown = $('#payment_rows_div').find('.payment_types_dropdown').first();
+        var paymentRow = paymentMethodDropdown.closest('.payment_row').get(0);
+        if (window.resetMpesaRowState && paymentRow) {
+            window.resetMpesaRowState(paymentRow, { clearPhone: true });
+        }
+        paymentMethodDropdown.val('mpesa');
+        paymentMethodDropdown.change();
+
+        $('#modal_payment').modal('show');
+        $('#modal_payment').one('shown.bs.modal', function() {
+            var mpesaPhoneInput = $(this).find('.payment_row').first().find('.mpesa-phone:visible').first();
+            if (mpesaPhoneInput.length) {
+                mpesaPhoneInput.focus().select();
+            }
+        });
+
+        return false;
+    }, true);
+});
+</script>
 @if (isset($transaction))
     @include('sale_pos.partials.edit_discount_modal', [
         'sales_discount' => $transaction->discount_amount,

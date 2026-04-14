@@ -22,6 +22,7 @@ use App\MpesaPayment;
 use App\AdminSetting;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\URL;
 use App\Mail\RegistrationMail;
 class BusinessController extends Controller
 {
@@ -310,13 +311,15 @@ class BusinessController extends Controller
             }
 
             //default enabled modules
-            $business_details['enabled_modules'] = ['purchases', 'add_sale', 'pos_sale', 'stock_transfers', 'stock_adjustment', 'expenses'];
+            $business_details['enabled_modules'] = ['purchases', 'add_sale', 'pos_sale', 'stock_transfers', 'stock_adjustment', 'expenses', 'account'];
 
             $business = $this->businessUtil->createNewBusiness($business_details);
 
             //Update user with business id
             $user->business_id = $business->id;
             $user->save();
+
+            $this->attachRegistrationPayment($request, $user, $business);
 
             $this->businessUtil->newBusinessDefaultResources($business->id, $user->id);
             $new_location = $this->businessUtil->addLocation($business->id, $business_location);
@@ -396,45 +399,212 @@ class BusinessController extends Controller
      */
     public function findSuccessfulMpesaPayment(Request $request)
     {
+        $registrationPaymentId = session('registration_payment_id') ?? $request->input('registration_payment_id');
         $checkoutRequestId = session('checkout_request_id') ?? $request->input('checkout_request_id');
         $accountRef = session('account_ref') ?? $request->input('account_ref') ?? session('account_reference');
         $phone = session('payment_phone');
 
-        $normalizedPhone = $phone ? preg_replace('/[^0-9]/', '', $phone) : null;
+        if (empty($registrationPaymentId) && empty($checkoutRequestId) && empty($accountRef)) {
+            return null;
+        }
 
         $paymentQuery = MpesaPayment::query();
 
-        $paymentQuery->where(function($q) use ($checkoutRequestId, $accountRef, $normalizedPhone) {
-            if (!empty($checkoutRequestId)) {
-                $q->orWhere('checkout_request_id', $checkoutRequestId);
-            }
+        if (! empty($registrationPaymentId)) {
+            $paymentQuery->where('id', $registrationPaymentId);
+        } else {
+            $paymentQuery->where(function ($q) use ($checkoutRequestId, $accountRef) {
+                if (! empty($checkoutRequestId)) {
+                    $q->orWhere('checkout_request_id', $checkoutRequestId);
+                }
 
-            if (!empty($accountRef)) {
-                $q->orWhere('account_reference', $accountRef);
-            }
-
-            if (!empty($normalizedPhone)) {
-                $q->orWhere('phone_number', $normalizedPhone)
-                  ->orWhere('phone_number', ltrim($normalizedPhone, '+'));
-            }
-        });
-
-        $paymentQuery->whereIn('transaction_status', ['success', 'paid', 'SUCCESS']);
-
-        $payment = $paymentQuery->latest()->first();
-
-        // If not found by those keys, try fallback: latest successful payment for the phone
-        if (! $payment && !empty($normalizedPhone)) {
-            $payment = MpesaPayment::where(function($q) use ($normalizedPhone) {
-                        $q->where('phone_number', $normalizedPhone)
-                          ->orWhere('phone_number', ltrim($normalizedPhone, '+'));
-                    })
-                    ->whereIn('transaction_status', ['success', 'paid', 'SUCCESS'])
-                    ->latest()
-                    ->first();
+                if (! empty($accountRef)) {
+                    $q->orWhere('account_reference', $accountRef);
+                }
+            });
         }
 
-        return $payment;
+        $paymentQuery->whereIn('transaction_status', ['success', 'paid', 'SUCCESS']);
+        $paymentQuery->where(function ($query) {
+            $query->whereNull('payment_type')
+                ->orWhere('payment_type', 'registration');
+        });
+
+        if ($this->mpesaPaymentsHasColumn('consumed_at')) {
+            $paymentQuery->whereNull('consumed_at');
+        }
+
+        if ($this->mpesaPaymentsHasColumn('business_id')) {
+            $paymentQuery->whereNull('business_id');
+        }
+
+        if (! empty($phone)) {
+            $normalizedPhone = preg_replace('/[^0-9]/', '', $phone);
+
+            $paymentQuery->where(function ($q) use ($phone, $normalizedPhone) {
+                $q->where('phone_number', $phone);
+
+                if (! empty($normalizedPhone)) {
+                    $q->orWhere('phone_number', $normalizedPhone)
+                        ->orWhere('phone_number', ltrim($normalizedPhone, '+'));
+                }
+            });
+        }
+
+        return $paymentQuery->latest()->first();
+    }
+
+    public function resumeRegistrationPayment(Request $request)
+    {
+        $validated = $request->validate([
+            'phone' => 'required|string|min:10|max:15',
+            'payment_reference' => 'required|string|max:255',
+        ]);
+
+        $phone = MpesaPayment::normalizePhoneNumber($validated['phone']);
+        $paymentReference = trim($validated['payment_reference']);
+
+        if (empty($phone)) {
+            return back()->withInput()->withErrors([
+                'resume_payment' => __('payment.invalid_phone_format'),
+            ]);
+        }
+
+        $payment = $this->findResumableRegistrationPayment($phone, $paymentReference);
+
+        if (! $payment) {
+            return back()->withInput()->withErrors([
+                'resume_payment' => __('payment.resume_not_found'),
+            ]);
+        }
+
+        $this->storeRegistrationPaymentSession($payment);
+
+        return redirect()->route('business.getRegister')->with('status', [
+            'success' => 1,
+            'msg' => __('payment.resume_success'),
+        ]);
+    }
+
+    public function resumeRegistrationFromLink(Request $request, MpesaPayment $payment)
+    {
+        if (! $request->hasValidSignature()) {
+            abort(403);
+        }
+
+        $resumablePayment = $this->findResumableRegistrationPayment($payment->phone_number, $payment->account_reference, $payment->id);
+
+        if (! $resumablePayment) {
+            return redirect()->route('business.getRegister')->withErrors([
+                'resume_payment' => __('payment.resume_already_used'),
+            ]);
+        }
+
+        $this->storeRegistrationPaymentSession($resumablePayment);
+
+        return redirect()->route('business.getRegister')->with('status', [
+            'success' => 1,
+            'msg' => __('payment.resume_success'),
+        ]);
+    }
+
+    protected function findResumableRegistrationPayment(string $phone, string $paymentReference, ?int $paymentId = null): ?MpesaPayment
+    {
+        $normalizedPhone = MpesaPayment::normalizePhoneNumber($phone) ?? preg_replace('/[^0-9]/', '', $phone);
+
+        $paymentQuery = MpesaPayment::query()
+            ->whereIn('transaction_status', ['success', 'paid', 'SUCCESS'])
+            ->where(function ($query) {
+                $query->whereNull('payment_type')
+                    ->orWhere('payment_type', MpesaPayment::TYPE_REGISTRATION);
+            })
+            ->where(function ($query) use ($paymentReference) {
+                $query->where('account_reference', $paymentReference)
+                    ->orWhere('mpesa_receipt_number', $paymentReference);
+            })
+            ->where(function ($query) use ($phone, $normalizedPhone) {
+                $query->where('phone_number', $phone)
+                    ->orWhere('phone_number', $normalizedPhone)
+                    ->orWhere('phone_number', ltrim((string) $normalizedPhone, '+'));
+            });
+
+        if (! empty($paymentId)) {
+            $paymentQuery->where('id', $paymentId);
+        }
+
+        if ($this->mpesaPaymentsHasColumn('consumed_at')) {
+            $paymentQuery->whereNull('consumed_at');
+        }
+
+        if ($this->mpesaPaymentsHasColumn('business_id')) {
+            $paymentQuery->whereNull('business_id');
+        }
+
+        return $paymentQuery->latest()->first();
+    }
+
+    protected function storeRegistrationPaymentSession(MpesaPayment $payment): void
+    {
+        session([
+            'registration_payment_id' => $payment->id,
+            'account_reference' => $payment->account_reference,
+            'account_ref' => $payment->account_reference,
+            'checkout_request_id' => $payment->checkout_request_id,
+            'payment_phone' => $payment->phone_number,
+            'first_name' => $payment->first_name,
+            'middle_name' => $payment->middle_name,
+            'last_name' => $payment->last_name,
+        ]);
+    }
+
+    public static function registrationResumeUrlForPayment(MpesaPayment $payment): string
+    {
+        return URL::temporarySignedRoute('business.registration.resume.link', now()->addDay(), [
+            'payment' => $payment->id,
+        ]);
+    }
+
+    protected function attachRegistrationPayment(Request $request, User $user, Business $business): void
+    {
+        $payment = $this->findSuccessfulMpesaPayment($request);
+
+        if (! $payment) {
+            return;
+        }
+
+        $attributes = [
+            'user_id' => $user->id,
+        ];
+
+        if ($this->mpesaPaymentsHasColumn('business_id')) {
+            $attributes['business_id'] = $business->id;
+        }
+
+        if ($this->mpesaPaymentsHasColumn('consumed_at') && empty($payment->consumed_at)) {
+            $attributes['consumed_at'] = now();
+        }
+
+        $payment->fill($attributes);
+        $payment->save();
+
+        session([
+            'registration_payment_id' => $payment->id,
+            'account_reference' => $payment->account_reference,
+            'account_ref' => $payment->account_reference,
+            'checkout_request_id' => $payment->checkout_request_id,
+            'payment_phone' => $payment->phone_number,
+        ]);
+    }
+
+    protected function mpesaPaymentsHasColumn(string $column): bool
+    {
+        static $columnCache = [];
+
+        if (! array_key_exists($column, $columnCache)) {
+            $columnCache[$column] = DB::getSchemaBuilder()->hasColumn('mpesa_payments', $column);
+        }
+
+        return $columnCache[$column];
     }
 
     /**
@@ -646,13 +816,17 @@ class BusinessController extends Controller
 
             $business_details['custom_labels'] = json_encode($business_details['custom_labels']);
 
-            $business_details['common_settings'] = ! empty($request->input('common_settings')) ? $request->input('common_settings') : [];
+            $business_details['common_settings'] = Business::normalizeCommonSettings(
+                ! empty($request->input('common_settings')) ? $request->input('common_settings') : []
+            );
 
             //Enabled modules
             $enabled_modules = $request->input('enabled_modules');
             $business_details['enabled_modules'] = ! empty($enabled_modules) ? $enabled_modules : null;
             $business->fill($business_details);
             $business->save();
+
+            $this->businessUtil->provisionDefaultAccountMappings($business->id, $request->session()->get('user.id'));
 
             //update session data
             $request->session()->put('business', $business);
@@ -801,10 +975,3 @@ class BusinessController extends Controller
         return $output;
     }
 }
-// In MpesaController::initiatePayment
-\Log::info('MpesaController session ID: ' . session()->getId());
-\Log::info('MpesaController setting payment_phone: ' . $phone);
-
-// In BusinessController::confirmPayment  
-\Log::info('BusinessController session ID: ' . session()->getId());
-\Log::info('BusinessController reading payment_phone: ' . session('payment_phone'));

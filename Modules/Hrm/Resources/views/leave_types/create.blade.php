@@ -1,28 +1,37 @@
 @extends('layouts.app')
 
+@section('title', 'Create Leave Type')
+
 @section('content')
-<div class="container py-4">
-    <div class="card shadow-sm">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">Create Leave Type</h4>
-            <div>
-                    <a href="{{ route('hrm.leave_types.index') }}" class="btn btn-secondary">Back</a>
-            </div>
+@include('hrm::partials.hrm_page_header', [
+    'title' => 'Create Leave Type',
+    'subtitle' => 'Create a reusable leave category for employee requests and approvals.',
+    'actions' => '<a href="'.route('hrm.leave_types.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Leave Types</a>'
+])
+
+<section class="content">
+    <div class="box box-warning">
+        <div class="box-header with-border">
+            <h3 class="box-title">Leave Type Details</h3>
         </div>
-        <div class="card-body">
+        <div class="box-body">
             <form id="typeForm">
                 @csrf
-                <div class="mb-3">
-                    <label class="form-label">Name</label>
-                    <input id="name" name="name" class="form-control" />
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Name</label>
+                            <input id="name" name="name" class="form-control" placeholder="Annual Leave" />
+                        </div>
+                    </div>
                 </div>
-                <div class="d-flex justify-content-end">
-                    <button class="btn btn-primary">Create</button>
+                <div class="text-right">
+                    <button class="btn btn-primary"><i class="fa fa-save"></i> Create Leave Type</button>
                 </div>
             </form>
         </div>
     </div>
-</div>
+</section>
 
 @push('scripts')
 <script>

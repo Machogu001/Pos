@@ -41,6 +41,14 @@
             @component('components.widget')
                 <table class="table no-border">
                     <tr>
+                        <th>Stocktake adjustments:</th>
+                        <td>
+                            <span class="total_stocktake_adjustment">
+                                <i class="fas fa-sync fa-spin fa-fw"></i>
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
                         <th>{{ __('report.total_normal') }}:</th>
                         <td>
                             <span class="total_normal">
@@ -57,7 +65,7 @@
                         </td>
                     </tr>
                     <tr>
-                        <th>{{ __('report.total_stock_adjustment') }}:</th>
+                        <th>{{ __('report.total_stock_adjustment') }} (all):</th>
                         <td>
                             <span class="total_amount">
                                 <i class="fas fa-sync fa-spin fa-fw"></i>

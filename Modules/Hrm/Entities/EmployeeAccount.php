@@ -1,29 +1,6 @@
 <?php
 
-namespace App\Models;
+// Canonical HRM models live in app/Models. This placeholder avoids duplicate
+// class discovery under the Modules PSR-4 path.
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-
-class EmployeeAccount extends Model
-{
-    use HasFactory;
-
-    protected $dates = ['deleted_at'];
-
-    protected $fillable = [
-        'employee_id','bank_name','bank_branch','account_no','note'
-
-    ];
-
-    protected $casts = [
-        'employee_id'     => 'integer',
-    ];
-
-
-    public function employee()
-    {
-        return $this->hasOne('App\Models\Employee', 'id', 'employee_id');
-    }
-
-}
+return;

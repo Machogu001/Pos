@@ -12,9 +12,16 @@ use App\Models\LeaveType;
 use Carbon\Carbon;
 use DateTime;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Modules\Hrm\Http\Controllers\Concerns\AuditsHrmActions;
+use Modules\Hrm\Http\Requests\StoreLeaveRequest;
+use Modules\Hrm\Http\Requests\UpdateLeaveRequest;
 
 class LeaveController extends Controller
 {
+    use AuditsHrmActions;
+
 
     protected function getAuthUser($request)
     {
@@ -48,59 +55,75 @@ class LeaveController extends Controller
             $order = 'id';
         }
 
-        // Build base query defensively: only join if the related tables/columns exist
+        // Build base query defensively: this installation may store company/department on
+        // employees even when those columns do not exist on leaves.
         $leaves = Leave::query();
+        $searchColumns = [];
+        $companyFilterColumn = null;
+        $hasEmployeeJoin = false;
 
         // employees (employee_id expected to exist)
         if (Schema::hasTable('employees') && Schema::hasColumn('leaves', 'employee_id')) {
             $leaves = $leaves->join('employees', 'employees.id', '=', 'leaves.employee_id')
                 ->selectRaw('leaves.*, employees.username AS employee_name, employees.id AS employee_id');
+            $searchColumns[] = 'employees.username';
+            $hasEmployeeJoin = true;
         } else {
             $leaves = $leaves->select('leaves.*');
         }
 
         // leave types (optional)
         if (Schema::hasTable('leave_types') && Schema::hasColumn('leaves', 'leave_type_id')) {
-            // leave_types table uses 'name' column in migration; prefer name but fall back to title if present
             $labelCol = Schema::hasColumn('leave_types', 'name') ? 'name' : (Schema::hasColumn('leave_types', 'title') ? 'title' : null);
             if ($labelCol) {
                 $leaves = $leaves->leftJoin('leave_types', 'leave_types.id', '=', 'leaves.leave_type_id')
                     ->selectRaw("leave_types.{$labelCol} AS leave_type_title, leave_types.id AS leave_type_id");
+                $searchColumns[] = "leave_types.{$labelCol}";
             }
         }
 
         // companies (optional)
-        if (Schema::hasTable('companies') && Schema::hasColumn('leaves', 'company_id')) {
-            $leaves = $leaves->leftJoin('companies', 'companies.id', '=', 'leaves.company_id')
-                ->selectRaw('companies.name AS company_name, companies.id AS company_id');
+        if (Schema::hasTable('companies')) {
+            if (Schema::hasColumn('leaves', 'company_id')) {
+                $leaves = $leaves->leftJoin('companies', 'companies.id', '=', 'leaves.company_id')
+                    ->selectRaw('companies.name AS company_name, companies.id AS company_id');
+                $companyFilterColumn = 'leaves.company_id';
+                $searchColumns[] = 'companies.name';
+            } elseif ($hasEmployeeJoin && Schema::hasColumn('employees', 'company_id')) {
+                $leaves = $leaves->leftJoin('companies', 'companies.id', '=', 'employees.company_id')
+                    ->selectRaw('companies.name AS company_name, companies.id AS company_id');
+                $companyFilterColumn = 'employees.company_id';
+                $searchColumns[] = 'companies.name';
+            }
+        } elseif ($hasEmployeeJoin && Schema::hasColumn('employees', 'company_id')) {
+            $companyFilterColumn = 'employees.company_id';
         }
 
         // departments (optional)
-        if (Schema::hasTable('departments') && Schema::hasColumn('leaves', 'department_id')) {
-            $leaves = $leaves->leftJoin('departments', 'departments.id', '=', 'leaves.department_id')
-                ->selectRaw('departments.department AS department_name, departments.id AS department_id');
+        if (Schema::hasTable('departments')) {
+            if (Schema::hasColumn('leaves', 'department_id')) {
+                $leaves = $leaves->leftJoin('departments', 'departments.id', '=', 'leaves.department_id')
+                    ->selectRaw('departments.department AS department_name, departments.id AS department_id');
+                $searchColumns[] = 'departments.department';
+            } elseif ($hasEmployeeJoin && Schema::hasColumn('employees', 'department_id')) {
+                $leaves = $leaves->leftJoin('departments', 'departments.id', '=', 'employees.department_id')
+                    ->selectRaw('departments.department AS department_name, departments.id AS department_id');
+                $searchColumns[] = 'departments.department';
+            }
         }
 
-        $leaves = $leaves->where('leaves.deleted_at', '=', null)
-            // Search With Multiple Param
-            ->where(function ($query) use ($request) {
-                return $query->when($request->filled('search'), function ($query) use ($request) {
-                    // try to search across joined tables if they exist; use raw where clauses that will be ignored if tables not joined
-                    return $query->whereRaw("COALESCE(employees.username, '') LIKE ?", ["%{$request->search}%"])
-                        ->orWhereRaw("COALESCE(leave_types.name, '') LIKE ?", ["%{$request->search}%"]) 
-                        ->orWhereRaw("COALESCE(companies.name, '') LIKE ?", ["%{$request->search}%"]) 
-                        ->orWhereRaw("COALESCE(departments.department, '') LIKE ?", ["%{$request->search}%"]);
+        $leaves = $leaves->whereNull('leaves.deleted_at')
+            ->when($request->filled('search') && !empty($searchColumns), function ($query) use ($request, $searchColumns) {
+                $query->where(function ($searchQuery) use ($request, $searchColumns) {
+                    foreach ($searchColumns as $column) {
+                        $searchQuery->orWhere($column, 'LIKE', "%{$request->search}%");
+                    }
                 });
             });
 
         // Apply company filter if provided (AJAX/browser filters)
-        if ($request->filled('company_id')) {
-            // prefer explicit leaves.company_id column when present, otherwise try companies.id from joined table
-            if (Schema::hasColumn('leaves', 'company_id')) {
-                $leaves = $leaves->where('leaves.company_id', $request->get('company_id'));
-            } else {
-                $leaves = $leaves->where('companies.id', $request->get('company_id'));
-            }
+        if ($request->filled('company_id') && $companyFilterColumn) {
+            $leaves = $leaves->where($companyFilterColumn, $request->get('company_id'));
         }
 
         $totalRows = $leaves->count();
@@ -192,92 +215,88 @@ class LeaveController extends Controller
 
     //----------- Store new Leave --------------\\
 
-    public function store(Request $request)
+    public function store(StoreLeaveRequest $request)
     {
         $this->authorizeForUser($this->getAuthUser($request), 'create', Leave::class);
 
-        request()->validate([
-            'employee_id'      => 'required|exists:employees,id',
-            'company_id'       => 'required|exists:companies,id',
-            'department_id'    => 'required|exists:departments,id',
-            'leave_type_id'    => 'required|exists:leave_types,id',
-            'start_date'       => 'required',
-            'end_date'         => 'required|after_or_equal:start_date',
-            'status'           => 'required',
-            'attachment'      => 'nullable|image|mimes:jpeg,png,jpg,bmp,gif,svg|max:2048',
-        ]);
-
+        // Secure file storage: private path, UUID filename, not publicly guessable
+        $storedPath = null;
         if ($request->hasFile('attachment')) {
-
-
-            $image = $request->file('attachment');
-            $filename = time().'.'.$image->extension();  
-            $image->move(public_path('/images/leaves'), $filename);
-
-        } else {
-            $filename = 'no_image.png';
+            $file = $request->file('attachment');
+            $storedPath = $file->storeAs(
+                'hrm/leaves',
+                Str::uuid().'.'.$file->extension(),
+                'local'
+            );
         }
 
         $start_date = new DateTime($request->start_date);
-        $end_date = new DateTime($request->end_date);
-        $day     = $start_date->diff($end_date);
-        $days_diff    = $day->d +1;
-        $leave_type = LeaveType::findOrFail($request['leave_type_id']);
+        $end_date   = new DateTime($request->end_date);
+        // Fix: use ->days (total days) not ->d (days-remainder after months)
+        $days_diff  = $start_date->diff($end_date)->days + 1;
 
-        $leave_data= [];
-        $leave_data['employee_id'] = $request['employee_id'];
-        $leave_data['company_id'] = $request['company_id'];
-        $leave_data['department_id'] = $request['department_id'];
-        $leave_data['leave_type_id'] = $request['leave_type_id'];
-        $leave_data['start_date'] = $request['start_date'];
-        $leave_data['end_date'] = $request['end_date'];
-        $leave_data['days'] = $days_diff;
-        $leave_data['reason'] = $request['reason'];
-        $leave_data['attachment'] = $filename;
-        $leave_data['half_day'] = $request['half_day'];
-        $leave_data['status'] = $request['status'];
+        $leave_data = [
+            'employee_id'   => $request->employee_id,
+            'company_id'    => $request->company_id,
+            'department_id' => $request->department_id,
+            'leave_type_id' => $request->leave_type_id,
+            'start_date'    => $request->start_date,
+            'end_date'      => $request->end_date,
+            'days'          => $days_diff,
+            'reason'        => $request->reason,
+            'attachment'    => $storedPath,
+            'half_day'      => (bool) $request->half_day,
+            'status'        => $request->status,
+        ];
 
         $employee_leave_info = Employee::find($request->employee_id);
-        if (!$employee_leave_info) {
+        if (! $employee_leave_info) {
             return response()->json(['error' => 'Employee not found', 'isvalid' => false], 404);
         }
 
-        // Use configured default if remaining_leave is null
         $defaultLeave = config('hrm.default_annual_leave', 21);
         $empRemaining = intval($employee_leave_info->remaining_leave ?? $defaultLeave);
 
         if ($days_diff > $empRemaining) {
-            return response()->json(['remaining_leave' => "remaining leaves are insufficient", 'isvalid' => false]);
-        } elseif ($request->status == 'approved') {
+            // Clean up uploaded file before returning the error
+            if ($storedPath) {
+                Storage::disk('local')->delete($storedPath);
+            }
+            return response()->json(['remaining_leave' => 'Remaining leave balance is insufficient.', 'isvalid' => false]);
+        }
+
+        if ($request->status === 'approved') {
             $before = $empRemaining;
-            $after = max(0, $empRemaining - $days_diff);
+            $after  = max(0, $empRemaining - $days_diff);
             $employee_leave_info->remaining_leave = $after;
-            $employee_leave_info->update();
-            // Audit log
-            logger()->info('leave_approved:remaining_changed', [
+            $employee_leave_info->save();
+            logger()->channel('stack')->info('hrm.leave.approved', [
                 'employee_id' => $employee_leave_info->id,
-                'leave_employee_id' => $request->employee_id,
-                'leave_days' => $days_diff,
-                'before' => $before,
-                'after' => $after,
-                'action' => 'approve_create',
-                'user_id' => auth()->id(),
+                'leave_days'  => $days_diff,
+                'balance_before' => $before,
+                'balance_after'  => $after,
+                'action'      => 'approve_create',
+                'actor_id'    => auth()->id(),
             ]);
         }
 
-        // Persist only columns that actually exist on the leaves table to avoid SQL errors
-        $filtered_leave_data = [];
-        foreach ($leave_data as $k => $v) {
-            if (Schema::hasColumn('leaves', $k)) {
-                $filtered_leave_data[$k] = $v;
-            }
-        }
+        $leave = Leave::create($leave_data);
 
-        Leave::create($filtered_leave_data);
+        $this->logHrmAudit('hrm.leave.created', [
+            'leave_id' => $leave->id,
+            'employee_id' => $leave->employee_id,
+            'company_id' => $leave->company_id,
+            'department_id' => $leave->department_id,
+            'status' => $leave->status,
+            'start_date' => $leave->start_date,
+            'end_date' => $leave->end_date,
+            'days' => $leave->days,
+        ], $leave);
+
         if ($request->wantsJson() || $request->expectsJson()) {
-            return response()->json(['success' => true ,'isvalid' => true]);
+            return response()->json(['success' => true, 'isvalid' => true]);
         }
-        return redirect()->route('hrm.leaves.index')->with('success', 'Created successfully');
+        return redirect()->route('hrm.leaves.index')->with('success', 'Leave created successfully.');
     }
 
     //------------ function show -----------\\
@@ -318,140 +337,108 @@ class LeaveController extends Controller
 
     //-----------Update Leave --------------\\
 
-    public function update(Request $request, $id)
+    public function update(UpdateLeaveRequest $request, $id)
     {
         $this->authorizeForUser($this->getAuthUser($request), 'update', Leave::class);
 
-        request()->validate([
-            'company_id'       => 'required|exists:companies,id',
-            'department_id'    => 'required|exists:departments,id',
-            'employee_id'      => 'required|exists:employees,id',
-            'leave_type_id'    => 'required|exists:leave_types,id',
-            'start_date'       => 'required',
-            'end_date'         => 'required',
-            'status'           => 'required',
-            'attachment'      => 'nullable|image|mimes:jpeg,png,jpg,bmp,gif,svg|max:2048',
-        ]);
-
         $leave = Leave::findOrFail($id);
-        $CurrentAttachement = $leave->attachment;
-        if ($request->attachment != null) {
-            if ($request->attachment != $CurrentAttachement) {
 
-                $image = $request->file('attachment');
-                $filename = time().'.'.$image->extension();  
-                $image->move(public_path('/images/leaves'), $filename);
-                $path = public_path() . '/images/leaves';
-                $LeavePhoto = $path . '/' . $CurrentAttachement;
-                if (file_exists($LeavePhoto)) {
-                    if ($leave->attachment != 'no_image.png') {
-                        @unlink($LeavePhoto);
-                    }
-                }
-            } else {
-                $filename = $CurrentAttachement;
+        // Secure file replacement: delete old private file, store new one
+        $storedPath = $leave->attachment;
+        if ($request->hasFile('attachment')) {
+            // Remove previous private file if it exists
+            if ($storedPath && Storage::disk('local')->exists($storedPath)) {
+                Storage::disk('local')->delete($storedPath);
             }
-        }else{
-            $filename = $CurrentAttachement;
+            $file = $request->file('attachment');
+            $storedPath = $file->storeAs(
+                'hrm/leaves',
+                Str::uuid().'.'.$file->extension(),
+                'local'
+            );
         }
 
         $start_date = new DateTime($request->start_date);
-        $end_date = new DateTime($request->end_date);
-        $day     = $start_date->diff($end_date);
-        $days_diff    = $day->d +1;
-        $leave_type = LeaveType::findOrFail($request['leave_type_id']);
+        $end_date   = new DateTime($request->end_date);
+        // Fix: use ->days (total days) not ->d (days-remainder after months)
+        $days_diff  = $start_date->diff($end_date)->days + 1;
 
-        $leave_data= [];
-        $leave_data['employee_id'] = $request['employee_id'];
-        $leave_data['company_id'] = $request['company_id'];
-        $leave_data['department_id'] = $request['department_id'];
-        $leave_data['leave_type_id'] = $request['leave_type_id'];
-        $leave_data['start_date'] = $request['start_date'];
-        $leave_data['end_date'] = $request['end_date'];
-        $leave_data['days'] = $days_diff;
-        $leave_data['reason'] = $request['reason'];
-        $leave_data['attachment'] = $filename;
-        $leave_data['half_day'] = $request['half_day'];
-        $leave_data['status'] = $request['status'];
+        $leave_data = [
+            'employee_id'   => $request->employee_id,
+            'company_id'    => $request->company_id,
+            'department_id' => $request->department_id,
+            'leave_type_id' => $request->leave_type_id,
+            'start_date'    => $request->start_date,
+            'end_date'      => $request->end_date,
+            'days'          => $days_diff,
+            'reason'        => $request->reason,
+            'attachment'    => $storedPath,
+            'half_day'      => (bool) $request->half_day,
+            'status'        => $request->status,
+        ];
 
 
-        // return the old remaining_leave
-        if ($leave->status == 'approved') {
-            $employee_leave_info = Employee::find($request->employee_id);
-            if (!$employee_leave_info) {
-                return response()->json(['error' => 'Employee not found', 'isvalid' => false], 404);
-            }
-
-            $defaultLeave = config('hrm.default_annual_leave', 21);
-            $empRemaining = intval($employee_leave_info->remaining_leave ?? $defaultLeave);
-
-            if ($days_diff > ($empRemaining + intval($leave->days))) {
-                return response()->json(['remaining_leave' => "remaining leaves are insufficient", 'isvalid' => false]);
-            } else {
-                $before = $empRemaining;
-                $after = $empRemaining + intval($leave->days);
-                $employee_leave_info->remaining_leave = $after;
-                $employee_leave_info->update();
-                logger()->info('leave_update:remaining_restored', [
-                    'employee_id' => $employee_leave_info->id,
-                    'leave_id' => $leave->id,
-                    'restored_days' => intval($leave->days),
-                    'before' => $before,
-                    'after' => $after,
-                    'action' => 'restore_old_approved',
-                    'user_id' => auth()->id(),
-                ]);
-            }
+        $defaultLeave = config('hrm.default_annual_leave', 21);
+        $employee_leave_info = Employee::find($request->employee_id);
+        if (! $employee_leave_info) {
+            return response()->json(['error' => 'Employee not found', 'isvalid' => false], 404);
         }
 
-        if ($leave->status != 'approved') {
-            $employee_leave_info = Employee::find($request->employee_id);
-            if (!$employee_leave_info) {
-                return response()->json(['error' => 'Employee not found', 'isvalid' => false], 404);
+        $empRemaining = intval($employee_leave_info->remaining_leave ?? $defaultLeave);
+
+        // Restore balance if the previous leave was approved
+        if ($leave->status === 'approved') {
+            $restoredRemaining = $empRemaining + intval($leave->days);
+            if ($days_diff > $restoredRemaining) {
+                return response()->json(['remaining_leave' => 'Remaining leave balance is insufficient.', 'isvalid' => false]);
             }
-            $defaultLeave = config('hrm.default_annual_leave', 21);
-            $empRemaining = intval($employee_leave_info->remaining_leave ?? $defaultLeave);
-            if ($days_diff > $empRemaining) {
-                return response()->json(['remaining_leave' => "remaining leaves are insufficient", 'isvalid' => false]);
-            }
+            // Temporarily restore the old days so we can re-deduct below
+            $empRemaining = $restoredRemaining;
+            $employee_leave_info->remaining_leave = $empRemaining;
+            $employee_leave_info->save();
+            logger()->channel('stack')->info('hrm.leave.balance_restored', [
+                'employee_id'    => $employee_leave_info->id,
+                'leave_id'       => $leave->id,
+                'restored_days'  => intval($leave->days),
+                'balance_after'  => $empRemaining,
+                'actor_id'       => auth()->id(),
+            ]);
+        } elseif ($days_diff > $empRemaining) {
+            return response()->json(['remaining_leave' => 'Remaining leave balance is insufficient.', 'isvalid' => false]);
         }
 
-        if ($request->status == 'approved') {
-            $employee_leave_info = Employee::find($request->employee_id);
-            if (!$employee_leave_info) {
-                return response()->json(['error' => 'Employee not found', 'isvalid' => false], 404);
-            }
-            $defaultLeave = config('hrm.default_annual_leave', 21);
-            $empRemaining = intval($employee_leave_info->remaining_leave ?? $defaultLeave);
+        if ($request->status === 'approved') {
             $before = $empRemaining;
-            $after = max(0, $empRemaining - $days_diff);
+            $after  = max(0, $empRemaining - $days_diff);
             $employee_leave_info->remaining_leave = $after;
-            $employee_leave_info->update();
-            logger()->info('leave_update:remaining_deducted', [
-                'employee_id' => $employee_leave_info->id,
-                'leave_id' => $leave->id,
-                'deducted_days' => $days_diff,
-                'before' => $before,
-                'after' => $after,
-                'action' => 'approve_update',
-                'user_id' => auth()->id(),
+            $employee_leave_info->save();
+            logger()->channel('stack')->info('hrm.leave.balance_deducted', [
+                'employee_id'    => $employee_leave_info->id,
+                'leave_id'       => $leave->id,
+                'deducted_days'  => $days_diff,
+                'balance_before' => $before,
+                'balance_after'  => $after,
+                'actor_id'       => auth()->id(),
             ]);
         }
 
-    
-        // Filter out any keys that are not actual columns on the leaves table
-        $filtered_leave_data = [];
-        foreach ($leave_data as $k => $v) {
-            if (Schema::hasColumn('leaves', $k)) {
-                $filtered_leave_data[$k] = $v;
-            }
-        }
+        $leave->update($leave_data);
 
-        Leave::find($id)->update($filtered_leave_data);
+        $this->logHrmAudit('hrm.leave.updated', [
+            'leave_id' => $leave->id,
+            'employee_id' => $leave->employee_id,
+            'company_id' => $leave->company_id,
+            'department_id' => $leave->department_id,
+            'status' => $leave->status,
+            'start_date' => $leave->start_date,
+            'end_date' => $leave->end_date,
+            'days' => $leave->days,
+        ], $leave);
+
         if ($request->wantsJson() || $request->expectsJson()) {
-            return response()->json(['success' => true ,'isvalid' => true]);
+            return response()->json(['success' => true, 'isvalid' => true]);
         }
-        return redirect()->route('hrm.leaves.index')->with('success', 'Updated successfully');
+        return redirect()->route('hrm.leaves.index')->with('success', 'Leave updated successfully.');
     }
 
 
@@ -461,26 +448,59 @@ class LeaveController extends Controller
 
     public function destroy(Request $request, $id)
     {
-    $this->authorizeForUser($this->getAuthUser($request), 'delete', Leave::class);
+        $this->authorizeForUser($this->getAuthUser($request), 'delete', Leave::class);
 
         $leave = Leave::findOrFail($id);
+        $leaveSnapshot = [
+            'leave_id' => $leave->id,
+            'employee_id' => $leave->employee_id,
+            'company_id' => $leave->company_id,
+            'department_id' => $leave->department_id,
+            'status' => $leave->status,
+            'start_date' => $leave->start_date,
+            'end_date' => $leave->end_date,
+            'days' => $leave->days,
+        ];
         $leave->deleted_at = Carbon::now();
         $leave->save();
 
-        $attachment = $leave->attachment;
+        $this->logHrmAudit('hrm.leave.deleted', $leaveSnapshot, $leave);
 
-        $path = public_path() . '/images/leaves';
-        $LeavePhoto = $path . '/' . $attachment;
-        if (file_exists($LeavePhoto)) {
-            if ($leave->attachment != 'no_image.png') {
-                @unlink($LeavePhoto);
-            }
+        // Delete from private storage (new path format)
+        if ($leave->attachment && Storage::disk('local')->exists($leave->attachment)) {
+            Storage::disk('local')->delete($leave->attachment);
         }
-      
+
         if ($request->wantsJson() || $request->expectsJson()) {
             return response()->json(['success' => true]);
         }
-        return redirect()->route('hrm.leaves.index')->with('success', 'Deleted successfully');
+        return redirect()->route('hrm.leaves.index')->with('success', 'Leave deleted successfully.');
+    }
+
+    /**
+     * Serve a leave attachment through an authenticated route.
+     * Files are stored in storage/app/private/hrm/leaves/ (not web-accessible).
+     */
+    public function attachment(Request $request, $id)
+    {
+        $user = $this->getAuthUser($request);
+        if (! $user || (! $user->can('hrm.access') && ! $user->can('hrm.leaves') && ! $user->can('leave.view'))) {
+            abort(403);
+        }
+
+        $leave = Leave::whereNull('deleted_at')->findOrFail($id);
+
+        if (! $leave->attachment) {
+            abort(404);
+        }
+
+        $path = $leave->attachment;
+
+        if (! Storage::disk('local')->exists($path)) {
+            abort(404, 'Attachment not found.');
+        }
+
+        return Storage::disk('local')->response($path);
     }
 
     //-------------- Delete by selection  ---------------\\
