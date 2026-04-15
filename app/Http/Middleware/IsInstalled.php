@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 
 class IsInstalled
 {
@@ -17,7 +18,7 @@ class IsInstalled
     public function handle($request, Closure $next)
     {
         $envPath = base_path('.env');
-        if (! file_exists($envPath)) {
+        if (! file_exists($envPath) || ! $this->coreInstallReady()) {
             return redirect(url('/').'/install');
         } else {
             // if (!Cache::has('callback')) {
@@ -48,5 +49,19 @@ class IsInstalled
         }
 
         return $next($request);
+    }
+
+    /**
+     * Basic readiness check for first-boot installs.
+     */
+    private function coreInstallReady(): bool
+    {
+        try {
+            return Schema::hasTable('users')
+                && Schema::hasTable('business')
+                && Schema::hasTable('admin_settings');
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 }

@@ -1,10 +1,13 @@
 <?php
-if (empty($_POST)) {
-    $envPath = realpath(__DIR__ . '/../../') . '/.env';
-    if (file_exists($envPath)) {
-        exit('Installation already done');
-    }
-}
+$envPath = realpath(__DIR__ . '/../../') . '/.env';
+$installed = file_exists($envPath);
+
+// Legacy installer shim:
+// - If installed: redirect to login
+// - If not installed: redirect to Laravel installer wizard start
+$target = $installed ? '../login' : '../install-start';
+header('Location: ' . $target, true, 302);
+exit;
 ?>
 
 <!DOCTYPE html>

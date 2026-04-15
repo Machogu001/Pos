@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             PermissionsTableSeeder::class,
             CurrenciesTableSeeder::class,
             AdminSettingsSeeder::class,
+            SuperAdminSeeder::class,  // must run after PermissionsTableSeeder
         ]);
     }
 }

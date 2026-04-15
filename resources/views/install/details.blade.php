@@ -4,7 +4,7 @@
 @section('content')
 <div class="container">
     <div class="row">
-        <h3 class="text-center">{{ config('app.name', 'POS') }} Installation <small>Step 2 of 3</small></h3>
+        <h3 class="text-center">{{ config('app.name', 'POS') }} Installation <small>Step 3 of 3</small></h3>
 
         <div class="col-md-8 col-md-offset-2">
           <hr/>

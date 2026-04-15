@@ -2,9 +2,9 @@
   <li role="presentation" @if($active == 'install') class="active" @endif>
     <a href="#">Instructions</a>
   </li>
-  <!-- <li role="presentation" @if($active == 'server') class="active" @endif>
+  <li role="presentation" @if($active == 'server') class="active" @endif>
     <a href="#">Server Requirements</a>
-  </li> -->
+  </li>
   <li role="presentation" @if($active == 'app_details') class="active" @endif>
     <a href="#">Application Details</a>
   </li>

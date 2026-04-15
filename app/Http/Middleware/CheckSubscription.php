@@ -63,28 +63,17 @@ class CheckSubscription
      */
     private function isSystemAdmin($user)
     {
-        // Check if user has admin role or is super admin
+        // Only the designated system superuser bypasses subscription enforcement.
+        // Business admins (Spatie Admin#business_id role) are NOT exempt —
+        // they must hold an active subscription just like regular users.
         if (!$user) return false;
-        
-        // Check various admin indicators
-        if (method_exists($user, 'hasRole')) {
-            if ($user->hasRole('admin') || $user->hasRole('superadmin')) {
-                return true;
-            }
-        }
-        
-        if (isset($user->is_superadmin) && $user->is_superadmin == 1) {
+
+        // Use the dedicated isSuperAdmin() method which cross-checks both the
+        // role='admin' DB column and the ADMINISTRATOR_USERNAMES config.
+        if (method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin()) {
             return true;
         }
-        
-        if (isset($user->user_type) && $user->user_type == 'admin') {
-            return true;
-        }
-        
-        if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
-            return true;
-        }
-        
+
         return false;
     }
 }

@@ -8,6 +8,7 @@ use Composer\Semver\Comparator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Illuminate\Support\Facades\Abort;
 
@@ -33,6 +34,26 @@ class InstallController extends Controller
     {
         $this->appVersion = config('author.app_version');
         $this->env = config('app.env');
+
+        // Prevent accidental access to installer routes after installation.
+        // Allow install.success only once right after setup completes.
+        $this->middleware(function ($request, $next) {
+            if ($request->routeIs('install.success')) {
+                if (session('install.just_completed') === true) {
+                    return $next($request);
+                }
+
+                return redirect()->route('login');
+            }
+
+            // If .env already exists, treat installer as completed and redirect.
+            // This avoids exposing install screens on live systems.
+            if (file_exists(base_path('.env')) || $this->isInstalledCompletely()) {
+                return redirect()->route('login');
+            }
+
+            return $next($request);
+        })->except(['updateConfirmation', 'update']);
 
         //Check if mac based activation key is required or not.
         $this->macActivationKeyChecker = false;
@@ -62,6 +83,21 @@ class InstallController extends Controller
         $envPath = base_path('.env');
         if (file_exists($envPath)) {
             abort(404);
+        }
+    }
+
+    /**
+     * True only when install artifacts and core tables are present.
+     */
+    private function isInstalledCompletely(): bool
+    {
+        try {
+            return file_exists(base_path('.env'))
+                && Schema::hasTable('users')
+                && Schema::hasTable('business')
+                && Schema::hasTable('admin_settings');
+        } catch (\Throwable $e) {
+            return false;
         }
     }
 
@@ -221,26 +257,25 @@ class InstallController extends Controller
                 }
             }
 
-            //TODO: Remove false & automate the process of creating .env file.
-            if (false) {
-                // $fp = fopen($envPath, 'w');
-                // fwrite($fp, implode('', $env_lines));
-                // fclose($fp);
+            // Automatically create .env and run installation.
+            // Fall back to manual copy instructions if write permission is blocked.
+            $envContent = implode('', $env_lines);
+            $write_success = @file_put_contents($envPath, $envContent) !== false;
 
-                // //Artisan commands
-                // $this->runArtisanCommands();
+            if ($write_success) {
+                // Artisan commands
+                $this->runArtisanCommands();
 
-                // return redirect()->route('install.success');
-            } else {
-                $this->deleteEnv();
+                session(['install.just_completed' => true]);
 
-                //Show intermediate steps if not able to copy file.
-                $envContent = implode('', $env_lines);
-
-                return view('install.envText')
-                    ->with(compact('envContent', 'envPath'));
+                return redirect()->route('install.success');
             }
-        } catch (Exception $e) {
+
+            $this->deleteEnv();
+
+            return view('install.envText')
+                ->with(compact('envContent', 'envPath'));
+        } catch (\Exception $e) {
             $this->deleteEnv();
 
             return redirect()->back()
@@ -276,8 +311,10 @@ class InstallController extends Controller
 
             $this->runArtisanCommands();
 
+            session(['install.just_completed' => true]);
+
             return redirect()->route('install.success');
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $this->deleteEnv();
 
             return redirect()->back()
@@ -287,7 +324,43 @@ class InstallController extends Controller
 
     public function success()
     {
-        return view('install.success');
+        // One-time access: after rendering this page, lock installer routes again.
+        session()->forget('install.just_completed');
+
+        $checks = [
+            'env_file' => file_exists(base_path('.env')),
+            'app_key' => ! empty(config('app.key')),
+            'storage_writable' => is_writable(storage_path()),
+            'cache_writable' => is_writable(base_path('bootstrap/cache')),
+            'users_table' => $this->hasTableSafe('users'),
+            'business_table' => $this->hasTableSafe('business'),
+            'admin_settings_table' => $this->hasTableSafe('admin_settings'),
+            'db_connection' => $this->dbConnectionHealthy(),
+        ];
+
+        $all_passed = ! in_array(false, $checks, true);
+        $redirect_to = route('login');
+
+        return view('install.success', compact('checks', 'all_passed', 'redirect_to'));
+    }
+
+    private function hasTableSafe(string $table): bool
+    {
+        try {
+            return Schema::hasTable($table);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    private function dbConnectionHealthy(): bool
+    {
+        try {
+            DB::connection()->getPdo();
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     public function updateConfirmation()
@@ -350,7 +423,7 @@ class InstallController extends Controller
             ];
 
             return redirect('login')->with('status', $output);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             DB::rollBack();
             exit($e->getMessage());
         }

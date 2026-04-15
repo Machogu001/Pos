@@ -173,6 +173,31 @@ class User extends Authenticatable
         return $this->role === 'admin';
     }
 
+    /**
+     * Returns true if this user is the designated system-level superuser.
+     * System superusers are listed in the ADMINISTRATOR_USERNAMES env var
+     * and have role='admin' on the users table. They bypass subscription
+     * checks and can access backup/module-management gates.
+     */
+    public function isSuperAdmin(): bool
+    {
+        // Primary check: role column is the authoritative DB marker for superuser
+        if ($this->role === 'admin') {
+            // Cross-verify with ADMINISTRATOR_USERNAMES to prevent privilege
+            // escalation if role column is incorrectly set on a business admin.
+            $administrator_list = config('constants.administrator_usernames');
+            if (!empty($administrator_list)) {
+                return in_array(
+                    strtolower($this->username),
+                    array_map('trim', explode(',', strtolower($administrator_list)))
+                );
+            }
+            // If ADMINISTRATOR_USERNAMES not set, fall back to role column alone.
+            return true;
+        }
+        return false;
+    }
+
     public function hasActiveSubscription()
     {
         return $this->subscription_end_date

@@ -19,6 +19,63 @@ These commands will:
 - Initialize admin settings with default values
 - Clear all caches for a fresh start
 
+## Browser Installation Wizard
+
+You can now install the system from the browser in a guided step-by-step flow.
+
+Open:
+
+```text
+/install
+```
+
+If the app is not installed and a user visits the site, they are automatically
+redirected into this installation wizard.
+
+Wizard steps:
+1. Instructions
+2. Server Requirements check
+3. Application + Database + Mail details
+4. Automatic install (creates `.env`, runs migrations/seeds)
+5. Final health-check summary step, then automatic redirect to Login
+
+If the web server cannot write `.env` due to file permissions, the wizard
+automatically shows a fallback screen with the exact `.env` content to paste,
+then continues installation.
+
+After successful installation, users are redirected to Login (with a Home
+button available on the completion page).
+
+After installation is complete, installer routes are automatically locked to
+prevent accidental re-entry. Visiting `/install` or `/install/` again will
+redirect to Login.
+
+Legacy endpoint note: `/public/install/index.php` is kept only as a redirect
+shim and now forwards to Login when installed, or to `/install-start` when not
+installed.
+
+## Production Deploy
+
+This repository includes a production deploy script that automatically enforces
+the superuser policy on every deploy.
+
+Run on the production server from the project root:
+
+```bash
+bash scripts/deploy_production.sh
+```
+
+The script performs (in order):
+- `composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader`
+- `php artisan migrate --force`
+- `php artisan db:seed --class=SuperAdminSeeder --force`
+- `php artisan admin:enforce-superuser-policy --force`  // auto-corrects admin role drift
+- cache clear and rebuild steps
+
+If you use an external CI/CD runner (GitHub Actions, GitLab, Jenkins, Forge, etc.),
+call this same script in your deploy job to guarantee identical behavior in every
+production release.
+
 ## MPESA Integrations
 
 This project adds support for using separate MPESA credentials for subscription payments versus regular POS/sell payments.
