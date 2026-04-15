@@ -11,9 +11,18 @@ use Illuminate\Support\Facades\Schema;
 
 class SettingsController extends Controller
 {
+    protected array $allowedHrmThemes = ['classic', 'corporate', 'minimal'];
+
     protected function getAuthUser($request)
     {
         return $request->user('api') ?? $request->user() ?? auth()->user();
+    }
+
+    protected function resolveHrmTheme(?AdminSetting $admin): string
+    {
+        $theme = $admin->hrm_theme ?? 'classic';
+
+        return in_array($theme, $this->allowedHrmThemes, true) ? $theme : 'classic';
     }
     
     public function index(Request $request)
@@ -31,6 +40,7 @@ class SettingsController extends Controller
                 'payroll_expense_account_id' => $admin->payroll_expense_account_id ?? null,
                 'payroll_clearing_account_id' => $admin->payroll_clearing_account_id ?? null,
                 'payroll_auto_post' => $admin->payroll_auto_post ?? true,
+                'hrm_theme' => $this->resolveHrmTheme($admin),
                 'accounts' => $accounts,
             ]);
         }
@@ -38,8 +48,54 @@ class SettingsController extends Controller
         return view('hrm::settings.index', [
             'defaultLeave' => $admin->default_annual_leave ?? config('hrm.default_annual_leave', 21),
             'settings' => $admin,
+            'currentTheme' => $this->resolveHrmTheme($admin),
             'accounts' => $accounts,
         ]);
+    }
+
+    public function editTheme(Request $request)
+    {
+        $user = $this->getAuthUser($request);
+        $this->authorizeForUser($user, 'business_settings.access');
+
+        $admin = Schema::hasTable('admin_settings') ? AdminSetting::first() : null;
+        $currentTheme = $this->resolveHrmTheme($admin);
+
+        if ($request->wantsJson() || $request->expectsJson()) {
+            return response()->json([
+                'hrm_theme' => $currentTheme,
+                'available_themes' => $this->allowedHrmThemes,
+            ]);
+        }
+
+        return view('hrm::settings.theme', [
+            'currentTheme' => $currentTheme,
+            'availableThemes' => $this->allowedHrmThemes,
+        ]);
+    }
+
+    public function updateTheme(Request $request)
+    {
+        $user = $this->getAuthUser($request);
+        $this->authorizeForUser($user, 'business_settings.access');
+
+        $this->validate($request, [
+            'hrm_theme' => 'required|in:' . implode(',', $this->allowedHrmThemes),
+        ]);
+
+        if (! Schema::hasTable('admin_settings')) {
+            return redirect()->back()->withErrors(['error' => 'Admin settings table missing']);
+        }
+
+        if (! Schema::hasColumn('admin_settings', 'hrm_theme')) {
+            return redirect()->back()->withErrors(['error' => 'Theme setting is not available yet. Please run migrations.']);
+        }
+
+        $admin = AdminSetting::first() ?: new AdminSetting();
+        $admin->hrm_theme = $request->input('hrm_theme');
+        $admin->save();
+
+        return redirect()->route('hrm.settings.index')->with('success', 'Theme updated successfully');
     }
 
     public function editDefaultLeave(Request $request)

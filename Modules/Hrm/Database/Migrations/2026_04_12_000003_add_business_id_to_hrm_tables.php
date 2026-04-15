@@ -55,12 +55,38 @@ class AddBusinessIdToHrmTables extends Migration
         if (Schema::hasTable('employees') && Schema::hasTable('companies')
             && Schema::hasColumn('companies', 'business_id')
         ) {
-            \DB::statement('
-                UPDATE employees e
-                INNER JOIN companies c ON c.id = e.company_id
-                SET e.business_id = c.business_id
-                WHERE e.business_id IS NULL AND c.business_id IS NOT NULL
-            ');
+            $driver = \DB::connection()->getDriverName();
+
+            if (in_array($driver, ['mysql', 'mariadb'], true)) {
+                \DB::statement('
+                    UPDATE employees e
+                    INNER JOIN companies c ON c.id = e.company_id
+                    SET e.business_id = c.business_id
+                    WHERE e.business_id IS NULL AND c.business_id IS NOT NULL
+                ');
+            } else {
+                // SQLite/Postgres-compatible fallback for tests and non-MySQL drivers.
+                $employees = \DB::table('employees')
+                    ->select('id', 'company_id')
+                    ->whereNull('business_id')
+                    ->get();
+
+                foreach ($employees as $employee) {
+                    if (empty($employee->company_id)) {
+                        continue;
+                    }
+
+                    $companyBusinessId = \DB::table('companies')
+                        ->where('id', $employee->company_id)
+                        ->value('business_id');
+
+                    if (! empty($companyBusinessId)) {
+                        \DB::table('employees')
+                            ->where('id', $employee->id)
+                            ->update(['business_id' => $companyBusinessId]);
+                    }
+                }
+            }
         }
     }
 

@@ -1,12 +1,11 @@
 @extends('layouts.app')
 
 @section('content')
-<section class="content-header">
-    <h1>
-        {{ __('Human Resource Management') }}
-        <small>{{ __('Operational dashboard') }}</small>
-    </h1>
-</section>
+@include('hrm::partials.hrm_page_header', [
+    'title' => __('Human Resource Management'),
+    'subtitle' => __('Operational dashboard'),
+    'actions' => '<a href="'.route('hrm.reports.index').'" class="btn btn-default"><i class="fa fa-bar-chart"></i> '. __('Open Reports') .'</a>'
+])
 
 <section class="content">
     @if(!empty($alerts))
@@ -33,7 +32,7 @@
 
     <div class="row">
         <div class="col-lg-3 col-md-6 col-sm-6 col-xs-12">
-            <div class="small-box bg-aqua">
+            <div class="small-box bg-aqua hrm-kpi hrm-kpi-people">
                 <div class="inner">
                     <h3>{{ number_format($stats['total_employees'] ?? 0) }}</h3>
                     <p>{{ __('Total Employees') }}</p>
@@ -48,7 +47,7 @@
         </div>
 
         <div class="col-lg-3 col-md-6 col-sm-6 col-xs-12">
-            <div class="small-box bg-green">
+            <div class="small-box bg-green hrm-kpi hrm-kpi-active">
                 <div class="inner">
                     <h3>{{ number_format($stats['active_employees'] ?? 0) }}</h3>
                     <p>{{ __('Active Employees') }}</p>
@@ -63,7 +62,7 @@
         </div>
 
         <div class="col-lg-3 col-md-6 col-sm-6 col-xs-12">
-            <div class="small-box bg-yellow">
+            <div class="small-box bg-yellow hrm-kpi hrm-kpi-leave">
                 <div class="inner">
                     <h3>{{ number_format($stats['on_leave_today'] ?? 0) }}</h3>
                     <p>{{ __('On Leave Today') }}</p>
@@ -78,7 +77,7 @@
         </div>
 
         <div class="col-lg-3 col-md-6 col-sm-6 col-xs-12">
-            <div class="small-box bg-red">
+            <div class="small-box bg-red hrm-kpi hrm-kpi-risk">
                 <div class="inner">
                     <h3>{{ number_format($stats['pending_leaves'] ?? 0) }}</h3>
                     <p>{{ __('Pending Leave Requests') }}</p>
@@ -95,7 +94,7 @@
 
     <div class="row">
         <div class="col-lg-3 col-md-6 col-sm-6 col-xs-12">
-            <div class="small-box bg-navy">
+            <div class="small-box bg-navy hrm-kpi hrm-kpi-payroll">
                 <div class="inner">
                     <h3>
                         {{ number_format($stats['this_month_payroll'] ?? 0, 2) }}
@@ -112,7 +111,7 @@
         </div>
 
         <div class="col-lg-3 col-md-6 col-sm-6 col-xs-12">
-            <div class="small-box bg-teal">
+            <div class="small-box bg-teal hrm-kpi hrm-kpi-attendance">
                 <div class="inner">
                     <h3>{{ number_format($stats['today_clocked_in'] ?? 0) }}</h3>
                     <p>{{ __('Clocked In Today') }}</p>
@@ -127,7 +126,7 @@
         </div>
 
         <div class="col-lg-3 col-md-6 col-sm-6 col-xs-12">
-            <div class="small-box bg-orange">
+            <div class="small-box bg-orange hrm-kpi hrm-kpi-attention">
                 <div class="inner">
                     <h3>{{ number_format($stats['absent_estimate_today'] ?? 0) }}</h3>
                     <p>{{ __('Estimated Not Clocked In') }}</p>
@@ -142,7 +141,7 @@
         </div>
 
         <div class="col-lg-3 col-md-6 col-sm-6 col-xs-12">
-            <div class="small-box bg-maroon">
+            <div class="small-box bg-maroon hrm-kpi hrm-kpi-structure">
                 <div class="inner">
                     <h3>{{ number_format($stats['total_departments'] ?? 0) }}</h3>
                     <p>{{ __('Departments Configured') }}</p>
@@ -153,6 +152,22 @@
                 <a href="{{ action(['\\Modules\\Hrm\\Http\\Controllers\\DepartmentsController', 'index']) }}" class="small-box-footer">
                     {{ __('Open Departments') }} <i class="fa fa-arrow-circle-right"></i>
                 </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xs-12">
+            <div class="hrm-kpi-legend" aria-label="KPI legend">
+                <span class="hrm-kpi-legend-title">KPI Colors:</span>
+                <span class="hrm-kpi-chip"><span class="hrm-kpi-dot hrm-kpi-people"></span> People</span>
+                <span class="hrm-kpi-chip"><span class="hrm-kpi-dot hrm-kpi-active"></span> Active</span>
+                <span class="hrm-kpi-chip"><span class="hrm-kpi-dot hrm-kpi-leave"></span> Leave</span>
+                <span class="hrm-kpi-chip"><span class="hrm-kpi-dot hrm-kpi-risk"></span> Risk</span>
+                <span class="hrm-kpi-chip"><span class="hrm-kpi-dot hrm-kpi-payroll"></span> Payroll</span>
+                <span class="hrm-kpi-chip"><span class="hrm-kpi-dot hrm-kpi-attendance"></span> Attendance</span>
+                <span class="hrm-kpi-chip"><span class="hrm-kpi-dot hrm-kpi-attention"></span> Attention</span>
+                <span class="hrm-kpi-chip"><span class="hrm-kpi-dot hrm-kpi-structure"></span> Structure</span>
             </div>
         </div>
     </div>

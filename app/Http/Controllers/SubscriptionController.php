@@ -31,6 +31,17 @@ class SubscriptionController extends Controller
     const PAYMENT_FAILED = 'failed';
 
     /**
+     * Return a standardized safe JSON error response.
+     */
+    private function safeJsonError(string $userMessage, int $statusCode = 400)
+    {
+        return response()->json([
+            'success' => false,
+            'message' => $userMessage,
+        ], $statusCode);
+    }
+
+    /**
      * Show available plans to the user.
      */
     public function showPlans()
@@ -211,12 +222,23 @@ class SubscriptionController extends Controller
             if ($checkoutRequestId) {
                 $payment->update(['checkout_request_id' => $checkoutRequestId]);
                 
-                $paymentStatus = $this->checkPaymentStatus($checkoutRequestId);
+                $paymentStatus = $this->resolvePaymentStatus($checkoutRequestId);
                 
                 if ($paymentStatus === self::PAYMENT_SUCCESS) {
-                    $this->activateSubscription($payment);
+                    $payment->update([
+                        'transaction_status' => 'paid',
+                        'paid_at' => Carbon::now(),
+                        'result_code' => 0,
+                        'result_desc' => 'Payment completed successfully',
+                    ]);
+
+                    $activated = $this->activateSubscription($payment);
                     DB::commit();
-                    
+
+                    if (! $activated) {
+                        return $this->safeJsonError('Payment confirmed but subscription activation failed. Please contact support.', 500);
+                    }
+
                     return response()->json([
                         'success' => true,
                         'message' => 'Payment confirmed and subscription activated!',
@@ -290,10 +312,7 @@ class SubscriptionController extends Controller
             DB::rollBack();
             Log::error('Payment processing error: ' . $e->getMessage());
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Payment failed: ' . $e->getMessage()
-            ], 400);
+            return $this->safeJsonError('Payment request failed. Please try again or contact support.', 400);
         }
     }
 
@@ -663,10 +682,7 @@ class SubscriptionController extends Controller
             DB::rollBack();
             Log::error('STK Push error: ' . $e->getMessage());
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to send STK push: ' . $e->getMessage()
-            ], 400);
+            return $this->safeJsonError('Failed to send STK push. Please try again.', 400);
         }
     }
 
@@ -811,10 +827,7 @@ class SubscriptionController extends Controller
             DB::rollBack();
             Log::error('Renewal error: ' . $e->getMessage());
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Renewal failed: ' . $e->getMessage()
-            ], 400);
+            return $this->safeJsonError('Renewal request failed. Please try again.', 400);
         }
     }
 
@@ -846,7 +859,7 @@ class SubscriptionController extends Controller
     /**
      * Check payment status
      */
-    private function checkPaymentStatus($checkoutRequestId)
+    private function resolvePaymentStatus($checkoutRequestId)
     {
         try {
             $mpesaController = new MpesaController();
@@ -856,6 +869,45 @@ class SubscriptionController extends Controller
         } catch (Exception $e) {
             Log::error('Payment status check error: ' . $e->getMessage());
             return self::PAYMENT_PENDING;
+        }
+    }
+
+    /**
+     * Public payment status endpoint for subscription.check-status route.
+     */
+    public function checkPaymentStatus($checkoutRequestId)
+    {
+        try {
+            $payment = MpesaPayment::where('checkout_request_id', $checkoutRequestId)->first();
+
+            if (! $payment) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment not found',
+                ], 404);
+            }
+
+            $status = $this->resolvePaymentStatus($checkoutRequestId);
+
+            if ($status === self::PAYMENT_SUCCESS) {
+                $payment->update(['transaction_status' => 'paid']);
+                $this->activateSubscription($payment);
+            } elseif ($status === self::PAYMENT_FAILED) {
+                $payment->update(['transaction_status' => 'failed']);
+            }
+
+            return response()->json([
+                'success' => true,
+                'transaction_status' => $status === self::PAYMENT_SUCCESS ? 'paid' : $status,
+                'receipt_number' => $payment->mpesa_receipt_number,
+            ]);
+        } catch (Exception $e) {
+            Log::error('Public status endpoint error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error checking payment status',
+            ], 500);
         }
     }
 
@@ -954,7 +1006,7 @@ class SubscriptionController extends Controller
             }
             
             // Check payment status
-            $paymentStatus = $this->checkPaymentStatus($checkoutRequestId);
+            $paymentStatus = $this->resolvePaymentStatus($checkoutRequestId);
             
             if ($paymentStatus === self::PAYMENT_SUCCESS) {
                 // Update payment
@@ -1575,8 +1627,8 @@ class SubscriptionController extends Controller
                 ]);
             }
 
-            $checkoutRequestId = $request->checkout_request_id;
-            $paymentStatus = $this->checkPaymentStatus($checkoutRequestId);
+            $checkoutRequestId = $payment->checkout_request_id ?: $request->checkout_request_id;
+            $paymentStatus = $this->resolvePaymentStatus($checkoutRequestId);
 
             // Normalize DB status: map 'success' => 'paid' for consistency
             $dbStatus = $paymentStatus === self::PAYMENT_SUCCESS ? 'paid' : ($paymentStatus === self::PAYMENT_FAILED ? 'failed' : $paymentStatus);
@@ -1619,11 +1671,8 @@ class SubscriptionController extends Controller
 
         } catch (Exception $e) {
             Log::error('Manual status check error: ' . $e->getMessage());
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Status check failed: ' . $e->getMessage()
-            ], 500);
+
+            return $this->safeJsonError('Status check failed. Please try again.', 500);
         }
     }
 
@@ -1655,10 +1704,8 @@ class SubscriptionController extends Controller
             
         } catch (Exception $e) {
             Log::error('Manual activation error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
-            ], 500);
+
+            return $this->safeJsonError('Manual activation failed.', 500);
         }
     }
 
@@ -1721,11 +1768,145 @@ class SubscriptionController extends Controller
 
         } catch (Exception $e) {
             DB::rollBack();
-            
+
+            Log::warning('Subscription cancellation error: ' . $e->getMessage(), [
+                'subscription_id' => $id,
+                'user_id' => Auth::id(),
+            ]);
+
+            return $this->safeJsonError('Unable to cancel subscription at this time.', 400);
+        }
+    }
+
+    /**
+     * Quick activation endpoint referenced by subscription routes.
+     */
+    public function quickActivate(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'checkout_request_id' => 'nullable|string',
+            'payment_id' => 'nullable|integer',
+        ]);
+
+        if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
+                'message' => 'Invalid request',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $payment = null;
+
+            if ($request->filled('payment_id')) {
+                $payment = MpesaPayment::find($request->input('payment_id'));
+            }
+
+            if (! $payment && $request->filled('checkout_request_id')) {
+                $payment = MpesaPayment::where('checkout_request_id', $request->input('checkout_request_id'))->first();
+            }
+
+            if (! $payment) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment not found',
+                ], 404);
+            }
+
+            $isAdmin = optional(Auth::user())->role === 'admin';
+            if ((int) $payment->user_id !== (int) Auth::id() && ! $isAdmin) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized action.',
+                ], 403);
+            }
+
+            $status = $this->resolvePaymentStatus($payment->checkout_request_id);
+
+            if ($status === self::PAYMENT_SUCCESS) {
+                $payment->update(['transaction_status' => 'paid']);
+                $activated = $this->activateSubscription($payment);
+
+                return response()->json([
+                    'success' => $activated,
+                    'transaction_status' => 'paid',
+                    'message' => $activated ? 'Subscription activated successfully' : 'Payment confirmed but activation failed',
+                ], $activated ? 200 : 500);
+            }
+
+            if ($status === self::PAYMENT_FAILED) {
+                $payment->update(['transaction_status' => 'failed']);
+            }
+
+            return response()->json([
+                'success' => true,
+                'transaction_status' => $status,
+                'message' => 'Payment is not yet confirmed',
+            ]);
+        } catch (Exception $e) {
+            Log::error('quickActivate error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Quick activation failed',
+            ], 500);
+        }
+    }
+
+    /**
+     * Activate current authenticated user after payment confirmation.
+     */
+    public function activateUser(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'checkout_request_id' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid request',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $payment = MpesaPayment::where('checkout_request_id', $request->input('checkout_request_id'))
+                ->where('user_id', Auth::id())
+                ->first();
+
+            if (! $payment) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment not found',
+                ], 404);
+            }
+
+            $status = $this->resolvePaymentStatus($payment->checkout_request_id);
+            if ($status !== self::PAYMENT_SUCCESS) {
+                return response()->json([
+                    'success' => false,
+                    'transaction_status' => $status,
+                    'message' => 'Payment not yet confirmed',
+                ], 400);
+            }
+
+            $payment->update(['transaction_status' => 'paid']);
+            $activated = $this->activateSubscription($payment);
+
+            return response()->json([
+                'success' => $activated,
+                'transaction_status' => 'paid',
+                'message' => $activated ? 'User activated successfully' : 'Activation failed',
+            ], $activated ? 200 : 500);
+        } catch (Exception $e) {
+            Log::error('activateUser error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Activation failed',
+            ], 500);
         }
     }
 

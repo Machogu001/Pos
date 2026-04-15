@@ -185,6 +185,10 @@ Route::group([
     Route::get('/hrm/settings/payroll', [\Modules\Hrm\Http\Controllers\SettingsController::class, 'editPayrollPosting'])->name('hrm.settings.payroll.edit');
     Route::post('/hrm/settings/payroll', [\Modules\Hrm\Http\Controllers\SettingsController::class, 'updatePayrollPosting'])->name('hrm.settings.payroll.update');
 
+    // HRM Settings: Theme selection
+    Route::get('/hrm/settings/theme', [\Modules\Hrm\Http\Controllers\SettingsController::class, 'editTheme'])->name('hrm.settings.theme.edit');
+    Route::post('/hrm/settings/theme', [\Modules\Hrm\Http\Controllers\SettingsController::class, 'updateTheme'])->name('hrm.settings.theme.update');
+
     // Leave Types
     Route::resource('/hrm/leave_types', \Modules\Hrm\Http\Controllers\LeaveTypeController::class, [
         'as' => 'hrm'

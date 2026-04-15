@@ -721,12 +721,14 @@ Route::group([
 // ============================
 // Subscription routes (for users) - accessible without active subscription
 // ============================
+Route::post('/subscription/callback', [SubscriptionController::class, 'paymentCallback'])
+    ->name('subscription.callback');
+
 Route::middleware(['auth', 'AdminSidebarMenu'])->group(function () {
     // Plans & Payment
     Route::get('/subscription/plans', [SubscriptionController::class, 'showPlans'])->name('subscription.plans');
     Route::post('/subscription/process-payment', [SubscriptionController::class, 'processPayment'])->name('subscription.processPayment');
     Route::post('/subscription/renew', [SubscriptionController::class, 'renew'])->name('subscription.renew');
-    Route::post('/subscription/callback', [SubscriptionController::class, 'paymentCallback'])->name('subscription.callback');
     Route::post('/subscription/stk-push', [SubscriptionController::class, 'stkPush'])->name('subscription.stkPush');
     Route::post('/subscription/manual-status-check', [SubscriptionController::class, 'manualStatusCheck'])->name('subscription.manualStatusCheck');
     Route::post('/subscription/quick-activate', [SubscriptionController::class, 'quickActivate'])->name('subscription.quickActivate');

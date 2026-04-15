@@ -11,7 +11,7 @@ class AddAttendanceColumns extends Migration
         if (Schema::hasTable('attendances') && !Schema::hasColumn('attendances', 'company_id')) {
             Schema::table('attendances', function (Blueprint $table) {
                 // Add missing columns that the controller expects
-                $table->unsignedBigInteger('company_id')->nullable()->after('employee_id');
+                $table->unsignedInteger('company_id')->nullable()->after('employee_id');
                 $table->time('total_work')->nullable()->after('clock_out');
                 $table->time('late_time')->nullable()->after('total_work');
                 $table->time('depart_early')->nullable()->after('late_time');
@@ -20,7 +20,7 @@ class AddAttendanceColumns extends Migration
                 $table->integer('clock_in_out')->nullable()->default(0)->after('total_rest');
                 $table->string('clock_in_ip')->nullable()->after('clock_in_out');
                 $table->string('clock_out_ip')->nullable()->after('clock_in_ip');
-                $table->unsignedBigInteger('user_id')->nullable()->after('clock_out_ip');
+                $table->unsignedInteger('user_id')->nullable()->after('clock_out_ip');
 
                 // Add foreign key for company if business table exists
                 if (Schema::hasTable('business')) {

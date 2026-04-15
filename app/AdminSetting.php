@@ -23,6 +23,7 @@ class AdminSetting extends Model
         'payroll_auto_post',
         // HRM defaults
         'default_annual_leave',
+        'hrm_theme',
         // Company / Invoice fields
         'company_name',
         'company_logo',

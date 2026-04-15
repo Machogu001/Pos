@@ -81,7 +81,7 @@
 
     <div class="row">
         <div class="col-lg-3 col-md-6 col-sm-6 col-xs-12">
-            <div class="small-box bg-navy">
+            <div class="small-box bg-navy hrm-kpi hrm-kpi-payroll">
                 <div class="inner">
                     <h3>{{ number_format($stats['payroll_runs'] ?? 0) }}</h3>
                     <p>Payroll Runs in {{ $selectedYear }}</p>
@@ -91,7 +91,7 @@
             </div>
         </div>
         <div class="col-lg-3 col-md-6 col-sm-6 col-xs-12">
-            <div class="small-box bg-green">
+            <div class="small-box bg-green hrm-kpi hrm-kpi-finance">
                 <div class="inner">
                     <h3>{{ number_format((float) ($stats['annual_net_total'] ?? 0), 2) }}</h3>
                     <p>Annual Net Pay</p>
@@ -101,7 +101,7 @@
             </div>
         </div>
         <div class="col-lg-3 col-md-6 col-sm-6 col-xs-12">
-            <div class="small-box bg-aqua">
+            <div class="small-box bg-aqua hrm-kpi hrm-kpi-attendance">
                 <div class="inner">
                     <h3>{{ $stats['attendance_total_work'] ?? '00:00' }}</h3>
                     <p>Total Worked in Attendance Range</p>
@@ -111,13 +111,25 @@
             </div>
         </div>
         <div class="col-lg-3 col-md-6 col-sm-6 col-xs-12">
-            <div class="small-box bg-red">
+            <div class="small-box bg-red hrm-kpi hrm-kpi-risk">
                 <div class="inner">
                     <h3>{{ number_format((float) ($stats['leave_days'] ?? 0), 2) }}</h3>
                     <p>Leave Days in Leave Range</p>
                 </div>
                 <div class="icon"><i class="fa fa-plane"></i></div>
                 <a href="#leave-report" class="small-box-footer">Leave Report <i class="fa fa-arrow-circle-right"></i></a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xs-12">
+            <div class="hrm-kpi-legend" aria-label="Report KPI legend">
+                <span class="hrm-kpi-legend-title">KPI Colors:</span>
+                <span class="hrm-kpi-chip"><span class="hrm-kpi-dot hrm-kpi-payroll"></span> Payroll Runs</span>
+                <span class="hrm-kpi-chip"><span class="hrm-kpi-dot hrm-kpi-finance"></span> Finance</span>
+                <span class="hrm-kpi-chip"><span class="hrm-kpi-dot hrm-kpi-attendance"></span> Attendance</span>
+                <span class="hrm-kpi-chip"><span class="hrm-kpi-dot hrm-kpi-risk"></span> Leave Risk</span>
             </div>
         </div>
     </div>

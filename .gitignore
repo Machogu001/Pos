@@ -10,6 +10,11 @@ Homestead.json
 Homestead.yaml
 npm-debug.log
 .env
+.env.*
+!.env.example
+*.env.backup*
+*.env.bak
+*.env.save
 /public/uploads/business_logos
 /public/uploads/documents
 /public/uploads/img
