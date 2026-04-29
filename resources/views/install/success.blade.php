@@ -69,6 +69,33 @@
                 </p>
                 <a href="{{ $redirect_to }}" class="btn btn-primary">Go to Login</a>
                 <a href="{{ url('/') }}" class="btn btn-default">Go to Home</a>
+
+                <hr>
+                <div class="panel panel-warning">
+                  <div class="panel-heading"><strong>&#9888; Server Setup Required (run once as root/sudo)</strong></div>
+                  <div class="panel-body">
+                    <p>The following two steps <strong>cannot be done by the web installer</strong> — they require server access. Run them now to ensure all features work correctly.</p>
+
+                    <p><strong>1. Register the Laravel Scheduler (required for subscriptions, M-Pesa checks, reminders)</strong></p>
+                    <pre style="background:#f5f5f5;padding:10px;">echo "* * * * * www-data /usr/bin/php {{ base_path() }}/artisan schedule:run >> {{ storage_path() }}/logs/scheduler.log 2>&1" | sudo tee /etc/cron.d/pos-scheduler
+sudo chmod 644 /etc/cron.d/pos-scheduler</pre>
+
+                    <p><strong>2. Enable PHP OPcache (required for production performance)</strong></p>
+                    <pre style="background:#f5f5f5;padding:10px;">PHP_VER=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")
+sudo tee /etc/php/${PHP_VER}/fpm/conf.d/10-opcache.ini > /dev/null << 'EOF'
+zend_extension=opcache.so
+opcache.enable=1
+opcache.enable_cli=0
+opcache.memory_consumption=256
+opcache.interned_strings_buffer=16
+opcache.max_accelerated_files=20000
+opcache.validate_timestamps=0
+opcache.save_comments=1
+opcache.jit=off
+EOF
+sudo systemctl reload php${PHP_VER}-fpm</pre>
+                  </div>
+                </div>
               @else
                 <p class="text-danger">
                   Please fix the failed checks above and run installation again.

@@ -4,7 +4,6 @@ namespace App\Console;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
-use App\Subscription;
 use App\MpesaPayment;
 use App\Http\Controllers\MpesaController;
 use App\Http\Controllers\SubscriptionController;
@@ -59,23 +58,13 @@ class Kernel extends ConsoleKernel
         // Check for expired subscriptions - runs daily in all environments
         $schedule->command('subscriptions:check')->dailyAt('00:00');
 
-    // Generate subscription pre-expiry invoice notices and reminders (14d & 7d)
-    $schedule->command('subscriptions:send_reminders')->dailyAt('09:00');
+        // Generate subscription pre-expiry invoice notices and reminders (14d & 7d)
+        $schedule->command('subscriptions:send_reminders')->dailyAt('09:00');
 
-        // Check for expired subscriptions (legacy closure-based approach - you might want to remove this if using the command)
-        $schedule->call(function () {
-            $expiredSubscriptions = Subscription::where('end_date', '<', now())
-                ->where('status', 'active')
-                ->get();
-                
-            foreach ($expiredSubscriptions as $subscription) {
-                $subscription->update(['status' => 'expired']);
-                $subscription->user->update(['is_active' => false]);
-                // Notification can be sent here if needed
-            }
-        })->dailyAt('02:00'); // Run at 2:00 AM daily
+        // Prune Telescope entries older than 48 hours to keep the DB lean
+        $schedule->command('telescope:prune --hours=48')->dailyAt('03:00');
 
-        // ✅ New: Check pending Mpesa payments every 5 minutes
+        // Check pending Mpesa payments every 5 minutes
         $schedule->call(function () {
             $pendingPayments = MpesaPayment::where('transaction_status', 'pending')
                 ->where('created_at', '>', now()->subHours(24))

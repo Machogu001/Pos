@@ -95,11 +95,20 @@ class PayrollController extends Controller
 
         [$expenseAccount, $clearingAccount] = $this->getPayrollPostingAccounts($adminSettings);
         if (empty($expenseAccount) || empty($clearingAccount)) {
+            Log::warning('Payroll account posting skipped: expense or clearing account not configured', [
+                'payroll_id' => $payroll->id ?? null,
+                'payroll_expense_account_id' => $adminSettings->payroll_expense_account_id ?? null,
+                'payroll_clearing_account_id' => $adminSettings->payroll_clearing_account_id ?? null,
+            ]);
             return false;
         }
 
         $amount = round((float) ($payroll->gross ?? 0), 2);
         if ($amount <= 0) {
+            Log::warning('Payroll account posting skipped: gross pay is zero or negative', [
+                'payroll_id' => $payroll->id ?? null,
+                'gross' => $payroll->gross ?? null,
+            ]);
             return false;
         }
 
@@ -170,7 +179,10 @@ class PayrollController extends Controller
                 }
             }
         } catch (\Throwable $e) {
-            // fall through to flat percent
+            Log::warning('Payroll PAYE tax band parse failed; falling back to flat rate', [
+                'error' => $e->getMessage(),
+                'tax_bands_raw' => $adminSettings->payroll_tax_bands ?? null,
+            ]);
         }
 
         // flat percent fallback: company override then admin setting

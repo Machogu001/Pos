@@ -700,12 +700,14 @@ Route::group([
     Route::get('/{id}/export', [StocktakeController::class, 'exportStocktake'])->name('export');
     Route::get('/stats/performance', [StocktakeController::class, 'getPerformanceMetrics'])->name('stats.performance');
 
-    // === Debug & Maintenance Routes ===
-    Route::get('/debug/{stocktake_id}', [StocktakeController::class, 'debugStockCalculation'])->name('debug');
-    Route::get('/debug-product/{product_id}', [StocktakeController::class, 'debugProductStock'])->name('debug-product');
-    Route::get('/fix-negative-stock', [StocktakeController::class, 'fixNegativeStockHistory'])->name('fix-negative-stock');
-    Route::get('/stock-summary/{product_id}', [StocktakeController::class, 'getStockSummary'])->name('stock-summary');
-    Route::get('/debug/routes-permissions', [StocktakeController::class, 'debugRoutesAndPermissions'])->name('debug.routes_permissions');
+    // === Debug & Maintenance Routes (local environment only) ===
+    if (app()->environment('local')) {
+        Route::get('/debug/{stocktake_id}', [StocktakeController::class, 'debugStockCalculation'])->name('debug');
+        Route::get('/debug-product/{product_id}', [StocktakeController::class, 'debugProductStock'])->name('debug-product');
+        Route::get('/fix-negative-stock', [StocktakeController::class, 'fixNegativeStockHistory'])->name('fix-negative-stock');
+        Route::get('/stock-summary/{product_id}', [StocktakeController::class, 'getStockSummary'])->name('stock-summary');
+        Route::get('/debug/routes-permissions', [StocktakeController::class, 'debugRoutesAndPermissions'])->name('debug.routes_permissions');
+    }
 
     // === Dynamic Routes (MUST stay last) ===
     Route::get('/{id}', [StocktakeController::class, 'show'])->name('show');
