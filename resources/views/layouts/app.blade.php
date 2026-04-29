@@ -126,10 +126,7 @@
         @if (isMobile())
             <input type="hidden" id="__is_mobile">
         @endif
-        @if (session('status'))
-            <input type="hidden" id="status_span" data-status="{{ session('status.success') }}"
-                data-msg="{{ session('status.msg') }}">
-        @endif
+        {{-- status_span removed: flash handled by the inline showToast script below --}}
         <main class="tw-flex tw-flex-col tw-flex-1 tw-h-full tw-min-w-0 tw-bg-gray-100">
 
             @if (!$pos_layout)
@@ -214,10 +211,19 @@
         <script>
             (function(){
                 try {
-                    var msg = @json($flashMsg);
+                    var raw = @json($flashMsg);
+                    var msg, type;
+                    // status can be an array like {success: true, msg: '...'} or a plain string
+                    if (raw && typeof raw === 'object') {
+                        msg  = raw.msg  ?? raw.message ?? JSON.stringify(raw);
+                        type = (raw.success === true || raw.success === 1) ? 'success' : 'error';
+                    } else {
+                        msg  = raw;
+                        type = 'success';
+                    }
                     if (msg) {
                         if (typeof window.showToast === 'function') {
-                            window.showToast('success', msg);
+                            window.showToast(type, msg);
                         } else if (window.Swal) {
                             const Toast = Swal.mixin({
                                 toast: true,
@@ -226,11 +232,12 @@
                                 timer: 4000,
                                 timerProgressBar: true
                             });
-                            Toast.fire({ icon: 'success', title: msg });
+                            Toast.fire({ icon: type, title: msg });
                         } else if (window.toastr) {
-                            toastr.success(msg);
+                            type === 'success' ? toastr.success(msg) : toastr.error(msg);
                         }
-                        window.playSuccess();
+                        if (type === 'success') window.playSuccess();
+                        else window.playError();
                     }
                 } catch(e) {}
             })();

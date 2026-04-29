@@ -603,6 +603,61 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
         ->only(['index', 'update']);
     Route::get('regenerate', [Install\ModulesController::class, 'regenerate']);
 
+    // Module install / uninstall routes (must be in the main route group for correct middleware handling)
+    Route::get('hrm/install', [\Modules\Hrm\Http\Controllers\InstallController::class, 'index'])->name('hrm.install');
+    Route::get('hrm/uninstall', [\Modules\Hrm\Http\Controllers\InstallController::class, 'uninstall'])->name('hrm.uninstall');
+    Route::get('stocktake/install', [\Modules\Stocktake\Http\Controllers\InstallController::class, 'index'])->name('stocktake.install');
+    Route::get('stocktake/uninstall', [\Modules\Stocktake\Http\Controllers\InstallController::class, 'uninstall'])->name('stocktake.uninstall');
+    Route::get('essentials/install', [\Modules\Essentials\Http\Controllers\InstallController::class, 'index'])->name('essentials.install');
+    Route::get('essentials/uninstall', [\Modules\Essentials\Http\Controllers\InstallController::class, 'uninstall'])->name('essentials.uninstall');
+    Route::get('superadmin/install', [\Modules\Superadmin\Http\Controllers\InstallController::class, 'index'])->name('superadmin.install');
+    Route::get('superadmin/uninstall', [\Modules\Superadmin\Http\Controllers\InstallController::class, 'uninstall'])->name('superadmin.uninstall');
+    Route::get('woocommerce/install', [\Modules\Woocommerce\Http\Controllers\InstallController::class, 'index'])->name('woocommerce.install');
+    Route::get('woocommerce/uninstall', [\Modules\Woocommerce\Http\Controllers\InstallController::class, 'uninstall'])->name('woocommerce.uninstall');
+    Route::get('manufacturing/install', [\Modules\Manufacturing\Http\Controllers\InstallController::class, 'index'])->name('manufacturing.install');
+    Route::get('manufacturing/uninstall', [\Modules\Manufacturing\Http\Controllers\InstallController::class, 'uninstall'])->name('manufacturing.uninstall');
+    Route::get('project/install', [\Modules\Project\Http\Controllers\InstallController::class, 'index'])->name('project.install');
+    Route::get('project/uninstall', [\Modules\Project\Http\Controllers\InstallController::class, 'uninstall'])->name('project.uninstall');
+    Route::get('repair/install', [\Modules\Repair\Http\Controllers\InstallController::class, 'index'])->name('repair.install');
+    Route::get('repair/uninstall', [\Modules\Repair\Http\Controllers\InstallController::class, 'uninstall'])->name('repair.uninstall');
+    Route::get('crm/install', [\Modules\Crm\Http\Controllers\InstallController::class, 'index'])->name('crm.install');
+    Route::get('crm/uninstall', [\Modules\Crm\Http\Controllers\InstallController::class, 'uninstall'])->name('crm.uninstall');
+    Route::get('productcatalogue/install', [\Modules\ProductCatalogue\Http\Controllers\InstallController::class, 'index'])->name('productcatalogue.install');
+    Route::get('productcatalogue/uninstall', [\Modules\ProductCatalogue\Http\Controllers\InstallController::class, 'uninstall'])->name('productcatalogue.uninstall');
+    Route::get('accounting/install', [\Modules\Accounting\Http\Controllers\InstallController::class, 'index'])->name('accounting.install');
+    Route::get('accounting/uninstall', [\Modules\Accounting\Http\Controllers\InstallController::class, 'uninstall'])->name('accounting.uninstall');
+    Route::get('aiassistance/install', [\Modules\AiAssistance\Http\Controllers\InstallController::class, 'index'])->name('aiassistance.install');
+    Route::get('aiassistance/uninstall', [\Modules\AiAssistance\Http\Controllers\InstallController::class, 'uninstall'])->name('aiassistance.uninstall');
+    Route::get('assetmanagement/install', [\Modules\AssetManagement\Http\Controllers\InstallController::class, 'index'])->name('assetmanagement.install');
+    Route::get('assetmanagement/uninstall', [\Modules\AssetManagement\Http\Controllers\InstallController::class, 'uninstall'])->name('assetmanagement.uninstall');
+    Route::get('cms/install', [\Modules\Cms\Http\Controllers\InstallController::class, 'index'])->name('cms.install');
+    Route::get('cms/uninstall', [\Modules\Cms\Http\Controllers\InstallController::class, 'uninstall'])->name('cms.uninstall');
+    Route::get('connector/install', [\Modules\Connector\Http\Controllers\InstallController::class, 'index'])->name('connector.install');
+    Route::get('connector/uninstall', [\Modules\Connector\Http\Controllers\InstallController::class, 'uninstall'])->name('connector.uninstall');
+    Route::get('spreadsheet/install', [\Modules\Spreadsheet\Http\Controllers\InstallController::class, 'index'])->name('spreadsheet.install');
+    Route::get('spreadsheet/uninstall', [\Modules\Spreadsheet\Http\Controllers\InstallController::class, 'uninstall'])->name('spreadsheet.uninstall');
+
+    // Essentials module stub routes
+    Route::get('essentials/todos/create', [\Modules\Essentials\Http\Controllers\ToDoController::class, 'create'])->name('essentials.todos.create');
+    Route::post('essentials/todos', [\Modules\Essentials\Http\Controllers\ToDoController::class, 'store'])->name('essentials.todos.store');
+    Route::get('essentials/todos', [\Modules\Essentials\Http\Controllers\ToDoController::class, 'index'])->name('essentials.todos.index');
+    Route::get('essentials/todos/{id}/edit', [\Modules\Essentials\Http\Controllers\ToDoController::class, 'edit'])->name('essentials.todos.edit');
+    Route::put('essentials/todos/{id}', [\Modules\Essentials\Http\Controllers\ToDoController::class, 'update'])->name('essentials.todos.update');
+    Route::delete('essentials/todos/{id}', [\Modules\Essentials\Http\Controllers\ToDoController::class, 'destroy'])->name('essentials.todos.destroy');
+
+    // Crm module stub routes
+    Route::get('crm/dashboard', [\Modules\Crm\Http\Controllers\DashboardController::class, 'index'])->name('crm.dashboard');
+
+    // Repair module stub routes
+    Route::get('repair', [\Modules\Repair\Http\Controllers\RepairController::class, 'index'])->name('repair.index');
+    Route::get('repair/{id}/print-label', [\Modules\Repair\Http\Controllers\RepairController::class, 'printLabel'])->name('repair.print_label');
+    Route::get('repair-status', [\Modules\Repair\Http\Controllers\CustomerRepairStatusController::class, 'index'])->name('repair-status');
+
+    // Superadmin module stub routes
+    Route::get('subscription', [\Modules\Superadmin\Http\Controllers\SubscriptionController::class, 'index'])->name('superadmin.subscription.index');
+    Route::get('pricing', [\Modules\Superadmin\Http\Controllers\PricingController::class, 'index'])->name('pricing');
+    Route::get('pages/{slug}', [\Modules\Superadmin\Http\Controllers\PageController::class, 'showPage'])->name('frontend-pages');
+
     Route::resource('warranties', WarrantyController::class);
 
     Route::resource('dashboard-configurator', DashboardConfiguratorController::class)

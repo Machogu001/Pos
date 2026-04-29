@@ -193,4 +193,6 @@ Route::group([
     Route::resource('/hrm/leave_types', \Modules\Hrm\Http\Controllers\LeaveTypeController::class, [
         'as' => 'hrm'
     ]);
+
+    // install / uninstall routes are registered in the main routes/web.php
 });

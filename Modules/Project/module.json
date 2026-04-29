@@ -1,0 +1,10 @@
+{
+    "name": "Project",
+    "alias": "project",
+    "description": "Manage Projects, tasks, activities and more",
+    "version": "1.0",
+    "require": {},
+    "providers": [
+        "Modules\\Project\\Providers\\ProjectServiceProvider"
+    ]
+}

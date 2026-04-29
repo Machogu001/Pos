@@ -1,0 +1,10 @@
+{
+    "name": "Woocommerce",
+    "alias": "woocommerce",
+    "description": "Sync your Woocommerce store with POS",
+    "version": "1.0",
+    "require": {},
+    "providers": [
+        "Modules\\Woocommerce\\Providers\\WoocommerceServiceProvider"
+    ]
+}

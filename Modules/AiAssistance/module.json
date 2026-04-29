@@ -1,0 +1,10 @@
+{
+    "name": "AiAssistance",
+    "alias": "aiassistance",
+    "description": "AI Assistant module using OpenAI API",
+    "version": "1.0",
+    "require": {},
+    "providers": [
+        "Modules\\AiAssistance\\Providers\\AiAssistanceServiceProvider"
+    ]
+}

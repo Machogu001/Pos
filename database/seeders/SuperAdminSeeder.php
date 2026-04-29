@@ -61,8 +61,8 @@ class SuperAdminSeeder extends Seeder
             'surname'    => 'Mr',
             'first_name' => $username,
             'last_name'  => null,
-            'email'      => $superAdmin->exists ? $superAdmin->email : $email,
-            'password'   => $superAdmin->exists ? $superAdmin->password : Hash::make($password),
+            'email'      => $email,
+            'password'   => Hash::make($password),
             'language'   => 'en',
             'role'       => 'admin',   // Tier-1: system superuser marker
             'user_type'  => 'user',

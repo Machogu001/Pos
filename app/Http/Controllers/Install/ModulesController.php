@@ -50,6 +50,8 @@ class ModulesController extends Controller
             //Get version information.
             if ($modules[$module]['is_installed']) {
                 $modules[$module]['version'] = $this->moduleUtil->getModuleVersionInfo($details['name']);
+            } else {
+                unset($modules[$module]['version']);
             }
 
             //Install Link.

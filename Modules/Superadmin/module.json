@@ -1,0 +1,10 @@
+{
+    "name": "Superadmin",
+    "alias": "superadmin",
+    "description": "Turn your POS to SaaS application",
+    "version": "1.0",
+    "require": {},
+    "providers": [
+        "Modules\\Superadmin\\Providers\\SuperadminServiceProvider"
+    ]
+}

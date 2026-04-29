@@ -14,7 +14,7 @@ class StocktakeServiceProvider extends ServiceProvider
         // If module-specific routes exist, load them. We intentionally don't
         // move the existing app routes; this provider is lightweight and
         // will load module resources if/when they are added under Modules/Stocktake.
-        $routes = __DIR__ . '/../../Routes/web.php';
+        $routes = __DIR__ . '/../Routes/web.php';
         if (file_exists($routes)) {
             $this->loadRoutesFrom($routes);
         }

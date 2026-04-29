@@ -1,0 +1,10 @@
+{
+    "name": "Essentials",
+    "alias": "essentials",
+    "description": "Essentials features for every growing business",
+    "version": "1.0",
+    "require": {},
+    "providers": [
+        "Modules\\Essentials\\Providers\\EssentialsServiceProvider"
+    ]
+}

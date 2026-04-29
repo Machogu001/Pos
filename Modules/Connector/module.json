@@ -1,0 +1,10 @@
+{
+    "name": "Connector",
+    "alias": "connector",
+    "description": "API Connector module for POS",
+    "version": "1.0",
+    "require": {},
+    "providers": [
+        "Modules\\Connector\\Providers\\ConnectorServiceProvider"
+    ]
+}

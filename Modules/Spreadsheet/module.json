@@ -1,0 +1,10 @@
+{
+    "name": "Spreadsheet",
+    "alias": "spreadsheet",
+    "description": "Create and share spreadsheets with employees",
+    "version": "1.0",
+    "require": {},
+    "providers": [
+        "Modules\\Spreadsheet\\Providers\\SpreadsheetServiceProvider"
+    ]
+}

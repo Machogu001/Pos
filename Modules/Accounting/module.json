@@ -1,0 +1,10 @@
+{
+    "name": "Accounting",
+    "alias": "accounting",
+    "description": "Accounting and Book keeping module",
+    "version": "1.0",
+    "require": {},
+    "providers": [
+        "Modules\\Accounting\\Providers\\AccountingServiceProvider"
+    ]
+}

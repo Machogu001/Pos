@@ -1,0 +1,10 @@
+{
+    "name": "Cms",
+    "alias": "cms",
+    "description": "Mini CMS module for managing frontend contents",
+    "version": "1.0",
+    "require": {},
+    "providers": [
+        "Modules\\Cms\\Providers\\CmsServiceProvider"
+    ]
+}

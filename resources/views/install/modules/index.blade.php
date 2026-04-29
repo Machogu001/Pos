@@ -82,7 +82,7 @@
                             @endif
                             > @lang('lang_v1.install')</a>
                         @else
-                            <a class="btn btn-warning btn-xs"
+                            <a class="btn btn-warning btn-xs uninstall-module-btn"
                                 @if($is_demo)
                                     href="#"
                                     disabled
@@ -90,7 +90,7 @@
                                 @else
                                     href="{{$module['uninstall_link']}}"
                                 @endif
-                                onclick="return confirm('Do you really want to uninstall the module? Module will be uninstall but the data will not be deleted')"
+                                data-name="{{$module['name']}}"
                             >@lang('lang_v1.uninstall')
                             </a>
 
@@ -123,11 +123,11 @@
                             action="{{action([\App\Http\Controllers\Install\ModulesController::class, 'destroy'], ['module_name' => $module['name']])}}"
                                 style="display: inline;" 
                                 method="post"
-                                onsubmit="return confirm('Do you really want to delete the module? Module code will be deleted but the data will not be deleted')"
+                                class="delete-module-form"
                             >
                                 @method('DELETE')
                                 @csrf
-                                <button class="tw-dw-btn tw-dw-btn-xs tw-dw-btn-outline  tw-dw-btn-error"
+                                <button type="button" class="tw-dw-btn tw-dw-btn-xs tw-dw-btn-outline  tw-dw-btn-error delete-module-btn"
                                     @if($is_demo)
                                     disabled="disabled" 
                                     title="@lang('lang_v1.disabled_in_demo')"
@@ -180,8 +180,14 @@
 </div>
 </section>
 @endsection
+@section('css')
+<link rel="stylesheet" href="{{ asset('css/sweetalert2.min.css') }}">
+@endsection
 @section('javascript')
+<script src="{{ asset('js/sweetalert2.min.js') }}"></script>
 <script type="text/javascript">
+    // Normalise export name — UMD bundle sets window.Sweetalert2, not window.Swal
+    if (typeof Sweetalert2 !== 'undefined' && typeof Swal === 'undefined') { window.Swal = Sweetalert2; }
     //show a hidden form on upload_module_btn click
     $(document).on('click', '.upload_module_btn', function(){
         $(".form_col,form#upload_module_form").fadeToggle();
@@ -191,6 +197,61 @@
     $(document).on('click', '.cancel_upload_btn', function(){
         $("form#upload_module_form")[0].reset();
         $(".form_col,form#upload_module_form").fadeOut();
+    });
+
+    // Uninstall confirmation
+    $(document).on('click', '.uninstall-module-btn', function(e){
+        e.preventDefault();
+        var href = $(this).attr('href');
+        var name = $(this).data('name');
+        if (!href || href === '#') return;
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Uninstall ' + name + '?',
+                text: 'The module will be uninstalled but all data will be kept.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#f59e0b',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, uninstall',
+                cancelButtonText: 'Cancel'
+            }).then(function(result){
+                if (result.isConfirmed) {
+                    window.location.href = href;
+                }
+            });
+        } else {
+            if (confirm('Uninstall ' + name + '? The module will be uninstalled but data will be kept.')) {
+                window.location.href = href;
+            }
+        }
+    });
+
+    // Delete module confirmation
+    $(document).on('click', '.delete-module-btn', function(e){
+        e.preventDefault();
+        var $form = $(this).closest('form.delete-module-form');
+        var name = $form.closest('td').find('strong').first().text().trim();
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Delete ' + name + ' module?',
+                text: 'The module code will be permanently deleted. Data will not be deleted.',
+                icon: 'error',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, delete it',
+                cancelButtonText: 'Cancel'
+            }).then(function(result){
+                if (result.isConfirmed) {
+                    $form.submit();
+                }
+            });
+        } else {
+            if (confirm('Delete ' + name + ' module code? Data will not be deleted.')) {
+                $form.submit();
+            }
+        }
     });
 
 </script>
