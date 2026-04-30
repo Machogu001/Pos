@@ -26,7 +26,7 @@
                     <i class="fas fa-chart-bar"></i> @lang('stocktake.variance_report')
                 </a>
                 <div class="dropdown">
-                    <button style="display:inline-flex; align-items:center; gap:.4rem; background:#f59e0b; color:#1a1a1a; font-size:.82rem; font-weight:600; padding:.45rem .9rem; border-radius:.5rem; border:none; cursor:pointer;" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+                    <button style="display:inline-flex; align-items:center; gap:.4rem; background:#f59e0b; color:#1a1a1a; font-size:.82rem; font-weight:600; padding:.45rem .9rem; border-radius:.5rem; border:none; cursor:pointer;" id="exportDropdown" data-toggle="dropdown" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
                         <i class="fas fa-file-export"></i> @lang('stocktake.export') <i class="fas fa-chevron-down" style="font-size:.65rem;"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown">
