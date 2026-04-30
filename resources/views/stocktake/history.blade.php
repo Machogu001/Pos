@@ -248,6 +248,7 @@
             </div>
         </div>
         </div>
+            @endif
 </div>
 @endsection
 
@@ -951,5 +952,4 @@ document.addEventListener('visibilitychange', function() {
     }
 });
 </script>
-@endif
 @endsection
