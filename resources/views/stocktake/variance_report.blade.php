@@ -2,106 +2,76 @@
 @section('title', __('stocktake.variance_report'))
 
 @section('content')
-<div class="container-fluid px-3 px-lg-4 py-3 stocktake-detail-page">
-    <div class="card border-0 shadow-lg overflow-hidden stocktake-detail-shell">
-        <div class="stocktake-detail-hero">
-            <div class="stocktake-detail-hero__glow stocktake-detail-hero__glow--left"></div>
-            <div class="stocktake-detail-hero__glow stocktake-detail-hero__glow--right"></div>
-            <div class="card-body p-0 position-relative">
-                <div class="row g-0 align-items-stretch">
-                    <div class="col-lg-8">
-                        <div class="stocktake-detail-hero__content h-100 p-4 p-lg-5">
-                            <div class="d-flex align-items-start gap-3 flex-wrap">
-                                <div class="stocktake-detail-hero__icon">
-                                    <i class="fas fa-chart-bar"></i>
-                                </div>
-                                <div class="flex-grow-1 min-w-0">
-                                    <div class="stocktake-detail-hero__eyebrow mb-2">@lang('stocktake.variance_report')</div>
-                                    <h1 class="stocktake-detail-hero__title mb-2">@lang('stocktake.variance_report')</h1>
-                                    <p class="stocktake-detail-hero__description mb-3">@lang('stocktake.variance_report_description')</p>
-                                    <div class="d-flex flex-wrap gap-2 stocktake-detail-hero__meta">
-                                        <span class="stocktake-chip stocktake-chip--primary"><i class="fas fa-filter me-1"></i>@lang('stocktake.filters')</span>
-                                        <span class="stocktake-chip stocktake-chip--soft"><i class="fas fa-file-export me-1"></i>@lang('stocktake.export')</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-4">
-                        <div class="stocktake-detail-hero__actions h-100 p-4 p-lg-5 d-flex flex-column justify-content-between">
-                            <div class="text-uppercase small fw-semibold text-white-50 mb-3">Quick actions</div>
-                            <div class="d-grid gap-2">
-                                <a href="{{ route('stocktakes.history') }}" class="btn btn-light btn-lg shadow-sm text-start">
-                                    <i class="fas fa-history me-2 text-primary"></i> @lang('stocktake.stocktake_history')
-                                </a>
-                                <div class="dropdown d-grid">
-                                    <button class="btn btn-outline-light btn-lg dropdown-toggle text-start" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <i class="fas fa-file-export me-2"></i> @lang('stocktake.export')
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown">
-                                        <li>
-                                            <a class="dropdown-item" href="#" onclick="confirmExport('excel')">
-                                                <i class="fas fa-file-excel text-success me-2"></i> Excel
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" href="#" onclick="confirmExport('csv')">
-                                                <i class="fas fa-file-csv text-info me-2"></i> CSV
-                                            </a>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <a class="dropdown-item" href="#" onclick="window.print()">
-                                                <i class="fas fa-print text-secondary me-2"></i> @lang('stocktake.print')
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+<div class="container-fluid px-4 py-3">
+
+    {{-- ── PAGE HEADER ──────────────────────────────────────── --}}
+    <div style="background:linear-gradient(135deg,#1d4ed8 0%,#4338ca 100%); border-radius:1rem; padding:1.25rem 1.5rem; margin-bottom:1.25rem; box-shadow:0 4px 18px rgba(29,78,216,.25);">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem;">
+            <div style="display:flex; align-items:center; gap:.875rem;">
+                <div style="background:rgba(255,255,255,.18); border-radius:.75rem; width:2.75rem; height:2.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="fas fa-chart-bar" style="font-size:1.2rem; color:#fff;"></i>
+                </div>
+                <div>
+                    <div style="font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.65); font-weight:700; margin-bottom:.2rem;">@lang('stocktake.variance_report')</div>
+                    <h3 style="color:#fff; font-weight:700; margin:0; font-size:1.2rem;">@lang('stocktake.variance_report')</h3>
+                    <p style="color:rgba(255,255,255,.75); margin:0; font-size:.82rem;">@lang('stocktake.variance_report_description')</p>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;">
+                <a href="{{ route('stocktakes.index') }}" style="display:inline-flex; align-items:center; gap:.4rem; background:rgba(255,255,255,.15); color:#fff; font-size:.82rem; font-weight:500; padding:.45rem .9rem; border-radius:.5rem; text-decoration:none; border:1px solid rgba(255,255,255,.25);" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
+                    <i class="fas fa-list"></i> @lang('stocktake.stocktakes')
+                </a>
+                <a href="{{ route('stocktakes.history') }}" style="display:inline-flex; align-items:center; gap:.4rem; background:rgba(255,255,255,.15); color:#fff; font-size:.82rem; font-weight:500; padding:.45rem .9rem; border-radius:.5rem; text-decoration:none; border:1px solid rgba(255,255,255,.25);" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
+                    <i class="fas fa-history"></i> @lang('stocktake.stocktake_history')
+                </a>
+                <div class="dropdown">
+                    <button style="display:inline-flex; align-items:center; gap:.4rem; background:#f59e0b; color:#1a1a1a; font-size:.82rem; font-weight:600; padding:.45rem .9rem; border-radius:.5rem; border:none; cursor:pointer;" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+                        <i class="fas fa-file-export"></i> @lang('stocktake.export') <i class="fas fa-chevron-down" style="font-size:.65rem;"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown">
+                        <li><a class="dropdown-item" href="#" onclick="confirmExport('excel')"><i class="fas fa-file-excel text-success me-2"></i> Excel</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="confirmExport('csv')"><i class="fas fa-file-csv text-info me-2"></i> CSV</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="window.print()"><i class="fas fa-print text-secondary me-2"></i> @lang('stocktake.print')</a></li>
+                    </ul>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Card Body -->
-        <div class="card-body">
-            <!-- Status Messages -->
-            @if(session('status'))
-                <div class="alert alert-{{ session('status.success') ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
-                    <i class="fas fa-{{ session('status.success') ? 'check-circle' : 'exclamation-triangle' }} me-2"></i>
-                    {!! session('status.msg') !!}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    {{-- ── STATUS MESSAGES ─────────────────────────────────── --}}
+    @if(session('status'))
+        <div class="alert alert-{{ session('status.success') ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+            <i class="fas fa-{{ session('status.success') ? 'check-circle' : 'exclamation-triangle' }} me-2"></i>
+            {!! session('status.msg') !!}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    @if(($worstPerformers && $worstPerformers->isEmpty()) && ($locationPerformance && $locationPerformance->isEmpty()))
+        <div class="alert alert-info">
+            <div class="text-center py-4">
+                <i class="fas fa-chart-bar fa-3x text-info mb-3"></i>
+                <h4 class="fw-semibold">@lang('stocktake.no_variance_data')</h4>
+                <p class="text-muted mb-3">@lang('stocktake.no_variance_data_description')</p>
+                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                    <a href="{{ route('stocktakes.create') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i> @lang('stocktake.create_stocktake')
+                    </a>
+                    <a href="{{ route('stocktakes.index') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-list me-2"></i> @lang('stocktake.view_stocktakes')
+                    </a>
                 </div>
-            @endif
+            </div>
+        </div>
+    @endif
 
-            @if(($worstPerformers && $worstPerformers->isEmpty()) && ($locationPerformance && $locationPerformance->isEmpty()))
-                <div class="alert alert-info">
-                    <div class="text-center py-4">
-                        <i class="fas fa-chart-bar fa-3x text-info mb-3"></i>
-                        <h4 class="fw-semibold">@lang('stocktake.no_variance_data')</h4>
-                        <p class="text-muted mb-3">@lang('stocktake.no_variance_data_description')</p>
-                        <div class="d-flex justify-content-center gap-2 flex-wrap">
-                            <a href="{{ route('stocktakes.create') }}" class="btn btn-primary">
-                                <i class="fas fa-plus me-2"></i> @lang('stocktake.create_stocktake')
-                            </a>
-                            <a href="{{ route('stocktakes.index') }}" class="btn btn-outline-primary">
-                                <i class="fas fa-list me-2"></i> @lang('stocktake.view_stocktakes')
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            @endif
-
-            <!-- Filters Section -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card border-0 bg-light">
-                        <div class="card-body">
-                            <h5 class="card-title mb-3">
-                                <i class="fas fa-filter text-primary me-2"></i>@lang('stocktake.filters')
-                            </h5>
-                            <form id="variance_filter_form" method="GET" action="{{ route('stocktakes.variance_report') }}">
+    {{-- ── FILTERS ──────────────────────────────────────────────────────── --}}
+    <div style="background:#fff; border-radius:.875rem; border:1px solid #e5e7eb; box-shadow:0 1px 4px rgba(0,0,0,.06); padding:1.25rem 1.5rem; margin-bottom:1.25rem;">
+        <h6 style="font-weight:700; color:#374151; margin:0 0 1rem; display:flex; align-items:center; gap:.4rem;">
+            <i class="fas fa-filter" style="color:#4f46e5;"></i> @lang('stocktake.filters')
+        </h6>
+        <form id="variance_filter_form" method="GET" action="{{ route('stocktakes.variance_report') }}">
                                 <div class="row g-3 align-items-end">
                                     <div class="col-md-3">
                                         <label class="form-label fw-semibold">@lang('stocktake.location')</label>
@@ -145,11 +115,8 @@
                                         </div>
                                     </div>
                                 </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        </form>
+    </div>
 
             <!-- Summary Cards -->
             @if(($worstPerformers && !$worstPerformers->isEmpty()) || ($locationPerformance && !$locationPerformance->isEmpty()))
@@ -452,8 +419,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 </div>
 @endsection
 
