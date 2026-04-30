@@ -4,139 +4,78 @@
 
 @section('content')
 <div class="container-fluid px-4 py-3">
-    <div class="card border-0 shadow-lg rounded-3 overflow-hidden">
-        <!-- Modern Gradient Header (matching Home Dashboard) -->
-        <div class="card-header tw-bg-gradient-to-r tw-from-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-800 tw-to-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-900 py-4 border-0">
-            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-                <div class="d-flex align-items-center">
-                    <div class="tw-bg-white/20 tw-p-3 tw-rounded-lg me-3">
-                        <i class="fas fa-clipboard-list fs-3 tw-text-white"></i>
-                    </div>
-                    <div>
-                        <h3 class="mb-1 fw-bold tw-text-white">@lang('stocktake.stocktakes')</h3>
-                        <p class="tw-text-white/90 mb-0 small">@lang('stocktake.manage_stocktakes_description')</p>
-                    </div>
+
+    {{-- ── PAGE HEADER ──────────────────────────────────────── --}}
+    <div style="background:linear-gradient(135deg,#1d4ed8 0%,#4338ca 100%); border-radius:1rem; padding:1.25rem 1.5rem; margin-bottom:1.25rem; box-shadow:0 4px 18px rgba(29,78,216,.25);">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem;">
+            <div style="display:flex; align-items:center; gap:.875rem;">
+                <div style="background:rgba(255,255,255,.18); border-radius:.75rem; width:2.75rem; height:2.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="fas fa-clipboard-list" style="font-size:1.2rem; color:#fff;"></i>
                 </div>
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <a href="{{ route('stocktakes.history') }}" class="btn btn-light shadow-sm">
-                        <i class="fas fa-history me-2"></i> @lang('stocktake.history')
-                    </a>
-                    <a href="{{ route('stocktakes.variance_report') }}" class="btn btn-warning shadow-sm">
-                        <i class="fas fa-chart-bar me-2"></i> @lang('stocktake.variance_report')
-                    </a>
-                    @can('stocktake.create')
-                    <a href="{{ route('stocktakes.create') }}" class="btn btn-success shadow-sm">
-                        <i class="fas fa-plus-circle me-2"></i> @lang('stocktake.add_stocktake')
-                    </a>
-                    @endcan
+                <div>
+                    <h3 style="color:#fff; font-weight:700; margin:0; font-size:1.2rem;">@lang('stocktake.stocktakes')</h3>
+                    <p style="color:rgba(255,255,255,.75); margin:0; font-size:.82rem;">@lang('stocktake.manage_stocktakes_description')</p>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;">
+                <a href="{{ route('stocktakes.history') }}" style="display:inline-flex; align-items:center; gap:.4rem; background:rgba(255,255,255,.15); color:#fff; font-size:.82rem; font-weight:500; padding:.45rem .9rem; border-radius:.5rem; text-decoration:none; border:1px solid rgba(255,255,255,.25); transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
+                    <i class="fas fa-history"></i> @lang('stocktake.history')
+                </a>
+                <a href="{{ route('stocktakes.variance_report') }}" style="display:inline-flex; align-items:center; gap:.4rem; background:#f59e0b; color:#1a1a1a; font-size:.82rem; font-weight:600; padding:.45rem .9rem; border-radius:.5rem; text-decoration:none; transition:opacity .2s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+                    <i class="fas fa-chart-bar"></i> @lang('stocktake.variance_report')
+                </a>
+                @can('stocktake.create')
+                <a href="{{ route('stocktakes.create') }}" style="display:inline-flex; align-items:center; gap:.4rem; background:#10b981; color:#fff; font-size:.82rem; font-weight:600; padding:.45rem .9rem; border-radius:.5rem; text-decoration:none; transition:opacity .2s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+                    <i class="fas fa-plus-circle"></i> @lang('stocktake.add_stocktake')
+                </a>
+                @endcan
+            </div>
+        </div>
+    </div>
+    {{-- ── STATUS MESSAGES ─────────────────────────────────── --}}
+    @if(session('status'))
+        <div class="alert alert-{{ session('status.success') ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+            <i class="fas fa-{{ session('status.success') ? 'check-circle' : 'exclamation-triangle' }} me-2"></i>
+            {!! session('status.msg') !!}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    {{-- ── STATS CARDS ──────────────────────────────────────── --}}
+    <div class="row g-3 mb-4">
+        @php
+        $statCards = [
+            ['id'=>'total-stocktakes',       'label'=>__('stocktake.total_stocktakes'), 'value'=> $stats['total'] ?? $stats['total_stocktakes'] ?? '-', 'icon'=>'fas fa-clipboard-list', 'bg'=>'#eff6ff', 'color'=>'#1d4ed8'],
+            ['id'=>'in-progress-stocktakes', 'label'=>__('stocktake.in_progress'),      'value'=> $stats['in_progress'] ?? '-',                          'icon'=>'fas fa-sync-alt',       'bg'=>'#fffbeb', 'color'=>'#d97706'],
+            ['id'=>'completed-stocktakes',   'label'=>__('stocktake.completed'),         'value'=> $stats['completed'] ?? '-',                            'icon'=>'fas fa-check-circle',   'bg'=>'#f0fdf4', 'color'=>'#16a34a'],
+            ['id'=>'cancelled-stocktakes',   'label'=>__('stocktake.cancelled'),         'value'=> $stats['cancelled'] ?? '-',                            'icon'=>'fas fa-times-circle',   'bg'=>'#fff1f2', 'color'=>'#dc2626'],
+        ];
+        @endphp
+        @foreach($statCards as $sc)
+        <div class="col-lg-3 col-md-6">
+            <div style="background:#fff; border-radius:.875rem; border:1px solid #e5e7eb; box-shadow:0 1px 4px rgba(0,0,0,.06); padding:1.1rem 1.25rem; display:flex; align-items:center; gap:1rem;">
+                <div style="background:{{ $sc['bg'] }}; color:{{ $sc['color'] }}; width:2.75rem; height:2.75rem; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="{{ $sc['icon'] }}"></i>
+                </div>
+                <div>
+                    <p style="font-size:.78rem; color:#6b7280; margin:0 0 .15rem; font-weight:500;">{{ $sc['label'] }}</p>
+                    <p id="{{ $sc['id'] }}" style="font-size:1.6rem; font-weight:700; color:#111827; margin:0; line-height:1;">{{ $sc['value'] }}</p>
                 </div>
             </div>
         </div>
+        @endforeach
+    </div>
 
-        <!-- Card Body -->
-        <div class="card-body bg-light">
-            <!-- Status Messages -->
-            @if(session('status'))
-                <div class="alert alert-{{ session('status.success') ? 'success' : 'danger' }} alert-dismissible fade show shadow-sm border-0" role="alert">
-                    <i class="fas fa-{{ session('status.success') ? 'check-circle' : 'exclamation-triangle' }} me-2"></i>
-                    {!! session('status.msg') !!}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-
-            <!-- Modern Stats Cards (Matching Home Dashboard) -->
-            <div class="row mb-4 g-3">
-                <div class="col-lg-3 col-md-6">
-                    <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm tw-rounded-xl hover:tw-shadow-md hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 h-100">
-                        <div class="tw-p-4 sm:tw-p-5">
-                            <div class="tw-flex tw-items-center tw-gap-4">
-                                <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-blue-100 tw-text-blue-600">
-                                    <i class="fas fa-clipboard-list fa-lg"></i>
-                                </div>
-                                <div class="tw-flex-1 tw-min-w-0">
-                                    <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">
-                                        @lang('stocktake.total_stocktakes')
-                                    </p>
-                                    <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-font-bold tw-tracking-tight" id="total-stocktakes">
-                                        {{ $stats['total'] ?? $stats['total_stocktakes'] ?? '-' }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm tw-rounded-xl hover:tw-shadow-md hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 h-100">
-                        <div class="tw-p-4 sm:tw-p-5">
-                            <div class="tw-flex tw-items-center tw-gap-4">
-                                <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-amber-100 tw-text-amber-600">
-                                    <i class="fas fa-sync-alt fa-lg fa-spin"></i>
-                                </div>
-                                <div class="tw-flex-1 tw-min-w-0">
-                                    <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">
-                                        @lang('stocktake.in_progress')
-                                    </p>
-                                    <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-font-bold tw-tracking-tight" id="in-progress-stocktakes">
-                                        {{ $stats['in_progress'] ?? '-' }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm tw-rounded-xl hover:tw-shadow-md hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 h-100">
-                        <div class="tw-p-4 sm:tw-p-5">
-                            <div class="tw-flex tw-items-center tw-gap-4">
-                                <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-green-100 tw-text-green-600">
-                                    <i class="fas fa-check-circle fa-lg"></i>
-                                </div>
-                                <div class="tw-flex-1 tw-min-w-0">
-                                    <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">
-                                        @lang('stocktake.completed')
-                                    </p>
-                                    <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-font-bold tw-tracking-tight" id="completed-stocktakes">
-                                        {{ $stats['completed'] ?? '-' }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm tw-rounded-xl hover:tw-shadow-md hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 h-100">
-                        <div class="tw-p-4 sm:tw-p-5">
-                            <div class="tw-flex tw-items-center tw-gap-4">
-                                <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-shrink-0 tw-bg-red-100 tw-text-red-600">
-                                    <i class="fas fa-times-circle fa-lg"></i>
-                                </div>
-                                <div class="tw-flex-1 tw-min-w-0">
-                                    <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">
-                                        @lang('stocktake.cancelled')
-                                    </p>
-                                    <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-font-bold tw-tracking-tight" id="cancelled-stocktakes">
-                                        {{ $stats['cancelled'] ?? '-' }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Modern Filters Section -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h5 class="card-title mb-0 fw-bold">
-                                    <i class="fas fa-filter text-primary me-2"></i>@lang('stocktake.filters')
-                                </h5>
-                                <button type="button" class="btn btn-sm btn-outline-primary" id="toggle-advanced-filters">
-                                    <i class="fas fa-sliders-h me-1"></i> @lang('stocktake.advanced_filters')
-                                </button>
-                            </div>
+    {{-- ── FILTERS ──────────────────────────────────────────────────────────── --}}
+    <div style="background:#fff; border-radius:.875rem; border:1px solid #e5e7eb; box-shadow:0 1px 4px rgba(0,0,0,.06); padding:1.25rem 1.5rem; margin-bottom:1.25rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h6 style="font-weight:700; color:#374151; margin:0; display:flex; align-items:center; gap:.4rem;">
+                <i class="fas fa-filter" style="color:#4f46e5;"></i> @lang('stocktake.filters')
+            </h6>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="toggle-advanced-filters">
+                <i class="fas fa-sliders-h me-1"></i> @lang('stocktake.advanced_filters')
+            </button>
+        </div>
                             <form id="stocktake_filter_form">
                                 <div class="row g-3">
                                     <div class="col-lg-3 col-md-6">
@@ -188,21 +127,19 @@
                                 </div>
                                 
                                 <!-- Action Buttons -->
-                                <div class="row mt-3">
-                                    <div class="col-12">
-                                        <div class="d-flex gap-2 justify-content-end">
-                                            <button type="button" class="btn btn-primary px-4 shadow-sm" id="apply_filters">
-                                                <i class="fas fa-check me-2"></i> @lang('stocktake.apply')
-                                            </button>
-                                            <button type="button" class="btn btn-outline-secondary px-4" id="reset_filters">
-                                                <i class="fas fa-redo me-2"></i> @lang('stocktake.reset')
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Advanced Filters -->
-                                <div class="row g-3 mt-2 p-3 tw-bg-gray-50 tw-rounded-lg" id="advanced-filters" style="display: none;">
+                <div class="row mt-3">
+                    <div class="col-12 d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-primary px-4" id="apply_filters">
+                            <i class="fas fa-check me-2"></i> @lang('stocktake.apply')
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary px-4" id="reset_filters">
+                            <i class="fas fa-redo me-2"></i> @lang('stocktake.reset')
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Advanced Filters -->
+                <div class="row g-3 mt-2 p-3" id="advanced-filters" style="display:none; background:#f9fafb; border-radius:.5rem;">
                                     <div class="col-md-4">
                                         <label class="form-label fw-semibold text-secondary mb-2">
                                             <i class="fas fa-calendar-day me-1 text-primary"></i>@lang('stocktake.custom_from_date')
@@ -222,48 +159,41 @@
                                         <input type="text" class="form-control" id="search_filter" name="search" placeholder="@lang('stocktake.enter_reference')" value="{{ $filters['search'] ?? '' }}">
                                     </div>
                                 </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            </form>
+    </div>
 
-            <!-- Modern DataTable -->
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white py-3 border-bottom">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <h5 class="mb-0 fw-bold text-dark">
-                <i class="fas fa-table me-2 text-primary"></i>
-                @lang('stocktake.stocktake_list')
-            </h5>
-            <div class="d-flex align-items-center gap-3 flex-wrap">
-                <div class="form-check form-switch">
+    {{-- ── TABLE CARD ───────────────────────────────────────── --}}
+    <div style="background:#fff; border-radius:.875rem; border:1px solid #e5e7eb; box-shadow:0 1px 4px rgba(0,0,0,.06); overflow:hidden;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.75rem; padding:1rem 1.5rem; border-bottom:1px solid #f3f4f6;">
+            <h6 style="font-weight:700; color:#374151; margin:0; display:flex; align-items:center; gap:.4rem;">
+                <i class="fas fa-table" style="color:#4f46e5;"></i> @lang('stocktake.stocktake_list')
+            </h6>
+            <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+                <div class="form-check form-switch mb-0">
                     <input class="form-check-input" type="checkbox" id="auto-refresh-toggle" checked>
-                    <label class="form-check-label small text-dark" for="auto-refresh-toggle">
+                    <label class="form-check-label small" for="auto-refresh-toggle">
                         <i class="fas fa-sync-alt me-1"></i> @lang('stocktake.auto_refresh')
                     </label>
                 </div>
-                <span class="badge bg-light text-dark shadow-sm px-3 py-2 border" id="last-updated">
-                    <i class="fas fa-clock me-1 text-primary"></i>
-                    @lang('stocktake.last_updated'): <span id="last-updated-time" class="fw-bold">-</span>
+                <span style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:.5rem; padding:.35rem .75rem; font-size:.78rem; color:#374151;" id="last-updated">
+                    <i class="fas fa-clock me-1" style="color:#4f46e5;"></i>
+                    @lang('stocktake.last_updated'): <strong id="last-updated-time">-</strong>
                 </span>
             </div>
         </div>
-    </div>
-    <div class="card-body p-0">
-        <div class="stocktake-table-scroll">
+        <div class="stocktake-table-scroll" style="padding:1rem 1.5rem 1.5rem;">
             <table class="table table-hover align-middle mb-0" id="stocktakes-table" style="width:100%">
-                <thead class="tw-bg-gray-50">
+                <thead style="background:#f9fafb;">
                     <tr>
-                        <th class="ps-4 fw-semibold">@lang('stocktake.reference_no')</th>
-                        <th class="fw-semibold">@lang('stocktake.location')</th>
-                        <th class="fw-semibold">@lang('stocktake.status')</th>
-                        <th class="text-center fw-semibold">@lang('stocktake.product_count')</th>
-                        <th class="text-end fw-semibold">@lang('stocktake.value_amount')</th>
-                        <th class="fw-semibold">@lang('stocktake.started_at')</th>
-                        <th class="fw-semibold">@lang('stocktake.completed_at')</th>
-                        <th class="fw-semibold">@lang('stocktake.adjustment_ref')</th>
-                        <th class="text-center fw-semibold">@lang('stocktake.action')</th>
+                        <th class="ps-2 fw-semibold" style="color:#374151; font-size:.78rem; text-transform:uppercase; letter-spacing:.05em;">@lang('stocktake.reference_no')</th>
+                        <th class="fw-semibold" style="color:#374151; font-size:.78rem; text-transform:uppercase; letter-spacing:.05em;">@lang('stocktake.location')</th>
+                        <th class="fw-semibold" style="color:#374151; font-size:.78rem; text-transform:uppercase; letter-spacing:.05em;">@lang('stocktake.status')</th>
+                        <th class="text-center fw-semibold" style="color:#374151; font-size:.78rem; text-transform:uppercase; letter-spacing:.05em;">@lang('stocktake.product_count')</th>
+                        <th class="text-end fw-semibold" style="color:#374151; font-size:.78rem; text-transform:uppercase; letter-spacing:.05em;">@lang('stocktake.value_amount')</th>
+                        <th class="fw-semibold" style="color:#374151; font-size:.78rem; text-transform:uppercase; letter-spacing:.05em;">@lang('stocktake.started_at')</th>
+                        <th class="fw-semibold" style="color:#374151; font-size:.78rem; text-transform:uppercase; letter-spacing:.05em;">@lang('stocktake.completed_at')</th>
+                        <th class="fw-semibold" style="color:#374151; font-size:.78rem; text-transform:uppercase; letter-spacing:.05em;">@lang('stocktake.adjustment_ref')</th>
+                        <th class="text-center fw-semibold" style="color:#374151; font-size:.78rem; text-transform:uppercase; letter-spacing:.05em;">@lang('stocktake.action')</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -272,27 +202,6 @@
             </table>
         </div>
     </div>
-</div>
-
-<!-- Bulk Actions Modal -->
-<div class="modal fade" id="bulkActionsModal" tabindex="-1" aria-labelledby="bulkActionsModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="bulkActionsModalLabel">@lang('stocktake.bulk_actions')</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>@lang('stocktake.select_bulk_action')</p>
-                <div class="d-grid gap-2">
-                    <button type="button" class="btn btn-danger" id="bulk-delete-btn">
-                        <i class="fas fa-trash me-2"></i> @lang('stocktake.bulk_delete')
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 @endsection
 
 @section('styles')
