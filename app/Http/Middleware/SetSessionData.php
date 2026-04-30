@@ -33,10 +33,11 @@ class SetSessionData
 
             $request->session()->put('user', $session_data);
 
-            // System superadmin with no assigned business — use the first
-            // registered business if one exists, otherwise redirect to setup.
+            // System superadmin with no assigned business — use the pinned
+            // business (set via switcher) or fall back to the first registered one.
             if (empty($user->business_id) && $user->role === 'admin') {
-                $business = Business::first();
+                $pinnedId = session('superadmin_active_business_id');
+                $business = ($pinnedId ? Business::find($pinnedId) : null) ?? Business::first();
 
                 if (! $business) {
                     // No business at all — send to module management / create business

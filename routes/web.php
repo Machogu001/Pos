@@ -658,6 +658,19 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     Route::get('pricing', [\Modules\Superadmin\Http\Controllers\PricingController::class, 'index'])->name('pricing');
     Route::get('pages/{slug}', [\Modules\Superadmin\Http\Controllers\PageController::class, 'showPage'])->name('frontend-pages');
 
+    // Superadmin: switch active business context
+    Route::get('superadmin/switch-business/{id}', function ($id) {
+        $user = auth()->user();
+        if ($user->role !== 'admin') {
+            abort(403);
+        }
+        $business = \App\Business::findOrFail($id);
+        // Flush business-related session keys so SetSessionData rebuilds them
+        session()->forget(['business', 'currency', 'financial_year', 'user', 'superadmin_active_business_id']);
+        session(['superadmin_active_business_id' => $business->id]);
+        return redirect('/home')->with('status', ['success' => true, 'msg' => 'Switched to ' . $business->name]);
+    })->name('superadmin.switch-business');
+
     Route::resource('warranties', WarrantyController::class);
 
     Route::resource('dashboard-configurator', DashboardConfiguratorController::class)

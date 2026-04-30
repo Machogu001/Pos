@@ -48,6 +48,37 @@
                 <a href="{{route('sign-in-as-user', session('previous_user_id'))}}" class="btn btn-flat btn-danger m-8 btn-sm mt-10"><i class="fas fa-undo"></i> @lang('lang_v1.back_to_username', ['username' => session('previous_username')] )</a>
             @endif
 
+            {{-- Superadmin: business switcher --}}
+            @if(auth()->user()->role === 'admin' && empty(auth()->user()->business_id))
+                @php $all_businesses = \App\Business::orderBy('name')->get(); @endphp
+                @if($all_businesses->count() > 1)
+                <details class="tw-relative tw-inline-block tw-text-left">
+                    <summary class="tw-inline-flex tw-cursor-pointer tw-items-center tw-gap-1.5 tw-rounded-lg tw-bg-yellow-500 hover:tw-bg-yellow-400 tw-px-3 tw-py-1.5 tw-text-sm tw-font-semibold tw-text-gray-900 tw-ring-1 tw-ring-yellow-600/30 tw-transition-all tw-duration-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-4" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 21l18 0"/><path d="M9 8l1 0"/><path d="M9 12l1 0"/><path d="M9 16l1 0"/><path d="M14 8l1 0"/><path d="M14 12l1 0"/><path d="M14 16l1 0"/><path d="M5 21v-16a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v16"/>
+                        </svg>
+                        {{ session('business.name', 'Select Business') }}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-3.5" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 9l6 6l6 -6"/></svg>
+                    </summary>
+                    <ul class="tw-absolute tw-left-0 tw-z-50 tw-mt-2 tw-w-56 tw-origin-top-left tw-rounded-lg tw-bg-white tw-shadow-lg tw-ring-1 tw-ring-gray-200 tw-py-1">
+                        @foreach($all_businesses as $biz)
+                        <li>
+                            <a href="{{ route('superadmin.switch-business', $biz->id) }}"
+                               class="tw-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-text-sm tw-text-gray-700 hover:tw-bg-gray-100 {{ session('business.id') == $biz->id ? 'tw-font-bold tw-text-blue-700' : '' }}">
+                                @if(session('business.id') == $biz->id)
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-4 tw-text-blue-600" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10"/></svg>
+                                @else
+                                    <span class="tw-size-4"></span>
+                                @endif
+                                {{ $biz->name }}
+                            </a>
+                        </li>
+                        @endforeach
+                    </ul>
+                </details>
+                @endif
+            @endif
+
 
             <div class="tw-flex tw-items-center tw-justify-end tw-gap-3" style="overflow: visible;">
                     {{-- View toggle: default desktop, user can switch to mobile view --}}
