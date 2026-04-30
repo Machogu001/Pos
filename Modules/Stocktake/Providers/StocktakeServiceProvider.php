@@ -20,9 +20,8 @@ class StocktakeServiceProvider extends ServiceProvider
         }
 
         $views = __DIR__ . '/../../Resources/views';
-        if (is_dir($views)) {
-            $this->loadViewsFrom($views, 'stocktake');
-        }
+        if (!is_dir($views)) { mkdir($views, 0755, true); }
+        $this->loadViewsFrom($views, 'stocktake');
 
         $migrations = __DIR__ . '/../../Database/Migrations';
         if (is_dir($migrations)) {

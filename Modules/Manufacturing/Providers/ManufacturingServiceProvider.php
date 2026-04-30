@@ -13,9 +13,8 @@ class ManufacturingServiceProvider extends ServiceProvider
             $this->loadRoutesFrom($routes);
         }
         $views = __DIR__ . '/../Resources/views';
-        if (is_dir($views)) {
-            $this->loadViewsFrom($views, 'manufacturing');
-        }
+        if (!is_dir($views)) { mkdir($views, 0755, true); }
+        $this->loadViewsFrom($views, 'manufacturing');
         $migrations = __DIR__ . '/../Database/Migrations';
         if (is_dir($migrations)) {
             $this->loadMigrationsFrom($migrations);

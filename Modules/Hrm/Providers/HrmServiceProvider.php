@@ -18,9 +18,8 @@ class HrmServiceProvider extends ServiceProvider
         }
         // Load views
         $views = __DIR__ . '/../Resources/views';
-        if (is_dir($views)) {
-            $this->loadViewsFrom($views, 'hrm');
-        }
+        if (!is_dir($views)) { mkdir($views, 0755, true); }
+        $this->loadViewsFrom($views, 'hrm');
 
         // Load migrations
         $migrations = __DIR__ . '/../Database/Migrations';
