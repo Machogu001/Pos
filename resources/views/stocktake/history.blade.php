@@ -136,7 +136,7 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0" id="stocktake_audit_table">
                             <thead class="table-light">
                                 <tr>
                                     <th class="ps-4">Date</th>
@@ -636,6 +636,26 @@ $(document).ready(function() {
             theme: 'bootstrap-5',
             placeholder: '@lang("stocktake.select_location")',
             allowClear: true
+        });
+    }
+
+    // Paginate baseline accounting audit table
+    if ($('#stocktake_audit_table').length) {
+        $('#stocktake_audit_table').DataTable({
+            pageLength: 10,
+            lengthMenu: [[10, 20, 50, -1], [10, 20, 50, 'All']],
+            order: [[0, 'asc']],
+            dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
+                 "<'row'<'col-sm-12'tr>>" +
+                 "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+            language: {
+                search: '_INPUT_',
+                searchPlaceholder: 'Search…',
+                lengthMenu: 'Show _MENU_ entries',
+                info: 'Showing _START_ to _END_ of _TOTAL_ batches',
+                paginate: { first: 'First', last: 'Last', next: 'Next', previous: 'Previous' }
+            },
+            responsive: false
         });
     }
 
