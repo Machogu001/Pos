@@ -115,6 +115,38 @@
 
     {{-- ── SUMMARY CARDS ─────────────────────────────────────────── --}}
             @if($summary && $summary->stocktake_count > 0)
+            <div class="row g-3 mb-4">
+                @php
+                $accuracy_rate = 0;
+                if(($summary->total_items ?? 0) > 0) {
+                    $exact_count = $summary->exact_count ?? ($summary->total_items - $summary->overage_count - $summary->shortage_count);
+                    $accuracy_rate = ($exact_count / $summary->total_items) * 100;
+                }
+                $summaryCards = [
+                    ['mod'=>'primary', 'icon'=>'fas fa-clipboard-list', 'label'=>__('stocktake.stocktake_count'),         'value'=> $summary->stocktake_count ?? 0,                   'color'=>null],
+                    ['mod'=>'info',    'icon'=>'fas fa-cubes',           'label'=>__('stocktake.total_items_counted'),      'value'=> number_format($summary->total_items ?? 0),         'color'=>null],
+                    ['mod'=>'success', 'icon'=>'fas fa-plus',            'label'=>__('stocktake.overage_items'),            'value'=> $summary->overage_count ?? 0,                     'color'=>'#16a34a'],
+                    ['mod'=>'danger',  'icon'=>'fas fa-minus',           'label'=>__('stocktake.shortage_items'),           'value'=> $summary->shortage_count ?? 0,                    'color'=>'#dc2626'],
+                    ['mod'=>'warning', 'icon'=>'fas fa-balance-scale',   'label'=>__('stocktake.total_variance_amount'),    'value'=> (($summary->total_variance_amount ?? 0) != 0 ? (($summary->total_variance_amount > 0 ? '+' : '').number_format(abs($summary->total_variance_amount), 2)) : '0.00'), 'color'=> ($summary->total_variance_amount ?? 0) > 0 ? '#16a34a' : (($summary->total_variance_amount ?? 0) < 0 ? '#dc2626' : null)],
+                    ['mod'=>'purple',  'icon'=>'fas fa-percentage',      'label'=>__('stocktake.accuracy_rate'),            'value'=> number_format($accuracy_rate, 1).'%',             'color'=>null],
+                ];
+                @endphp
+                @foreach($summaryCards as $sc)
+                <div class="col-xl-2 col-md-4 col-6">
+                    <div class="stocktake-summary-card stocktake-summary-card--{{ $sc['mod'] }}" style="border-radius:1rem; padding:1rem 1.1rem; display:flex; align-items:center; gap:.75rem;">
+                        <div class="stocktake-summary-card__icon" style="width:2.75rem; height:2.75rem; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:1rem;">
+                            <i class="{{ $sc['icon'] }}"></i>
+                        </div>
+                        <div style="min-width:0;">
+                            <p style="font-size:.7rem; margin:0 0 .1rem; font-weight:600; opacity:.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ $sc['label'] }}</p>
+                            <div class="stocktake-summary-card__value" style="font-size:1.35rem; font-weight:800; line-height:1; color:{{ $sc['color'] ?? '#1e293b' }};">{{ $sc['value'] }}</div>
+                        </div>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+            @endif
+
             @if(!empty($stocktakeAccountingAudit['cutoff_date']) && $stocktakeAccountingAudit['rows']->isNotEmpty())
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white py-3 border-bottom">
@@ -166,38 +198,6 @@
                         </table>
                     </div>
                 </div>
-            </div>
-            @endif
-
-            <div class="row g-3 mb-4">
-                @php
-                $accuracy_rate = 0;
-                if(($summary->total_items ?? 0) > 0) {
-                    $exact_count = $summary->exact_count ?? ($summary->total_items - $summary->overage_count - $summary->shortage_count);
-                    $accuracy_rate = ($exact_count / $summary->total_items) * 100;
-                }
-                $summaryCards = [
-                    ['mod'=>'primary', 'icon'=>'fas fa-clipboard-list', 'label'=>__('stocktake.stocktake_count'),         'value'=> $summary->stocktake_count ?? 0,                   'color'=>null],
-                    ['mod'=>'info',    'icon'=>'fas fa-cubes',           'label'=>__('stocktake.total_items_counted'),      'value'=> number_format($summary->total_items ?? 0),         'color'=>null],
-                    ['mod'=>'success', 'icon'=>'fas fa-plus',            'label'=>__('stocktake.overage_items'),            'value'=> $summary->overage_count ?? 0,                     'color'=>'#16a34a'],
-                    ['mod'=>'danger',  'icon'=>'fas fa-minus',           'label'=>__('stocktake.shortage_items'),           'value'=> $summary->shortage_count ?? 0,                    'color'=>'#dc2626'],
-                    ['mod'=>'warning', 'icon'=>'fas fa-balance-scale',   'label'=>__('stocktake.total_variance_amount'),    'value'=> (($summary->total_variance_amount ?? 0) != 0 ? (($summary->total_variance_amount > 0 ? '+' : '').number_format(abs($summary->total_variance_amount), 2)) : '0.00'), 'color'=> ($summary->total_variance_amount ?? 0) > 0 ? '#16a34a' : (($summary->total_variance_amount ?? 0) < 0 ? '#dc2626' : null)],
-                    ['mod'=>'purple',  'icon'=>'fas fa-percentage',      'label'=>__('stocktake.accuracy_rate'),            'value'=> number_format($accuracy_rate, 1).'%',             'color'=>null],
-                ];
-                @endphp
-                @foreach($summaryCards as $sc)
-                <div class="col-xl-2 col-md-4 col-6">
-                    <div class="stocktake-summary-card stocktake-summary-card--{{ $sc['mod'] }}" style="border-radius:1rem; padding:1rem 1.1rem; display:flex; align-items:center; gap:.75rem;">
-                        <div class="stocktake-summary-card__icon" style="width:2.75rem; height:2.75rem; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:1rem;">
-                            <i class="{{ $sc['icon'] }}"></i>
-                        </div>
-                        <div style="min-width:0;">
-                            <p style="font-size:.7rem; margin:0 0 .1rem; font-weight:600; opacity:.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ $sc['label'] }}</p>
-                            <div class="stocktake-summary-card__value" style="font-size:1.35rem; font-weight:800; line-height:1; color:{{ $sc['color'] ?? '#1e293b' }};">{{ $sc['value'] }}</div>
-                        </div>
-                    </div>
-                </div>
-                @endforeach
             </div>
             @endif
 
