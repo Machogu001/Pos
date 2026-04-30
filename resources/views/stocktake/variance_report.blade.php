@@ -263,7 +263,7 @@
             <!-- Location Performance and Timeline -->
             <div class="row g-4">
                 <!-- Location Performance -->
-                <div class="col-lg-6">
+                <div class="col-12">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-header bg-white py-3 border-bottom">
                             <div class="d-flex align-items-center justify-content-between">
@@ -343,7 +343,7 @@
                 </div>
 
                 <!-- Recent Stocktake Timeline -->
-                <div class="col-lg-6">
+                <div class="col-12">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-header bg-white py-3 border-bottom">
                             <div class="d-flex align-items-center justify-content-between">
