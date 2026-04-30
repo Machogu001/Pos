@@ -33,14 +33,36 @@ class SetSessionData
 
             $request->session()->put('user', $session_data);
 
-            // System superadmin with no business yet (fresh install) — skip
-            // business/currency session setup and route to module management.
+            // System superadmin with no assigned business — use the first
+            // registered business if one exists, otherwise redirect to setup.
             if (empty($user->business_id) && $user->role === 'admin') {
-                if (! $request->is('manage-modules*') &&
-                    ! $request->is('business/create') &&
-                    ! $request->is('logout')) {
-                    return redirect()->route('manage-modules.index');
+                $business = Business::first();
+
+                if (! $business) {
+                    // No business at all — send to module management / create business
+                    if (! $request->is('manage-modules*') &&
+                        ! $request->is('business/create') &&
+                        ! $request->is('logout')) {
+                        return redirect()->route('manage-modules.index');
+                    }
+                    return $next($request);
                 }
+
+                // A business exists — let superadmin operate within it
+                $currency = $business->currency;
+                $currency_data = ['id' => $currency->id,
+                    'code' => $currency->code,
+                    'symbol' => $currency->symbol,
+                    'thousand_separator' => $currency->thousand_separator,
+                    'decimal_separator' => $currency->decimal_separator,
+                ];
+
+                $request->session()->put('business', $business);
+                $request->session()->put('currency', $currency_data);
+
+                $financial_year = $business_util->getCurrentFinancialYear($business->id);
+                $request->session()->put('financial_year', $financial_year);
+
                 return $next($request);
             }
 
