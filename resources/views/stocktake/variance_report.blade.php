@@ -344,7 +344,7 @@
 
                 <!-- Recent Stocktake Timeline -->
                 <div class="col-12">
-                    <div class="card border-0 shadow-sm h-100">
+                    <div class="card border-0 shadow-sm">
                         <div class="card-header bg-white py-3 border-bottom">
                             <div class="d-flex align-items-center justify-content-between">
                                 <div>
@@ -354,70 +354,91 @@
                                     </h5>
                                     <p class="text-muted mb-0 small">@lang('stocktake.latest_5_stocktakes')</p>
                                 </div>
-                                <div class="d-flex gap-2 align-items-center">
-                                    <a href="{{ route('stocktakes.history') }}" class="btn btn-sm btn-primary">
-                                        <i class="fas fa-external-link-alt me-1"></i> @lang('stocktake.view_all')
-                                    </a>
-                                    @if($timeline && !$timeline->isEmpty())
-                                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleTimeline()" data-bs-toggle="tooltip" title="Expand view">
-                                        <i class="fas fa-expand-alt"></i>
-                                    </button>
-                                    @endif
-                                </div>
+                                <a href="{{ route('stocktakes.history') }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-external-link-alt me-1"></i> @lang('stocktake.view_all')
+                                </a>
                             </div>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body p-0">
                             @if(!$timeline || $timeline->isEmpty())
                                 <div class="text-center py-5">
-                                    <i class="fas fa-clipboard-list fa-3x text-muted opacity-50 mb-3"></i>
+                                    <i class="fas fa-clipboard-list fa-3x text-muted mb-3" style="opacity:.4;"></i>
                                     <h5 class="fw-semibold text-muted">@lang('stocktake.no_recent_stocktakes')</h5>
                                     <p class="text-muted">@lang('stocktake.no_items_description')</p>
                                 </div>
                             @else
-                                <div class="list-group list-group-flush" id="timeline_list">
-                                    @foreach($timeline as $stocktake)
-                                    <div class="list-group-item px-0 border-0 mb-3">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div class="flex-grow-1">
-                                                    <h6 class="mb-1 fw-semibold">
-                                                    @if(!empty($stocktake->id))
-                                                        <a href="{{ route('stocktakes.show', $stocktake->id) }}" class="text-decoration-none text-dark">
-                                                            {{ $stocktake->reference_no }}
-                                                        </a>
-                                                    @else
-                                                        <span class="text-dark">{{ $stocktake->reference_no }}</span>
-                                                    @endif
-                                                </h6>
-                                                <p class="mb-1 text-muted small">
-                                                    <i class="fas fa-store me-1"></i>{{ $stocktake->location_name ?? 'N/A' }}
-                                                </p>
-                                                <div class="d-flex text-muted small flex-wrap gap-2">
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0" id="recent_stocktakes_table">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="ps-4">@lang('stocktake.reference_no')</th>
+                                                <th>@lang('stocktake.location')</th>
+                                                <th class="text-end">@lang('stocktake.items')</th>
+                                                <th class="text-end">@lang('stocktake.total_variance')</th>
+                                                <th class="text-end">@lang('stocktake.value_amount')</th>
+                                                <th class="text-end">@lang('stocktake.date')</th>
+                                                <th class="text-center">@lang('stocktake.accuracy')</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($timeline as $index => $stocktake)
+                                            @php
+                                                $variance = $stocktake->total_variance ?? 0;
+                                                $accuracy = $stocktake->accuracy_rate ?? 0;
+                                                $accuracyClass = $variance == 0 ? 'success' : ($variance > 0 ? 'warning' : 'danger');
+                                                $varianceClass = $variance == 0 ? 'text-success' : ($variance > 0 ? 'text-warning' : 'text-danger');
+                                                $varAmt = $stocktake->variance_amount ?? ($stocktake->variance_amount_raw ? number_format($stocktake->variance_amount_raw, 2) : '0.00');
+                                            @endphp
+                                            <tr class="{{ $index % 2 === 0 ? 'table-light' : '' }}">
+                                                <td class="ps-4 fw-semibold">
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <div style="width:2rem; height:2rem; border-radius:.5rem; background:rgba(6,182,212,.12); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                                            <i class="fas fa-clipboard-check" style="font-size:.75rem; color:#0891b2;"></i>
+                                                        </div>
+                                                        @if(!empty($stocktake->id))
+                                                            <a href="{{ route('stocktakes.show', $stocktake->id) }}" class="text-decoration-none text-dark fw-semibold">
+                                                                {{ $stocktake->reference_no }}
+                                                            </a>
+                                                        @else
+                                                            <span class="text-dark">{{ $stocktake->reference_no }}</span>
+                                                        @endif
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <div style="width:1.75rem; height:1.75rem; border-radius:50%; background:rgba(245,158,11,.12); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                                            <i class="fas fa-store" style="font-size:.65rem; color:#d97706;"></i>
+                                                        </div>
+                                                        <span class="text-dark">{{ $stocktake->location_name ?? 'N/A' }}</span>
+                                                    </div>
+                                                </td>
+                                                <td class="text-end">
+                                                    <span class="badge bg-secondary rounded-pill">{{ $stocktake->item_count ?? 0 }}</span>
+                                                </td>
+                                                <td class="text-end fw-bold {{ $varianceClass }}">
+                                                    {{ number_format($variance, 2) }}
+                                                </td>
+                                                <td class="text-end fw-bold text-dark">
+                                                    {{ session('currency.symbol') }}{{ $varAmt }}
+                                                </td>
+                                                <td class="text-end">
                                                     <span class="badge bg-light text-dark">
-                                                        <i class="fas fa-cube me-1"></i>{{ $stocktake->item_count ?? 0 }} @lang('stocktake.items')
+                                                        @if($stocktake->completed_at)
+                                                            {{ \Carbon\Carbon::parse($stocktake->completed_at)->format('M j, Y') }}
+                                                        @else
+                                                            N/A
+                                                        @endif
                                                     </span>
-                                                    <span class="badge bg-light text-dark">
-                                                        <i class="fas fa-balance-scale me-1"></i>{{ number_format($stocktake->total_variance ?? 0, 2) }} @lang('stocktake.total_variance')
+                                                </td>
+                                                <td class="text-center">
+                                                    <span class="badge bg-{{ $accuracyClass }} rounded-pill py-2 px-3">
+                                                        {{ number_format($accuracy, 1) }}%
                                                     </span>
-                                                    <span class="badge bg-light text-dark">
-                                                        <i class="fas fa-money-bill-wave me-1"></i>{{ $stocktake->variance_amount ?? ($stocktake->variance_amount_raw ? number_format($stocktake->variance_amount_raw, 2) : '0.00') }} @lang('stocktake.value_amount')
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div class="text-end ms-3">
-                                                <small class="text-muted d-block mb-1">
-                                                    @if($stocktake->completed_at)
-                                                        {{ \Carbon\Carbon::parse($stocktake->completed_at)->format('M j, Y') }}
-                                                    @else
-                                                        N/A
-                                                    @endif
-                                                </small>
-                                                <span class="badge bg-{{ ($stocktake->total_variance ?? 0) == 0 ? 'success' : (($stocktake->total_variance ?? 0) > 0 ? 'warning' : 'danger') }} rounded-pill py-2 px-3">
-                                                    {{ number_format($stocktake->accuracy_rate ?? 0, 1) }}%
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    @endforeach
+                                                </td>
+                                            </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
                                 </div>
                             @endif
                         </div>

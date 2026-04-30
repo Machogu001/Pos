@@ -292,6 +292,7 @@ return [
     'refresh_table' => 'Refresh table',
     'show_help' => 'Show this help dialog',
     'use_keyboard_for_faster_entry' => 'Use keyboard shortcuts for faster data entry',
+    'view_all' => 'View All',
     'view_all_shortcuts' => 'View All Shortcuts',
     'next_row' => 'Next row',
     'previous_row' => 'Previous row',
