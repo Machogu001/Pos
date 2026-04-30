@@ -29,10 +29,10 @@
                         <i class="fas fa-file-export"></i> @lang('stocktake.export') <i class="fas fa-chevron-down" style="font-size:.65rem;"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown">
-                        <li><a class="dropdown-item" href="#" onclick="confirmExport('excel')"><i class="fas fa-file-excel text-success me-2"></i> Excel</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="confirmExport('csv')"><i class="fas fa-file-csv text-info me-2"></i> CSV</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="exportWithToast('excel'); return false;"><i class="fas fa-file-excel text-success me-2"></i> Excel</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="confirmExport('csv'); return false;"><i class="fas fa-file-csv text-info me-2"></i> CSV</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#" onclick="window.print()"><i class="fas fa-print text-secondary me-2"></i> @lang('stocktake.print')</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="printVarianceReport(); return false;"><i class="fas fa-print text-secondary me-2"></i> @lang('stocktake.print')</a></li>
                     </ul>
                 </div>
             </div>
@@ -968,6 +968,27 @@ function closeExpandedTables() {
     }
 }
 
+function exportWithToast(format) {
+    // Sweet toast — fires immediately, no confirmation dialog
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Generating ' + format.toUpperCase() + ' report…',
+            text: 'Your download will start in a moment.',
+            showConfirmButton: false,
+            timer: 3500,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+                toast.addEventListener('mouseenter', Swal.stopTimer);
+                toast.addEventListener('mouseleave', Swal.resumeTimer);
+            }
+        });
+    }
+    exportVarianceReport(format);
+}
+
 function confirmExport(format) {
     if (typeof Swal !== 'undefined') {
         Swal.fire({
@@ -985,11 +1006,109 @@ function confirmExport(format) {
             }
         });
     } else {
-        // Fallback to basic confirmation
         if (confirm('{{ __("stocktake.confirm_export_variance") }}'.replace(':format', format.toUpperCase()))) {
             exportVarianceReport(format);
         }
     }
+}
+
+function printVarianceReport() {
+    // Collect applied filter values for the print header
+    const locationSelect = document.querySelector('select[name="location_id"]');
+    const locationText = locationSelect
+        ? (locationSelect.options[locationSelect.selectedIndex]
+            ? locationSelect.options[locationSelect.selectedIndex].text
+            : 'All Locations')
+        : 'All Locations';
+    const dateFrom = (document.querySelector('input[name="date_from"]') || {}).value || '';
+    const dateTo   = (document.querySelector('input[name="date_to"]')   || {}).value || '';
+    const priceBasis = (document.querySelector('select[name="price_basis"]') || {}).value || 'selling';
+    const currency = '{{ session("currency.symbol", "") }}';
+
+    // Helper: extract a clean <table> HTML from an existing DOM table
+    function cloneTable(tableId, titleText) {
+        const el = document.getElementById(tableId);
+        if (!el) return '';
+        // Deep-clone, strip badges/icons — just keep text
+        const clone = el.cloneNode(true);
+        // Remove icon elements inside cells (keep text siblings)
+        clone.querySelectorAll('i.fas, i.far, i.fab').forEach(function(ic) { ic.remove(); });
+        // Unwrap badge spans — keep their text
+        clone.querySelectorAll('.badge').forEach(function(b) {
+            const t = document.createTextNode(b.textContent.trim());
+            b.parentNode.replaceChild(t, b);
+        });
+        // Unwrap <a> tags — keep their text
+        clone.querySelectorAll('a').forEach(function(a) {
+            const t = document.createTextNode(a.textContent.trim());
+            a.parentNode.replaceChild(t, a);
+        });
+        // Unwrap <code> tags — keep text
+        clone.querySelectorAll('code').forEach(function(c) {
+            const t = document.createTextNode(c.textContent.trim());
+            c.parentNode.replaceChild(t, c);
+        });
+        // Remove nested divs inside cells (icon wrappers etc.) — keep their text
+        clone.querySelectorAll('td div, th div').forEach(function(d) {
+            const t = document.createTextNode(d.textContent.trim());
+            d.parentNode.replaceChild(t, d);
+        });
+        return '<h3 class="section-heading">' + titleText + '</h3>' + clone.outerHTML;
+    }
+
+    // Collect summary cards data from the DOM
+    var summaryHtml = '';
+    var summaryCards = document.querySelectorAll('.stocktake-summary-card');
+    if (summaryCards.length) {
+        summaryHtml += '<div class="summary-grid">';
+        summaryCards.forEach(function(card) {
+            var label = card.querySelector('p') ? card.querySelector('p').textContent.trim() : '';
+            var value = card.querySelector('.stocktake-summary-card__value') ? card.querySelector('.stocktake-summary-card__value').textContent.trim() : '';
+            var sub   = card.querySelector('small') ? card.querySelector('small').textContent.trim() : '';
+            summaryHtml += '<div class="summary-card"><div class="label">' + label + '</div><div class="value">' + value + '</div><div class="sub">' + sub + '</div></div>';
+        });
+        summaryHtml += '</div>';
+    }
+
+    var tables = [
+        cloneTable('worst_performers',       'Worst Performing Products'),
+        cloneTable('location_performance',   'Location Performance'),
+        cloneTable('recent_stocktakes_table','Recent Stocktakes'),
+    ].filter(Boolean).join('');
+
+    var pw = window.open('', '_blank', 'width=1100,height=800');
+    pw.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Variance Report</title><style>' +
+        '* { box-sizing:border-box; margin:0; padding:0; }' +
+        'body { font-family: Arial, Helvetica, sans-serif; font-size:12px; color:#111; padding:20px; }' +
+        'h1 { font-size:18px; font-weight:800; color:#1d4ed8; margin-bottom:4px; }' +
+        '.report-meta { font-size:11px; color:#555; margin-bottom:18px; }' +
+        '.report-meta strong { color:#111; }' +
+        '.summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:20px; }' +
+        '.summary-card { border:1px solid #e5e7eb; border-radius:6px; padding:10px 12px; }' +
+        '.summary-card .label { font-size:10px; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; margin-bottom:3px; }' +
+        '.summary-card .value { font-size:22px; font-weight:800; color:#1e293b; line-height:1; }' +
+        '.summary-card .sub { font-size:10px; color:#9ca3af; margin-top:2px; }' +
+        '.section-heading { font-size:13px; font-weight:700; color:#1d4ed8; border-bottom:2px solid #1d4ed8; padding-bottom:4px; margin:20px 0 8px; text-transform:uppercase; letter-spacing:.04em; }' +
+        'table { width:100%; border-collapse:collapse; margin-bottom:4px; }' +
+        'thead th { background:#f3f4f6; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.03em; padding:7px 8px; border:1px solid #d1d5db; text-align:left; }' +
+        'tbody td { padding:6px 8px; border:1px solid #e5e7eb; vertical-align:top; }' +
+        'tbody tr:nth-child(even) td { background:#f9fafb; }' +
+        '.text-end, td:not(:first-child) { text-align:right; }' +
+        'td:first-child { text-align:left; }' +
+        '@media print { @page { size:A4 landscape; margin:1.5cm; } body { padding:0; } }' +
+        '</style></head><body>' +
+        '<h1>@lang("stocktake.variance_report")</h1>' +
+        '<div class="report-meta">' +
+        'Location: <strong>' + locationText + '</strong> &nbsp;&bull;&nbsp; ' +
+        'Period: <strong>' + (dateFrom || 'N/A') + '</strong> &rarr; <strong>' + (dateTo || 'N/A') + '</strong> &nbsp;&bull;&nbsp; ' +
+        'Price basis: <strong>' + priceBasis + '</strong> &nbsp;&bull;&nbsp; ' +
+        'Generated: <strong>' + new Date().toLocaleString() + '</strong>' +
+        '</div>' +
+        summaryHtml +
+        tables +
+        '<script>window.onload=function(){window.print();window.close();};<\/script>' +
+        '</body></html>');
+    pw.document.close();
 }
 
 function exportVarianceReport(format) {
@@ -1011,34 +1130,13 @@ function exportVarianceReport(format) {
         url += '?' + params.join('&');
     }
     
-    // Show loading indicator if SweetAlert is available
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            title: '{{ __("stocktake.exporting_report") }}',
-            text: '{{ __("stocktake.please_wait") }}',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-    }
-    
-    // Create a temporary form to trigger download
-    const form = document.createElement('form');
-    form.method = 'GET';
-    form.action = url;
-    form.style.display = 'none';
-    
-    document.body.appendChild(form);
-    form.submit();
-    
-    // Remove the form after submission
-    setTimeout(() => {
-        document.body.removeChild(form);
-        if (typeof Swal !== 'undefined') {
-            Swal.close();
-        }
-    }, 1000);
+    // Trigger download via hidden link
+    const link = document.createElement('a');
+    link.href = url;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => document.body.removeChild(link), 500);
 }
 
 function exportTableToExcel(tableId, filename) {
