@@ -30,6 +30,20 @@ class SetSessionData
                 'business_id' => $user->business_id,
                 'language' => $user->language,
             ];
+
+            $request->session()->put('user', $session_data);
+
+            // System superadmin with no business yet (fresh install) — skip
+            // business/currency session setup and route to module management.
+            if (empty($user->business_id) && $user->role === 'admin') {
+                if (! $request->is('manage-modules*') &&
+                    ! $request->is('business/create') &&
+                    ! $request->is('logout')) {
+                    return redirect()->route('manage-modules.index');
+                }
+                return $next($request);
+            }
+
             $business = Business::findOrFail($user->business_id);
 
             $currency = $business->currency;
@@ -40,7 +54,6 @@ class SetSessionData
                 'decimal_separator' => $currency->decimal_separator,
             ];
 
-            $request->session()->put('user', $session_data);
             $request->session()->put('business', $business);
             $request->session()->put('currency', $currency_data);
 

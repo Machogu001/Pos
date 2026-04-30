@@ -46,8 +46,8 @@ class SuperAdminSeeder extends Seeder
         $usernames = array_map('trim', explode(',', $administratorList));
         $username  = $usernames[0];
 
-        $email    = env('SUPERADMIN_EMAIL', 'admin@example.com');
-        $password = env('SUPERADMIN_PASSWORD', 'admin123');
+        $email    = env('SUPERADMIN_EMAIL', 'admin@bremac.co.ke');
+        $password = env('SUPERADMIN_PASSWORD', 'Admin@123');
 
         // ------------------------------------------------------------------
         // 1. Create or update the superuser record
