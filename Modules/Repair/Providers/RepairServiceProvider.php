@@ -20,6 +20,10 @@ class RepairServiceProvider extends ServiceProvider
         if (is_dir($migrations)) {
             $this->loadMigrationsFrom($migrations);
         }
+        $lang = __DIR__ . '/../Resources/lang';
+        if (is_dir($lang)) {
+            $this->loadTranslationsFrom($lang, 'repair');
+        }
     }
 
     public function register() {}

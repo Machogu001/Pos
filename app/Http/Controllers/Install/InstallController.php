@@ -291,11 +291,13 @@ class InstallController extends Controller
 
         $this->installSettings();
 
+        // Run all directory/symlink/key setup tasks first
+        Artisan::call('pos:setup', ['--force' => true]);
+
         DB::statement('SET default_storage_engine=INNODB;');
         Artisan::call('migrate:fresh', ['--force' => true]);
         Artisan::call('db:seed', ['--force' => true]);
         Artisan::call('optimize');
-        //Artisan::call('storage:link');
     }
 
     public function installAlternate(Request $request)
