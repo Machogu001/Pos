@@ -1153,8 +1153,8 @@ class SellPosController extends Controller
             ->get();
         if (!empty($sell_details)) {
             foreach ($sell_details as $key => $value) {
-                $variation = Variation::with('media')->findOrFail($value->variation_id);
-                $sell_details[$key]->media = $variation->media;
+                $variation = Variation::with('media')->find($value->variation_id);
+                $sell_details[$key]->media = $variation ? $variation->media : collect();
 
                 //If modifier or combo sell line then unset
                 if (!empty($sell_details[$key]->parent_sell_line_id)) {

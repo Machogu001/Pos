@@ -519,7 +519,12 @@ class TransactionUtil extends Util
         //Calculate the percentage change in price.
         $combo_total_price = 0;
         foreach ($combo_items as $key => $value) {
-            $sell_price_inc_tax = Variation::findOrFail($value['variation_id'])->sell_price_inc_tax;
+            $variation = Variation::find($value['variation_id']);
+            if (!$variation) {
+                \Log::error('Combo variation not found, skipping', ['variation_id' => $value['variation_id']]);
+                continue;
+            }
+            $sell_price_inc_tax = $variation->sell_price_inc_tax;
 
             $combo_items[$key]['unit_price_inc_tax'] = $sell_price_inc_tax;
             $combo_total_price += $value['quantity'] * $sell_price_inc_tax;
