@@ -951,4 +951,5 @@ document.addEventListener('visibilitychange', function() {
     }
 });
 </script>
+@endif
 @endsection
