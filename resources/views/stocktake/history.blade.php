@@ -3,112 +3,77 @@
 @section('title', __('stocktake.stocktake_history'))
 
 @section('content')
-<div class="container-fluid px-3 px-lg-4 py-3 stocktake-detail-page" style="overflow-x: hidden;">
-    <div class="card border-0 shadow-lg overflow-hidden stocktake-detail-shell">
-        <div class="stocktake-detail-hero">
-            <div class="stocktake-detail-hero__glow stocktake-detail-hero__glow--left"></div>
-            <div class="stocktake-detail-hero__glow stocktake-detail-hero__glow--right"></div>
-            <div class="card-body p-0 position-relative">
-                <div class="row g-0 align-items-stretch">
-                    <div class="col-lg-8">
-                        <div class="stocktake-detail-hero__content h-100 p-4 p-lg-5">
-                            <div class="d-flex align-items-start gap-3 flex-wrap">
-                                <div class="stocktake-detail-hero__icon">
-                                    <i class="fas fa-history"></i>
-                                </div>
-                                <div class="flex-grow-1 min-w-0">
-                                    <div class="stocktake-detail-hero__eyebrow mb-2">@lang('stocktake.stocktake_history')</div>
-                                    <h1 class="stocktake-detail-hero__title mb-2">@lang('stocktake.stocktake_history')</h1>
-                                    <p class="stocktake-detail-hero__description mb-3">@lang('stocktake.stocktake_history_description')</p>
-                                    <div class="d-flex flex-wrap gap-2 stocktake-detail-hero__meta">
-                                        <span class="stocktake-chip stocktake-chip--primary"><i class="fas fa-filter me-1"></i>@lang('stocktake.filters')</span>
-                                        <span class="stocktake-chip stocktake-chip--soft"><i class="fas fa-file-export me-1"></i>@lang('stocktake.export')</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-4">
-                        <div class="stocktake-detail-hero__actions h-100 p-4 p-lg-5 d-flex flex-column justify-content-between">
-                            <div class="text-uppercase small fw-semibold text-white-50 mb-3">Quick actions</div>
-                            <div class="d-grid gap-2">
-                                <a href="{{ route('stocktakes.variance_report') }}" class="btn btn-light btn-lg shadow-sm text-start">
-                                    <i class="fas fa-chart-bar me-2 text-primary"></i> @lang('stocktake.variance_report')
-                                </a>
-                                <div class="dropdown d-grid">
-                                    <button class="btn btn-outline-light btn-lg dropdown-toggle text-start" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <i class="fas fa-file-export me-2"></i> @lang('stocktake.export')
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown">
-                                        <li>
-                                            <a class="dropdown-item" href="#" onclick="exportHistory('excel')">
-                                                <i class="fas fa-file-excel text-success me-2"></i> Excel
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" href="#" onclick="exportHistory('csv')">
-                                                <i class="fas fa-file-csv text-info me-2"></i> CSV
-                                            </a>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <a class="dropdown-item" href="#" onclick="window.print()">
-                                                <i class="fas fa-print text-secondary me-2"></i> @lang('stocktake.print')
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
-                                @if(config('app.debug'))
-                                <a href="{{ route('stocktakes.debug.routes_permissions') }}" class="btn btn-warning btn-lg text-start" target="_blank">
-                                    <i class="fas fa-bug me-2"></i> Debug
-                                </a>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
+<div class="container-fluid px-4 py-3">
+
+    {{-- ── PAGE HEADER ──────────────────────────────────────── --}}
+    <div style="background:linear-gradient(135deg,#1d4ed8 0%,#4338ca 100%); border-radius:1rem; padding:1.25rem 1.5rem; margin-bottom:1.25rem; box-shadow:0 4px 18px rgba(29,78,216,.25);">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem;">
+            <div style="display:flex; align-items:center; gap:.875rem;">
+                <div style="background:rgba(255,255,255,.18); border-radius:.75rem; width:2.75rem; height:2.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="fas fa-history" style="font-size:1.2rem; color:#fff;"></i>
+                </div>
+                <div>
+                    <div style="font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.65); font-weight:700; margin-bottom:.2rem;">@lang('stocktake.stocktake_history')</div>
+                    <h3 style="color:#fff; font-weight:700; margin:0; font-size:1.2rem;">@lang('stocktake.stocktake_history')</h3>
+                    <p style="color:rgba(255,255,255,.75); margin:0; font-size:.82rem;">@lang('stocktake.stocktake_history_description')</p>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;">
+                <a href="{{ route('stocktakes.index') }}" style="display:inline-flex; align-items:center; gap:.4rem; background:rgba(255,255,255,.15); color:#fff; font-size:.82rem; font-weight:500; padding:.45rem .9rem; border-radius:.5rem; text-decoration:none; border:1px solid rgba(255,255,255,.25);" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
+                    <i class="fas fa-list"></i> @lang('stocktake.stocktakes')
+                </a>
+                <a href="{{ route('stocktakes.variance_report') }}" style="display:inline-flex; align-items:center; gap:.4rem; background:rgba(255,255,255,.15); color:#fff; font-size:.82rem; font-weight:500; padding:.45rem .9rem; border-radius:.5rem; text-decoration:none; border:1px solid rgba(255,255,255,.25);" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
+                    <i class="fas fa-chart-bar"></i> @lang('stocktake.variance_report')
+                </a>
+                <div class="dropdown">
+                    <button style="display:inline-flex; align-items:center; gap:.4rem; background:#f59e0b; color:#1a1a1a; font-size:.82rem; font-weight:600; padding:.45rem .9rem; border-radius:.5rem; border:none; cursor:pointer;" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+                        <i class="fas fa-file-export"></i> @lang('stocktake.export') <i class="fas fa-chevron-down" style="font-size:.65rem;"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown">
+                        <li><a class="dropdown-item" href="#" onclick="exportHistory('excel')"><i class="fas fa-file-excel text-success me-2"></i> Excel</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="exportHistory('csv')"><i class="fas fa-file-csv text-info me-2"></i> CSV</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="window.print()"><i class="fas fa-print text-secondary me-2"></i> @lang('stocktake.print')</a></li>
+                    </ul>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Card Body -->
-        <div class="card-body">
-            <!-- Status Messages -->
-            @if(session('status'))
-                <div class="alert alert-{{ session('status.success') ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
-                    <i class="fas fa-{{ session('status.success') ? 'check-circle' : 'exclamation-triangle' }} me-2"></i>
-                    {!! session('status.msg') !!}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    {{-- ── STATUS MESSAGES ─────────────────────────────────── --}}
+    @if(session('status'))
+        <div class="alert alert-{{ session('status.success') ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+            <i class="fas fa-{{ session('status.success') ? 'check-circle' : 'exclamation-triangle' }} me-2"></i>
+            {!! session('status.msg') !!}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
+    @if(!$summary || $summary->stocktake_count == 0)
+        <div class="alert alert-info">
+            <div class="text-center py-4">
+                <i class="fas fa-clipboard-list fa-3x text-info mb-3"></i>
+                <h4 class="fw-semibold">@lang('stocktake.no_stocktake_data')</h4>
+                <p class="text-muted mb-3">@lang('stocktake.no_stocktake_data_description')</p>
+                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                    <a href="{{ route('stocktakes.create') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i> @lang('stocktake.create_first_stocktake')
+                    </a>
+                    <a href="{{ route('stocktakes.index') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-list me-2"></i> @lang('stocktake.view_stocktakes')
+                    </a>
                 </div>
-            @endif
+            </div>
+        </div>
+    @endif
 
-            @if(!$summary || $summary->stocktake_count == 0)
-                <div class="alert alert-info">
-                    <div class="text-center py-4">
-                        <i class="fas fa-clipboard-list fa-3x text-info mb-3"></i>
-                        <h4 class="fw-semibold">@lang('stocktake.no_stocktake_data')</h4>
-                        <p class="text-muted mb-3">@lang('stocktake.no_stocktake_data_description')</p>
-                        <div class="d-flex justify-content-center gap-2 flex-wrap">
-                            <a href="{{ route('stocktakes.create') }}" class="btn btn-primary">
-                                <i class="fas fa-plus me-2"></i> @lang('stocktake.create_first_stocktake')
-                            </a>
-                            <a href="{{ route('stocktakes.index') }}" class="btn btn-outline-primary">
-                                <i class="fas fa-list me-2"></i> @lang('stocktake.view_stocktakes')
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            @endif
-
-            <!-- Filters Section -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card border-0 bg-light">
-                        <div class="card-body">
-                            <h5 class="card-title mb-3">
-                                <i class="fas fa-filter text-primary me-2"></i>@lang('stocktake.filters')
-                            </h5>
-                            <form id="history_filter_form" method="GET" action="{{ route('stocktakes.history') }}">
-                                @csrf
+    {{-- ── FILTERS ──────────────────────────────────────────────────────── --}}
+    <div style="background:#fff; border-radius:.875rem; border:1px solid #e5e7eb; box-shadow:0 1px 4px rgba(0,0,0,.06); padding:1.25rem 1.5rem; margin-bottom:1.25rem;">
+        <h6 style="font-weight:700; color:#374151; margin:0 0 1rem; display:flex; align-items:center; gap:.4rem;">
+            <i class="fas fa-filter" style="color:#4f46e5;"></i> @lang('stocktake.filters')
+        </h6>
+        <form id="history_filter_form" method="GET" action="{{ route('stocktakes.history') }}">
+            @csrf
                                 <div class="row g-3 align-items-end">
                                     <div class="col-md-3">
                                         <label class="form-label fw-semibold">@lang('stocktake.location')</label>
@@ -145,13 +110,10 @@
                                         </div>
                                     </div>
                                 </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        </form>
+    </div>
 
-            <!-- Summary Cards -->
+    {{-- ── SUMMARY CARDS ─────────────────────────────────────────── --}}
             @if($summary && $summary->stocktake_count > 0)
             @if(!empty($stocktakeAccountingAudit['cutoff_date']) && $stocktakeAccountingAudit['rows']->isNotEmpty())
             <div class="card border-0 shadow-sm mb-4">
@@ -207,112 +169,35 @@
             </div>
             @endif
 
-            <div class="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 md:tw-grid-cols-3 xl:tw-grid-cols-6 tw-gap-4 sm:tw-gap-5 tw-mb-5">
-                <!-- Stocktake Count Card -->
-                <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 stocktake-summary-card stocktake-summary-card--primary">
-                    <div class="tw-p-4 sm:tw-p-5">
-                        <div class="tw-flex tw-items-center tw-gap-4">
-                            <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full stocktake-summary-card__icon">
-                                <i class="fas fa-clipboard-list tw-text-xl"></i>
-                            </div>
-                            <div class="tw-flex-1">
-                                <p class="tw-text-sm tw-text-gray-500 tw-mb-1">@lang('stocktake.stocktake_count')</p>
-                                <h4 class="tw-text-2xl tw-font-bold tw-text-gray-900 tw-mb-0 stocktake-summary-card__value">{{ $summary->stocktake_count ?? 0 }}</h4>
-                            </div>
+            <div class="row g-3 mb-4">
+                @php
+                $accuracy_rate = 0;
+                if(($summary->total_items ?? 0) > 0) {
+                    $exact_count = $summary->exact_count ?? ($summary->total_items - $summary->overage_count - $summary->shortage_count);
+                    $accuracy_rate = ($exact_count / $summary->total_items) * 100;
+                }
+                $summaryCards = [
+                    ['mod'=>'primary', 'icon'=>'fas fa-clipboard-list', 'label'=>__('stocktake.stocktake_count'),         'value'=> $summary->stocktake_count ?? 0,                   'color'=>null],
+                    ['mod'=>'info',    'icon'=>'fas fa-cubes',           'label'=>__('stocktake.total_items_counted'),      'value'=> number_format($summary->total_items ?? 0),         'color'=>null],
+                    ['mod'=>'success', 'icon'=>'fas fa-plus',            'label'=>__('stocktake.overage_items'),            'value'=> $summary->overage_count ?? 0,                     'color'=>'#16a34a'],
+                    ['mod'=>'danger',  'icon'=>'fas fa-minus',           'label'=>__('stocktake.shortage_items'),           'value'=> $summary->shortage_count ?? 0,                    'color'=>'#dc2626'],
+                    ['mod'=>'warning', 'icon'=>'fas fa-balance-scale',   'label'=>__('stocktake.total_variance_amount'),    'value'=> (($summary->total_variance_amount ?? 0) != 0 ? (($summary->total_variance_amount > 0 ? '+' : '').number_format(abs($summary->total_variance_amount), 2)) : '0.00'), 'color'=> ($summary->total_variance_amount ?? 0) > 0 ? '#16a34a' : (($summary->total_variance_amount ?? 0) < 0 ? '#dc2626' : null)],
+                    ['mod'=>'purple',  'icon'=>'fas fa-percentage',      'label'=>__('stocktake.accuracy_rate'),            'value'=> number_format($accuracy_rate, 1).'%',             'color'=>null],
+                ];
+                @endphp
+                @foreach($summaryCards as $sc)
+                <div class="col-xl-2 col-md-4 col-6">
+                    <div class="stocktake-summary-card stocktake-summary-card--{{ $sc['mod'] }}" style="border-radius:1rem; padding:1rem 1.1rem; display:flex; align-items:center; gap:.75rem;">
+                        <div class="stocktake-summary-card__icon" style="width:2.75rem; height:2.75rem; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:1rem;">
+                            <i class="{{ $sc['icon'] }}"></i>
+                        </div>
+                        <div style="min-width:0;">
+                            <p style="font-size:.7rem; margin:0 0 .1rem; font-weight:600; opacity:.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ $sc['label'] }}</p>
+                            <div class="stocktake-summary-card__value" style="font-size:1.35rem; font-weight:800; line-height:1; color:{{ $sc['color'] ?? '#1e293b' }};">{{ $sc['value'] }}</div>
                         </div>
                     </div>
                 </div>
-
-                <!-- Total Items Counted Card -->
-                <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 stocktake-summary-card stocktake-summary-card--info">
-                    <div class="tw-p-4 sm:tw-p-5">
-                        <div class="tw-flex tw-items-center tw-gap-4">
-                            <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full stocktake-summary-card__icon">
-                                <i class="fas fa-cubes tw-text-xl"></i>
-                            </div>
-                            <div class="tw-flex-1">
-                                <p class="tw-text-sm tw-text-gray-500 tw-mb-1">@lang('stocktake.total_items_counted')</p>
-                                <h4 class="tw-text-2xl tw-font-bold tw-text-gray-900 tw-mb-0 stocktake-summary-card__value">{{ number_format($summary->total_items ?? 0) }}</h4>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Overage Items Card -->
-                <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 stocktake-summary-card stocktake-summary-card--success">
-                    <div class="tw-p-4 sm:tw-p-5">
-                        <div class="tw-flex tw-items-center tw-gap-4">
-                            <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full stocktake-summary-card__icon">
-                                <i class="fas fa-plus tw-text-xl"></i>
-                            </div>
-                            <div class="tw-flex-1">
-                                <p class="tw-text-sm tw-text-gray-500 tw-mb-1">@lang('stocktake.overage_items')</p>
-                                <h4 class="tw-text-2xl tw-font-bold tw-text-green-600 tw-mb-0 stocktake-summary-card__value">{{ $summary->overage_count ?? 0 }}</h4>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Shortage Items Card -->
-                <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 stocktake-summary-card stocktake-summary-card--danger">
-                    <div class="tw-p-4 sm:tw-p-5">
-                        <div class="tw-flex tw-items-center tw-gap-4">
-                            <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full stocktake-summary-card__icon">
-                                <i class="fas fa-minus tw-text-xl"></i>
-                            </div>
-                            <div class="tw-flex-1">
-                                <p class="tw-text-sm tw-text-gray-500 tw-mb-1">@lang('stocktake.shortage_items')</p>
-                                <h4 class="tw-text-2xl tw-font-bold tw-text-red-600 tw-mb-0 stocktake-summary-card__value">{{ $summary->shortage_count ?? 0 }}</h4>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Total Variance Quantity Card -->
-                <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 stocktake-summary-card stocktake-summary-card--warning">
-                    <div class="tw-p-4 sm:tw-p-5">
-                        <div class="tw-flex tw-items-center tw-gap-4">
-                            <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full stocktake-summary-card__icon">
-                                <i class="fas fa-balance-scale tw-text-xl"></i>
-                            </div>
-                            <div class="tw-flex-1">
-                                <p class="tw-text-sm tw-text-gray-500 tw-mb-1">@lang('stocktake.total_variance_amount')</p>
-                                <h4 class="tw-text-2xl tw-font-bold tw-mb-0 stocktake-summary-card__value {{ ($summary->total_variance_amount ?? 0) > 0 ? 'tw-text-green-600' : (($summary->total_variance_amount ?? 0) < 0 ? 'tw-text-red-600' : 'tw-text-gray-900') }}">
-                                    @if(($summary->total_variance_amount ?? 0) != 0)
-                                        {{ ($summary->total_variance_amount ?? 0) > 0 ? '+' : '' }}{{ number_format(abs($summary->total_variance_amount ?? 0), 2) }}
-                                    @else
-                                        0.00
-                                    @endif
-                                </h4>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Accuracy Rate Card -->
-                <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 stocktake-summary-card stocktake-summary-card--purple">
-                    <div class="tw-p-4 sm:tw-p-5">
-                        <div class="tw-flex tw-items-center tw-gap-4">
-                            <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full stocktake-summary-card__icon">
-                                <i class="fas fa-percentage tw-text-xl"></i>
-                            </div>
-                            <div class="tw-flex-1">
-                                <p class="tw-text-sm tw-text-gray-500 tw-mb-1">@lang('stocktake.accuracy_rate')</p>
-                                <h4 class="tw-text-2xl tw-font-bold tw-text-gray-900 tw-mb-0 stocktake-summary-card__value">
-                                    @if($summary->total_items > 0)
-                                        @php
-                                            $exact_count = $summary->exact_count ?? ($summary->total_items - $summary->overage_count - $summary->shortage_count);
-                                            $accuracy_rate = ($exact_count / $summary->total_items) * 100;
-                                        @endphp
-                                        {{ number_format($accuracy_rate, 1) }}%
-                                    @else
-                                        0.0%
-                                    @endif
-                                </h4>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                @endforeach
             </div>
             @endif
 
@@ -360,11 +245,9 @@
                                 <!-- Data will be loaded via AJAX -->
                             </tbody>
                         </table>
-                </div>
             </div>
-            @endif
         </div>
-    </div>
+        </div>
 </div>
 @endsection
 

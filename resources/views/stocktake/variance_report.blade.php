@@ -354,11 +354,16 @@
                                     </h5>
                                     <p class="text-muted mb-0 small">@lang('stocktake.latest_5_stocktakes')</p>
                                 </div>
-                                @if($timeline && !$timeline->isEmpty())
-                                <button class="btn btn-sm btn-outline-primary" onclick="toggleTimeline()" data-bs-toggle="tooltip" title="Expand view">
-                                    <i class="fas fa-expand-alt"></i>
-                                </button>
-                                @endif
+                                <div class="d-flex gap-2 align-items-center">
+                                    <a href="{{ route('stocktakes.history') }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-external-link-alt me-1"></i> @lang('stocktake.view_all')
+                                    </a>
+                                    @if($timeline && !$timeline->isEmpty())
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleTimeline()" data-bs-toggle="tooltip" title="Expand view">
+                                        <i class="fas fa-expand-alt"></i>
+                                    </button>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                         <div class="card-body">
