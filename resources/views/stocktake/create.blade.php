@@ -83,7 +83,7 @@
         </div>
 
         {{-- Table --}}
-        <div class="tw-overflow-x-auto" style="max-height: 460px; overflow-y: auto;">
+        <div class="tw-overflow-x-auto">
             <table class="tw-w-full tw-text-sm" id="items_table">
                 <thead>
                     <tr class="tw-bg-gray-50 tw-text-xs tw-font-semibold tw-text-gray-500 tw-uppercase tw-tracking-wide tw-sticky tw-top-0 tw-z-10">
@@ -290,6 +290,14 @@ $(document).ready(function() {
             resultsContainer.hide();
             return;
         }
+
+        // Position the fixed dropdown below the input
+        const rect = input[0].getBoundingClientRect();
+        resultsContainer.css({
+            top:   rect.bottom + 4 + 'px',
+            left:  rect.left + 'px',
+            width: rect.width + 'px'
+        });
         
         products.forEach((product, index) => {
             const variation_name = product.variation_name ? ` (${product.variation_name})` : '';
@@ -329,10 +337,11 @@ $(document).ready(function() {
         const searchTerm = $(this).val();
         const currentRow = $(this).closest('tr');
         current_row_index = currentRow.data('index');
+        const $input = $(this);
         
         loadProducts(searchTerm, function(products) {
-            showAutocompleteResults($(this), products);
-        }.bind(this));
+            showAutocompleteResults($input, products);
+        });
     });
 
     // Handle autocomplete item selection
@@ -705,18 +714,16 @@ $(document).ready(function() {
     /* ── Autocomplete dropdown ───────────────────────────── */
     .product-search { position: relative; }
     .autocomplete-results {
-        position: absolute;
+        position: fixed;
         background: #fff;
         border: 1px solid #e2e8f0;
         border-radius: 10px;
         box-shadow: 0 8px 24px rgba(0,0,0,.12);
-        z-index: 1000;
+        z-index: 9999;
         max-height: 220px;
         overflow-y: auto;
-        width: 100%;
+        min-width: 260px;
         display: none;
-        top: calc(100% + 4px);
-        left: 0;
     }
     .autocomplete-item {
         padding: 9px 14px;
