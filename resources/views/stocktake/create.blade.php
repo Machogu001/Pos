@@ -13,10 +13,10 @@
     {!! Form::open(['route' => 'stocktakes.store', 'method' => 'post', 'id' => 'stocktake_form']) !!}
 
     {{-- Page Header Card --}}
-    <div class="tw-bg-gradient-to-r tw-from-blue-700 tw-to-indigo-700 tw-rounded-2xl tw-shadow-lg tw-mb-5 tw-px-6 tw-py-5 tw-flex tw-items-center tw-justify-between">
+    <div style="background: linear-gradient(to right, #1d4ed8, #4338ca); border-radius: 1rem; box-shadow: 0 4px 16px rgba(0,0,0,.15);" class="tw-mb-5 tw-px-6 tw-py-5 tw-flex tw-items-center tw-justify-between">
         <div class="tw-flex tw-items-center tw-gap-3">
-            <div class="tw-bg-white/20 tw-rounded-xl tw-p-2.5">
-                <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-6 tw-text-white" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <div style="background:rgba(255,255,255,.2); border-radius:.75rem; padding:.6rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" style="width:1.5rem;height:1.5rem;color:#fff" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                     <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                     <path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2"/>
                     <path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z"/>
@@ -24,12 +24,12 @@
                 </svg>
             </div>
             <div>
-                <h1 class="tw-text-xl tw-font-bold tw-text-white tw-leading-tight">@lang('stocktake.add_stocktake')</h1>
-                <p class="tw-text-blue-200 tw-text-sm tw-mt-0.5">Record physical stock counts and identify variances</p>
+                <h1 style="color:#fff; font-size:1.2rem; font-weight:700; margin:0;">@lang('stocktake.add_stocktake')</h1>
+                <p style="color:#bfdbfe; font-size:.85rem; margin:.25rem 0 0;">Record physical stock counts and identify variances</p>
             </div>
         </div>
-        <a href="{{ route('stocktakes.index') }}" class="tw-inline-flex tw-items-center tw-gap-2 tw-bg-white/15 hover:tw-bg-white/25 tw-text-white tw-text-sm tw-font-medium tw-px-4 tw-py-2 tw-rounded-lg tw-transition-all tw-duration-200">
-            <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-4" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 6l-6 6l6 6"/></svg>
+        <a href="{{ route('stocktakes.index') }}" style="display:inline-flex; align-items:center; gap:.5rem; background:rgba(255,255,255,.15); color:#fff; font-size:.875rem; font-weight:500; padding:.5rem 1rem; border-radius:.5rem; text-decoration:none; border:1px solid rgba(255,255,255,.25); transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:1rem;height:1rem" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 6l-6 6l6 6"/></svg>
             Back to list
         </a>
     </div>
@@ -154,8 +154,9 @@
 
         {{-- Submit --}}
         <button type="submit" id="submit_btn"
-            class="tw-inline-flex tw-items-center tw-gap-2 tw-bg-gradient-to-r tw-from-blue-600 tw-to-indigo-600 hover:tw-from-blue-700 hover:tw-to-indigo-700 tw-text-white tw-font-semibold tw-px-8 tw-py-3 tw-rounded-xl tw-shadow-md tw-shadow-blue-200 tw-transition-all tw-duration-200 tw-text-base tw-whitespace-nowrap">
-            <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-5" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"/><path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M14 4l0 4l-6 0l0 -4"/></svg>
+            style="display:inline-flex; align-items:center; gap:.5rem; background:linear-gradient(to right,#2563eb,#4f46e5); color:#fff; font-size:1rem; font-weight:600; padding:.75rem 2rem; border-radius:.75rem; border:none; box-shadow:0 4px 12px rgba(79,70,229,.35); cursor:pointer; transition:opacity .2s; white-space:nowrap;"
+            onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:1.25rem;height:1.25rem" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"/><path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M14 4l0 4l-6 0l0 -4"/></svg>
             @lang('stocktake.save')
         </button>
     </div>
