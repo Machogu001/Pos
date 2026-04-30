@@ -139,22 +139,31 @@
     </div>
 
     {{-- Bottom Bar: Shortcuts + Save --}}
-    <div class="tw-flex tw-flex-col md:tw-flex-row tw-items-start md:tw-items-center tw-justify-between tw-gap-4 tw-bg-white tw-rounded-2xl tw-shadow-sm tw-border tw-border-gray-100 tw-px-6 tw-py-4">
+    <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem; background:#fff; border-radius:1rem; border:1px solid #e5e7eb; box-shadow:0 1px 4px rgba(0,0,0,.06); padding:1.25rem 1.5rem; margin-top:.25rem;">
 
         {{-- Keyboard Shortcuts --}}
-        <div class="tw-flex tw-flex-col tw-gap-1">
-            <p class="tw-text-xs tw-font-semibold tw-text-gray-500 tw-uppercase tw-tracking-wide tw-mb-1">@lang('stocktake.keyboard_shortcuts')</p>
-            <div class="tw-flex tw-flex-wrap tw-items-center tw-gap-x-4 tw-gap-y-1 tw-text-sm tw-text-gray-600">
-                <span><kbd class="tw-bg-gray-100 tw-text-gray-700 tw-border tw-border-gray-300 tw-rounded tw-px-1.5 tw-py-0.5 tw-font-mono tw-text-xs">Tab</kbd> @lang('stocktake.navigate_between_fields')</span>
-                <span><kbd class="tw-bg-gray-100 tw-text-gray-700 tw-border tw-border-gray-300 tw-rounded tw-px-1.5 tw-py-0.5 tw-font-mono tw-text-xs">Enter</kbd> @lang('stocktake.confirm_counted_quantity_next_row')</span>
-                <span><kbd class="tw-bg-gray-100 tw-text-gray-700 tw-border tw-border-gray-300 tw-rounded tw-px-1.5 tw-py-0.5 tw-font-mono tw-text-xs">↑ ↓</kbd> @lang('stocktake.navigate_rows_search_results')</span>
+        <div style="flex:1; min-width:260px; text-align:center;">
+            <p style="font-size:.7rem; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.08em; margin:0 0 .5rem;">@lang('stocktake.keyboard_shortcuts')</p>
+            <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:.5rem 1.25rem; font-size:.85rem; color:#374151;">
+                <span>
+                    <kbd style="background:#f3f4f6; color:#111827; border:1px solid #d1d5db; border-radius:.3rem; padding:.15rem .45rem; font-family:monospace; font-size:.78rem;">Tab</kbd>
+                    @lang('stocktake.navigate_between_fields')
+                </span>
+                <span>
+                    <kbd style="background:#f3f4f6; color:#111827; border:1px solid #d1d5db; border-radius:.3rem; padding:.15rem .45rem; font-family:monospace; font-size:.78rem;">Enter</kbd>
+                    @lang('stocktake.confirm_counted_quantity_next_row')
+                </span>
+                <span>
+                    <kbd style="background:#f3f4f6; color:#111827; border:1px solid #d1d5db; border-radius:.3rem; padding:.15rem .45rem; font-family:monospace; font-size:.78rem;">↑ ↓</kbd>
+                    @lang('stocktake.navigate_rows_search_results')
+                </span>
             </div>
-            <p class="tw-text-xs tw-text-gray-400 tw-mt-1">@lang('stocktake.note_mouse_delete_rows')</p>
+            <p style="font-size:.75rem; color:#9ca3af; margin:.5rem 0 0;">@lang('stocktake.note_mouse_delete_rows')</p>
         </div>
 
         {{-- Submit --}}
         <button type="submit" id="submit_btn"
-            style="display:inline-flex; align-items:center; gap:.5rem; background:linear-gradient(to right,#2563eb,#4f46e5); color:#fff; font-size:1rem; font-weight:600; padding:.75rem 2rem; border-radius:.75rem; border:none; box-shadow:0 4px 12px rgba(79,70,229,.35); cursor:pointer; transition:opacity .2s; white-space:nowrap;"
+            style="display:inline-flex; align-items:center; gap:.5rem; background:linear-gradient(to right,#2563eb,#4f46e5); color:#fff; font-size:1rem; font-weight:600; padding:.75rem 2rem; border-radius:.75rem; border:none; box-shadow:0 4px 12px rgba(79,70,229,.35); cursor:pointer; transition:opacity .2s; white-space:nowrap; flex-shrink:0;"
             onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
             <svg xmlns="http://www.w3.org/2000/svg" style="width:1.25rem;height:1.25rem" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"/><path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M14 4l0 4l-6 0l0 -4"/></svg>
             @lang('stocktake.save')
