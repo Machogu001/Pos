@@ -153,70 +153,29 @@
 
             <!-- Summary Cards -->
             @if(($worstPerformers && !$worstPerformers->isEmpty()) || ($locationPerformance && !$locationPerformance->isEmpty()))
-            <div class="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 lg:tw-grid-cols-4 tw-gap-4 sm:tw-gap-5 tw-mb-5">
-                <!-- Worst Performers Card -->
-                <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 stocktake-summary-card stocktake-summary-card--danger">
-                    <div class="tw-p-4 sm:tw-p-5">
-                        <div class="tw-flex tw-items-center tw-gap-4">
-                            <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full stocktake-summary-card__icon">
-                                <i class="fas fa-exclamation-triangle tw-text-xl"></i>
-                            </div>
-                            <div class="tw-flex-1">
-                                <p class="tw-text-sm tw-text-gray-500 tw-mb-1">@lang('stocktake.worst_performers')</p>
-                                <h4 class="tw-text-2xl tw-font-bold tw-text-gray-900 tw-mb-0 stocktake-summary-card__value">{{ $worstPerformers ? $worstPerformers->count() : 0 }}</h4>
-                                <small class="tw-text-xs tw-text-gray-400">@lang('stocktake.highest_variance_items')</small>
-                            </div>
+            <div class="row g-3 mb-4">
+                @php
+                $summaryCards = [
+                    ['mod'=>'danger',  'icon'=>'fas fa-exclamation-triangle', 'label'=>__('stocktake.worst_performers'),   'value'=> $worstPerformers ? $worstPerformers->count() : 0,        'sub'=>__('stocktake.highest_variance_items')],
+                    ['mod'=>'warning', 'icon'=>'fas fa-store',                'label'=>__('stocktake.locations_analyzed'), 'value'=> $locationPerformance ? $locationPerformance->count() : 0, 'sub'=>__('stocktake.performance_tracked')],
+                    ['mod'=>'info',    'icon'=>'fas fa-chart-line',           'label'=>__('stocktake.recent_stocktakes'),  'value'=> $timeline ? $timeline->count() : 0,                       'sub'=>__('stocktake.last_30_days')],
+                    ['mod'=>'success', 'icon'=>'fas fa-percentage',           'label'=>__('stocktake.avg_variance_rate'),  'value'=> number_format($averageVarianceRate ?? 0, 1).'%',           'sub'=>__('stocktake.across_all_locations')],
+                ];
+                @endphp
+                @foreach($summaryCards as $sc)
+                <div class="col-lg-3 col-md-6">
+                    <div class="stocktake-summary-card stocktake-summary-card--{{ $sc['mod'] }}" style="border-radius:1rem; padding:1.25rem; display:flex; align-items:center; gap:1rem;">
+                        <div class="stocktake-summary-card__icon" style="width:3rem; height:3rem; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:1.1rem;">
+                            <i class="{{ $sc['icon'] }}"></i>
+                        </div>
+                        <div>
+                            <p style="font-size:.78rem; margin:0 0 .15rem; font-weight:600; opacity:.75;">{{ $sc['label'] }}</p>
+                            <div class="stocktake-summary-card__value" style="font-size:1.6rem; font-weight:800; line-height:1; color:#1e293b;">{{ $sc['value'] }}</div>
+                            <small style="font-size:.72rem; opacity:.6;">{{ $sc['sub'] }}</small>
                         </div>
                     </div>
                 </div>
-
-                <!-- Locations Analyzed Card -->
-                <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 stocktake-summary-card stocktake-summary-card--warning">
-                    <div class="tw-p-4 sm:tw-p-5">
-                        <div class="tw-flex tw-items-center tw-gap-4">
-                            <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full stocktake-summary-card__icon">
-                                <i class="fas fa-store tw-text-xl"></i>
-                            </div>
-                            <div class="tw-flex-1">
-                                <p class="tw-text-sm tw-text-gray-500 tw-mb-1">@lang('stocktake.locations_analyzed')</p>
-                                <h4 class="tw-text-2xl tw-font-bold tw-text-gray-900 tw-mb-0 stocktake-summary-card__value">{{ $locationPerformance ? $locationPerformance->count() : 0 }}</h4>
-                                <small class="tw-text-xs tw-text-gray-400">@lang('stocktake.performance_tracked')</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Recent Stocktakes Card -->
-                <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 stocktake-summary-card stocktake-summary-card--info">
-                    <div class="tw-p-4 sm:tw-p-5">
-                        <div class="tw-flex tw-items-center tw-gap-4">
-                            <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full stocktake-summary-card__icon">
-                                <i class="fas fa-chart-line tw-text-xl"></i>
-                            </div>
-                            <div class="tw-flex-1">
-                                <p class="tw-text-sm tw-text-gray-500 tw-mb-1">@lang('stocktake.recent_stocktakes')</p>
-                                <h4 class="tw-text-2xl tw-font-bold tw-text-gray-900 tw-mb-0 stocktake-summary-card__value">{{ $timeline ? $timeline->count() : 0 }}</h4>
-                                <small class="tw-text-xs tw-text-gray-400">@lang('stocktake.last_30_days')</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Average Variance Rate Card -->
-                <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 stocktake-summary-card stocktake-summary-card--success">
-                    <div class="tw-p-4 sm:tw-p-5">
-                        <div class="tw-flex tw-items-center tw-gap-4">
-                            <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full stocktake-summary-card__icon">
-                                <i class="fas fa-percentage tw-text-xl"></i>
-                            </div>
-                            <div class="tw-flex-1">
-                                <p class="tw-text-sm tw-text-gray-500 tw-mb-1">@lang('stocktake.avg_variance_rate')</p>
-                                <h4 class="tw-text-2xl tw-font-bold tw-text-gray-900 tw-mb-0 stocktake-summary-card__value">{{ number_format($averageVarianceRate ?? 0, 1) }}%</h4>
-                                <small class="tw-text-xs tw-text-gray-400">@lang('stocktake.across_all_locations')</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                @endforeach
             </div>
             @endif
 
