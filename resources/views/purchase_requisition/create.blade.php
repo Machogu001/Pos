@@ -120,7 +120,7 @@
 
             $('#show_pr_products').click( function(){
             	if ($('#location_id').val() == '') {
-            		alert('{{__("lang_v1.select_location")}}');
+            		toastr.warning('{{__("lang_v1.select_location")}}');
             		return false;
             	}
             	var data = {

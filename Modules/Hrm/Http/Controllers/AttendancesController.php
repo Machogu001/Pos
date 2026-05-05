@@ -27,6 +27,12 @@ class AttendancesController extends Controller
 
     public function index(Request $request)
     {
+        if (! $request->wantsJson() && ! $request->expectsJson()) {
+            $target = url('/hrm/attendance');
+            if ($request->getQueryString()) { $target .= '?' . $request->getQueryString(); }
+            return redirect($target);
+        }
+
         $user = $this->getAuthUser($request);
         $this->authorizeForUser($user, 'view', Attendance::class);
 

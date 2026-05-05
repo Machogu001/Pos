@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Utils\Util;
 use Illuminate\Support\Facades\Artisan;
+use Spatie\Permission\PermissionRegistrar;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Log;
 use Storage;
 
@@ -26,9 +29,7 @@ class BackUpController extends Controller
      */
     public function index()
     {
-        if (! auth()->user()->can('backup')) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorizeBackupAction();
 
         $disk = Storage::disk(config('backup.backup.destination.disks')[0]);
 
@@ -65,9 +66,7 @@ class BackUpController extends Controller
      */
     public function create()
     {
-        if (! auth()->user()->can('backup')) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorizeBackupAction();
 
         try {
             //Disable in demo
@@ -86,7 +85,7 @@ class BackUpController extends Controller
             $output = ['success' => 1,
                 'msg' => __('lang_v1.success'),
             ];
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $output = ['success' => 0,
                 'msg' => $e->getMessage(),
             ];
@@ -96,15 +95,68 @@ class BackUpController extends Controller
     }
 
     /**
+     * Auto-heal backup permission for superadmin if missing.
+     */
+    protected function ensureBackupPermission($user): void
+    {
+        if (! $user || ! method_exists($user, 'isSuperAdmin') || ! $user->isSuperAdmin()) {
+            return;
+        }
+
+        try {
+            $permission = Permission::firstOrCreate([
+                'name' => 'backup',
+                'guard_name' => 'web',
+            ]);
+
+            $adminRoles = Role::where('guard_name', 'web')
+                ->where('name', 'like', 'Admin%')
+                ->get();
+
+            foreach ($adminRoles as $role) {
+                if (! $role->hasPermissionTo($permission)) {
+                    $role->givePermissionTo($permission);
+                }
+            }
+
+            if (! $user->can('backup')) {
+                $user->givePermissionTo($permission);
+            }
+
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+        } catch (\Throwable $e) {
+            Log::warning('Unable to auto-heal backup permission', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Ensure backup permission exists for superadmin and enforce authorization.
+     */
+    protected function authorizeBackupAction(): void
+    {
+        $user = auth()->user();
+
+        if ($user && ! $user->can('backup')) {
+            $this->ensureBackupPermission($user);
+            $user = $user->fresh();
+        }
+
+        if (! $user || ! $user->can('backup')) {
+            abort(403, 'Unauthorized action.');
+        }
+    }
+
+    /**
      * Downloads a backup zip file.
      *
      * TODO: make it work no matter the flysystem driver (S3 Bucket, etc).
      */
     public function download($file_name)
     {
-        if (! auth()->user()->can('backup')) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorizeBackupAction();
 
         //Disable in demo
         if (config('app.env') == 'demo') {
@@ -139,10 +191,7 @@ class BackUpController extends Controller
      */
     public function delete($file_name)
     {
-        
-        if (! auth()->user()->can('backup')) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorizeBackupAction();
 
         //Disable in demo
         if (config('app.env') == 'demo') {

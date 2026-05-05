@@ -30,14 +30,17 @@ class EventServiceProvider extends ServiceProvider
 
         \App\Events\PurchaseCreatedOrModified::class => [
             \App\Listeners\SyncPurchaseDefaultAccountTransaction::class,
+            'App\\Listeners\\SyncAccountingJournalEntryMapping@handlePurchase',
         ],
 
         \App\Events\SellCreatedOrModified::class => [
             \App\Listeners\SyncSellDefaultAccountTransaction::class,
+            'App\\Listeners\\SyncAccountingJournalEntryMapping@handleSell',
         ],
 
         \App\Events\ExpenseCreatedOrModified::class => [
             \App\Listeners\SyncExpenseDefaultAccountTransaction::class,
+            'App\\Listeners\\SyncAccountingJournalEntryMapping@handleExpense',
         ],
 
         \App\Events\StockAdjustmentCreatedOrModified::class => [

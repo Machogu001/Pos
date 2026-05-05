@@ -1,10 +1,16 @@
 {
     "name": "Project",
     "alias": "project",
-    "description": "Manage Projects, tasks, activities and more",
-    "version": "1.0",
-    "require": {},
+    "description": "Project Management Module",
+    "keywords": [],
+    "active": 1,
+    "order": 0,
     "providers": [
         "Modules\\Project\\Providers\\ProjectServiceProvider"
-    ]
+    ],
+    "aliases": {},
+    "files": [
+        
+    ],
+    "requires": []
 }

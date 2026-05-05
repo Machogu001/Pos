@@ -50,7 +50,21 @@ class UserController extends Controller
             $languages[$key] = $value['full_name'];
         }
 
-        return view('user.profile', compact('user', 'languages'));
+        $modules = [];
+        if ($user && $user->isSuperAdmin() && $user->can('manage_modules')) {
+            foreach (\Module::toCollection()->toArray() as $details) {
+                $mod = \Module::find($details['name']);
+                if ($mod) {
+                    $modules[] = [
+                        'name'    => $details['name'],
+                        'enabled' => $mod->isEnabled(),
+                    ];
+                }
+            }
+            usort($modules, fn($a, $b) => strcmp($a['name'], $b['name']));
+        }
+
+        return view('user.profile', compact('user', 'languages', 'modules'));
     }
 
     /**

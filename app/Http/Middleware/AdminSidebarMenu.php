@@ -68,6 +68,17 @@ class AdminSidebarMenu
             $pos_settings = !empty(session('business.pos_settings')) ? json_decode(session('business.pos_settings'), true) : [];
 
             $is_admin = auth()->user()->hasRole('Admin#' . session('business.id')) ? true : false;
+            $module_util = new ModuleUtil();
+            $module_names = get_module_names();
+            $is_accounting_module_enabled = false;
+            try {
+                if (\Module::has('Accounting')) {
+                    $accounting_module_key = !empty($module_names->accounting) ? $module_names->accounting : 'accounting_module';
+                    $is_accounting_module_enabled = (bool) $module_util->hasThePermissionInSubscription(session('user.business_id'), $accounting_module_key);
+                }
+            } catch (\Exception $e) {
+                $is_accounting_module_enabled = false;
+            }
             //Home
             //     $menu->url(action([\App\Http\Controllers\HomeController::class, 'index']), __('home.home'), ['icon' => '<svg aria-hidden="true" class="tw-size-5 tw-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
             //     <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
@@ -85,6 +96,10 @@ class AdminSidebarMenu
             <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
             <path d="M10 12h4v4h-4z" />
           </svg>', 'active' => request()->segment(1) == 'home'])->order(5);
+
+            if (\Module::has('Essentials')) {
+                $menu->url(action([\Modules\Essentials\Http\Controllers\ToDoController::class, 'index']), 'To Do List', ['icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="tw-size-5 tw-shrink-0" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24V0z" fill="none"/><path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" /><path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" /><path d="M9 12l2 2l4 -4" /></svg>', 'active' => request()->segment(1) == 'essentials' && request()->segment(2) == 'todos'])->order(6);
+            }
 
             // Management dropdown (Admin + Subscription) - moved into main menu
             if (auth()->check()) {
@@ -623,7 +638,7 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                 )->order(45);
             }
             //Accounts dropdown
-            if (auth()->user()->can('account.access') && in_array('account', $enabled_modules)) {
+            if (auth()->user()->can('account.access') && in_array('account', $enabled_modules) && !$is_accounting_module_enabled) {
                 $menu->dropdown(
                     __('lang_v1.payment_accounts'),
                     function ($sub) {
@@ -903,8 +918,8 @@ if (in_array('stock_adjustment', $enabled_modules) &&
               </svg>', 'active' => request()->segment(1) == 'backup'])->order(60);
             }
 
-            //Modules menu
-            if (auth()->user()->can('manage_modules')) {
+                        //Modules menu
+                        if (method_exists(auth()->user(), 'isSuperAdmin') && auth()->user()->isSuperAdmin() && auth()->user()->can('manage_modules')) {
                 $menu->url(action([\App\Http\Controllers\Install\ModulesController::class, 'index']), __('lang_v1.modules'), ['icon' => '<svg aria-hidden="true" class="tw-size-5 tw-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
               <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
               <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
@@ -1049,7 +1064,7 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                         // Dashboard
                         try {
                             if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.employees') || auth()->user()->can('hrm.payrolls') || auth()->user()->can('hrm.departments')) {
-                                $sub->url(action([\Modules\Hrm\Http\Controllers\HrmController::class, 'index']), 'Dashboard', ['icon' => '', 'active' => request()->segment(1) == 'hrm' && empty(request()->segment(2))]);
+                                $sub->url(action([\Modules\Essentials\Http\Controllers\DashboardController::class, 'hrmDashboard']), 'Dashboard', ['icon' => '', 'active' => request()->segment(1) == 'hrm' && request()->segment(2) == 'dashboard']);
                             }
                         } catch (\Exception $e) {
                         }
@@ -1097,7 +1112,7 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                         // Payroll
                         try {
                             if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.payrolls')) {
-                                $sub->url(action([\Modules\Hrm\Http\Controllers\PayrollController::class, 'index']), 'Payroll', ['icon' => '', 'active' => request()->segment(2) == 'payrolls']);
+                                $sub->url(action([\Modules\Essentials\Http\Controllers\PayrollController::class, 'index']), 'Payroll', ['icon' => '', 'active' => request()->segment(2) == 'payroll' || request()->segment(2) == 'payrolls']);
                             }
                         } catch (\Exception $e) {
                         }
@@ -1110,26 +1125,57 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                         } catch (\Exception $e) {
                         }
 
-                        // Leaves (Leave management) - show only to users with HRM leave permissions
+                        // Leave (canonical: Essentials /hrm/leave)
                         try {
                             if (auth()->user()->can('leave.view') || auth()->user()->can('leave.create') || auth()->user()->can('leave.update')) {
-                                $sub->url(action([\Modules\Hrm\Http\Controllers\LeaveController::class, 'index']), 'Leaves', ['icon' => '', 'active' => request()->segment(2) == 'leaves']);
+                                $sub->url(action([\Modules\Essentials\Http\Controllers\EssentialsLeaveController::class, 'index']), 'Leave', ['icon' => '', 'active' => request()->segment(2) == 'leave' || request()->segment(2) == 'leaves']);
                             }
                         } catch (\Exception $e) {
                         }
 
-                        // Leave Types - require leave.view permission
+                        // Leave Type (canonical: Essentials /hrm/leave-type)
                         try {
                             if (auth()->user()->can('leave.view') || auth()->user()->can('leave.create')) {
-                                $sub->url(action([\Modules\Hrm\Http\Controllers\LeaveTypeController::class, 'index']), 'Leave Types', ['icon' => '', 'active' => request()->segment(2) == 'leave_types']);
+                                $sub->url(action([\Modules\Essentials\Http\Controllers\EssentialsLeaveTypeController::class, 'index']), 'Leave Type', ['icon' => '', 'active' => request()->segment(2) == 'leave-type' || request()->segment(2) == 'leave_types']);
                             }
                         } catch (\Exception $e) {
                         }
 
-                        // HRM Settings (default leave) - exposed to admins or users with business settings access
+                        // Attendance
+                        try {
+                            if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.attendances') || auth()->user()->can('attendance.view') || auth()->user()->can('essentials.crud_all_attendance') || auth()->user()->can('essentials.view_own_attendance')) {
+                                $sub->url(action([\Modules\Essentials\Http\Controllers\AttendanceController::class, 'index']), 'Attendance (Sign In)', ['icon' => '', 'active' => request()->segment(2) == 'attendance' || request()->segment(2) == 'attendances']);
+                            }
+                        } catch (\Exception $e) {
+                        }
+
+                        // Holiday
+                        try {
+                            if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.holidays') || auth()->user()->can('holiday.view')) {
+                                $sub->url(action([\Modules\Essentials\Http\Controllers\EssentialsHolidayController::class, 'index']), 'Holiday', ['icon' => '', 'active' => request()->segment(2) == 'holiday' || request()->segment(2) == 'holidays']);
+                            }
+                        } catch (\Exception $e) {
+                        }
+
+                        // Sales Targets (Essentials)
+                        try {
+                            $moduleUtil = new \App\Utils\ModuleUtil();
+                            $bid = session()->get('user.business_id');
+                            $essentials_enabled = (bool) $moduleUtil->hasThePermissionInSubscription($bid, 'essentials_module');
+                            if ($essentials_enabled && \Module::has('Essentials') && auth()->user()->can('essentials.access_sales_target')) {
+                                $sub->url(
+                                    action([\Modules\Essentials\Http\Controllers\SalesTargetController::class, 'index']),
+                                    'Sales Targets',
+                                    ['icon' => '', 'active' => request()->segment(1) == 'hrm' && request()->segment(2) == 'sales-target']
+                                );
+                            }
+                        } catch (\Exception $e) {
+                        }
+
+                        // Settings
                         try {
                             if (auth()->user()->can('business_settings.access') || auth()->user()->hasRole('Admin#' . session('business.id'))) {
-                                $sub->url(route('hrm.settings.index'), 'HRM Settings', ['icon' => '', 'active' => request()->is('hrm/settings*')]);
+                                $sub->url(route('hrm.settings.index'), 'Settings', ['icon' => '', 'active' => request()->is('hrm/settings*')]);
                                 // (Removed) HRM modules shortcut per request
                             }
                         } catch (\Exception $e) {
@@ -1143,9 +1189,32 @@ if (in_array('stock_adjustment', $enabled_modules) &&
 
         //Add menus from modules
         $moduleUtil = new ModuleUtil;
+
+        // Register parent "Modules & Apps" dropdown so module DataControllers can attach subitems via whereTitle()
+        Menu::modify('admin-sidebar-menu', function ($menu) {
+            $menu->dropdown(
+                __('Modules & Apps'),
+                function ($sub) {
+                    // subitems added dynamically by each module's DataController::modifyAdminMenu()
+                },
+                [
+                    'icon' => '<svg aria-hidden="true" class="tw-size-5 tw-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M14 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M4 14m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M14 14m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/></svg>',
+                    'id' => 'modules-and-apps-dropdown',
+                ]
+            )->order(87);
+        });
+
         $moduleUtil->getModuleData('modifyAdminMenu');
 
-        
+        // Remove the "Modules & Apps" parent if no module added any subitems (keeps menu clean on fresh installs)
+        Menu::modify('admin-sidebar-menu', function ($menu) {
+            $item = $menu->whereTitle(__('Modules & Apps'));
+            if ($item && ! $item->hasChilds()) {
+                $menu->items = array_values(array_filter($menu->items, function ($i) use ($item) {
+                    return $i !== $item;
+                }));
+            }
+        });
 
         return $next($request);
     }

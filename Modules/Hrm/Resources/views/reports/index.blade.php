@@ -15,7 +15,7 @@
 @include('hrm::partials.hrm_page_header', [
     'title' => 'HRM Reports',
     'subtitle' => 'Central reporting for payroll, payslips, P9, attendance, and leave analytics.',
-    'actions' => '<a href="'.action([\Modules\Hrm\Http\Controllers\HrmController::class, 'index']).'" class="btn btn-default"><i class="fa fa-arrow-left"></i> HRM Dashboard</a>'
+    'actions' => '<a href="'.action([\Modules\Essentials\Http\Controllers\DashboardController::class, 'hrmDashboard']).'" class="btn btn-default"><i class="fa fa-arrow-left"></i> HRM Dashboard</a>'
 ])
 
 <section class="content">

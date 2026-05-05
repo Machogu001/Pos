@@ -1,10 +1,14 @@
 {
     "name": "ProductCatalogue",
     "alias": "productcatalogue",
-    "description": "Digital Product catalogue module",
-    "version": "1.0",
-    "require": {},
+    "description": "Catalogue & Menu module",
+    "keywords": [],
+    "active": 1,
+    "order": 0,
     "providers": [
         "Modules\\ProductCatalogue\\Providers\\ProductCatalogueServiceProvider"
-    ]
+    ],
+    "aliases": {},
+    "files": [],
+    "requires": []
 }

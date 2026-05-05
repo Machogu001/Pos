@@ -74,7 +74,7 @@ class AdminlteCustomPresenter extends Presenter
      */
     public function getMenuWithDropDownWrapper($item)
     {
-        $dropdownToggle = '<a href="#" title="" class="drop_down tw-flex tw-items-center tw-gap-3 tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-tracking-tight tw-text-gray-600 tw-transition-all tw-duration-200 tw-rounded-lg tw-whitespace-nowrap hover:tw-text-gray-900 hover:tw-bg-gray-100 focus:tw-text-gray-900 focus:tw-bg-gray-100' . $this->getActiveStateOnChild($item) . '" ' . $item->getAttributes() . '>' .
+        $dropdownToggle = '<a href="javascript:void(0)" title="" class="drop_down tw-flex tw-items-center tw-gap-3 tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-tracking-tight tw-text-gray-600 tw-transition-all tw-duration-200 tw-rounded-lg tw-whitespace-nowrap hover:tw-text-gray-900 hover:tw-bg-gray-100 focus:tw-text-gray-900 focus:tw-bg-gray-100' . $this->getActiveStateOnChild($item) . '" ' . $item->getAttributes() . '>' .
         $this->formatIcon($item->icon) . ' <span class="tw-truncate">' . $item->title . '</span>' .
         '<svg aria-hidden="true" class="svg tw-ml-auto tw-text-gray-500 tw-size-4 tw-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">' . $this->getArray($item) .
             '</svg>' .

@@ -54,7 +54,10 @@ Route::group([
     // Log access attempts, rely on controller-level granular permissions.
     'middleware' => ['web', 'auth', 'SetSessionData', 'language', 'timezone', 'AdminSidebarMenu', 'subscription']
 ], function () {
-    Route::get('/hrm', [\Modules\Hrm\Http\Controllers\HrmController::class, 'index']);
+    // Canonical HRM entrypoint: always use /hrm/dashboard.
+    Route::get('/hrm', function () {
+        return redirect('/hrm/dashboard');
+    });
     Route::get('/hrm/reports', [\Modules\Hrm\Http\Controllers\ReportsController::class, 'index'])->name('hrm.reports.index');
     Route::get('/hrm/reports/export/{section}/{format}', [\Modules\Hrm\Http\Controllers\ReportsController::class, 'export'])->name('hrm.reports.export');
 

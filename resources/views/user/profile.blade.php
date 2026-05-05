@@ -1,6 +1,32 @@
 @extends('layouts.app')
 @section('title', __('lang_v1.my_profile'))
 
+@section('css')
+<style>
+/* Module toggle switch */
+.module-switch { position: relative; display: inline-block; width: 46px; height: 24px; }
+.module-switch input { opacity: 0; width: 0; height: 0; }
+.module-slider {
+    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #ccc; border-radius: 24px; transition: .3s;
+}
+.module-slider:before {
+    position: absolute; content: ""; height: 18px; width: 18px;
+    left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .3s;
+}
+.module-switch input:checked + .module-slider { background-color: #3490dc; }
+.module-switch input:checked + .module-slider:before { transform: translateX(22px); }
+.module-switch input:disabled + .module-slider { opacity: 0.5; cursor: not-allowed; }
+.module-card {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; margin-bottom: 8px;
+    border: 1px solid #e2e8f0; border-radius: 8px; background: #f9fafb;
+}
+.module-card .module-name { font-weight: 600; font-size: 14px; color: #374151; }
+.module-card .module-status { font-size: 11px; color: #6b7280; margin-left: 6px; }
+</style>
+@endsection
+
 @section('content')
 
 <!-- Content Header (Page header) -->
@@ -146,6 +172,83 @@
 </div>
 {!! Form::close() !!}
 
+@if(auth()->user()->isSuperAdmin() && auth()->user()->can('manage_modules') && !empty($modules))
+<div class="row" style="margin-top: 20px;">
+    <div class="col-sm-12">
+        <div class="box box-solid">
+            <div class="box-header">
+                <h3 class="box-title"><i class="fa fa-puzzle-piece" style="margin-right:6px;"></i>Module Management</h3>
+                <small class="text-muted" style="margin-left:10px;">Toggle modules on/off instantly</small>
+            </div>
+            <div class="box-body">
+                <div class="row">
+                    @foreach($modules as $module)
+                    <div class="col-sm-6 col-md-4">
+                        <div class="module-card">
+                            <div>
+                                <span class="module-name">{{ $module['name'] }}</span>
+                                <span class="module-status" id="status_{{ $module['name'] }}">
+                                    {{ $module['enabled'] ? 'Enabled' : 'Disabled' }}
+                                </span>
+                            </div>
+                            <label class="module-switch">
+                                <input type="checkbox"
+                                    class="module-toggle-cb"
+                                    id="toggle_{{ $module['name'] }}"
+                                    data-module="{{ $module['name'] }}"
+                                    {{ $module['enabled'] ? 'checked' : '' }}>
+                                <span class="module-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
 </section>
 <!-- /.content -->
+@endsection
+
+@section('javascript')
+<script>
+$(document).on('change', '.module-toggle-cb', function() {
+    var cb       = $(this);
+    var modName  = cb.data('module');
+    var enable   = cb.is(':checked');
+    var action   = enable ? 'activate' : 'deactivate';
+    var statusEl = $('#status_' + modName);
+
+    cb.prop('disabled', true);
+
+    $.ajax({
+        url: '/manage-modules/' + encodeURIComponent(modName),
+        type: 'POST',
+        data: {
+            _method: 'PUT',
+            _token: $('meta[name="csrf-token"]').attr('content'),
+            action_type: action
+        },
+        success: function(response) {
+            if (response.success) {
+                statusEl.text(enable ? 'Enabled' : 'Disabled');
+                toastr.success(modName + ' ' + (enable ? 'enabled' : 'disabled') + ' successfully.');
+            } else {
+                cb.prop('checked', !enable);
+                toastr.error(response.msg || 'Failed to update module.');
+            }
+        },
+        error: function() {
+            cb.prop('checked', !enable);
+            toastr.error('Error updating module. Please try again.');
+        },
+        complete: function() {
+            cb.prop('disabled', false);
+        }
+    });
+});
+</script>
 @endsection

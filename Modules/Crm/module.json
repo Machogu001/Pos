@@ -1,10 +1,16 @@
 {
     "name": "Crm",
     "alias": "crm",
-    "description": "Customer relationship management module",
-    "version": "1.0",
-    "require": {},
+    "description": "Crm Module",
+    "keywords": [],
+    "active": 1,
+    "order": 0,
     "providers": [
         "Modules\\Crm\\Providers\\CrmServiceProvider"
-    ]
+    ],
+    "aliases": {},
+    "files": [
+        
+    ],
+    "requires": []
 }

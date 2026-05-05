@@ -273,6 +273,16 @@ class PayrollController extends Controller
 
     public function index(Request $request)
     {
+        // Canonical web entrypoint for payroll is the Essentials flow.
+        if (! $request->wantsJson() && ! $request->expectsJson()) {
+            $target = url('/hrm/payroll');
+            if ($request->getQueryString()) {
+                $target .= '?' . $request->getQueryString();
+            }
+
+            return redirect($target);
+        }
+
         $user = $this->getAuthUser($request);
         if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.payrolls'))) {
             abort(403);

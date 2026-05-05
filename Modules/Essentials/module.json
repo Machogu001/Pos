@@ -1,10 +1,16 @@
 {
     "name": "Essentials",
     "alias": "essentials",
-    "description": "Essentials features for every growing business",
-    "version": "1.0",
-    "require": {},
+    "description": "Some essentials functionality for every businesses & Human resource management (HRM) feature.",
+    "keywords": [],
+    "active": 1,
+    "order": 0,
     "providers": [
         "Modules\\Essentials\\Providers\\EssentialsServiceProvider"
-    ]
+    ],
+    "aliases": {},
+    "files": [
+        
+    ],
+    "requires": []
 }

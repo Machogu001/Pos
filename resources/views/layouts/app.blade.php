@@ -96,7 +96,7 @@
 </head>
 <body
     class="tw-font-sans tw-antialiased tw-text-gray-900 tw-bg-gray-100 @if ($pos_layout) hold-transition lockscreen @else hold-transition skin-@if (!empty(session('business.theme_color'))){{ session('business.theme_color') }}@else{{ 'blue-light' }} @endif sidebar-mini @endif" >
-    <div class="tw-flex">
+    <div class="tw-flex tw-h-screen tw-overflow-hidden">
         <script type="text/javascript">
             if (localStorage.getItem("upos_sidebar_collapse") == 'true') {
                 var body = document.getElementsByTagName("body")[0];
@@ -138,7 +138,7 @@
             <div id="app">
                 @yield('vue')
             </div>
-            <div class="tw-flex-1 tw-overflow-y-auto tw-h-screen" id="scrollable-container">
+            <div class="tw-flex-1 tw-min-h-0 tw-overflow-y-auto" id="scrollable-container">
                 @yield('content')
                 @if (!$pos_layout)
                 
@@ -162,6 +162,10 @@
 
         @include('home.todays_profit_modal')
         <!-- /.content-wrapper -->
+
+        <!-- Task/ToDo modal container -->
+        <div class="modal fade" id="task_modal" tabindex="-1" role="dialog" aria-hidden="true">
+        </div>
 
 
 

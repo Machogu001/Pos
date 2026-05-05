@@ -80,24 +80,24 @@
         });
 
         if (import_fields.indexOf('customer_phone_number') == -1 && import_fields.indexOf('customer_email') == -1) {
-            alert("{{__('lang_v1.email_or_phone_required')}}");
+            toastr.warning("{{__('lang_v1.email_or_phone_required')}}");
             return false;
         }
         if (import_fields.indexOf('product') == -1 && import_fields.indexOf('sku') == -1) {
-            alert("{{__('lang_v1.product_name_or_sku_is_required')}}");
+            toastr.warning("{{__('lang_v1.product_name_or_sku_is_required')}}");
             return false;
         }
         if (import_fields.indexOf('quantity') == -1) {
-            alert("{{__('lang_v1.quantity_is_required')}}");
+            toastr.warning("{{__('lang_v1.quantity_is_required')}}");
             return false;
         }
         if (import_fields.indexOf('unit_price') == -1) {
-            alert("{{__('lang_v1.unit_price_is_required')}}");
+            toastr.warning("{{__('lang_v1.unit_price_is_required')}}");
             return false;
         }
 
         if(hasDuplicates(import_fields)) {
-            alert("{{__('lang_v1.cannot_select_a_field_twice')}}");
+            toastr.warning("{{__('lang_v1.cannot_select_a_field_twice')}}");
             return false;
         }
         

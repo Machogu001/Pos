@@ -72,10 +72,14 @@ class ModuleUtil extends Util
                 if (class_exists($class)) {
                     $class_object = new $class();
                     if (method_exists($class_object, $function_name)) {
-                        if (! empty($arguments)) {
-                            $data[$module['name']] = call_user_func([$class_object, $function_name], $arguments);
-                        } else {
-                            $data[$module['name']] = call_user_func([$class_object, $function_name]);
+                        try {
+                            if (! empty($arguments)) {
+                                $data[$module['name']] = call_user_func([$class_object, $function_name], $arguments);
+                            } else {
+                                $data[$module['name']] = call_user_func([$class_object, $function_name]);
+                            }
+                        } catch (\Exception $e) {
+                            \Log::warning("ModuleUtil: {$module['name']}::{$function_name}() failed — " . $e->getMessage());
                         }
                     }
                 }
@@ -115,6 +119,10 @@ class ModuleUtil extends Util
      */
     public function isSubscribed($business_id)
     {
+        if (! $this->isSubscriptionEnforced()) {
+            return true;
+        }
+
         if ($this->isSuperadminInstalled()) {
             $package = \Modules\Superadmin\Entities\Subscription::active_subscription($business_id);
 
@@ -136,6 +144,10 @@ class ModuleUtil extends Util
      */
     public function hasThePermissionInSubscription($business_id, $permission, $callback_function = null)
     {
+        if (! $this->isSubscriptionEnforced()) {
+            return true;
+        }
+
         if ($this->isSuperadminInstalled()) {
             if (auth()->user()->can('superadmin')) {
                 return true;
@@ -171,6 +183,13 @@ class ModuleUtil extends Util
         }
 
         return true;
+    }
+
+    private function isSubscriptionEnforced(): bool
+    {
+        $settings = \App\AdminSetting::first();
+
+        return (bool) ($settings->subscription_required ?? false);
     }
 
     /**
@@ -282,6 +301,10 @@ class ModuleUtil extends Util
      */
     public function isQuotaAvailable($type, $business_id, $total_rows = 0)
     {
+        if (! $this->isSubscriptionEnforced()) {
+            return true;
+        }
+
         $is_available = $this->isSuperadminInstalled();
 
         if ($is_available) {
@@ -432,6 +455,10 @@ class ModuleUtil extends Util
 
     public function getApiSettings($api_token)
     {
+        if (! class_exists(\Modules\Ecommerce\Entities\EcomApiSetting::class)) {
+            return null;
+        }
+
         $settings = \Modules\Ecommerce\Entities\EcomApiSetting::where('api_token', $api_token)
                                 ->first();
 

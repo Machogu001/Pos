@@ -228,7 +228,7 @@
 
         @if($hrm_enabled)
         <!-- HRM Module Shortcut -->
-        <a href="{{ url('/hrm') }}" class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-indigo-200 tw-cursor-pointer tw-flex tw-items-stretch">
+        <a href="{{ url('/hrm/dashboard') }}" class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-indigo-200 tw-cursor-pointer tw-flex tw-items-stretch">
             <div class="tw-p-4 sm:tw-p-5 tw-flex tw-items-center tw-gap-4 tw-w-full">
                 <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-indigo-100 tw-text-indigo-600">
                     <i class="fas fa-user-tie"></i>

@@ -1,10 +1,16 @@
 {
     "name": "Repair",
     "alias": "repair",
-    "description": "Complete repair service management",
-    "version": "1.0",
-    "require": {},
+    "description": "Useful for all kind of repair shops",
+    "keywords": [],
+    "active": 1,
+    "order": 0,
     "providers": [
         "Modules\\Repair\\Providers\\RepairServiceProvider"
-    ]
+    ],
+    "aliases": {},
+    "files": [
+        
+    ],
+    "requires": []
 }

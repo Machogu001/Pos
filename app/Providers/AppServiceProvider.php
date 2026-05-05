@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Observers\TransactionObserver;
+use App\Transaction;
 use App\System;
 use App\Utils\ModuleUtil;
 use Illuminate\Pagination\Paginator;
@@ -29,6 +31,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        Transaction::observe(TransactionObserver::class);
+
         ini_set('memory_limit', '-1');
         set_time_limit(0);
 

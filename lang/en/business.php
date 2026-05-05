@@ -126,6 +126,6 @@ return [
     'default_account_sales_tax' => 'Default Sales Tax / Output VAT Account',
     'default_account_accounts_receivable' => 'Default Accounts Receivable',
     'stocktake_accounting_rules' => 'Baseline stocktake accounting',
-    'stocktake_accounting_rules_help' => 'Stocktakes completed on or before the cutoff date will post any net variance to Opening Stock Equity instead of current-period Inventory Gain or Inventory Loss.',
+    'stocktake_accounting_rules_help' => 'Stocktakes completed on or before the cutoff date will post any net variance to Opening Stock Equity instead of current-period Inventory Gain or Inventory Loss. Set the Default Opening Stock Equity Account when using this cutoff.',
     'stocktake_opening_balance_cutoff_date' => 'Opening stock cutoff date',
 ];

@@ -5,8 +5,6 @@
     "Cms": true,
     "Connector": true,
     "Crm": true,
-    "Ecommerce": true,
-    "FieldForce": true,
     "Manufacturing": true,
     "ProductCatalogue": true,
     "Project": true,
@@ -16,8 +14,7 @@
     "Woocommerce": true,
     "AiAssistance": true,
     "Hms": true,
-    "InboxReport": true,
-    "CustomDashboard": true,
     "Hrm": true,
-    "Stocktake": true
+    "Stocktake": true,
+    "InventoryManagement": true
 }
