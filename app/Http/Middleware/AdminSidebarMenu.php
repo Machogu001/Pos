@@ -1206,16 +1206,15 @@ if (in_array('stock_adjustment', $enabled_modules) &&
 
         $moduleUtil->getModuleData('modifyAdminMenu');
 
-        // Remove the "Modules & Apps" parent if no module added any subitems (keeps menu clean on fresh installs)
-        Menu::modify('admin-sidebar-menu', function ($menu) {
-            $item = $menu->whereTitle(__('Modules & Apps'));
-            if ($item && ! $item->hasChilds()) {
-                $menu->items = array_values(array_filter($menu->items, function ($i) use ($item) {
-                    return $i !== $item;
-                }));
-            }
-        });
-
+        // // Remove the "Modules & Apps" parent if no module added any subitems (keeps menu clean on fresh installs)
+        // Menu::modify('admin-sidebar-menu', function ($menu) {
+        //     $item = $menu->whereTitle(__('Modules & Apps'));
+        //     if ($item && ! $item->hasChilds()) {
+        //         $menu->items = array_values(array_filter($menu->items, function ($i) use ($item) {
+        //             return $i !== $item;
+        //         }));
+        //     }
+        // });
         return $next($request);
     }
 }

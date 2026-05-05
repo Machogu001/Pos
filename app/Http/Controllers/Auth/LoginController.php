@@ -460,7 +460,7 @@ class LoginController extends Controller
 
     protected function loginRestrictionResponse($user)
     {
-        if (! $user->business->is_active) {
+        if (! $user->isSuperAdmin() && ! optional($user->business)->is_active) {
             Auth::logout();
 
             return redirect('/login')
