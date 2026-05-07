@@ -398,7 +398,7 @@ return [
     'unable_load_preview' => 'Impossible de charger l\'aperçu',
     'bands_description' => 'Définir des bandes progressives. Laissez Upper vide pour la bande ouverte finale.',
     'payroll_defaults' => 'Valeurs par défaut de la paie',
-    'registration_price_help' => 'Prix facturé lors de l\'enregistrement de l\'entreprise. Réglez sur 0 pour rendre l’inscription gratuite. Max 10 000 Ksh.',
+    'registration_price_help' => 'Prix facturé lors de l\'enregistrement de l\'entreprise. Réglez sur 0 pour rendre l’inscription gratuite. Max 500,000 Ksh.',
     'nssf_example' => 'par ex. :example',
     'bands_invalid_json' => 'Le JSON des bandes enregistrées n\'est pas valide ; la modification l\'écrasera. Veuillez corriger après avoir enregistré.',
     'nssf_percent' => 'NSSF pour cent (fraction)',

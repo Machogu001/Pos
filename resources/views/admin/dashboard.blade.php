@@ -545,7 +545,7 @@
                                 <label class="form-label fw-medium">{{ __('payment.registration_price') }}</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light">Ksh</span>
-                                    <input type="number" step="0.01" min="0" max="10000" class="form-control" name="registration_price"
+                                    <input type="number" step="0.01" min="0" max="500000" class="form-control" name="registration_price"
                                         value="{{ $settings?->registration_price ?? 5 }}" aria-describedby="registrationPriceHelp">
                                 </div>
                                 <small id="registrationPriceHelp" class="text-muted">{{ __('payment.registration_price_help') }}</small>

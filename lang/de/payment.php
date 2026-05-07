@@ -398,7 +398,7 @@ return [
     'unable_load_preview' => 'Vorschau kann nicht geladen werden',
     'bands_description' => 'Progressive Bänder definieren. Lassen Sie Upper für das letzte offene Band leer.',
     'payroll_defaults' => 'Lohn- und Gehaltsvorgaben',
-    'registration_price_help' => 'Preis, der bei der Gewerbeanmeldung berechnet wird. Auf 0 setzen, um die Registrierung kostenlos zu machen. Max. Ksh 10.000.',
+    'registration_price_help' => 'Preis, der bei der Gewerbeanmeldung berechnet wird. Auf 0 setzen, um die Registrierung kostenlos zu machen. Max. Ksh 500,000.',
     'nssf_example' => 'e.g. :example',
     'bands_invalid_json' => 'Saved bands JSON ist ungültig – durch die Bearbeitung wird es überschrieben. Bitte nach dem Speichern korrigieren.',
     'nssf_percent' => 'NSSF-Prozent (Bruch)',

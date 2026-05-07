@@ -398,7 +398,7 @@ return [
     'unable_load_preview' => 'No se puede cargar la vista previa',
     'bands_description' => 'Definir bandas progresivas. Deje Upper vacío para la última banda abierta.',
     'payroll_defaults' => 'Valores predeterminados de nómina',
-    'registration_price_help' => 'Precio cobrado durante el registro de la empresa. Establezca en 0 para que el registro sea gratuito. Máximo Ksh 10 000.',
+    'registration_price_help' => 'Precio cobrado durante el registro de la empresa. Establezca en 0 para que el registro sea gratuito. Máximo Ksh 500,000.',
     'nssf_example' => 'p.ej. :example',
     'bands_invalid_json' => 'El JSON de bandas guardadas no es válido; la edición lo sobrescribirá. Corrija después de guardar.',
     'nssf_percent' => 'Porcentaje de NSSF (fracción)',

@@ -398,7 +398,7 @@ return [
     'unable_load_preview' => 'Tidak dapat memuat pratinjau',
     'bands_description' => 'Tentukan pita progresif. Biarkan bagian Atas kosong untuk pita terbuka terakhir.',
     'payroll_defaults' => 'Default Penggajian',
-    'registration_price_help' => 'Harga yang dikenakan saat pendaftaran bisnis. Setel ke 0 untuk membuat pendaftaran gratis. Maks Ksh 10,000.',
+    'registration_price_help' => 'Harga yang dikenakan saat pendaftaran bisnis. Setel ke 0 untuk membuat pendaftaran gratis. Maks Ksh 500,000.',
     'nssf_example' => 'mis. :example',
     'bands_invalid_json' => 'Json pita yang disimpan tidak valid — pengeditan akan menimpanya. Harap perbaiki setelah menyimpan.',
     'nssf_percent' => 'NSSF persen (pecahan)',

@@ -398,7 +398,7 @@ return [
     'unable_load_preview' => 'Unable to load preview',
     'bands_description' => 'Define progressive bands. Leave Upper empty for the final open band.',
     'payroll_defaults' => 'Payroll Defaults',
-    'registration_price_help' => 'Price charged during business registration. Set to 0 to make registration free. Max Ksh 10,000.',
+    'registration_price_help' => 'Price charged during business registration. Set to 0 to make registration free. Max Ksh 500,000.',
     'nssf_example' => 'e.g. :example',
     'bands_invalid_json' => 'Saved bands JSON is invalid — editing will overwrite it. Please fix after saving.',
     'nssf_percent' => 'NSSF percent (fraction)',

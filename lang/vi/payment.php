@@ -398,7 +398,7 @@ return [
     'unable_load_preview' => 'Không thể tải bản xem trước',
     'bands_description' => 'Xác định dải lũy tiến. Để trống Upper cho dải mở cuối cùng.',
     'payroll_defaults' => 'Mặc định về bảng lương',
-    'registration_price_help' => 'Giá được tính khi đăng ký kinh doanh. Đặt thành 0 để đăng ký miễn phí. Tối đa Ksh 10.000.',
+    'registration_price_help' => 'Giá được tính khi đăng ký kinh doanh. Đặt thành 0 để đăng ký miễn phí. Tối đa Ksh 500,000.',
     'nssf_example' => 'e.g. :example',
     'bands_invalid_json' => 'Dải JSON đã lưu không hợp lệ — việc chỉnh sửa sẽ ghi đè lên nó. Vui lòng sửa sau khi lưu.',
     'nssf_percent' => 'NSSF phần trăm (phân số)',

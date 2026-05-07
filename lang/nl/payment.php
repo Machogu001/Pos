@@ -398,7 +398,7 @@ return [
     'unable_load_preview' => 'Kan voorbeeld niet laden',
     'bands_description' => 'Definieer progressieve banden. Laat Upper leeg voor de laatste open band.',
     'payroll_defaults' => 'Standaardwaarden salaris',
-    'registration_price_help' => 'Prijs die in rekening wordt gebracht tijdens bedrijfsregistratie. Stel in op 0 om registratie gratis te maken. Max. Ksh 10.000,',
+    'registration_price_help' => 'Prijs die in rekening wordt gebracht tijdens bedrijfsregistratie. Stel in op 0 om registratie gratis te maken. Max. Ksh 500,000,',
     'nssf_example' => 'bijv. :example',
     'bands_invalid_json' => 'Opgeslagen banden JSON is ongeldig: bewerken zal deze overschrijven. Pas het probleem aan na het opslaan.',
     'nssf_percent' => 'NSSF procent (fractie)',

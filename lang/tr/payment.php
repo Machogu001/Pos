@@ -398,7 +398,7 @@ return [
     'unable_load_preview' => 'Önizleme yüklenemiyor',
     'bands_description' => 'Progresif bantları tanımlayın. Son açık bant için Üst kısmı boş bırakın.',
     'payroll_defaults' => 'Bordro Varsayılanları',
-    'registration_price_help' => 'İşletme kaydı sırasında alınan fiyat. Kaydı ücretsiz yapmak için 0\'a ayarlayın. Maksimum Ksh 10.000.',
+    'registration_price_help' => 'İşletme kaydı sırasında alınan fiyat. Kaydı ücretsiz yapmak için 0\'a ayarlayın. Maksimum Ksh 500,000.',
     'nssf_example' => 'e.g. :example',
     'bands_invalid_json' => 'Kayıtlı bantlar JSON\'u geçersiz — düzenleme onun üzerine yazacaktır. Lütfen kaydettikten sonra düzeltin.',
     'nssf_percent' => 'NSSF yüzdesi (kesir)',

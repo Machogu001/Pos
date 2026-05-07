@@ -398,7 +398,7 @@ return [
     'unable_load_preview' => 'Não foi possível carregar a visualização',
     'bands_description' => 'Definir bandas progressivas. Deixe Upper vazio para a banda aberta final.',
     'payroll_defaults' => 'Padrões de folha de pagamento',
-    'registration_price_help' => 'Preço cobrado durante o registro comercial. Defina como 0 para tornar o registro gratuito. Máx. Ksh 10.000.',
+    'registration_price_help' => 'Preço cobrado durante o registro comercial. Defina como 0 para tornar o registro gratuito. Máx. Ksh 500,000.',
     'nssf_example' => 'por exemplo. :example',
     'bands_invalid_json' => 'Bandas salvas JSON é inválido – a edição irá substituí-lo. Corrija depois de salvar.',
     'nssf_percent' => 'NSSF por cento (fração)',

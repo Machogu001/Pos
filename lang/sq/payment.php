@@ -398,7 +398,7 @@ return [
     'unable_load_preview' => 'Pamja paraprake nuk mund të ngarkohet',
     'bands_description' => 'Përcaktoni grupet progresive. Lëreni pjesën e sipërme bosh për brezin përfundimtar të hapur.',
     'payroll_defaults' => 'Parazgjedhjet e listës së pagave',
-    'registration_price_help' => 'Çmimi i ngarkuar gjatë regjistrimit të biznesit. Vendoseni në 0 për ta bërë regjistrimin falas. Maksimumi Ksh 10,000.',
+    'registration_price_help' => 'Çmimi i ngarkuar gjatë regjistrimit të biznesit. Vendoseni në 0 për ta bërë regjistrimin falas. Maksimumi Ksh 500,000.',
     'nssf_example' => 'p.sh. :example',
     'bands_invalid_json' => 'Grupet e ruajtura JSON janë të pavlefshme — redaktimi do ta mbishkruajë atë. Ju lutemi rregulloni pas ruajtjes.',
     'nssf_percent' => 'Përqindja e NSSF (fraksion)',

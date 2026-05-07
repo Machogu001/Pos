@@ -398,7 +398,7 @@ return [
     'unable_load_preview' => '无法加载预览',
     'bands_description' => '定义渐进带。将上层留空以形成最后的开放带。',
     'payroll_defaults' => '工资默认值',
-    'registration_price_help' => '商业登记时收取的价格。设置为 0 可免费注册。最大 Ksh 10,000.',
+    'registration_price_help' => '商业登记时收取的价格。设置为 0 可免费注册。最大 Ksh 500,000.',
     'nssf_example' => '例如:example',
     'bands_invalid_json' => '保存的乐队 JSON 无效 - 编辑将覆盖它。 Please fix after saving.',
     'nssf_percent' => 'NSSF percent (fraction)',

@@ -349,7 +349,7 @@ class AdminController extends Controller
             'monthly_price' => 'required|numeric|min:0',
             'quarterly_price' => 'required|numeric|min:0',
             'yearly_price' => 'required|numeric|min:0',
-            'registration_price' => 'nullable|numeric|min:0|max:10000',
+            'registration_price' => 'nullable|numeric|min:0|max:500000',
             'grace_period_days' => 'required|integer|min:0',
             'recent_limit' => 'required|integer|min:1|max:100',
             // Company / invoice fields

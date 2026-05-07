@@ -398,7 +398,7 @@ return [
     'unable_load_preview' => 'Nu se poate încărca previzualizarea',
     'bands_description' => 'Definiți benzile progresive. Lăsați Upper gol pentru banda finală deschisă.',
     'payroll_defaults' => 'Stabiliri de salarizare',
-    'registration_price_help' => 'Prețul perceput în timpul înregistrării afacerii. Setați la 0 pentru a face înregistrarea gratuită. Max 10.000 Ksh.',
+    'registration_price_help' => 'Prețul perceput în timpul înregistrării afacerii. Setați la 0 pentru a face înregistrarea gratuită. Max 500,000 Ksh.',
     'nssf_example' => 'de ex. :example',
     'bands_invalid_json' => 'JSON pentru benzile salvate este nevalid - editarea îl va suprascrie. Vă rugăm să remediați după salvare.',
     'nssf_percent' => 'NSSF procent (fracție)',
