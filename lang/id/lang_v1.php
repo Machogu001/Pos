@@ -982,6 +982,8 @@ return [
     'view_products' => 'Lihat Produk',
     'pos_screen_featured_products' => 'Produk Unggulan layar POS',
     'featured_products_help' => 'Produk yang dipilih akan ditampilkan di atas saran produk layar pos untuk akses cepat',
+    'copy_products_from_location' => 'Salin Produk dari Lokasi yang Ada',
+    'copy_products_from_location_help' => 'Pilih lokasi untuk menyalin produknya dan membuatnya tersedia di lokasi baru ini. Jumlah stok akan dimulai dari nol.',
     'purchase_report' => 'Laporan Pembelian',
     'sale_report' => 'Laporan Penjualan',
     'payment_date' => 'Tanggal pembayaran',

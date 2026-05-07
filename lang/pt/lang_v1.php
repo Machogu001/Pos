@@ -1017,6 +1017,8 @@ return [
     'view_products' => 'Ver produtos',
     'pos_screen_featured_products' => 'Produtos em destaque na tela do PDV',
     'featured_products_help' => 'Os produtos selecionados serão exibidos na parte superior da sugestão de produto da tela de posição para acesso rápido',
+    'copy_products_from_location' => 'Copiar Produtos do Local Existente',
+    'copy_products_from_location_help' => 'Selecione um local para copiar seus produtos e torná-los disponíveis neste novo local. As quantidades em estoque começarão em zero.',
     'purchase_report' => 'Relatório de compra',
     'sale_report' => 'Relatório de venda',
     'payment_date' => 'Data de pagamento',

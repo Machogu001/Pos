@@ -1032,6 +1032,8 @@ return [
     'view_products' => '查看产品',
     'pos_screen_featured_products' => ' POS屏幕特色产品',
     'featured_products_help' => '所选产品将显示在pos屏幕产品建议的顶部,以便快速访问',
+    'copy_products_from_location' => '从现有位置复制产品',
+    'copy_products_from_location_help' => '选择一个位置以复制其产品并使其在此新位置可用。库存数量将从零开始。',
     'purchase_report' => '购买报告',
     'sale_report' => '销售报告',
     'payment_date' => '付款日期',

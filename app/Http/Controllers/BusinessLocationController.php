@@ -9,8 +9,11 @@ use App\InvoiceScheme;
 use App\SellingPriceGroup;
 use App\Utils\ModuleUtil;
 use App\Utils\Util;
+use App\VariationLocationDetails;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Yajra\DataTables\Facades\DataTables;
 
 class BusinessLocationController extends Controller
@@ -133,13 +136,20 @@ class BusinessLocationController extends Controller
             $accounts = Account::forDropdown($business_id, true, false);
         }
 
+        $existing_locations = BusinessLocation::where('business_id', $business_id)
+                                ->Active()
+                                ->select(DB::raw("IF(location_id IS NULL OR location_id='', name, CONCAT(name, ' (', location_id, ')')) AS name"), 'id')
+                                ->get()
+                                ->pluck('name', 'id');
+
         return view('business_location.create')
                     ->with(compact(
                         'invoice_layouts',
                         'invoice_schemes',
                         'price_groups',
                         'payment_types',
-                        'accounts'
+                        'accounts',
+                        'existing_locations'
                     ));
     }
 
@@ -182,7 +192,63 @@ class BusinessLocationController extends Controller
             $location = BusinessLocation::create($input);
 
             //Create a new permission related to the created location
-            Permission::create(['name' => 'location.'.$location->id]);
+            $permission = Permission::create(['name' => 'location.'.$location->id]);
+
+            //Auto-grant the new location permission to the Admin role for this business
+            try {
+                $admin_role = Role::where('name', 'Admin#'.$business_id)->first();
+                if ($admin_role) {
+                    $admin_role->givePermissionTo($permission);
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Could not auto-grant location permission to Admin role: '.$e->getMessage());
+            }
+
+            //Copy products from an existing location if requested
+            $copy_from_location_id = $request->input('copy_products_from_location');
+            if (!empty($copy_from_location_id)) {
+                $copy_from = BusinessLocation::where('business_id', $business_id)
+                                ->find((int) $copy_from_location_id);
+                if ($copy_from) {
+                    //Copy product_locations entries (make products available in new location)
+                    $existing_product_ids = DB::table('product_locations')
+                        ->where('location_id', $copy_from->id)
+                        ->pluck('product_id')
+                        ->toArray();
+
+                    if (!empty($existing_product_ids)) {
+                        $product_location_rows = array_map(function ($pid) use ($location) {
+                            return ['product_id' => $pid, 'location_id' => $location->id];
+                        }, $existing_product_ids);
+
+                        foreach (array_chunk($product_location_rows, 500) as $chunk) {
+                            DB::table('product_locations')->insertOrIgnore($chunk);
+                        }
+
+                        //Copy variation_location_details (with zero stock)
+                        $source_vld = VariationLocationDetails::where('location_id', $copy_from->id)
+                            ->whereIn('product_id', $existing_product_ids)
+                            ->get();
+
+                        $new_vld_rows = [];
+                        foreach ($source_vld as $vld) {
+                            $new_vld_rows[] = [
+                                'product_id'           => $vld->product_id,
+                                'product_variation_id' => $vld->product_variation_id,
+                                'variation_id'         => $vld->variation_id,
+                                'location_id'          => $location->id,
+                                'qty_available'        => 0,
+                                'created_at'           => now(),
+                                'updated_at'           => now(),
+                            ];
+                        }
+
+                        foreach (array_chunk($new_vld_rows, 500) as $chunk) {
+                            DB::table('variation_location_details')->insertOrIgnore($chunk);
+                        }
+                    }
+                }
+            }
 
             $output = ['success' => true,
                 'msg' => __('business.business_location_added_success'),

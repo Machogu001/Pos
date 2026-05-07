@@ -1041,6 +1041,8 @@ return [
     'view_products' => 'Vizualizați produsele',
     'pos_screen_featured_products' => 'Ecran POS Produse recomandate',
     'featured_products_help' => 'Produsele selectate vor fi afișate în partea de sus a sugestiei produsului de pe ecran pentru acces rapid',
+    'copy_products_from_location' => 'Copiați produsele din locația existentă',
+    'copy_products_from_location_help' => 'Selectați o locație pentru a copia produsele sale și a le face disponibile în această nouă locație. Cantitățile din stoc vor începe de la zero.',
     'purchase_report' => 'Raport de achiziție',
     'sale_report' => 'Raport de vânzare',
     'payment_date' => 'Data de plată',

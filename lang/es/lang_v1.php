@@ -988,6 +988,8 @@ return [
     'view_products' => 'Ver productos',
     'pos_screen_featured_products' => 'Productos destacados de la pantalla POS',
     'featured_products_help' => 'Los productos seleccionados se mostrarán en la parte superior de la sugerencia de producto de la pantalla pos para un acceso rápido',
+    'copy_products_from_location' => 'Copiar Productos desde Ubicación Existente',
+    'copy_products_from_location_help' => 'Seleccione una ubicación para copiar sus productos y hacerlos disponibles en esta nueva ubicación. Las cantidades de stock comenzarán en cero.',
     'purchase_report' => 'Informe de compra',
     'sale_report' => 'Informe de venta',
     'payment_date' => 'Fecha de pago',

@@ -987,6 +987,8 @@ return [
     'view_products' => 'Bekijk de producten',
     'pos_screen_featured_products' => 'POS-scherm Aanbevolen producten',
     'featured_products_help' => 'Geselecteerde producten worden weergegeven boven de productsuggestie van het pos-scherm voor snelle toegang',
+    'copy_products_from_location' => 'Producten kopiëren van bestaande locatie',
+    'copy_products_from_location_help' => 'Selecteer een locatie om de producten te kopiëren en beschikbaar te maken op deze nieuwe locatie. Voorraadhoeveelheden beginnen op nul.',
     'purchase_report' => 'Aankooprapport',
     'sale_report' => 'Verkooprapport',
     'payment_date' => 'Betaaldatum',

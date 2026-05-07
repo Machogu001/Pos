@@ -1053,6 +1053,8 @@ return [
     'view_products' => 'View Products',
     'pos_screen_featured_products' => 'POS screen Featured Products',
     'featured_products_help' => 'Selected products will be shown on top of the pos screen product suggestion for quick access',
+    'copy_products_from_location' => 'Copy Products from Existing Location',
+    'copy_products_from_location_help' => 'Select a location to copy its products and make them available in this new location. Stock quantities will start at zero.',
     'purchase_report' => 'Purchase Report',
     'sale_report' => 'Sale Report',
     'payment_date' => 'Payment Date',

@@ -993,6 +993,8 @@ return [
     'view_products' => 'Ürünleri Görüntüle',
     'pos_screen_featured_products' => 'POS ekran Özellikli Ürünler',
     'featured_products_help' => 'Seçili ürünler hızlı erişim için ekran üstü ürün önerisinin üstünde gösterilir',
+    'copy_products_from_location' => 'Mevcut Konumdan Ürünleri Kopyala',
+    'copy_products_from_location_help' => 'Ürünlerini kopyalamak ve bu yeni konumda kullanılabilir hale getirmek için bir konum seçin. Stok miktarları sıfırdan başlayacak.',
     'purchase_report' => 'Satın Alma Raporu',
     'sale_report' => 'Satış Raporu',
     'payment_date' => 'Ödeme tarihi',

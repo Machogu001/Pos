@@ -996,6 +996,8 @@ return [
     'view_products' => 'مشاهدة المنتجات',
     'pos_screen_featured_products' => 'POS شاشة المنتجات المميزة',
     'featured_products_help' => 'سيتم عرض المنتجات المحددة أعلى اقتراح منتج شاشة نقاط البيع للوصول السريع',
+    'copy_products_from_location' => 'نسخ المنتجات من الموقع الحالي',
+    'copy_products_from_location_help' => 'حدد موقعاً لنسخ منتجاته وجعلها متاحة في هذا الموقع الجديد. ستبدأ كميات المخزون من الصفر.',
     'purchase_report' => 'تقرير الشراء',
     'sale_report' => 'تقرير البيع',
     'payment_date' => 'موعد الدفع',

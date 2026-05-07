@@ -989,6 +989,8 @@ return [
     'view_products' => 'Voir les produits',
     'pos_screen_featured_products' => "Produits vedettes de l'écran du PDV",
     'featured_products_help' => "Les produits sélectionnés seront affichés en haut de la suggestion de produit d'écran de position pour un accès rapide",
+    'copy_products_from_location' => 'Copier les produits depuis un emplacement existant',
+    'copy_products_from_location_help' => 'Sélectionnez un emplacement pour copier ses produits et les rendre disponibles dans ce nouvel emplacement. Les quantités en stock commenceront à zéro.',
     'purchase_report' => "Rapport d'achat",
     'sale_report' => 'Rapport de vente',
     'payment_date' => 'Date de paiement',

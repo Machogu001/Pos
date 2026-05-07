@@ -1018,6 +1018,8 @@ return [
     'view_products' => 'Xem sản phẩm',
     'pos_screen_featured_products' => 'Màn hình POS Sản phẩm nổi bật',
     'featured_products_help' => 'Các sản phẩm được chọn sẽ được hiển thị trên đầu đề xuất sản phẩm màn hình pos để truy cập nhanh',
+    'copy_products_from_location' => 'Sao chép sản phẩm từ địa điểm hiện có',
+    'copy_products_from_location_help' => 'Chọn một địa điểm để sao chép sản phẩm của nó và làm cho chúng có sẵn tại địa điểm mới này. Số lượng tồn kho sẽ bắt đầu từ không.',
     'purchase_report' => 'Báo cáo mua hàng',
     'sale_report' => 'Báo cáo bán hàng',
     'payment_date' => 'Ngày thanh toán',

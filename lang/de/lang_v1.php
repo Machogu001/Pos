@@ -988,6 +988,8 @@ return [
     'view_products' => 'Produkte anzeigen',
     'pos_screen_featured_products' => 'POS-Bildschirm Empfohlene Produkte',
     'featured_products_help' => 'Ausgewählte Produkte werden oben auf dem Produktvorschlag für den Positionsbildschirm angezeigt, um einen schnellen Zugriff zu ermöglichen',
+    'copy_products_from_location' => 'Produkte von vorhandenem Standort kopieren',
+    'copy_products_from_location_help' => 'Wählen Sie einen Standort aus, um dessen Produkte zu kopieren und an diesem neuen Standort verfügbar zu machen. Die Lagermengen beginnen bei null.',
     'purchase_report' => 'Kaufbericht',
     'sale_report' => 'Verkaufsbericht',
     'payment_date' => 'Zahlungsdatum',

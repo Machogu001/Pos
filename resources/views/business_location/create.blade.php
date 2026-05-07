@@ -158,6 +158,18 @@
                 </div>
                 <div class="clearfix"></div>
                 <hr>
+                @if(!empty($existing_locations) && count($existing_locations) > 0)
+                <div class="col-sm-12">
+                    <div class="form-group">
+                        {!! Form::label('copy_products_from_location', __('lang_v1.copy_products_from_location') . ':') !!}
+                        @show_tooltip(__('lang_v1.copy_products_from_location_help'))
+                        {!! Form::select('copy_products_from_location', $existing_locations, null, ['class' => 'form-control select2',
+                        'id' => 'copy_products_from_location',
+                        'placeholder' => __('messages.please_select')]); !!}
+                    </div>
+                </div>
+                <div class="clearfix"></div>
+                @endif
                 <div class="col-sm-12">
                     <div class="form-group">
                         {!! Form::label('featured_products', __('lang_v1.pos_screen_featured_products') . ':') !!} @show_tooltip(__('lang_v1.featured_products_help'))

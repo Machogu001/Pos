@@ -999,6 +999,8 @@ return [
     'view_products' => 'محصول وګورئ',
     'pos_screen_featured_products' => 'POS سکرین ب Featه شوي محصولات',
     'featured_products_help' => 'غوره شوي محصولات به د لاسرسي لپاره د پوزې سکرین محصول وړاندیز په سر کې ښودل شي',
+    'copy_products_from_location' => 'د موجود ځای څخه محصولات کاپي کړئ',
+    'copy_products_from_location_help' => 'د محصولاتو د کاپي کولو او د دې نوي ځای کې د شتون وړ کولو لپاره یو ځای غوره کړئ. د ذخیرې مقدارونه له صفر څخه پیل کیږي.',
     'purchase_report' => 'د پیرود راپور',
     'sale_report' => 'د پلور راپور',
     'payment_date' => 'د تادیې نیټه',

@@ -989,6 +989,8 @@ return [
     'view_products' => 'Shiko produktet',
     'pos_screen_featured_products' => 'Produktet e preferuara të ekranit POS',
     'featured_products_help' => 'Produktet e zgjedhura do të shfaqen në krye të sugjerimit të produktit në ekranin pos për qasje të shpejtë',
+    'copy_products_from_location' => 'Kopjo produktet nga vendndodhja ekzistuese',
+    'copy_products_from_location_help' => 'Zgjidhni një vendndodhje për të kopjuar produktet e saj dhe për t\'i bërë ato të disponueshme në këtë vendndodhje të re. Sasitë e stokut do të fillojnë nga zero.',
     'purchase_report' => 'Raporti i Blerjes',
     'sale_report' => 'Raporti i Shitjes',
     'payment_date' => 'Data e pagesës',
