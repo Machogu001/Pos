@@ -261,6 +261,7 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
 
     Route::resource('tax-rates', TaxRateController::class);
 
+    Route::post('/units/default-product-units', [UnitController::class, 'updateDefaultProductUnits'])->name('units.updateDefaultProductUnits');
     Route::resource('units', UnitController::class);
 
     Route::resource('ledger-discount', LedgerDiscountController::class)->only('edit', 'destroy', 'store', 'update');

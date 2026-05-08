@@ -7,26 +7,29 @@ set -euo pipefail
 APP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$APP_ROOT"
 
-echo "[1/8] Installing/updating PHP dependencies"
+echo "[1/9] Installing/updating PHP dependencies"
 composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
 
-echo "[2/8] Running database migrations"
+echo "[2/9] Running database migrations"
 php artisan migrate --force
 
-echo "[3/8] Ensuring superadmin baseline seeder runs"
+echo "[3/9] Ensuring superadmin baseline seeder runs"
 php artisan db:seed --class=SuperAdminSeeder --force
 
-echo "[4/8] Enforcing superuser policy (auto-correct role drift)"
+echo "[4/9] Enforcing superuser policy (auto-correct role drift)"
 php artisan admin:enforce-superuser-policy --force
 
-echo "[5/8] Clearing old caches"
+echo "[5/9] Clearing old caches"
 php artisan optimize:clear
 
-echo "[6/8] Rebuilding production caches (config, routes, views)"
+echo "[6/9] Rebuilding production caches (config, routes, views)"
 php artisan optimize
 php artisan view:cache || true
 
-echo "[7/8] Ensuring Laravel scheduler cron entry exists"
+echo "[7/9] Verifying critical Accounting routes"
+bash "$APP_ROOT/scripts/verify_accounting_routes.sh"
+
+echo "[8/9] Ensuring Laravel scheduler cron entry exists"
 CRON_FILE="/etc/cron.d/pos-scheduler"
 CRON_LINE="* * * * * www-data /usr/bin/php ${APP_ROOT}/artisan schedule:run >> ${APP_ROOT}/storage/logs/scheduler.log 2>&1"
 if [ ! -f "$CRON_FILE" ] || ! grep -qF "artisan schedule:run" "$CRON_FILE"; then
@@ -37,7 +40,7 @@ else
     echo "  -> Scheduler cron already present, skipping"
 fi
 
-echo "[8/8] Enabling PHP OPcache for PHP-FPM (if not already enabled)"
+echo "[9/9] Enabling PHP OPcache for PHP-FPM (if not already enabled)"
 OPCACHE_INI=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null)
 OPCACHE_INI_PATH="/etc/php/${OPCACHE_INI}/fpm/conf.d/10-opcache.ini"
 if [ -f "$OPCACHE_INI_PATH" ] && ! grep -q "^opcache.enable=1" "$OPCACHE_INI_PATH"; then
