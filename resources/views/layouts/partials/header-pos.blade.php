@@ -328,7 +328,7 @@
                 id="full_screen">
                 <strong class="tw-flex tw-items-center tw-gap-2">
                     <i class="fa fa-window-maximize fa-lg tw-text-[#646EE4] !tw-text-sm"></i>
-                    <span class="tw-inline md:tw-hidden tw-whitespace-nowrap">Full Screen</span>
+                    <span class="tw-inline md:tw-hidden tw-whitespace-nowrap">{{ __('lang_v1.full_screen') }}</span>
                 </strong>
             </button>
 

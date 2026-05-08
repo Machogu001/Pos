@@ -3,23 +3,23 @@
   <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <div class="modal-title h5">Install {{ Session::get('business.name') }}</div>
-        <button type="button" class="btn-close" id="pwa-modal-close-btn" data-bs-dismiss="modal" aria-label="Close" style="cursor: pointer;"></button>
+        <div class="modal-title h5">{{ __('lang_v1.pwa_install_title', ['name' => Session::get('business.name')]) }}</div>
+        <button type="button" class="btn-close" id="pwa-modal-close-btn" data-bs-dismiss="modal" aria-label="{{ __('messages.close') }}" style="cursor: pointer;"></button>
       </div>
       <div class="modal-body text-center">
-        <p id="pwa-install-description">Install this app to access it quickly from your device.</p>
+        <p id="pwa-install-description">{{ __('lang_v1.pwa_install_description') }}</p>
         <div id="pwa-ios-instructions" style="display:none; text-align:left">
-          <p>To install on iOS (Safari):</p>
+          <p>{{ __('lang_v1.pwa_ios_install_intro') }}</p>
           <ol style="text-align:left">
-            <li>Tap the Share button ({{ "\u2B07\uFE0F" }} or the box with an arrow).</li>
-            <li>Select "Add to Home Screen".</li>
-            <li>Tap "Add" in the top-right.</li>
+            <li>{{ __('lang_v1.pwa_ios_install_step_1') }}</li>
+            <li>{{ __('lang_v1.pwa_ios_install_step_2') }}</li>
+            <li>{{ __('lang_v1.pwa_ios_install_step_3') }}</li>
           </ol>
         </div>
       </div>
       <div class="modal-footer">
-        <button id="pwa-install-btn" type="button" class="btn btn-primary">Install</button>
-        <button id="pwa-dismiss-btn" type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button id="pwa-install-btn" type="button" class="btn btn-primary">{{ __('lang_v1.install') }}</button>
+        <button id="pwa-dismiss-btn" type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('messages.close') }}</button>
       </div>
     </div>
   </div>
@@ -181,7 +181,7 @@
         // On iOS show manual instructions
         if (isIos) {
             iosInstructions.style.display = 'block';
-            installBtn.textContent = 'Got it';
+            installBtn.textContent = @json(__('lang_v1.ok'));
             showModal();
             return;
         }

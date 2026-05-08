@@ -3,7 +3,7 @@
   <div class="container">
     <div class="navbar-header">
       <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar" style="margin-top: 3px; margin-right: 3px;">
-        <span class="sr-only">Toggle navigation</span>
+        <span class="sr-only">@lang('lang_v1.toggle_navigation')</span>
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>

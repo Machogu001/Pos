@@ -20,6 +20,10 @@
             <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
                 <ul class="nav navbar-nav accounting-toolbar__links">
 
+                    <li @if (request()->segment(1) == 'accounting' && request()->segment(2) == 'dashboard') class="active" @endif>
+                        <a href="{{ url('accounting/dashboard') }}">@lang('home.dashboard')</a>
+                    </li>
+
                     <li @if (request()->segment(1) == 'accounting' && request()->segment(2) == 'chart_of_account') class="active" @endif>
                         <a href="{{ url('accounting/chart_of_account') }}">
                             @lang('accounting::lang.view_charts_of_accounts')
@@ -43,7 +47,7 @@
                     </li>
 
 
-                    <li @if (request()->segment(1) == 'accounting' && request()->segment(2) == 'transactions')) class="active" @endif>
+                    <li @if (request()->segment(1) == 'accounting' && request()->segment(2) == 'transactions') class="active" @endif>
                         <a href="{{ url('accounting/transactions/sales?type=payment') }}">@lang('accounting::lang.transactions')</a>
                     </li>
 

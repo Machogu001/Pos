@@ -16,18 +16,18 @@ class DataController extends Controller
     public function user_permissions()
     {
         return array(
-            array('value' => 'accounting.chart_of_accounts.index', 'label' => 'View Chart of accounts'),
-            array('value' => 'accounting.chart_of_accounts.create', 'label' => 'Create Chart of accounts'),
-            array('value' => 'accounting.chart_of_accounts.edit', 'label' => 'Edit Chart of accounts'),
-            array('value' => 'accounting.chart_of_accounts.destroy', 'label' => 'Delete Chart of accounts'),
-            array('value' => 'accounting.journal_entries.index', 'label' => 'View Journal Entries'),
-            array('value' => 'accounting.journal_entries.create', 'label' => 'Create Journal Entries'),
-            array('value' => 'accounting.journal_entries.edit', 'label' => 'Edit Journal Entries'),
-            array('value' => 'accounting.journal_entries.reverse', 'label' => 'Reverse Journal Entries'),
-            array('value' => 'accounting.reports.balance_sheet', 'label' => 'View Balance Sheet'),
-            array('value' => 'accounting.reports.trial_balance', 'label' => 'View Trial Balance'),
-            array('value' => 'accounting.reports.income_statement', 'label' => 'View Income Statement'),
-            array('value' => 'accounting.reports.ledger', 'label' => 'View Ledger')
+            array('value' => 'accounting.chart_of_accounts.index', 'label' => __('accounting::lang.view') . ' ' . __('accounting::lang.view_charts_of_accounts')),
+            array('value' => 'accounting.chart_of_accounts.create', 'label' => __('accounting::lang.create') . ' ' . __('accounting::lang.view_charts_of_accounts')),
+            array('value' => 'accounting.chart_of_accounts.edit', 'label' => __('accounting::lang.edit') . ' ' . __('accounting::lang.view_charts_of_accounts')),
+            array('value' => 'accounting.chart_of_accounts.destroy', 'label' => __('accounting::lang.delete') . ' ' . __('accounting::lang.view_charts_of_accounts')),
+            array('value' => 'accounting.journal_entries.index', 'label' => __('accounting::lang.view') . ' ' . __('accounting::lang.journal_of_entries')),
+            array('value' => 'accounting.journal_entries.create', 'label' => __('accounting::lang.create') . ' ' . __('accounting::lang.journal_of_entries')),
+            array('value' => 'accounting.journal_entries.edit', 'label' => __('accounting::lang.edit') . ' ' . __('accounting::lang.journal_of_entries')),
+            array('value' => 'accounting.journal_entries.reverse', 'label' => __('accounting::general.reverse') . ' ' . __('accounting::lang.journal_of_entries')),
+            array('value' => 'accounting.reports.balance_sheet', 'label' => __('accounting::lang.view') . ' ' . __('accounting::general.balance_sheet')),
+            array('value' => 'accounting.reports.trial_balance', 'label' => __('accounting::lang.view') . ' ' . __('accounting::general.trial_balance')),
+            array('value' => 'accounting.reports.income_statement', 'label' => __('accounting::lang.view') . ' ' . __('accounting::general.income_statement')),
+            array('value' => 'accounting.reports.ledger', 'label' => __('accounting::lang.view') . ' ' . trans_choice('accounting::general.ledger', 1))
         );
     }
 
@@ -66,7 +66,7 @@ class DataController extends Controller
                         // Alphabetical order
                         $sub->url(
                             action('\Modules\Accounting\Http\Controllers\DashboardController@index'),
-                            __('accounting::lang.accounting'),
+                            __('home.dashboard'),
                             ['icon' => '', 'active' => request()->segment(1) == 'accounting' && request()->segment(2) == 'dashboard']
                         );
 
@@ -74,7 +74,7 @@ class DataController extends Controller
                         if (auth()->user()->can('account.access') && in_array('account', session('business.enabled_modules', []))) {
                             $sub->url(
                                 action([\App\Http\Controllers\AccountReportsController::class, 'showBankReconciliation']),
-                                __('account.bank_reconciliation') ?? 'Bank Reconciliation',
+                                __('account.bank_reconciliation'),
                                 ['icon' => '', 'active' => request()->segment(1) == 'account' && request()->segment(2) == 'bank-reconciliation']
                             );
                         }
@@ -95,13 +95,13 @@ class DataController extends Controller
                         if (auth()->user()->can('account.access') && in_array('account', session('business.enabled_modules', []))) {
                             $sub->url(
                                 action([\App\Http\Controllers\AccountReportsController::class, 'chartOfAccounts']),
-                                'GL (General Ledger) Detail',
+                                __('account.general_ledger') . ' ' . trans_choice('accounting::lang.detail', 2),
                                 ['icon' => '', 'active' => request()->segment(1) == 'account' && request()->segment(2) == 'chart-of-accounts']
                             );
 
                             $sub->url(
                                 action([\App\Http\Controllers\AccountController::class, 'index']),
-                                'GL (General Ledger) Setup',
+                                __('account.general_ledger') . ' ' . __('accounting::lang.settings'),
                                 ['icon' => '', 'active' => request()->segment(1) == 'account' && request()->segment(2) == 'account']
                             );
                         }

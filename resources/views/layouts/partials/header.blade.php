@@ -82,15 +82,15 @@
 
             <div class="tw-flex tw-items-center tw-justify-end tw-gap-3" style="overflow: visible;">
                     {{-- View toggle: default desktop, user can switch to mobile view --}}
-                    <button id="view-toggle-btn" title="Toggle mobile/desktop view"
+                    <button id="view-toggle-btn" title="{{ __('lang_v1.toggle_mobile_desktop_view') }}"
                         class="tw-inline-flex tw-items-center tw-justify-center tw-text-sm tw-font-medium tw-text-white tw-transition-all tw-duration-200 tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-700 hover:tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-600 tw-px-3 tw-py-1.5 tw-rounded-lg tw-ring-1 tw-ring-white/10 lg:tw-hidden">
-                        <span id="view-toggle-label">Desktop view</span>
+                        <span id="view-toggle-label">{{ __('lang_v1.desktop_view') }}</span>
                     </button>
                     <!-- Header PWA install CTA (hidden by default). JS will show when beforeinstallprompt fires -->
-                    <button id="header-pwa-install-btn" title="Install app" aria-hidden="true"
+                    <button id="header-pwa-install-btn" title="{{ __('lang_v1.install_app') }}" aria-hidden="true"
                         class="tw-hidden tw-inline-flex tw-items-center tw-justify-center tw-text-sm tw-font-medium tw-text-white tw-transition-all tw-duration-200 tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-600 hover:tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-500 tw-px-3 tw-py-1.5 tw-rounded-lg tw-ring-1 tw-ring-white/10"
                         style="min-width:78px">
-                        <span id="header-pwa-install-label">Install</span>
+                        <span id="header-pwa-install-label">{{ __('lang_v1.install') }}</span>
                     </button>
                 @if (Module::has('Essentials'))
                     @includeIf('essentials::layouts.partials.header_part')

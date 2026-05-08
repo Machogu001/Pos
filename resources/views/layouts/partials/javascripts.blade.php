@@ -178,9 +178,12 @@
                 return localStorage.getItem('preferred_view') || 'desktop';
             }
 
+            var desktopViewLabel = @json(__('lang_v1.desktop_view'));
+            var mobileViewLabel = @json(__('lang_v1.mobile_view'));
+
             function updateLabel(p) {
                 if (!lbl) return;
-                lbl.textContent = (p === 'desktop') ? 'Desktop view' : 'Mobile view';
+                lbl.textContent = (p === 'desktop') ? desktopViewLabel : mobileViewLabel;
             }
 
             // Treat phones as <= 767px. Devices with width >= 1024 are considered desktop by layout, but
