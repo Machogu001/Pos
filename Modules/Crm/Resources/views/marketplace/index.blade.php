@@ -13,7 +13,7 @@
 <section class="content no-print">
 	<div class="row">
 		<div class="col-md-12">
-			@component('components.widget', ['class' => 'box-solid', 'title' => 'Exporters India'])
+			@component('components.widget', ['class' => 'box-solid', 'title' => __('ui.exporters_india')])
 				<div class="row">
 					<div class="col-md-8">
 						{!! Form::open(['url' => action([\Modules\Crm\Http\Controllers\CrmMarketplaceController::class, 'save']), 'method' => 'post' ]) !!}

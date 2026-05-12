@@ -1,30 +1,30 @@
 @extends('layouts.app')
 
-@section('title', 'Leave Types')
+@section('title', __('ui.leave_types'))
 
 @section('content')
 @include('hrm::partials.hrm_page_header', [
-    'title' => 'Leave Types',
-    'subtitle' => 'Define the leave categories available to employees and managers.',
-    'actions' => '<a href="'.route('hrm.leave_types.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> Create Leave Type</a>'
+    'title' => __('ui.leave_types'),
+    'subtitle' => __('ui.define_the_leave_categories_available_to_employees_and_managers'),
+    'actions' => '<a href="'.route('hrm.leave_types.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> '. __('ui.create_leave_type') .'</a>'
 ])
 
 <section class="content">
     <div class="box box-primary">
         <div class="box-header with-border">
-            <h3 class="box-title">Leave Type Catalog</h3>
+            <h3 class="box-title">{{ __('ui.leave_type_catalog') }}</h3>
             <div class="box-tools pull-right">
-                <span class="label label-info">Total types: {{ $totalRows ?? 0 }}</span>
+                <span class="label label-info">{{ __('ui.total_types') }} {{ $totalRows ?? 0 }}</span>
             </div>
         </div>
         <div class="box-body">
             <div class="row mb-3">
                 <div class="col-md-6">
-                    <label for="search" class="form-label">Search</label>
-                    <input id="search" class="form-control" placeholder="Search by name" oninput="applyFilters()" />
+                    <label for="search" class="form-label">{{ __('ui.search') }}</label>
+                    <input id="search" class="form-control" placeholder="{{ __('ui.search_by_name') }}" oninput="applyFilters()" />
                 </div>
                 <div class="col-md-6 d-flex align-items-end justify-content-end">
-                    <small class="text-muted">Keep leave labels simple and consistent for approval workflows.</small>
+                    <small class="text-muted">{{ __('ui.keep_leave_labels_simple_and_consistent_for_approval_workflows') }}</small>
                 </div>
             </div>
 
@@ -32,8 +32,8 @@
                 <table class="table table-hover table-striped align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>Name</th>
-                            <th class="text-end">Actions</th>
+                            <th>{{ __('ui.name') }}</th>
+                            <th class="text-end">{{ __('ui.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody id="types_table_body">
@@ -41,13 +41,13 @@
                             <tr>
                                 <td><strong>{{ $t['name'] ?? '-' }}</strong></td>
                                 <td class="text-end">
-                                    <a href="{{ route('hrm.leave_types.edit', $t['id']) }}" class="btn btn-sm btn-default">Edit</a>
-                                    <button class="btn btn-sm btn-danger" onclick="deleteType({{ $t['id'] }})">Delete</button>
+                                    <a href="{{ route('hrm.leave_types.edit', $t['id']) }}" class="btn btn-sm btn-default">{{ __('ui.edit') }}</a>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteType({{ $t['id'] }})">{{ __('ui.delete') }}</button>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="2" class="text-center text-muted">No leave types found.</td>
+                                <td colspan="2" class="text-center text-muted">{{ __('ui.no_leave_types_found') }}</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -90,7 +90,7 @@
         const tbody = document.getElementById('types_table_body');
         tbody.innerHTML = '';
         if (!json.leave_types || !json.leave_types.length) {
-            tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">No leave types found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">{{ __('ui.no_leave_types_found') }}</td></tr>';
             return;
         }
         json.leave_types.forEach(t => {
@@ -98,21 +98,21 @@
             tr.innerHTML = `
                 <td>${t.name || '-'}</td>
                 <td class="text-end">
-                    <a href="${window.location.pathname}/${t.id}/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteType(${t.id})">Delete</button>
+                    <a href="${window.location.pathname}/${t.id}/edit" class="btn btn-sm btn-outline-secondary">{{ __('ui.edit') }}</a>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteType(${t.id})">{{ __('ui.delete') }}</button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
         document.querySelectorAll('.text-muted').forEach(el => {
-            if (el.textContent.trim().startsWith('Total types:')) {
-                el.textContent = 'Total types: ' + (json.totalRows ?? 0);
+            if (el.textContent.trim().startsWith("{{ __('ui.total_types') }}")) {
+                el.textContent = "{{ __('ui.total_types') }}" + ' ' + (json.totalRows ?? 0);
             }
         });
     }
 
     function deleteType(id) {
-        window.hrmConfirm('Delete this type?', { title: 'Delete Leave Type', confirmButtonText: 'Delete' }).then(confirmed => {
+        window.hrmConfirm("{{ __('ui.delete_this_type') }}", { title: "{{ __('ui.delete_leave_type') }}", confirmButtonText: "{{ __('ui.delete') }}" }).then(confirmed => {
             if (!confirmed) return;
             fetch(`${window.location.pathname}/${id}`, {
                 method: 'POST',
@@ -125,15 +125,15 @@
             .then(r => r.json())
             .then(json => {
                 if (json && json.success) {
-                    if (window.toastr) { toastr.success('Deleted successfully'); }
+                    if (window.toastr) { toastr.success("{{ __('ui.deleted_successfully') }}"); }
                     if (window.playSuccess) { window.playSuccess(); }
                     applyFilters();
                 } else {
-                    if (window.toastr) { toastr.error('Delete failed'); }
+                    if (window.toastr) { toastr.error("{{ __('ui.delete_failed') }}"); }
                     if (window.playError) { window.playError(); }
                 }
             })
-            .catch(() => { if (window.toastr) { toastr.error('Delete failed'); } if (window.playError) { window.playError(); } });
+            .catch(() => { if (window.toastr) { toastr.error("{{ __('ui.delete_failed') }}"); } if (window.playError) { window.playError(); } });
         });
     }
 </script>

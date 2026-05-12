@@ -1,18 +1,18 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Payroll')
+@section('title', __('ui.edit_payroll'))
 
 @section('content')
 @include('hrm::partials.hrm_page_header', [
-    'title' => 'Edit Payroll #'.$payroll->id,
-    'subtitle' => 'Update payroll values before posting them to accounts.',
-    'actions' => '<a href="'.route('hrm.payrolls.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Payrolls</a>'
+    'title' => __('ui.edit_payroll_2') . $payroll->id,
+    'subtitle' => __('ui.update_payroll_values_before_posting_them_to_accounts'),
+    'actions' => '<a href="'.route('hrm.payrolls.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> '. __('ui.back_to_payrolls') .'</a>'
 ])
 
 <section class="content">
     <div class="box box-primary">
         <div class="box-header with-border">
-            <h3 class="box-title">Payroll Details</h3>
+            <h3 class="box-title">{{ __('ui.payroll_details') }}</h3>
         </div>
         <form method="POST" action="{{ route('hrm.payrolls.update', $payroll->id) }}">
             @csrf
@@ -23,7 +23,7 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="company_id" class="form-label">Company</label>
+                            <label for="company_id" class="form-label">{{ __('ui.company') }}</label>
                             <select name="company_id" id="company_id" class="form-control">
                                 @foreach($companies as $c)
                                     <option value="{{ $c->id }}" {{ old('company_id', $payroll->company_id) == $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
@@ -33,11 +33,11 @@
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="employee_id" class="form-label">Employee</label>
+                            <label for="employee_id" class="form-label">{{ __('ui.employee') }}</label>
                             <select name="employee_id" id="employee_id" class="form-control">
                                 @foreach($employees as $e)
                                     @php $label = $e->username ?? trim((($e->firstname ?? '') . ' ' . ($e->lastname ?? ''))); @endphp
-                                    <option value="{{ $e->id }}" {{ old('employee_id', $payroll->employee_id) == $e->id ? 'selected' : '' }}>{{ $label ?: 'Employee #'.$e->id }}</option>
+                                    <option value="{{ $e->id }}" {{ old('employee_id', $payroll->employee_id) == $e->id ? 'selected' : '' }}>{{ $label ?: __('ui.employee_2') . $e->id }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -47,13 +47,13 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="period_start" class="form-label">Period Start</label>
+                            <label for="period_start" class="form-label">{{ __('ui.period_start') }}</label>
                             <input type="date" name="period_start" id="period_start" class="form-control" value="{{ old('period_start', $payroll->period_start) }}" required />
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="period_end" class="form-label">Period End</label>
+                            <label for="period_end" class="form-label">{{ __('ui.period_end') }}</label>
                             <input type="date" name="period_end" id="period_end" class="form-control" value="{{ old('period_end', $payroll->period_end) }}" required />
                         </div>
                     </div>
@@ -62,19 +62,19 @@
                 <div class="row">
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label for="gross" class="form-label">Gross</label>
+                            <label for="gross" class="form-label">{{ __('ui.gross') }}</label>
                             <input type="number" step="0.01" name="gross" id="gross" class="form-control" value="{{ old('gross', $payroll->gross) }}" required />
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label for="deductions" class="form-label">Deductions</label>
+                            <label for="deductions" class="form-label">{{ __('ui.deductions') }}</label>
                             <input type="number" step="0.01" id="deductions" name="deductions" class="form-control" value="{{ old('deductions', $payroll->deductions) }}" />
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label for="net" class="form-label">Net</label>
+                            <label for="net" class="form-label">{{ __('ui.net') }}</label>
                             <input type="number" step="0.01" id="net" name="net" class="form-control" value="{{ old('net', $payroll->net) }}" readonly />
                         </div>
                     </div>
@@ -82,31 +82,31 @@
 
                 <div class="box box-default">
                     <div class="box-header with-border">
-                        <h3 class="box-title">Payroll Breakdown</h3>
+                        <h3 class="box-title">{{ __('ui.payroll_breakdown') }}</h3>
                     </div>
                     <div class="box-body">
                         <div class="row">
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="basic_pay">Basic Pay</label>
+                                    <label for="basic_pay">{{ __('ui.basic_pay') }}</label>
                                     <input type="number" step="0.01" name="basic_pay" id="basic_pay" class="form-control" value="{{ old('basic_pay', $payroll->basic_pay ?? $payroll->gross) }}" />
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="nssf">NSSF</label>
+                                    <label for="nssf">{{ __('ui.nssf_2') }}</label>
                                     <input type="number" step="0.01" name="nssf" id="nssf" class="form-control" value="{{ old('nssf', $payroll->nssf ?? 0) }}" />
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="shif">SHIF</label>
+                                    <label for="shif">{{ __('ui.shif_2') }}</label>
                                     <input type="number" step="0.01" name="shif" id="shif" class="form-control" value="{{ old('shif', $payroll->shif ?? 0) }}" />
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="housing_levy">Housing Levy</label>
+                                    <label for="housing_levy">{{ __('ui.housing_levy_2') }}</label>
                                     <input type="number" step="0.01" name="housing_levy" id="housing_levy" class="form-control" value="{{ old('housing_levy', $payroll->housing_levy ?? 0) }}" />
                                 </div>
                             </div>
@@ -115,25 +115,25 @@
                         <div class="row">
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="taxable_pay">Taxable Pay</label>
+                                    <label for="taxable_pay">{{ __('ui.taxable_pay') }}</label>
                                     <input type="number" step="0.01" name="taxable_pay" id="taxable_pay" class="form-control" value="{{ old('taxable_pay', $payroll->taxable_pay ?? 0) }}" readonly />
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="income_tax">Income Tax</label>
+                                    <label for="income_tax">{{ __('ui.income_tax') }}</label>
                                     <input type="number" step="0.01" name="income_tax" id="income_tax" class="form-control" value="{{ old('income_tax', $payroll->income_tax ?? 0) }}" />
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="personal_relief">Personal Relief</label>
+                                    <label for="personal_relief">{{ __('ui.personal_relief') }}</label>
                                     <input type="number" step="0.01" name="personal_relief" id="personal_relief" class="form-control" value="{{ old('personal_relief', $payroll->personal_relief ?? 0) }}" />
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="paye">P.A.Y.E</label>
+                                    <label for="paye">{{ __('ui.p_a_y_e') }}</label>
                                     <input type="number" step="0.01" name="paye" id="paye" class="form-control" value="{{ old('paye', $payroll->paye ?? 0) }}" readonly />
                                 </div>
                             </div>
@@ -142,7 +142,7 @@
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="pay_after_tax">Pay After Tax</label>
+                                    <label for="pay_after_tax">{{ __('ui.pay_after_tax') }}</label>
                                     <input type="number" step="0.01" name="pay_after_tax" id="pay_after_tax" class="form-control" value="{{ old('pay_after_tax', $payroll->pay_after_tax ?? 0) }}" readonly />
                                 </div>
                             </div>
@@ -152,8 +152,8 @@
             </div>
 
             <div class="box-footer text-right">
-                <a href="{{ route('hrm.payrolls.index') }}" class="btn btn-default">Cancel</a>
-                <button class="btn btn-primary"><i class="fa fa-save"></i> Update Payroll</button>
+                <a href="{{ route('hrm.payrolls.index') }}" class="btn btn-default">{{ __('ui.cancel') }}</a>
+                <button class="btn btn-primary"><i class="fa fa-save"></i> {{ __('ui.update_payroll') }}</button>
             </div>
         </form>
     </div>

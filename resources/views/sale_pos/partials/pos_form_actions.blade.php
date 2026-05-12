@@ -92,7 +92,8 @@
                 <button type="button"
                     class="tw-font-bold tw-text-gray-700 tw-cursor-pointer tw-text-xs md:tw-text-sm tw-flex tw-flex-col tw-items-center tw-justify-center tw-gap-1 no-print pos-express-finalize @if (!array_key_exists('mpesa', $payment_types)) hide @endif @if ($is_mobile) col-xs-6 @endif"
                     data-pay_method="mpesa" title="@lang('payment.mpesa')">
-                    <i class="fas fa-mobile-alt tw-text-[#0b6e4f]" aria-hidden="true"></i> @lang('payment.mpesa')
+                    <img src="{{ asset('img/mpesa-logo.svg') }}" alt="@lang('payment.mpesa')" style="height: 18px; width: auto;" loading="lazy">
+                    <span style="color:#0b6e4f; font-weight:700;">@lang('payment.mpesa')</span>
                 </button>
 
                 @if (!Gate::check('disable_pay_checkout') || auth()->user()->can('superadmin') || auth()->user()->can('admin'))

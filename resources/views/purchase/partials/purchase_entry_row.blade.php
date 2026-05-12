@@ -65,7 +65,7 @@
                 <br>
                 <select name="purchases[{{$row_count}}][sub_unit_id]" class="form-control input-sm sub_unit">
                     @foreach($sub_units as $key => $value)
-                        <option value="{{$key}}" data-multiplier="{{$value['multiplier']}}">
+                        <option value="{{$key}}" data-multiplier="{{$value['multiplier']}}" @if(!empty($product->sub_unit_id) && (int) $product->sub_unit_id === (int) $key) selected @endif>
                             {{$value['name']}}
                         </option>
                     @endforeach

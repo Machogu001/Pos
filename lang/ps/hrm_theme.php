@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'classic' => 'کلاسیک',
+    'corporate' => 'Corporate',
+    'minimal' => 'Minimal',
+    'classic_preview' => 'Classic Preview',
+    'corporate_preview' => 'Corporate Preview',
+    'minimal_light_preview' => 'Minimal Light Preview',
+    'classic_warm_premium' => 'Classic (Warm, premium)',
+    'corporate_clean_cool' => 'Corporate (Clean, cool)',
+    'minimal_light_soft_neutral' => 'Minimal Light (Soft, neutral)',
+    'warm_premium' => 'Warm premium',
+    'cool_and_clean' => 'Cool and clean',
+    'soft_neutral' => 'Soft neutral',
+    'navy_bronze_desc' => 'Navy + bronze accents with warmer table/cards.',
+    'cool_blue_desc' => 'Cool blue + slate accents with cleaner contrast.',
+    'neutral_gray_desc' => 'Neutral grays with subtle blue highlights and airy spacing.',
+    'quick_theme_switch' => 'Quick theme switch',
+    'choose_how_pages_look' => 'Choose how HRM pages look.',
+    'choose_visual_style' => 'Choose the visual style for all HRM pages.',
+    'theme' => 'موضوع',
+    'theme_customization' => 'Theme Customization',
+    'save_theme' => 'Save Theme',
+    'open_theme_settings' => 'Open Theme Settings',
+    'active_theme' => 'Active theme:',
+];

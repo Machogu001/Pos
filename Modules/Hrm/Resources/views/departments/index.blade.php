@@ -1,28 +1,28 @@
 @extends('layouts.app')
 
-@section('title', 'Departments')
+@section('title', __('ui.departments'))
 
 @section('content')
 @include('hrm::partials.hrm_page_header', [
-    'title' => 'Departments',
-    'subtitle' => 'Organize employees by department and assign the right department head.',
-    'actions' => '<a href="'.route('hrm.departments.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> Create Department</a>'
+    'title' => __('ui.departments'),
+    'subtitle' => __('ui.organize_employees_by_department_and_assign_the_right_department_head'),
+    'actions' => '<a href="'.route('hrm.departments.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> '. __('ui.create_department') .'</a>'
 ])
 
 <section class="content">
     <div class="box box-primary">
         <div class="box-header with-border">
-            <h3 class="box-title">Department Directory</h3>
+            <h3 class="box-title">{{ __('ui.department_directory') }}</h3>
         </div>
         <div class="box-body no-padding">
             <div class="table-responsive">
                 <table class="table table-hover table-striped mb-0">
                     <thead>
                         <tr>
-                            <th>Department</th>
-                            <th>Company</th>
-                            <th>Head</th>
-                            <th class="text-end">Actions</th>
+                            <th>{{ __('ui.department') }}</th>
+                            <th>{{ __('ui.company') }}</th>
+                            <th>{{ __('ui.head') }}</th>
+                            <th class="text-end">{{ __('ui.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -44,20 +44,20 @@
                                 <td>{{ $d->company_name ?? '-' }}</td>
                                 <td class="head-cell">{{ $headLabel }}</td>
                                 <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-primary set-head-btn" data-id="{{ $d->id }}" data-current="{{ $d->department_head ?? '' }}">Set Head</button>
+                                    <button type="button" class="btn btn-sm btn-primary set-head-btn" data-id="{{ $d->id }}" data-current="{{ $d->department_head ?? '' }}">{{ __('ui.set_head') }}</button>
                                     @if($d->department_head)
-                                        <button type="button" class="btn btn-sm btn-warning remove-head-btn" data-id="{{ $d->id }}">Remove Head</button>
+                                        <button type="button" class="btn btn-sm btn-warning remove-head-btn" data-id="{{ $d->id }}">{{ __('ui.remove_head') }}</button>
                                     @endif
-                                    <a href="{{ route('hrm.departments.edit', $d->id) }}" class="btn btn-sm btn-default">Edit</a>
-                                    <form action="{{ route('hrm.departments.destroy', $d->id) }}" method="POST" style="display:inline-block" data-hrm-confirm="Delete this department?" data-hrm-confirm-title="Delete Department">
+                                    <a href="{{ route('hrm.departments.edit', $d->id) }}" class="btn btn-sm btn-default">{{ __('ui.edit') }}</a>
+                                    <form action="{{ route('hrm.departments.destroy', $d->id) }}" method="POST" style="display:inline-block" data-hrm-confirm="{{ __('ui.delete_this_department') }}" data-hrm-confirm-title="{{ __('ui.delete_department') }}">
                                         @csrf
                                         @method('DELETE')
-                                        <button class="btn btn-sm btn-danger">Delete</button>
+                                        <button class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button>
                                     </form>
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="text-center text-muted">No departments found.</td></tr>
+                            <tr><td colspan="4" class="text-center text-muted">{{ __('ui.no_departments_found') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Set Department Head</h5>
+                    <h5 class="modal-title">{{ __('ui.set_department_head') }}</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <div class="modal-body">
@@ -102,20 +102,20 @@ document.addEventListener('DOMContentLoaded', function(){
                     <form id="setHeadForm">
                         <input type="hidden" name="department_id" id="modal_department_id" />
                         <div class="form-group">
-                            <label for="modal_department_head" class="form-label">Select Employee</label>
+                            <label for="modal_department_head" class="form-label">{{ __('ui.select_employee_2') }}</label>
                             <select id="modal_department_head" name="department_head" class="form-control">
-                                <option value="">-- None --</option>
+                                <option value="">{{ __('ui.none') }}</option>
                                 @foreach($employees as $e)
                                     @php $empLabel = $e->username ?? trim((($e->firstname ?? '') . ' ' . ($e->lastname ?? ''))); @endphp
-                                    <option value="{{ $e->id }}">{{ $empLabel ?: 'Employee #'.$e->id }}</option>
+                                    <option value="{{ $e->id }}">{{ $empLabel ?: __('ui.employee_2') . $e->id }}</option>
                                 @endforeach
                             </select>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="button" id="modalSaveHead" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('ui.cancel') }}</button>
+                    <button type="button" id="modalSaveHead" class="btn btn-primary">{{ __('ui.save') }}</button>
                 </div>
             </div>
         </div>
@@ -126,33 +126,33 @@ document.addEventListener('DOMContentLoaded', function(){
     var bsModal = (typeof bootstrap !== 'undefined' && setHeadModalEl) ? new bootstrap.Modal(setHeadModalEl) : null;
     var employeeOptions = @json(($employees ?? collect())->map(function ($e) {
         $empLabel = $e->username ?? trim((($e->firstname ?? '') . ' ' . ($e->lastname ?? '')));
-        return ['id' => (string) $e->id, 'label' => ($empLabel ?: ('Employee #'.$e->id))];
+        return ['id' => (string) $e->id, 'label' => ($empLabel ?: (__('ui.employee_2') . $e->id))];
     })->values());
 
     function openSetHeadToastInput(id, current){
         if(typeof Swal !== 'undefined' && typeof Swal.fire === 'function'){
-            var inputOptions = { '': '-- None --' };
+            var inputOptions = { '': "{{ __('ui.none') }}" };
             employeeOptions.forEach(function(item){ inputOptions[item.id] = item.label; });
             Swal.fire({
-                title: 'Set Department Head',
-                text: 'Select employee to set as head.',
+                title: "{{ __('ui.set_department_head') }}",
+                text: "{{ __('ui.select_employee_to_set_as_head') }}",
                 input: 'select',
                 inputOptions: inputOptions,
                 inputValue: current || '',
                 showCancelButton: true,
-                confirmButtonText: 'Save',
-                cancelButtonText: 'Cancel',
+                confirmButtonText: "{{ __('ui.save') }}",
+                cancelButtonText: "{{ __('ui.cancel') }}",
                 preConfirm: function(value){
                     return sendSetHead(id, value || '').then(function(data){
                         if(data && data.success){ return data; }
-                        var msg = (data && data.message) ? data.message : 'Failed to set department head';
+                        var msg = (data && data.message) ? data.message : "{{ __('ui.failed_to_set_department_head') }}";
                         if(typeof Swal.showValidationMessage === 'function'){
                             Swal.showValidationMessage(msg);
                         }
                         return false;
                     }).catch(function(){
                         if(typeof Swal.showValidationMessage === 'function'){
-                            Swal.showValidationMessage('Request failed');
+                            Swal.showValidationMessage("{{ __('ui.request_failed') }}");
                         }
                         return false;
                     });
@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', function(){
             }).then(function(result){
                 if(result && result.isConfirmed && result.value){
                     updateHeadRow(id, result.value);
-                    showToast('Department head updated', 'success');
+                    showToast("{{ __('ui.department_head_updated') }}", 'success');
                 }
             });
             return;
@@ -185,13 +185,13 @@ document.addEventListener('DOMContentLoaded', function(){
         wrapper.style.zIndex = '3000';
 
         wrapper.innerHTML = '' +
-            '<div style="font-weight:600; margin-bottom:8px;">Set Department Head</div>' +
-            '<div style="font-size:12px; color:#6b7280; margin-bottom:8px;">Select employee (or None to clear).</div>' +
-            '<select id="setHeadToastInput" class="form-control" style="margin-bottom:10px;"><option value="">-- None --</option></select>' +
+            '<div style="font-weight:600; margin-bottom:8px;">{{ __('ui.set_department_head') }}</div>' +
+            '<div style="font-size:12px; color:#6b7280; margin-bottom:8px;">{{ __('ui.select_employee_or_none_to_clear') }}</div>' +
+            '<select id="setHeadToastInput" class="form-control" style="margin-bottom:10px;"><option value="">{{ __('ui.none') }}</option></select>' +
             '<div id="setHeadToastError" style="display:none; color:#dc2626; font-size:12px; margin-bottom:8px;"></div>' +
             '<div style="display:flex; justify-content:flex-end; gap:8px;">' +
-                '<button type="button" id="setHeadToastCancel" class="btn btn-default btn-sm">Cancel</button>' +
-                '<button type="button" id="setHeadToastSave" class="btn btn-primary btn-sm">Save</button>' +
+                '<button type="button" id="setHeadToastCancel" class="btn btn-default btn-sm">{{ __('ui.cancel') }}</button>' +
+                '<button type="button" id="setHeadToastSave" class="btn btn-primary btn-sm">{{ __('ui.save') }}</button>' +
             '</div>';
 
         document.body.appendChild(wrapper);
@@ -222,15 +222,15 @@ document.addEventListener('DOMContentLoaded', function(){
                 if(data && data.success){
                     updateHeadRow(id, data);
                     closePrompt();
-                    showToast('Department head updated', 'success');
+                    showToast("{{ __('ui.department_head_updated') }}", 'success');
                 } else {
-                    var msg = (data && data.message) ? data.message : 'Failed to set department head';
+                    var msg = (data && data.message) ? data.message : "{{ __('ui.failed_to_set_department_head') }}";
                     if(err){ err.textContent = msg; err.style.display = 'block'; }
                     showToast(msg, 'error');
                 }
             }).catch(function(){
-                if(err){ err.textContent = 'Request failed'; err.style.display = 'block'; }
-                showToast('Request failed', 'error');
+                if(err){ err.textContent = "{{ __('ui.request_failed') }}"; err.style.display = 'block'; }
+                showToast("{{ __('ui.request_failed') }}", 'error');
             });
         });
     }
@@ -249,7 +249,7 @@ document.addEventListener('DOMContentLoaded', function(){
                 btn.type = 'button';
                 btn.className = 'btn btn-sm btn-warning remove-head-btn';
                 btn.setAttribute('data-id', id);
-                btn.textContent = 'Remove Head';
+                btn.textContent = "{{ __('ui.remove_head') }}";
                 var end = row.querySelector('.text-end');
                 var form = end ? end.querySelector('form') : null;
                 if(end){
@@ -307,24 +307,24 @@ document.addEventListener('DOMContentLoaded', function(){
                 } else if(typeof window.jQuery !== 'undefined' && setHeadModalEl && typeof window.jQuery.fn.modal === 'function') {
                     window.jQuery(setHeadModalEl).modal('hide');
                 }
-                showToast('Department head updated', 'success');
+                showToast("{{ __('ui.department_head_updated') }}", 'success');
             } else {
-                var msg = (data && data.message) ? data.message : 'Failed to set department head';
+                var msg = (data && data.message) ? data.message : "{{ __('ui.failed_to_set_department_head') }}";
                 if(err){ err.textContent = msg; err.classList.remove('d-none'); }
                 showToast(msg, 'error');
             }
-        }).catch(function(){ if(err){ err.textContent = 'Request failed'; err.classList.remove('d-none'); } showToast('Request failed', 'error'); });
+        }).catch(function(){ if(err){ err.textContent = "{{ __('ui.request_failed') }}"; err.classList.remove('d-none'); } showToast("{{ __('ui.request_failed') }}", 'error'); });
     });
 
     function askRemoveHeadConfirm(){
         if(typeof Swal !== 'undefined' && typeof Swal.fire === 'function'){
             return Swal.fire({
-                title: 'Remove Department Head?',
-                text: 'This will clear the current department head.',
+                title: "{{ __('ui.remove_department_head') }}",
+                text: "{{ __('ui.this_will_clear_the_current_department_head') }}",
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonText: 'Yes, remove',
-                cancelButtonText: 'Cancel'
+                confirmButtonText: "{{ __('ui.yes_remove') }}",
+                cancelButtonText: "{{ __('ui.cancel') }}"
             }).then(function(result){
                 return !!(result && result.isConfirmed);
             });
@@ -350,11 +350,11 @@ document.addEventListener('DOMContentLoaded', function(){
             wrapper.style.zIndex = '3000';
 
             wrapper.innerHTML = '' +
-                '<div style="font-weight:600; margin-bottom:8px;">Remove Department Head?</div>' +
-                '<div style="font-size:12px; color:#6b7280; margin-bottom:10px;">This will clear the current department head.</div>' +
+                '<div style="font-weight:600; margin-bottom:8px;">{{ __('ui.remove_department_head') }}</div>' +
+                '<div style="font-size:12px; color:#6b7280; margin-bottom:10px;">{{ __('ui.this_will_clear_the_current_department_head') }}</div>' +
                 '<div style="display:flex; justify-content:flex-end; gap:8px;">' +
-                    '<button type="button" id="removeHeadToastCancel" class="btn btn-default btn-sm">Cancel</button>' +
-                    '<button type="button" id="removeHeadToastYes" class="btn btn-danger btn-sm">Yes, remove</button>' +
+                    '<button type="button" id="removeHeadToastCancel" class="btn btn-default btn-sm">{{ __('ui.cancel') }}</button>' +
+                    '<button type="button" id="removeHeadToastYes" class="btn btn-danger btn-sm">{{ __('ui.yes_remove') }}</button>' +
                 '</div>';
 
             document.body.appendChild(wrapper);
@@ -378,9 +378,9 @@ document.addEventListener('DOMContentLoaded', function(){
             fetch(url, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } }).then(function(r){ return r.json(); }).then(function(data){
                 if(data && data.success){
                     var row = document.querySelector('tr[data-id="'+id+'"]'); if(row){ row.querySelector('.head-cell').textContent = '-'; var btn = row.querySelector('.remove-head-btn'); if(btn) btn.remove(); }
-                    showToast('Department head removed', 'success');
-                } else { showToast('Failed to remove head', 'error'); }
-            }).catch(function(){ showToast('Request failed', 'error'); });
+                    showToast("{{ __('ui.department_head_removed') }}", 'success');
+                } else { showToast("{{ __('ui.failed_to_remove_head') }}", 'error'); }
+            }).catch(function(){ showToast("{{ __('ui.request_failed') }}", 'error'); });
         });
     }
 

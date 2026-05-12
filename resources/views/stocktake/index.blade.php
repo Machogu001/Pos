@@ -416,7 +416,7 @@ $(document).ready(function() {
     $('.select2').select2({
         width: '100%',
         theme: 'bootstrap-5',
-        placeholder: '{{ __("Filter By Status") }}',
+        placeholder: '{{ __("stocktake.filter_by_status") }}',
         allowClear: true
     });
 
@@ -446,9 +446,9 @@ $(document).ready(function() {
             error: function(xhr, error, thrown) {
                 console.error('DataTables error:', error, thrown);
                 if (xhr.responseJSON && xhr.responseJSON.error) {
-                    showAlert('Error loading data: ' + xhr.responseJSON.error, 'danger');
+                    showAlert('{{ __("stocktake.error_loading_data", ["error" => ""]) }}' + xhr.responseJSON.error, 'danger');
                 } else {
-                    showAlert('Error loading stocktakes. Please try again.', 'danger');
+                    showAlert('{{ __("stocktake.error_loading_stocktakes_retry") }}', 'danger');
                 }
             }
         },
@@ -493,7 +493,7 @@ $(document).ready(function() {
             {
                 extend: 'excel',
                 className: 'btn btn-light border',
-                text: '<i class="fas fa-file-excel text-success me-2"></i> Excel',
+                text: '<i class="fas fa-file-excel text-success me-2"></i> {{ __("stocktake.excel") }}',
                 exportOptions: {
                     columns: ':visible',
                     format: {
@@ -507,7 +507,7 @@ $(document).ready(function() {
             {
                 extend: 'pdf',
                 className: 'btn btn-light border',
-                text: '<i class="fas fa-file-pdf text-danger me-2"></i> PDF',
+                text: '<i class="fas fa-file-pdf text-danger me-2"></i> {{ __("stocktake.pdf") }}',
                 exportOptions: {
                     columns: ':visible'
                 }

@@ -111,7 +111,10 @@
                     <label for="note">Note (Optional)</label>
                     <textarea id="note" name="note" rows="3" placeholder="Enter a note or reason (optional)"></textarea>
 
-                    <button type="submit">Pay Now</button>
+                    <button type="submit">
+                        <img src="{{ asset('img/mpesa-logo.svg') }}" alt="M-Pesa" style="height: 16px; width: auto; margin-right: 8px; vertical-align: middle;" loading="lazy">
+                        <span style="vertical-align: middle;">Pay Now</span>
+                    </button>
 
                     <div class="note">You will receive an M-Pesa prompt. Enter your PIN to complete the payment.</div>
                 </form>

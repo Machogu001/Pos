@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'To Do List')
+@section('title', __('ui.to_do_list'))
 
 @section('css')
 <style>
@@ -16,11 +16,11 @@
 @section('content')
 <section class="content-header">
     <h1 class="tw-text-xl md:tw-text-3xl tw-font-bold tw-text-black">
-        <i class="fa fa-check-square-o" style="margin-right:6px;"></i>To Do List
+        <i class="fa fa-check-square-o" style="margin-right:6px;"></i>{{ __('ui.to_do_list') }}
         @if($isSuperAdmin)
-            <small class="text-muted" style="font-size:14px; font-weight:400;">&nbsp;— All Businesses</small>
+            <small class="text-muted" style="font-size:14px; font-weight:400;">&nbsp;— {{ __('ui.all_businesses') }}</small>
         @elseif($isBusinessAdmin)
-            <small class="text-muted" style="font-size:14px; font-weight:400;">&nbsp;— Your Business</small>
+            <small class="text-muted" style="font-size:14px; font-weight:400;">&nbsp;— {{ __('ui.your_business') }}</small>
         @endif
     </h1>
 </section>
@@ -45,16 +45,16 @@
                             <tr>
                                 <th style="width:40px;">#</th>
                                 @if($isSuperAdmin || $isBusinessAdmin)
-                                <th>User</th>
+                                <th>{{ __('ui.user') }}</th>
                                 @endif
                                 @if($isSuperAdmin)
-                                <th>Business</th>
+                                <th>{{ __('ui.business') }}</th>
                                 @endif
-                                <th>Title</th>
-                                <th>Priority</th>
-                                <th>Due Date</th>
-                                <th>Status</th>
-                                <th style="width:120px;">Actions</th>
+                                <th>{{ __('ui.title') }}</th>
+                                <th>{{ __('ui.priority') }}</th>
+                                <th>{{ __('ui.due_date') }}</th>
+                                <th>{{ __('ui.status') }}</th>
+                                <th style="width:120px;">{{ __('ui.actions') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -86,7 +86,7 @@
                                             data-id="{{ $todo->id }}"
                                             {{ $todo->is_completed ? 'checked' : '' }}
                                             style="margin-right:4px;">
-                                        {{ $todo->is_completed ? 'Done' : 'Pending' }}
+                                        {{ $todo->is_completed ? __('ui.done') : __('ui.pending') }}
                                     </label>
                                 </td>
                                 <td>
@@ -94,12 +94,12 @@
                                        data-href="{{ route('essentials.todos.edit', $todo->id) }}"
                                        data-container="#task_modal"
                                        class="btn-modal btn btn-xs btn-primary"
-                                       title="Edit">
+                                       title="{{ __('ui.edit') }}">
                                         <i class="fa fa-edit"></i>
                                     </a>
                                     <button class="btn btn-xs btn-danger todo-delete-btn"
                                         data-id="{{ $todo->id }}"
-                                        title="Delete">
+                                        title="{{ __('ui.delete') }}">
                                         <i class="fa fa-trash"></i>
                                     </button>
                                 </td>
@@ -107,9 +107,9 @@
                             @empty
                             <tr>
                                 <td colspan="{{ $isSuperAdmin ? 8 : ($isBusinessAdmin ? 7 : 6) }}" class="text-center text-muted" style="padding:30px;">
-                                    No To Do items found.
+                                                {{ __('ui.no_to_do_items_found') }}
                                     <a href="#" data-href="{{ route('essentials.todos.create') }}"
-                                       data-container="#task_modal" class="btn-modal">Add one now</a>
+                                                    data-container="#task_modal" class="btn-modal">{{ __('ui.add_one_now') }}</a>
                                 </td>
                             </tr>
                             @endforelse
@@ -153,7 +153,7 @@ $(document).on('change', '.todo-complete-cb', function() {
         },
         success: function(r) {
             if (r.success) {
-                label.html('<input type="checkbox" class="todo-complete-cb" data-id="' + id + '" ' + (done ? 'checked' : '') + ' style="margin-right:4px;">' + (done ? 'Done' : 'Pending'));
+                label.html('<input type="checkbox" class="todo-complete-cb" data-id="' + id + '" ' + (done ? 'checked' : '') + ' style="margin-right:4px;">' + (done ? "{{ __('ui.done') }}" : "{{ __('ui.pending') }}"));
                 done ? row.addClass('todo-completed') : row.removeClass('todo-completed');
                 toastr.success(r.msg);
             }
@@ -167,11 +167,11 @@ $(document).on('click', '.todo-delete-btn', function() {
     var row = $(this).closest('tr');
 
     Swal.fire({
-        title: 'Delete this task?',
+        title: "{{ __('ui.delete_this_task') }}",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#e3342f',
-        confirmButtonText: 'Yes, delete'
+        confirmButtonText: "{{ __('ui.yes_delete') }}"
     }).then(function(result) {
         if (result.isConfirmed) {
             $.ajax({

@@ -54,19 +54,19 @@
 						<div style="width:100%; border-bottom:2px solid #222; padding-bottom:8px; margin-bottom:12px;">
 							<div style="float:left; width:20%;">
 								@if(!empty($company_logo))
-									<img src="{{ $company_logo }}" alt="logo" style="max-height:60px; max-width:100%; display:block;">
+									<img src="{{ $company_logo }}" alt="{{ __('ui.logo') }}" style="max-height:60px; max-width:100%; display:block;">
 								@else
 									{{-- placeholder or nothing when no logo configured --}}
 								@endif
 							</div>
 							<div style="float:left; width:50%; padding-left:12px;">
 								<h2 style="margin:0; font-size:20px; font-weight:700;">{{ $company_name }}</h2>
-								<div style="font-size:12px; color:#333; margin-top:6px;">Subscription Invoice</div>
-								@if(!empty($company_pin))<div style="font-size:12px; color:#333; margin-top:4px;"><strong>Company PIN:</strong> {{ $company_pin }}</div>@endif
+								<div style="font-size:12px; color:#333; margin-top:6px;">{{ __('ui.subscription_invoice') }}</div>
+								@if(!empty($company_pin))<div style="font-size:12px; color:#333; margin-top:4px;"><strong>{{ __('ui.company_pin') }}</strong> {{ $company_pin }}</div>@endif
 							</div>
 							<div style="float:right; width:28%; text-align:right; font-size:12px;">
-								<div><strong>Invoice No:</strong> {{ $receipt_details->invoice_no }}</div>
-								@if(!empty($company_phone))<div><strong>Mobile:</strong> {{ $company_phone }}</div>@endif
+								<div><strong>{{ __('ui.invoice_no') }}</strong> {{ $receipt_details->invoice_no }}</div>
+								@if(!empty($company_phone))<div><strong>{{ __('ui.mobile') }}</strong> {{ $company_phone }}</div>@endif
 								@if(!empty($company_email))<div>{{ $company_email }}</div>@endif
 							</div>
 							<div style="clear:both"></div>
@@ -77,27 +77,27 @@
 							<tbody>
 								<tr>
 									<td style="border-bottom:1px solid #eee; padding:8px; width:50%; vertical-align:top;">
-										<div><strong>Company PIN:</strong> {{ $company_pin ?? '' }}</div>
-										<div style="margin-top:6px;"><strong>Invoice for:</strong> {{ $receipt_details->subscription_plan_name }} &nbsp; <strong>Amount (ex VAT):</strong> {{ $receipt_details->subscription_amount_exc }}</div>
+										<div><strong>{{ __('ui.company_pin') }}</strong> {{ $company_pin ?? '' }}</div>
+										<div style="margin-top:6px;"><strong>{{ __('ui.invoice_for') }}</strong> {{ $receipt_details->subscription_plan_name }} &nbsp; <strong>{{ __('ui.amount_ex_vat') }}</strong> {{ $receipt_details->subscription_amount_exc }}</div>
 									</td>
 									<td style="border-bottom:1px solid #eee; padding:8px; width:50%; vertical-align:top;">
-										<div><strong>VAT:</strong> <strong>VAT Amount:</strong> {{ $receipt_details->subscription_vat_amount }}</div>
-										<div style="margin-top:6px;"><strong>Total (incl. VAT):</strong> {{ $receipt_details->subscription_total }}</div>
+										<div><strong>{{ __('ui.vat') }}</strong> <strong>{{ __('ui.vat_amount') }}</strong> {{ $receipt_details->subscription_vat_amount }}</div>
+										<div style="margin-top:6px;"><strong>{{ __('ui.total_incl_vat') }}</strong> {{ $receipt_details->subscription_total }}</div>
 									</td>
 								</tr>
 								<tr>
 									<td style="border-bottom:1px solid #eee; padding:8px; vertical-align:top;">
-										<div><strong>Subscriber:</strong> {{ $receipt_details->subscriber }}</div>
-										<div style="margin-top:6px;"><strong>Period:</strong> {{ $receipt_details->subscription_period ?? '' }}</div>
+										<div><strong>{{ __('ui.subscriber') }}</strong> {{ $receipt_details->subscriber }}</div>
+										<div style="margin-top:6px;"><strong>{{ __('ui.period_2') }}</strong> {{ $receipt_details->subscription_period ?? '' }}</div>
 									</td>
 									<td style="border-bottom:1px solid #eee; padding:8px; vertical-align:top;">
-										<div><strong>Subscription ID:</strong> {{ $receipt_details->subscription_id ?? '' }} &nbsp; <strong>Status:</strong> {{ $receipt_details->subscription_status ?? '' }}</div>
-										<div style="margin-top:6px;"><small>Generated on {{ $receipt_details->generated_on ?? '' }}</small></div>
+										<div><strong>{{ __('ui.subscription_id') }}</strong> {{ $receipt_details->subscription_id ?? '' }} &nbsp; <strong>{{ __('ui.status_2') }}</strong> {{ $receipt_details->subscription_status ?? '' }}</div>
+										<div style="margin-top:6px;"><small>{{ __('ui.generated_on') }} {{ $receipt_details->generated_on ?? '' }}</small></div>
 									</td>
 								</tr>
 								<tr>
 									<td colspan="2" style="padding:8px;">
-										<em>Please use your account dashboard to pay or use the payment link sent to your email.</em>
+										<em>{{ __('ui.please_use_your_account_dashboard_to_pay_or_use_the_payment_link_sent_to_your_email') }}</em>
 									</td>
 								</tr>
 							</tbody>
@@ -502,7 +502,7 @@
 						</td>
 						<td>
 							@if(!empty($line['image']))
-								<img src="{{$line['image']}}" alt="Image" width="50" style="float: left; margin-right: 8px;">
+								<img src="{{$line['image']}}" alt="{{ __('ui.image') }}" width="50" style="float: left; margin-right: 8px;">
 							@endif
                             {{$line['name']}} {{$line['product_variation']}} {{$line['variation']}} 
                             @if(!empty($line['sub_sku'])), {{$line['sub_sku']}} @endif @if(!empty($line['brand'])), {{$line['brand']}} @endif
@@ -636,15 +636,15 @@
 		<table class="table table-bordered table-no-top-cell-border table-slim mb-12">
 			<thead>
 				<tr style="background-color: #357ca5 !important; color: white !important; font-size: 18px !important" class="text-left">
-					<td style="padding:8px;">Description</td>
-					<td style="padding:8px; text-align:center; width:15%;">Quantity</td>
-					<td style="padding:8px; text-align:right; width:20%;">Unit Price</td>
-					<td style="padding:8px; text-align:right; width:20%;">Subtotal</td>
+					<td style="padding:8px;">{{ __('ui.description') }}</td>
+					<td style="padding:8px; text-align:center; width:15%;">{{ __('ui.quantity') }}</td>
+					<td style="padding:8px; text-align:right; width:20%;">{{ __('ui.unit_price') }}</td>
+					<td style="padding:8px; text-align:right; width:20%;">{{ __('ui.subtotal') }}</td>
 				</tr>
 			</thead>
 			<tbody>
 				<tr>
-					<td style="padding:8px;">Subscription: {{ $receipt_details->subscription_plan_name }}</td>
+					<td style="padding:8px;">{{ __('ui.subscription') }} {{ $receipt_details->subscription_plan_name }}</td>
 					<td style="padding:8px; text-align:center;">1</td>
 					<td style="padding:8px; text-align:right;">{{ $receipt_details->subscription_amount_exc }}</td>
 					<td style="padding:8px; text-align:right;">{{ $receipt_details->subscription_amount_exc }}</td>

@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', __('superadmin::lang.superadmin') . ' | Business')
+@section('title', __('superadmin::lang.superadmin') . ' | ' . __('ui.business'))
 
 @section('content')
 @include('superadmin::layouts.nav')
@@ -70,11 +70,11 @@
                             @lang('business.is_active')</strong>
                             @if($business->is_active == 0)
                                 <p class="text-muted">
-                                    Inactive
+                                    {{ __('ui.inactive') }}
                                 </p>
                             @else
                                 <p class="text-muted">
-                                    Active
+                                    {{ __('ui.active') }}
                                 </p>
                             @endif
 
@@ -143,13 +143,13 @@
                             <table class="table table-bordered table-hover">
                                 <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Location ID</th>
-                                    <th>Landmark</th>
-                                    <th>city</th>
-                                    <th>Zip Code</th>
-                                    <th>State</th>
-                                    <th>Country</th>
+                                    <th>{{ __('ui.name') }}</th>
+                                    <th>{{ __('ui.location_id') }}</th>
+                                    <th>{{ __('ui.landmark') }}</th>
+                                    <th>{{ __('ui.city') }}</th>
+                                    <th>{{ __('ui.zip_code') }}</th>
+                                    <th>{{ __('ui.state') }}</th>
+                                    <th>{{ __('ui.country') }}</th>
                                 </tr>
                                 </thead>
                                 
@@ -187,14 +187,14 @@
                             <table class="table table-bordered table-hover">
                                 <thead>
                                 <tr>
-                                    <th>Package Name</th>
-                                    <th>Start Date</th>
-                                    <th>Trail End Date</th>
-                                    <th>End Date</th>
-                                    <th>Paid Via</th>
-                                    <th>Payment Transaction ID</th>
-                                    <th>Created At</th>
-                                    <th>Created By</th>
+                                    <th>{{ __('ui.package_name') }}</th>
+                                    <th>{{ __('ui.start_date') }}</th>
+                                    <th>{{ __('ui.trial_end_date') }}</th>
+                                    <th>{{ __('ui.end_date') }}</th>
+                                    <th>{{ __('ui.paid_via') }}</th>
+                                    <th>{{ __('ui.payment_transaction_id') }}</th>
+                                    <th>{{ __('ui.created_at') }}</th>
+                                    <th>{{ __('ui.created_by') }}</th>
                                 </tr>
                                 </thead>
                                 

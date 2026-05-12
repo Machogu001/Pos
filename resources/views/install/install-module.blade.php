@@ -1,5 +1,5 @@
 @extends('layouts.install')
-@section('title', 'Installation/Update')
+@section('title', __('ui.installation_update'))
 
 @section('content')
 <div class="container">
@@ -32,7 +32,7 @@
                       action="{{$action_url}}">
                     {{ csrf_field() }}
 
-                  <h2> Installing - <code>{{$module_display_name}} Module</code></h2>
+                  <h2>{{ __('ui.installing') }} - <code>{{$module_display_name}} {{ __('ui.module') }}</code></h2>
                     <hr/>
 
                   <input type="hidden" name="license_code" value="">
@@ -40,7 +40,7 @@
                   <input type="hidden" name="ENVATO_EMAIL" value="">
 
                   <div class="col-md-12">
-                    <p class="text-muted">Please wait while the module is installed.</p>
+                    <p class="text-muted">{{ __('ui.please_wait_while_the_module_is_installed') }}</p>
                   </div>
 
                     @if($intruction_type == 'cc')
@@ -48,7 +48,7 @@
                     @endif
 
                     <div class="col-md-12">
-                      <button type="submit" id="install_button" class="btn btn-primary pull-right">Install Module</button>
+                      <button type="submit" id="install_button" class="btn btn-primary pull-right">{{ __('ui.install_module') }}</button>
                     </div>
               </form>
             </div>
@@ -67,7 +67,7 @@
     $(document).ready(function(){
       $('form#details_form').trigger('submit');
       $('form#details_form').submit(function(){
-        $('button#install_button').attr('disabled', true).text('Installing...');
+        $('button#install_button').attr('disabled', true).text("{{ __('ui.installing') }}");
         $('div.install_msg').removeClass('hide');
         $('.back_button').hide();
       });

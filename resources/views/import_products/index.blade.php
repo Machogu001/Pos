@@ -62,6 +62,9 @@
                 <strong>@lang('lang_v1.instruction_line1')</strong><br>
                     @lang('lang_v1.instruction_line2')
                     <br><br>
+                <div class="alert alert-info" style="margin-bottom: 12px;">
+                    @lang('lang_v1.import_unit_conversion_note')
+                </div>
                 <table class="table table-striped">
                     <tr>
                         <th>@lang('lang_v1.col_no')</th>
@@ -275,6 +278,21 @@
                         <td>@lang('lang_v1.product_locations') <small class="text-muted">(@lang('lang_v1.optional'))</small></td>
                         <td>@lang('lang_v1.product_locations_ins')
                         </td>
+                    </tr>
+                    <tr>
+                        <td>38</td>
+                        <td>@lang('lang_v1.import_purchase_unit') <small class="text-muted">(@lang('lang_v1.optional'))</small></td>
+                        <td>@lang('lang_v1.import_purchase_unit_ins')</td>
+                    </tr>
+                    <tr>
+                        <td>39</td>
+                        <td>@lang('lang_v1.import_sales_unit') <small class="text-muted">(@lang('lang_v1.optional'))</small></td>
+                        <td>@lang('lang_v1.import_sales_unit_ins')</td>
+                    </tr>
+                    <tr>
+                        <td>40</td>
+                        <td>@lang('lang_v1.import_unit_conversions') <small class="text-muted">(@lang('lang_v1.optional'))</small></td>
+                        <td>{!! __('lang_v1.import_unit_conversions_ins') !!}</td>
                     </tr>
 
                 </table>

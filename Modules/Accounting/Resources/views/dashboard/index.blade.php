@@ -197,7 +197,7 @@
                         </div>
 
                         <div class="col-md-6">
-                            <canvas id="balance_summary_chart"></canvas>
+                            <canvas id="balance_summary_chart" style="max-height: 220px;"></canvas>
                         </div>
                     @endslot
                 @endcomponent
@@ -260,6 +260,9 @@
         const config = {
             type: 'pie',
             data: data,
+            options: {
+                maintainAspectRatio: false,
+            },
         };
 
         const myChart = new Chart(

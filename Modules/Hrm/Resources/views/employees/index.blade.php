@@ -1,39 +1,39 @@
 @extends('layouts.app')
 
-@section('title', 'Employees')
+@section('title', __('ui.employees'))
 
 @section('content')
 @include('hrm::partials.hrm_page_header', [
-    'title' => 'Employees',
-    'subtitle' => 'Track staff records, assignments, and personnel information in one place.',
-    'actions' => '<a href="'.route('hrm.employees.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> Create Employee</a>'
+    'title' => __('ui.employees'),
+    'subtitle' => __('ui.track_staff_records_assignments_and_personnel_information_in_one_place'),
+    'actions' => '<a href="'.route('hrm.employees.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> '. __('ui.create_employee') .'</a>'
 ])
 
 <section class="content">
     <div class="box box-primary">
         <div class="box-header with-border">
-            <h2 class="box-title h3">Employee Register</h2>
+            <h2 class="box-title h3">{{ __('ui.employee_register') }}</h2>
             <div class="box-tools pull-right">
-                <span class="label label-info">Total employees: {{ $totalRows ?? 0 }}</span>
+                <span class="label label-info">{{ __('ui.total_employees') }} {{ $totalRows ?? 0 }}</span>
             </div>
         </div>
         <div class="box-body">
             <div class="row mb-3">
                 <div class="col-md-4">
-                    <label for="company_filter" class="form-label">Company</label>
+                    <label for="company_filter" class="form-label">{{ __('ui.company') }}</label>
                     <select id="company_filter" class="form-control" onchange="applyFilters()">
-                        <option value="">All companies</option>
+                        <option value="">{{ __('ui.all_companies') }}</option>
                         @foreach($companies as $c)
                             <option value="{{ $c->id }}">{{ $c->name }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label for="search" class="form-label">Search</label>
-                    <input id="search" class="form-control" placeholder="Search by name or username" oninput="applyFilters()" />
+                    <label for="search" class="form-label">{{ __('ui.search') }}</label>
+                    <input id="search" class="form-control" placeholder="{{ __('ui.search_by_name_or_username') }}" oninput="applyFilters()" />
                 </div>
                 <div class="col-md-4 d-flex align-items-end justify-content-end">
-                    <small class="text-muted">Use the filters to narrow the staff list.</small>
+                    <small class="text-muted">{{ __('ui.use_the_filters_to_narrow_the_staff_list') }}</small>
                 </div>
             </div>
 
@@ -41,12 +41,12 @@
                 <table class="table table-hover table-striped align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>Name</th>
-                            <th>Department</th>
-                            <th>Designation</th>
-                            <th>Office Shift</th>
-                            <th>Phone</th>
-                            <th class="text-end">Actions</th>
+                            <th>{{ __('ui.name') }}</th>
+                            <th>{{ __('ui.department') }}</th>
+                            <th>{{ __('ui.designation') }}</th>
+                            <th>{{ __('ui.office_shift_2') }}</th>
+                            <th>{{ __('ui.phone') }}</th>
+                            <th class="text-end">{{ __('ui.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody id="employees_table_body">
@@ -55,7 +55,7 @@
                                 <td>
                                     <strong>{{ $emp['firstname'] ?? '' }} {{ $emp['lastname'] ?? '' }}</strong>
                                     @if(!empty($emp['is_system_user']))
-                                        <span class="label label-warning" style="margin-left:6px;">System User</span>
+                                        <span class="label label-warning" style="margin-left:6px;">{{ __('ui.system_user') }}</span>
                                     @endif
                                 </td>
                                 <td>{{ $emp['department_name'] ?? '-' }}</td>
@@ -63,18 +63,18 @@
                                 <td>{{ $emp['office_shift_name'] ?? '-' }}</td>
                                 <td>{{ $emp['phone'] ?? '-' }}</td>
                                 <td class="text-end">
-                                    <a href="{{ route('hrm.employees.show', $emp['id']) }}" class="btn btn-sm btn-default">View</a>
-                                    <a href="{{ route('hrm.employees.edit', $emp['id']) }}" class="btn btn-sm btn-default">Edit</a>
+                                    <a href="{{ route('hrm.employees.show', $emp['id']) }}" class="btn btn-sm btn-default">{{ __('ui.view') }}</a>
+                                    <a href="{{ route('hrm.employees.edit', $emp['id']) }}" class="btn btn-sm btn-default">{{ __('ui.edit') }}</a>
                                     <form action="{{ route('hrm.employees.destroy', $emp['id']) }}" method="POST" style="display:inline-block">
                                         @csrf
                                         @method('DELETE')
-                                        <button class="btn btn-sm btn-danger" data-hrm-confirm-submit="1" data-hrm-confirm="{{ !empty($emp['is_system_user']) ? 'Remove this system user from employee list?' : 'Delete this employee?' }}" data-hrm-confirm-title="{{ !empty($emp['is_system_user']) ? 'Remove System User' : 'Delete Employee' }}">{{ !empty($emp['is_system_user']) ? 'Remove' : 'Delete' }}</button>
+                                        <button class="btn btn-sm btn-danger" data-hrm-confirm-submit="1" data-hrm-confirm="{{ !empty($emp['is_system_user']) ? __('ui.remove_this_system_user_from_employee_list') : __('ui.delete_this_employee') }}" data-hrm-confirm-title="{{ !empty($emp['is_system_user']) ? __('ui.remove_system_user') : __('ui.delete_employee') }}">{{ !empty($emp['is_system_user']) ? __('ui.remove') : __('ui.delete') }}</button>
                                     </form>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-muted">No employees found.</td>
+                                <td colspan="6" class="text-center text-muted">{{ __('ui.no_employees_found') }}</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -83,13 +83,13 @@
 
             <div class="row" style="margin-top:15px;">
                 <div class="col-md-6">
-                    <label for="employees_per_page" class="me-2">Per page:</label>
-                    <select id="employees_per_page" class="form-control d-inline-block" style="width:120px" onchange="changePerPage()" aria-label="Employees per page">
+                    <label for="employees_per_page" class="me-2">{{ __('ui.per_page') }}</label>
+                    <select id="employees_per_page" class="form-control d-inline-block" style="width:120px" onchange="changePerPage()" aria-label="{{ __('ui.employees_per_page') }}">
                         <option value="10" {{ request('limit') == 10 ? 'selected' : '' }}>10</option>
                         <option value="25" {{ request('limit') == 25 ? 'selected' : '' }}>25</option>
                         <option value="50" {{ request('limit') == 50 ? 'selected' : '' }}>50</option>
                         <option value="100" {{ request('limit') == 100 ? 'selected' : '' }}>100</option>
-                        <option value="-1" {{ request('limit') == '-1' ? 'selected' : '' }}>All</option>
+                        <option value="-1" {{ request('limit') == '-1' ? 'selected' : '' }}>{{ __('ui.all') }}</option>
                     </select>
                 </div>
                 <div class="col-md-6 text-right">
@@ -154,15 +154,15 @@
         const tbody = document.getElementById('employees_table_body');
         tbody.innerHTML = '';
         if (!json.employees || !json.employees.length) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No employees found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">{{ __('ui.no_employees_found') }}</td></tr>';
             return;
         }
         json.employees.forEach(emp => {
             const tr = document.createElement('tr');
-            const sourceBadge = emp.is_system_user ? '<span class="label label-warning" style="margin-left:6px;">System User</span>' : '';
-            const removeLabel = emp.is_system_user ? 'Remove' : 'Delete';
-            const removeConfirm = emp.is_system_user ? 'Remove this system user from employee list?' : 'Delete this employee?';
-            const removeTitle = emp.is_system_user ? 'Remove System User' : 'Delete Employee';
+            const sourceBadge = emp.is_system_user ? '<span class="label label-warning" style="margin-left:6px;">{{ __('ui.system_user') }}</span>' : '';
+            const removeLabel = emp.is_system_user ? "{{ __('ui.remove') }}" : "{{ __('ui.delete') }}";
+            const removeConfirm = emp.is_system_user ? "{{ __('ui.remove_this_system_user_from_employee_list') }}" : "{{ __('ui.delete_this_employee') }}";
+            const removeTitle = emp.is_system_user ? "{{ __('ui.remove_system_user') }}" : "{{ __('ui.delete_employee') }}";
             tr.innerHTML = `
                 <td><strong>${emp.firstname || ''} ${emp.lastname || ''}</strong>${sourceBadge}</td>
                 <td>${emp.department_name || '-'}</td>
@@ -170,8 +170,8 @@
                 <td>${emp.office_shift_name || '-'}</td>
                 <td>${emp.phone || '-'}</td>
                 <td class="text-end">
-                    <a href="${window.location.pathname}/${emp.id}" class="btn btn-sm btn-outline-primary">View</a>
-                    <a href="${window.location.pathname}/${emp.id}/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
+                    <a href="${window.location.pathname}/${emp.id}" class="btn btn-sm btn-outline-primary">{{ __('ui.view') }}</a>
+                    <a href="${window.location.pathname}/${emp.id}/edit" class="btn btn-sm btn-outline-secondary">{{ __('ui.edit') }}</a>
                     <form action="${window.location.pathname}/${emp.id}" method="POST" style="display:inline-block">
                         <input type="hidden" name="_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="_method" value="DELETE">
@@ -184,8 +184,8 @@
         // update total display if present
         const total = json.totalRows ?? 0;
         document.querySelectorAll('.text-muted').forEach(el => {
-            if (el.textContent.trim().startsWith('Total employees:')) {
-                el.textContent = 'Total employees: ' + total;
+            if (el.textContent.trim().startsWith("{{ __('ui.total_employees') }}")) {
+                el.textContent = "{{ __('ui.total_employees') }}" + ' ' + total;
             }
         });
     }

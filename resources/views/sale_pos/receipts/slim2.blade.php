@@ -6,14 +6,14 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta http-equiv="X-UA-Compatible" content="ie=edge">
         <!-- <link rel="stylesheet" href="style.css"> -->
-        <title>Receipt-{{$receipt_details->invoice_no}}</title>
+		<title>{{ __('ui.receipt') }}-{{$receipt_details->invoice_no}}</title>
     </head>
     <body>
         <div class="ticket">
 			@if(empty($receipt_details->letter_head))
 				@if(!empty($receipt_details->logo))
 					<div class="text-box centered">
-						<img style="max-height: 100px; width: auto;" src="{{$receipt_details->logo}}" alt="Logo">
+						<img style="max-height: 100px; width: auto;" src="{{$receipt_details->logo}}" alt="{{ __('ui.logo') }}">
 					</div>
 				@endif
 				<div class="text-box">

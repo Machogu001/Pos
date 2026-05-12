@@ -1,11 +1,11 @@
 @extends('layouts.install', ['no_header' => 1])
-@section('title', 'Welcome - POS Installation')
+@section('title', __('ui.welcome_pos_installation'))
 
 @section('content')
 <div class="container">
     
     <div class="row">
-      <h3 class="text-center">{{ config('app.name', 'POS') }} Installation <small>Step 1 of 3</small></h3>
+      <h3 class="text-center">{{ config('app.name', 'POS') }} {{ __('ui.installation') }} <small>{{ __('ui.step_1_of_3') }}</small></h3>
 
         <div class="col-md-8 col-md-offset-2">
           <hr/>
@@ -15,35 +15,35 @@
             <!-- /.box-header -->
             <div class="box-body">
               <h3 class="text-success">
-                Welcome to POS Installation!
+                {{ __('ui.welcome_to_pos_installation') }}
               </h3>
-              <p><strong class="text-danger">[IMPORTANT]</strong> Before you start installing make sure you have following information ready with you:</p>
+              <p><strong class="text-danger">{{ __('ui.important') }}</strong> {{ __('ui.before_you_start_installing_make_sure_you_have_following_information_ready_with_you') }}</p>
 
               <ol>
                 <li>
-                  <b>Step-by-Step document</b> - <a href="https://ultimatefosters.com/docs/ultimatepos/getting-started/installing-ultimatepos/" target="_blank">Documentation</a>
+                  <b>{{ __('ui.step_by_step_document') }}</b> - <a href="https://ultimatefosters.com/docs/ultimatepos/getting-started/installing-ultimatepos/" target="_blank">{{ __('ui.documentation') }}</a>
                 </li>
                 <li>
-                  <b>Application Name</b> - Something short & Meaningful.
+                  <b>{{ __('ui.application_name_2') }}</b> - {{ __('ui.something_short_meaningful') }}
                 </li>
                 <li>
-                  <b>Database informations:</b>
+                  <b>{{ __('ui.database_informations') }}</b>
                   <ul>
-                    <li>Username</li>
-                    <li>Password</li>
-                    <li>Database Name</li>
-                    <li>Database Host</li>
+                    <li>{{ __('ui.username') }}</li>
+                    <li>{{ __('ui.password_2') }}</li>
+                    <li>{{ __('ui.database_name_2') }}</li>
+                    <li>{{ __('ui.database_host_2') }}</li>
                   </ul>
                 </li>
                 <li>
-                  <b>Mail Configuration</b> - SMTP details (optional)
+                  <b>{{ __('ui.mail_configuration') }}</b> - {{ __('ui.smtp_details_optional') }}
                 </li>
                 <li>
-                  <b>Envato or Codecanyon Details:</b>
+                  <b>{{ __('ui.envato_or_codecanyon_details') }}</b>
                   <ul>
-                    <li><b>Envato purchase code.</b> (<a href="https://help.market.envato.com/hc/en-us/articles/202822600-Where-Is-My-Purchase-Code-" target="_blank">Where Is My Purchase Code?</a>)</li>
+                    <li><b>{{ __('ui.envato_purchase_code_2') }}</b> (<a href="https://help.market.envato.com/hc/en-us/articles/202822600-Where-Is-My-Purchase-Code-" target="_blank">{{ __('ui.where_is_my_purchase_code') }}</a>)</li>
                     <li>
-                      <b>Envato Username.</b> (Your envato username)
+                      <b>{{ __('ui.envato_username_2') }}</b> {{ __('ui.your_envato_username') }}
                     </li>
                   </ul>
                 </li>
@@ -53,7 +53,7 @@
 
               @include('install.partials.e_license')
               
-              <a href="{{route('install.checkServer')}}" class="btn btn-primary pull-right">I Agree, Let's Go!</a>
+              <a href="{{route('install.checkServer')}}" class="btn btn-primary pull-right">{{ __('ui.i_agree_let_s_go') }}</a>
             </div>
           <!-- /.box-body -->
           </div>

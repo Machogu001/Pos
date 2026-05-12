@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Superadmin Subscription')
+@section('title', __('ui.superadmin_subscription'))
 
 @section('content')
 @include('superadmin::layouts.nav')

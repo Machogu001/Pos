@@ -5,6 +5,7 @@ namespace App;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -109,6 +110,30 @@ class Product extends Model
     public function second_unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class, 'secondary_unit_id');
+    }
+
+    /**
+     * Get product-specific unit conversion rows (BC-style Qty. per Unit of Measure).
+     */
+    public function unit_conversions(): HasMany
+    {
+        return $this->hasMany(ProductUnitConversion::class);
+    }
+
+    /**
+     * Get default purchase unit conversion for this product.
+     */
+    public function purchase_unit_conversion(): HasOne
+    {
+        return $this->hasOne(ProductUnitConversion::class)->where('is_purchase_default', true);
+    }
+
+    /**
+     * Get default sale unit conversion for this product.
+     */
+    public function sale_unit_conversion(): HasOne
+    {
+        return $this->hasOne(ProductUnitConversion::class)->where('is_sale_default', true);
     }
 
     /**

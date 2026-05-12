@@ -120,7 +120,7 @@
             }
 
             new QRCode(document.getElementById("qrcode"), opts);
-            $('#catalogue_link').html('<a target="_blank" href="'+ link +'">Link</a>');
+            $('#catalogue_link').html('<a target="_blank" href="'+ link +'">{{ __('messages.view') }}</a>');
             $('#download_image').removeClass('hide');
             $('#qrcode').find('canvas').attr('id', 'qr_canvas')
 

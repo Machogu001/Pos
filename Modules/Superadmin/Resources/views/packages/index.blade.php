@@ -59,8 +59,8 @@
 									</span>
 								@endif
 								
-								<a href="{{action([\Modules\Superadmin\Http\Controllers\PackagesController::class, 'edit'], [$package->id])}}" class="btn btn-box-tool" title="edit"><i class="fa fa-edit"></i></a>
-								<a href="{{action([\Modules\Superadmin\Http\Controllers\PackagesController::class, 'destroy'], [$package->id])}}" class="btn btn-box-tool link_confirmation" title="delete"><i class="fa fa-trash"></i></a>
+								<a href="{{action([\Modules\Superadmin\Http\Controllers\PackagesController::class, 'edit'], [$package->id])}}" class="btn btn-box-tool" title="{{ __('ui.edit_2') }}"><i class="fa fa-edit"></i></a>
+								<a href="{{action([\Modules\Superadmin\Http\Controllers\PackagesController::class, 'destroy'], [$package->id])}}" class="btn btn-box-tool link_confirmation" title="{{ __('ui.delete_2') }}"><i class="fa fa-trash"></i></a>
               					
 							</div>
 						</div>

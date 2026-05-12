@@ -56,6 +56,7 @@ use App\Variation;
 use App\Warranty;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Razorpay\Api\Api;
@@ -2010,6 +2011,23 @@ class SellPosController extends Controller
         $product->formatted_qty_available = $this->productUtil->num_f($product->qty_available, false, null, true);
 
         $sub_units = $this->productUtil->getSubUnits($business_id, $product->unit_id, false, $product->product_id);
+
+        if (Schema::hasTable('product_unit_conversions')) {
+            $default_sale_unit_id = DB::table('product_unit_conversions')
+                ->where('business_id', $business_id)
+                ->where('product_id', $product->product_id)
+                ->where('is_sale_default', 1)
+                ->value('unit_id');
+
+            if (empty($default_sale_unit_id)) {
+                $common_settings = session()->get('business.common_settings', []);
+                $default_sale_unit_id = ! empty($common_settings['default_sale_unit_id']) ? (int) $common_settings['default_sale_unit_id'] : null;
+            }
+
+            if (! empty($default_sale_unit_id) && isset($sub_units[$default_sale_unit_id])) {
+                $product->sub_unit_id = (int) $default_sale_unit_id;
+            }
+        }
 
         //Get customer group and change the price accordingly
         $customer_id = request()->get('customer_id', null);

@@ -30,8 +30,8 @@
                         <i class="fas fa-file-export"></i> @lang('stocktake.export') <i class="fas fa-chevron-down" style="font-size:.65rem;"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown">
-                        <li><a class="dropdown-item" href="#" onclick="exportHistory('excel')"><i class="fas fa-file-excel text-success me-2"></i> Excel</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="exportHistory('csv')"><i class="fas fa-file-csv text-info me-2"></i> CSV</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="exportHistory('excel')"><i class="fas fa-file-excel text-success me-2"></i> @lang('stocktake.excel')</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="exportHistory('csv')"><i class="fas fa-file-csv text-info me-2"></i> @lang('stocktake.csv')</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="#" onclick="window.print()"><i class="fas fa-print text-secondary me-2"></i> @lang('stocktake.print')</a></li>
                     </ul>
@@ -157,12 +157,12 @@
                                 @lang('business.stocktake_accounting_rules')
                             </h5>
                             <p class="text-muted mb-0 small">
-                                Cutoff date: <strong>{{ \Carbon\Carbon::parse($stocktakeAccountingAudit['cutoff_date'])->format('Y-m-d') }}</strong>
-                                | Opening Stock Equity total: <strong>{{ number_format($stocktakeAccountingAudit['total_amount'], 2) }}</strong>
+                                @lang('stocktake.cutoff_date'): <strong>{{ \Carbon\Carbon::parse($stocktakeAccountingAudit['cutoff_date'])->format('Y-m-d') }}</strong>
+                                | @lang('stocktake.opening_stock_equity_total'): <strong>{{ number_format($stocktakeAccountingAudit['total_amount'], 2) }}</strong>
                             </p>
                         </div>
                         <span class="badge bg-light text-dark border px-3 py-2">
-                            {{ $stocktakeAccountingAudit['rows']->count() }} stocktake batch{{ $stocktakeAccountingAudit['rows']->count() === 1 ? '' : 'es' }}
+                            {{ trans_choice('stocktake.stocktake_batch', $stocktakeAccountingAudit['rows']->count(), ['count' => $stocktakeAccountingAudit['rows']->count()]) }}
                         </span>
                     </div>
                 </div>
@@ -171,12 +171,12 @@
                         <table class="table table-hover align-middle mb-0" id="stocktake_audit_table">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="ps-4">Date</th>
-                                    <th>Stocktake Ref</th>
-                                    <th>Adjustment Ref</th>
-                                    <th>Location</th>
-                                    <th class="text-end">Amount</th>
-                                    <th>Posting</th>
+                                    <th class="ps-4">@lang('stocktake.date')</th>
+                                    <th>@lang('stocktake.stocktake_ref')</th>
+                                    <th>@lang('stocktake.adjustment_ref')</th>
+                                    <th>@lang('stocktake.location')</th>
+                                    <th class="text-end">@lang('stocktake.amount')</th>
+                                    <th>@lang('stocktake.posting')</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -189,7 +189,7 @@
                                     <td class="text-end fw-semibold">{{ number_format($auditRow->amount, 2) }}</td>
                                     <td>
                                         <span class="label {{ $auditRow->posting_type === 'credit' ? 'label-success' : 'label-warning' }}">
-                                            {{ strtoupper($auditRow->posting_type) }} Opening Stock Equity
+                                            {{ strtoupper($auditRow->posting_type) }} @lang('stocktake.opening_stock_equity')
                                         </span>
                                     </td>
                                 </tr>
@@ -214,10 +214,10 @@
                             <p class="text-muted mb-0 small">@lang('stocktake.adjustment_history_description')</p>
                         </div>
                         <div class="d-flex gap-2">
-                            <button class="btn btn-sm btn-outline-primary" onclick="toggleTable('stocktake_history_table')" data-bs-toggle="tooltip" title="Expand view">
+                            <button class="btn btn-sm btn-outline-primary" onclick="toggleTable('stocktake_history_table')" data-bs-toggle="tooltip" title="@lang('stocktake.expand_view')">
                                 <i class="fas fa-expand-alt"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-success" onclick="exportHistory('excel')" data-bs-toggle="tooltip" title="Export to Excel">
+                            <button class="btn btn-sm btn-outline-success" onclick="exportHistory('excel')" data-bs-toggle="tooltip" title="@lang('stocktake.export_to_excel')">
                                 <i class="fas fa-download"></i>
                             </button>
                         </div>
@@ -707,14 +707,14 @@ $(document).ready(function() {
                 data: 'sku',
                 name: 'sku',
                 render: function(data) {
-                    return '<code class="text-muted bg-light px-2 py-1 rounded">' + (data || 'N/A') + '</code>';
+                    return '<code class="text-muted bg-light px-2 py-1 rounded">' + (data || @json(__('stocktake.not_available'))) + '</code>';
                 }
             },
             { 
                 data: 'location_name',
                 name: 'location_name',
                 render: function(data) {
-                    return '<span class="badge bg-light text-dark"><i class="fas fa-store me-1"></i>' + (data || 'N/A') + '</span>';
+                    return '<span class="badge bg-light text-dark"><i class="fas fa-store me-1"></i>' + (data || @json(__('stocktake.not_available'))) + '</span>';
                 }
             },
             { 

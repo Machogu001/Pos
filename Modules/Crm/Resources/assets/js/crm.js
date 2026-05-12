@@ -110,16 +110,16 @@ $(document).ready(function(){
 	            },
 	            messages: {
 	                password: {
-	                    minlength: 'Password should be minimum 5 characters',
+	                    minlength: LANG.password_min_length_5 || LANG.password_min_length || 'Password should be minimum 5 characters',
 	                },
 	                confirm_password: {
-	                    equalTo: 'Should be same as password'
+	                    equalTo: LANG.password_equal_to || 'Should be same as password'
 	                },
 	                username: {
-	                    remote: 'Invalid username or User already exist'
+	                    remote: LANG.invalid_username || 'Invalid username or User already exist'
 	                },
 	                email: {
-	                    remote: 'Email already exists'
+	                    remote: LANG.email_taken || 'Email already exists'
 	                }
 	            }
 	        });
@@ -153,13 +153,13 @@ $(document).ready(function(){
 	            },
 	            messages: {
 	                password: {
-	                    minlength: 'Password should be minimum 5 characters',
+	                    minlength: LANG.password_min_length_5 || LANG.password_min_length || 'Password should be minimum 5 characters',
 	                },
 	                confirm_password: {
-	                    equalTo: 'Should be same as password'
+	                    equalTo: LANG.password_equal_to || 'Should be same as password'
 	                },
 	                email: {
-	                    remote: '{{ __("validation.unique", ["attribute" => __("business.email")]) }}'
+	                    remote: LANG.email_taken || 'Email already exists'
 	                }
 	            }
 	        });
@@ -335,7 +335,7 @@ $(document).ready(function(){
         },
         messages: {
             email: {
-                remote: '{{ __("validation.unique", ["attribute" => __("business.email")]) }}'
+                remote: LANG.email_taken || 'Email already exists'
             }
         }
     });

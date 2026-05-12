@@ -151,7 +151,7 @@
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card border-0 shadow-sm">
-                        <div class="card-header bg-white py-3 border-bottom">
+                        <div class="card-header bg-white py-3 px-4 border-bottom">
                             <div class="d-flex align-items-center justify-content-between">
                                 <div>
                                     <h5 class="mb-0">
@@ -170,7 +170,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="card-body p-0">
+                        <div class="card-body p-0" style="padding-left:1.25rem !important; padding-right:1.25rem !important;">
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle mb-0" id="worst_performers">
                                     <thead class="table-light">
@@ -265,7 +265,7 @@
                 <!-- Location Performance -->
                 <div class="col-12">
                     <div class="card border-0 shadow-sm h-100">
-                        <div class="card-header bg-white py-3 border-bottom">
+                        <div class="card-header bg-white py-3 px-4 border-bottom">
                             <div class="d-flex align-items-center justify-content-between">
                                 <div>
                                     <h5 class="mb-0">
@@ -286,7 +286,7 @@
                                 @endif
                             </div>
                         </div>
-                        <div class="card-body p-0">
+                        <div class="card-body p-0" style="padding-left:1.25rem !important; padding-right:1.25rem !important;">
                             @if(!$locationPerformance || $locationPerformance->isEmpty())
                                 <div class="text-center py-5">
                                     <i class="fas fa-store-alt fa-3x text-muted opacity-50 mb-3"></i>
@@ -345,7 +345,7 @@
                 <!-- Recent Stocktake Timeline -->
                 <div class="col-12">
                     <div class="card border-0 shadow-sm">
-                        <div class="card-header bg-white py-3 border-bottom">
+                        <div class="card-header bg-white py-3 px-4 border-bottom">
                             <div class="d-flex align-items-center justify-content-between">
                                 <div>
                                     <h5 class="mb-0">
@@ -359,7 +359,7 @@
                                 </a>
                             </div>
                         </div>
-                        <div class="card-body p-0">
+                        <div class="card-body p-0" style="padding-left:1.25rem !important; padding-right:1.25rem !important;">
                             @if(!$timeline || $timeline->isEmpty())
                                 <div class="text-center py-5">
                                     <i class="fas fa-clipboard-list fa-3x text-muted mb-3" style="opacity:.4;"></i>
@@ -450,120 +450,6 @@
 
 @section('styles')
 <style>
-    .stocktake-detail-page {
-        overflow-x: hidden;
-    }
-
-    .stocktake-detail-shell {
-        border-radius: 1.25rem;
-    }
-
-    .stocktake-detail-hero {
-        position: relative;
-        color: #fff;
-        background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%);
-        overflow: hidden;
-    }
-
-    .stocktake-detail-hero__glow {
-        position: absolute;
-        border-radius: 999px;
-        filter: blur(18px);
-        opacity: 0.28;
-        pointer-events: none;
-    }
-
-    .stocktake-detail-hero__glow--left {
-        width: 220px;
-        height: 220px;
-        left: -80px;
-        top: -70px;
-        background: rgba(255, 255, 255, 0.18);
-    }
-
-    .stocktake-detail-hero__glow--right {
-        width: 280px;
-        height: 280px;
-        right: -110px;
-        bottom: -130px;
-        background: rgba(56, 189, 248, 0.24);
-    }
-
-    .stocktake-detail-hero__content,
-    .stocktake-detail-hero__actions {
-        position: relative;
-        z-index: 1;
-    }
-
-    .stocktake-detail-hero__icon {
-        width: 64px;
-        height: 64px;
-        border-radius: 18px;
-        background: rgba(255, 255, 255, 0.16);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        flex: 0 0 auto;
-        backdrop-filter: blur(6px);
-    }
-
-    .stocktake-detail-hero__eyebrow {
-        font-size: 0.75rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.7);
-        font-weight: 700;
-    }
-
-    .stocktake-detail-hero__title {
-        color: #fff;
-        font-size: clamp(1.75rem, 2vw, 2.6rem);
-        line-height: 1.05;
-        font-weight: 800;
-        letter-spacing: -0.03em;
-        margin-bottom: 0.45rem;
-    }
-
-    .stocktake-detail-hero__description {
-        color: rgba(255, 255, 255, 0.88);
-        font-size: 1rem;
-        line-height: 1.6;
-    }
-
-    .stocktake-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.45rem 0.8rem;
-        border-radius: 999px;
-        font-size: 0.86rem;
-        font-weight: 600;
-        backdrop-filter: blur(6px);
-    }
-
-    .stocktake-chip--primary {
-        background: rgba(255, 255, 255, 0.18);
-        color: #fff;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-    }
-
-    .stocktake-chip--soft {
-        background: rgba(255, 255, 255, 0.1);
-        color: rgba(255, 255, 255, 0.92);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .stocktake-detail-hero__actions {
-        background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03));
-        border-left: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .stocktake-detail-hero__actions .btn {
-        border-radius: 0.95rem;
-        padding: 0.85rem 1rem;
-        font-weight: 700;
-    }
 
     .stocktake-summary-card {
         border-radius: 1rem;
@@ -807,6 +693,7 @@ $(document).ready(function() {
         const locationId = $('select[name="location_id"]').val();
         const dateFrom = $('input[name="date_from"]').val();
         const dateTo = $('input[name="date_to"]').val();
+        const priceBasis = $('select[name="price_basis"]').val();
         
         let url = new URL(window.location.href);
         let params = new URLSearchParams(url.search);
@@ -819,6 +706,9 @@ $(document).ready(function() {
         
         if (dateTo) params.set('date_to', dateTo);
         else params.delete('date_to');
+
+        if (priceBasis) params.set('price_basis', priceBasis);
+        else params.delete('price_basis');
         
         // Show loading state
         showLoadingState();
@@ -848,15 +738,6 @@ $(document).ready(function() {
         $('[data-bs-toggle="tooltip"]').tooltip();
     }
 
-    // Auto-refresh data every 60 seconds if page is visible
-    setInterval(function() {
-        if (document.visibilityState === 'visible') {
-            // Check if we have any data and reload the page to get fresh data
-            if ($('.card').length > 0 && !$('.loading-overlay').length) {
-                window.location.reload();
-            }
-        }
-    }, 60000);
 });
 
 function showLoadingState() {

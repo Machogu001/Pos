@@ -6,6 +6,7 @@ use App\Business;
 use App\BusinessLocation;
 use App\Contact;
 use App\Product;
+use App\ProductUnitConversion;
 use App\ReferenceCount;
 use App\System;
 use App\Transaction;
@@ -18,6 +19,7 @@ use DB;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 
 class Util
@@ -574,9 +576,20 @@ class Util
 
         //Find related subunits for the product.
         $related_sub_units = [];
+        $product_conversion_map = [];
         if (! empty($product_id)) {
             $product = Product::where('business_id', $business_id)->findOrFail($product_id);
             $related_sub_units = $product->sub_unit_ids;
+
+            if (Schema::hasTable('product_unit_conversions')) {
+                $product_conversion_map = ProductUnitConversion::where('business_id', $business_id)
+                    ->where('product_id', $product_id)
+                    ->pluck('qty_per_base', 'unit_id')
+                    ->map(function ($value) {
+                        return (float) $value;
+                    })
+                    ->toArray();
+            }
         }
 
         $sub_units = [];
@@ -602,10 +615,35 @@ class Util
                 if (empty($related_sub_units) || in_array($sub_unit->id, $related_sub_units)) {
                     $sub_units[$sub_unit->id] = [
                         'name' => $sub_unit->actual_name,
-                        'multiplier' => $sub_unit->base_unit_multiplier,
+                        'multiplier' => ! empty($product_conversion_map[$sub_unit->id]) ? $product_conversion_map[$sub_unit->id] : $sub_unit->base_unit_multiplier,
                         'allow_decimal' => $sub_unit->allow_decimal,
                     ];
                 }
+            }
+        }
+
+        // Include product-specific conversions even when the unit is not directly attached as a base child.
+        if (! empty($product_conversion_map)) {
+            $extra_unit_ids = array_keys($product_conversion_map);
+            foreach ($extra_unit_ids as $extra_unit_id) {
+                if (isset($sub_units[$extra_unit_id])) {
+                    continue;
+                }
+
+                if (! empty($related_sub_units) && ! in_array($extra_unit_id, $related_sub_units) && $extra_unit_id != $unit->id) {
+                    continue;
+                }
+
+                $extra_unit = Unit::where('business_id', $business_id)->find($extra_unit_id);
+                if (empty($extra_unit)) {
+                    continue;
+                }
+
+                $sub_units[$extra_unit_id] = [
+                    'name' => $extra_unit->actual_name,
+                    'multiplier' => $product_conversion_map[$extra_unit_id],
+                    'allow_decimal' => $extra_unit->allow_decimal,
+                ];
             }
         }
 
@@ -626,6 +664,39 @@ class Util
         } else {
             return $unit->base_unit_multiplier;
         }
+    }
+
+    /**
+     * Resolve Qty. per Unit multiplier for a product.
+     *
+     * Priority:
+     * 1) Product-specific conversion row (BC-style item unit)
+     * 2) Global unit base multiplier fallback
+     */
+    public function getProductUnitMultiplier($business_id, $product_id, $unit_id, $base_unit_id = null)
+    {
+        if (empty($unit_id)) {
+            return 1;
+        }
+
+        $base_unit_id = $base_unit_id ?: Product::where('business_id', $business_id)
+            ->where('id', $product_id)
+            ->value('unit_id');
+
+        if (! empty($base_unit_id) && (int) $base_unit_id === (int) $unit_id) {
+            return 1;
+        }
+
+        $qty_per_base = ProductUnitConversion::where('business_id', $business_id)
+            ->where('product_id', $product_id)
+            ->where('unit_id', $unit_id)
+            ->value('qty_per_base');
+
+        if (! empty($qty_per_base) && (float) $qty_per_base > 0) {
+            return (float) $qty_per_base;
+        }
+
+        return (float) $this->getMultiplierOf2Units($base_unit_id, $unit_id);
     }
 
     /**

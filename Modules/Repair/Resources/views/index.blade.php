@@ -1,9 +1,7 @@
 @extends('repair::layouts.master')
 
-@section('content')
-    <h1>Hello World</h1>
+@section('title', config('repair.name'))
 
-    <p>
-        This view is loaded from module: {!! config('repair.name') !!}
-    </p>
+@section('content')
+    <h1>{{ config('repair.name') }}</h1>
 @stop

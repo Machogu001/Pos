@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Subscription History')
+@section('title', __('ui.subscription_history'))
 
 @section('content')
 <div class="container py-4">
@@ -8,7 +8,7 @@
         <div class="col-md-10">
             <div class="card shadow-sm">
                 <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Subscription History</h4>
+                    <h4 class="mb-0">{{ __('ui.subscription_history') }}</h4>
                 </div>
                 <div class="card-body">
                     @if($subscriptions->count() > 0)
@@ -16,13 +16,13 @@
                             <table class="table table-striped">
                                 <thead>
                                     <tr>
-                                        <th>Plan Name</th>
-                                        <th>Billing Cycle</th>
-                                        <th>Amount</th>
-                                        <th>Status</th>
-                                        <th>Start Date</th>
-                                        <th>End Date</th>
-                                        <th>M-Pesa Receipt</th>
+                                        <th>{{ __('ui.plan_name') }}</th>
+                                        <th>{{ __('ui.billing_cycle') }}</th>
+                                        <th>{{ __('ui.amount') }}</th>
+                                        <th>{{ __('ui.status') }}</th>
+                                        <th>{{ __('ui.start_date') }}</th>
+                                        <th>{{ __('ui.end_date') }}</th>
+                                        <th>{{ __('ui.m_pesa_receipt') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -38,7 +38,7 @@
                                         </td>
                                         <td>{{ \Carbon\Carbon::parse($subscription->start_date)->format('d M Y') }}</td>
                                         <td>{{ \Carbon\Carbon::parse($subscription->end_date)->format('d M Y') }}</td>
-                                        <td>{{ $subscription->mpesa_receipt ?? 'N/A' }}</td>
+                                        <td>{{ $subscription->mpesa_receipt ?? __('ui.n_a') }}</td>
                                     </tr>
                                     @endforeach
                                 </tbody>
@@ -49,13 +49,13 @@
                         </div>
                     @else
                         <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i> No subscription history found.
+                            <i class="fas fa-info-circle"></i> {{ __('ui.no_subscription_history_found') }}
                         </div>
                     @endif
 
                     <div class="mt-3">
                         <a href="{{ route('dashboard') }}" class="btn btn-primary">
-                            <i class="fas fa-arrow-left"></i> Back to Dashboard
+                            <i class="fas fa-arrow-left"></i> {{ __('ui.back_to_dashboard') }}
                         </a>
                     </div>
                 </div>

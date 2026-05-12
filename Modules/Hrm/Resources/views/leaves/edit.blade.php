@@ -1,18 +1,18 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Leave')
+@section('title', __('ui.edit_leave'))
 
 @section('content')
 @include('hrm::partials.hrm_page_header', [
-    'title' => 'Edit Leave',
-    'subtitle' => 'Review and update an existing leave request.',
-    'actions' => '<a href="'.route('hrm.leaves.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Leaves</a>'
+    'title' => __('ui.edit_leave'),
+    'subtitle' => __('ui.review_and_update_an_existing_leave_request'),
+    'actions' => '<a href="'.route('hrm.leaves.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> '. __('ui.back_to_leaves') .'</a>'
 ])
 
 <section class="content">
     <div class="box box-primary">
         <div class="box-header with-border">
-            <h3 class="box-title">Leave Details</h3>
+            <h3 class="box-title">{{ __('ui.leave_details') }}</h3>
         </div>
         <div class="box-body">
             <form id="leaveForm" enctype="multipart/form-data">
@@ -22,13 +22,13 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label" for="company_id">Company</label>
+                            <label class="form-label" for="company_id">{{ __('ui.company') }}</label>
                             <select id="company_id" name="company_id" class="form-control select2"></select>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label" for="leave_type_id">Leave Type</label>
+                            <label class="form-label" for="leave_type_id">{{ __('ui.leave_type') }}</label>
                             <select id="leave_type_id" name="leave_type_id" class="form-control select2"></select>
                         </div>
                     </div>
@@ -37,13 +37,13 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label" for="employee_id">Employee</label>
+                            <label class="form-label" for="employee_id">{{ __('ui.employee') }}</label>
                             <select id="employee_id" name="employee_id" class="form-control select2"></select>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label" for="department_id">Department</label>
+                            <label class="form-label" for="department_id">{{ __('ui.department') }}</label>
                             <select id="department_id" name="department_id" class="form-control select2"></select>
                         </div>
                     </div>
@@ -52,32 +52,32 @@
                 <div class="row">
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label class="form-label" for="start_date">Start Date</label>
+                            <label class="form-label" for="start_date">{{ __('ui.start_date') }}</label>
                             <input type="date" id="start_date" name="start_date" class="form-control" />
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label class="form-label" for="end_date">End Date</label>
+                            <label class="form-label" for="end_date">{{ __('ui.end_date') }}</label>
                             <input type="date" id="end_date" name="end_date" class="form-control" />
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label class="form-label" for="half_day">Half Day</label>
+                            <label class="form-label" for="half_day">{{ __('ui.half_day') }}</label>
                             <select id="half_day" name="half_day" class="form-control">
-                                <option value="0">No</option>
-                                <option value="1">Yes</option>
+                                <option value="0">{{ __('ui.no') }}</option>
+                                <option value="1">{{ __('ui.yes') }}</option>
                             </select>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label class="form-label" for="status">Status</label>
+                            <label class="form-label" for="status">{{ __('ui.status') }}</label>
                             <select id="status" name="status" class="form-control">
-                                <option value="pending">Pending</option>
-                                <option value="approved">Approved</option>
-                                <option value="rejected">Rejected</option>
+                                <option value="pending">{{ __('ui.pending') }}</option>
+                                <option value="approved">{{ __('ui.approved') }}</option>
+                                <option value="rejected">{{ __('ui.rejected') }}</option>
                             </select>
                         </div>
                     </div>
@@ -86,13 +86,13 @@
                 <div class="row">
                     <div class="col-md-8">
                         <div class="form-group">
-                            <label class="form-label" for="reason">Reason</label>
+                            <label class="form-label" for="reason">{{ __('ui.reason') }}</label>
                             <textarea id="reason" name="reason" class="form-control" rows="4"></textarea>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label class="form-label" for="attachment">Attachment</label>
+                            <label class="form-label" for="attachment">{{ __('ui.attachment') }}</label>
                             <input type="file" id="attachment" name="attachment" class="form-control" />
                             <div id="current_attachment" class="mt-2"></div>
                         </div>
@@ -100,8 +100,8 @@
                 </div>
 
                 <div class="text-right">
-                    <a href="{{ route('hrm.leaves.index') }}" class="btn btn-default">Cancel</a>
-                    <button type="submit" class="btn btn-primary">Update Leave</button>
+                    <a href="{{ route('hrm.leaves.index') }}" class="btn btn-default">{{ __('ui.cancel') }}</a>
+                    <button type="submit" class="btn btn-primary">{{ __('ui.update_leave') }}</button>
                 </div>
             </form>
         </div>
@@ -113,7 +113,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         const idMatch = window.location.pathname.match(/\/(\d+)\/edit\/?$/);
         const leaveId = idMatch ? idMatch[1] : null;
-        if (!leaveId) { window.hrmAlert('Invalid leave id'); return; }
+        if (!leaveId) { window.hrmAlert("{{ __('ui.invalid_leave_id') }}"); return; }
         document.getElementById('leave_id').value = leaveId;
 
         // fetch edit metadata and the leave
@@ -169,7 +169,7 @@
                         });
                 }
             })
-            .catch(() => { window.hrmAlert('Failed to load leave data'); });
+            .catch(() => { window.hrmAlert("{{ __('ui.failed_to_load_leave_data') }}"); });
 
         document.getElementById('company_id').addEventListener('change', (e) => {
             const id = e.target.value;
@@ -209,7 +209,7 @@
                     try { json = text ? JSON.parse(text) : null; } catch (e) { /* not JSON */ }
                     if (!r.ok) {
                         const body = json ? JSON.stringify(json) : text;
-                        window.hrmAlert('Request failed: ' + r.status + ' ' + r.statusText);
+                        window.hrmAlert("{{ __('ui.request_failed_2') }}" + ' ' + r.status + ' ' + r.statusText);
                         return;
                     }
                     if (json && json.success) {
@@ -220,9 +220,9 @@
                         window.hrmAlert(json.remaining_leave);
                         return;
                     }
-                    window.hrmAlert('Error saving leave');
+                    window.hrmAlert("{{ __('ui.error_saving_leave') }}");
                 })
-                .catch((err) => { window.hrmAlert('Network error: ' + (err && err.message ? err.message : 'unknown')); });
+                .catch((err) => { window.hrmAlert("{{ __('ui.network_error') }}" + ' ' + (err && err.message ? err.message : "{{ __('ui.unknown') }}")); });
         });
     });
 </script>

@@ -1,18 +1,18 @@
 @extends('layouts.app')
 
-@section('title', 'Create Payroll')
+@section('title', __('ui.create_payroll'))
 
 @section('content')
 @include('hrm::partials.hrm_page_header', [
-    'title' => 'Create Payroll',
-    'subtitle' => 'Process salary batches and keep posting status visible for accounting review.',
-    'actions' => '<a href="'.route('hrm.payrolls.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Payroll</a>'
+    'title' => __('ui.create_payroll'),
+    'subtitle' => __('ui.process_salary_batches_and_keep_posting_status_visible_for_accounting_review'),
+    'actions' => '<a href="'.route('hrm.payrolls.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> '. __('ui.back_to_payroll') .'</a>'
 ])
 
 <section class="content">
     <div class="box box-success">
         <div class="box-header with-border">
-            <h3 class="box-title">Payroll Batch</h3>
+            <h3 class="box-title">{{ __('ui.payroll_batch') }}</h3>
         </div>
         <form method="POST" action="{{ route('hrm.payrolls.store') }}">
             @csrf
@@ -21,13 +21,13 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label>Company</label>
+                            <label>{{ __('ui.company') }}</label>
                             <select name="company_id" id="company_id" class="form-control">
-                                <option value="">-- Select Company --</option>
+                                <option value="">{{ __('ui.select_company') }}</option>
                                 @foreach($companies as $c)
                                     @php
                                         $isBusiness = isset($c->business_id) && $c->business_id == session('business.id');
-                                        $label = $isBusiness ? 'Business - ' . $c->name : $c->name;
+                                        $label = $isBusiness ? __('ui.business_2') . $c->name : $c->name;
                                     @endphp
                                     <option value="{{ $c->id }}">{{ $label }}</option>
                                 @endforeach
@@ -36,30 +36,30 @@
                     </div>
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label>Period Start</label>
+                            <label>{{ __('ui.period_start') }}</label>
                             <input type="date" name="period_start" class="form-control" required />
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label>Period End</label>
+                            <label>{{ __('ui.period_end') }}</label>
                             <input type="date" name="period_end" class="form-control" required />
                         </div>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Employee(s)</label>
+                    <label>{{ __('ui.employee_s') }}</label>
                     <div class="btn-toolbar" style="margin-bottom:10px; gap:8px;">
-                        <button type="button" id="select-all-employees" class="btn btn-sm btn-default">Select all for company</button>
-                        <button type="button" id="clear-employees" class="btn btn-sm btn-default">Clear selection</button>
+                        <button type="button" id="select-all-employees" class="btn btn-sm btn-default">{{ __('ui.select_all_for_company') }}</button>
+                        <button type="button" id="clear-employees" class="btn btn-sm btn-default">{{ __('ui.clear_selection') }}</button>
                     </div>
                     <select name="employee_id[]" id="employee_id" class="form-control" multiple size="8">
                         @foreach($employees as $e)
                             <option value="{{ $e->id }}">{{ $e->username ?? $e->name }}</option>
                         @endforeach
                     </select>
-                    <small class="form-text text-muted">Use Ctrl/Cmd+click to select multiple employees, or use the buttons above to select/clear.</small>
+                    <small class="form-text text-muted">{{ __('ui.use_ctrl_cmd_click_to_select_multiple_employees_or_use_the_buttons_above_to_select_clear') }}</small>
                 </div>
 
                 <hr />
@@ -67,7 +67,7 @@
             </div>
 
             <div class="box-footer text-right">
-                <button class="btn btn-success" id="createPayrollBtn"><i class="fa fa-save"></i> Create Payroll</button>
+                <button class="btn btn-success" id="createPayrollBtn"><i class="fa fa-save"></i> {{ __('ui.create_payroll') }}</button>
             </div>
         </form>
     </div>
@@ -84,7 +84,7 @@
         var clearBtn = document.getElementById('clear-employees');
 
         function loadEmployeesForCompany(companyId, selectAll) {
-            employeeSelect.innerHTML = '<option>Loading...</option>';
+            employeeSelect.innerHTML = '<option>{{ __('ui.loading') }}</option>';
             fetch('{{ url("hrm/employees/by-company") }}?id=' + companyId)
                 .then(r => r.json())
                 .then(data => {
@@ -96,7 +96,7 @@
                         opt.value = e.id;
                         // prefer computed name, then username, then firstname+lastname
                         var label = e.name || e.username || ((e.firstname || '') + ' ' + (e.lastname || ''));
-                        opt.text = (label || ('Employee #'+e.id)).trim();
+                        opt.text = (label || ("{{ __('ui.employee_2') }}"+e.id)).trim();
                         // attach meta payload so we can set defaults (basic_salary etc.) later
                         try { opt.setAttribute('data-meta', JSON.stringify(e)); } catch(ex){}
                         if (selectAll) opt.selected = true;
@@ -121,7 +121,7 @@
 
         selectAllBtn.addEventListener('click', function(){
             var companyId = companySelect.value;
-            if (!companyId) { window.hrmAlert('Please select a company first'); return; }
+            if (!companyId) { window.hrmAlert("{{ __('ui.please_select_a_company_first') }}"); return; }
             loadEmployeesForCompany(companyId, true);
         });
 
@@ -151,13 +151,13 @@
                 <input type="hidden" name="employee_id[]" value="${empId}" />
                 <div class="row">
                     <div class="col-md-4"><strong>${empLabel}</strong></div>
-                    <div class="col-md-2"><label class="form-label">Gross</label><input type="number" step="0.01" name="gross[${empId}]" class="form-control gross-input" value="0" required /></div>
-                    <div class="col-md-2"><label class="form-label">Deductions</label><input type="number" step="0.01" name="deductions[${empId}]" class="form-control deductions-input" value="0" /></div>
-                    <div class="col-md-2"><label class="form-label">Net</label><input type="number" step="0.01" name="net[${empId}]" class="form-control net-input" value="0.00" readonly /></div>
+                    <div class="col-md-2"><label class="form-label">{{ __('ui.gross') }}</label><input type="number" step="0.01" name="gross[${empId}]" class="form-control gross-input" value="0" required /></div>
+                    <div class="col-md-2"><label class="form-label">{{ __('ui.deductions') }}</label><input type="number" step="0.01" name="deductions[${empId}]" class="form-control deductions-input" value="0" /></div>
+                    <div class="col-md-2"><label class="form-label">{{ __('ui.net') }}</label><input type="number" step="0.01" name="net[${empId}]" class="form-control net-input" value="0.00" readonly /></div>
                     <div class="col-md-2 text-end">
                         <div class="btn-group-vertical btn-sm" role="group">
-                            <button type="button" class="btn btn-sm btn-outline-secondary toggle-advanced" data-id="${empId}">Advanced</button>
-                            <button type="button" class="btn btn-sm btn-outline-danger remove-row" data-id="${empId}">Remove</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary toggle-advanced" data-id="${empId}">{{ __('ui.advanced') }}</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-row" data-id="${empId}">{{ __('ui.remove') }}</button>
                         </div>
                     </div>
                 </div>
@@ -165,47 +165,47 @@
                 <div class="advanced-panel mt-2 p-2 border rounded d-none" id="advanced-${empId}">
                     <div class="row g-2">
                         <div class="col-md-3">
-                            <label class="form-label">Basic Pay</label>
+                            <label class="form-label">{{ __('ui.basic_pay') }}</label>
                             <input type="number" step="0.01" name="basic_pay[${empId}]" class="form-control basic-pay-input" value="0" />
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">NSSF</label>
+                            <label class="form-label">{{ __('ui.nssf_2') }}</label>
                             <input type="number" step="0.01" name="nssf[${empId}]" class="form-control nssf-input" value="0" />
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">SHIF</label>
+                            <label class="form-label">{{ __('ui.shif_2') }}</label>
                             <input type="number" step="0.01" name="shif[${empId}]" class="form-control shif-input" value="0" />
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Housing Levy</label>
+                            <label class="form-label">{{ __('ui.housing_levy_2') }}</label>
                             <input type="number" step="0.01" name="housing_levy[${empId}]" class="form-control housing-input" value="0" />
                         </div>
                     </div>
                     <div class="row g-2 mt-2">
                         <div class="col-md-3">
-                            <label class="form-label">Taxable Pay</label>
+                            <label class="form-label">{{ __('ui.taxable_pay') }}</label>
                             <input type="number" step="0.01" name="taxable_pay[${empId}]" class="form-control taxable-input" value="0" readonly />
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Income Tax</label>
+                            <label class="form-label">{{ __('ui.income_tax') }}</label>
                             <input type="number" step="0.01" name="income_tax[${empId}]" class="form-control income-tax-input" value="0" />
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Personal Relief</label>
+                            <label class="form-label">{{ __('ui.personal_relief') }}</label>
                             <input type="number" step="0.01" name="personal_relief[${empId}]" class="form-control relief-input" value="0" />
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">P.A.Y.E</label>
+                            <label class="form-label">{{ __('ui.p_a_y_e') }}</label>
                             <input type="number" step="0.01" name="paye[${empId}]" class="form-control paye-input" value="0" readonly />
                         </div>
                     </div>
                     <div class="row g-2 mt-2">
                         <div class="col-md-4">
-                            <label class="form-label">Pay After Tax</label>
+                            <label class="form-label">{{ __('ui.pay_after_tax') }}</label>
                             <input type="number" step="0.01" name="pay_after_tax[${empId}]" class="form-control pay-after-input" value="0" readonly />
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Notes</label>
+                            <label class="form-label">{{ __('ui.notes') }}</label>
                             <input type="text" name="notes[${empId}]" class="form-control" />
                         </div>
                     </div>
@@ -360,7 +360,7 @@
         var form = document.querySelector('form');
         form.addEventListener('submit', function(e){
             var has = rowsContainer.querySelectorAll('[id^="row-"]').length > 0;
-            if(!has){ e.preventDefault(); window.hrmAlert('Please select at least one employee for payroll creation'); }
+            if(!has){ e.preventDefault(); window.hrmAlert("{{ __('ui.please_select_at_least_one_employee_for_payroll_creation') }}"); }
         });
 
     // expose for other scripts and handle deferred calls
@@ -378,7 +378,7 @@
             if(isNaN(g)) invalid = true;
             totalGross += g; totalDeductions += d; totalNet += n;
         });
-        totalsDiv.innerHTML = `<div class="alert alert-light p-2">Totals — Gross: <strong>${totalGross.toFixed(2)}</strong>, Deductions: <strong>${totalDeductions.toFixed(2)}</strong>, Net: <strong>${totalNet.toFixed(2)}</strong></div>`;
+        totalsDiv.innerHTML = `<div class="alert alert-light p-2">{{ __('ui.totals') }} - {{ __('ui.gross') }}: <strong>${totalGross.toFixed(2)}</strong>, {{ __('ui.deductions') }}: <strong>${totalDeductions.toFixed(2)}</strong>, {{ __('ui.net') }}: <strong>${totalNet.toFixed(2)}</strong></div>`;
         var createBtn = document.getElementById('createPayrollBtn');
         if(invalid || totalGross <= 0){ createBtn.disabled = true; createBtn.classList.add('disabled'); } else { createBtn.disabled = false; createBtn.classList.remove('disabled'); }
     }

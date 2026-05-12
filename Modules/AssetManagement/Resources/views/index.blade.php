@@ -1,9 +1,7 @@
 @extends('assetmanagement::layouts.master')
 
-@section('content')
-    <h1>Hello World</h1>
+@section('title', config('assetmanagement.name'))
 
-    <p>
-        This view is loaded from module: {!! config('assetmanagement.name') !!}
-    </p>
+@section('content')
+    <h1>{{ config('assetmanagement.name') }}</h1>
 @stop

@@ -16,6 +16,12 @@ class HrmServiceProvider extends ServiceProvider
         if (file_exists($routes)) {
             $this->loadRoutesFrom($routes);
         }
+        // Load translations
+        $lang = __DIR__ . '/../Resources/lang';
+        if (is_dir($lang)) {
+            $this->loadTranslationsFrom($lang, 'hrm');
+        }
+
         // Load views
         $views = __DIR__ . '/../Resources/views';
         if (!is_dir($views)) { mkdir($views, 0755, true); }

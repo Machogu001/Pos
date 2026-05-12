@@ -629,13 +629,13 @@ class ProductUtil extends Util
         try {
             $fixedCount = 0;
             
-            // Find stock history records where actual_adjustment doesn't match (new_quantity - old_quantity)
-            $inconsistentRecords = StockHistory::whereRaw('actual_adjustment != (new_quantity - old_quantity)')->get();
+            // Find stock history records with material mismatch in adjustment (ignore tiny float noise).
+            $inconsistentRecords = StockHistory::whereRaw('ABS(actual_adjustment - (new_quantity - old_quantity)) >= 0.0001')->get();
             
             foreach ($inconsistentRecords as $record) {
-                $correct_adjustment = $record->new_quantity - $record->old_quantity;
+                $correct_adjustment = round($record->new_quantity - $record->old_quantity, 4);
                 
-                if ($record->actual_adjustment != $correct_adjustment) {
+                if (abs((float) $record->actual_adjustment - (float) $correct_adjustment) >= 0.0001) {
                     $record->actual_adjustment = $correct_adjustment;
                     $record->reason = 'Auto-corrected: ' . $record->reason;
                     $record->save();
@@ -1851,8 +1851,12 @@ class ProductUtil extends Util
             }
 
             if (! empty($data['sub_unit_id'])) {
-                $unit = Unit::find($data['sub_unit_id']);
-                $multiplier = ! empty($unit->base_unit_multiplier) ? $unit->base_unit_multiplier : 1;
+                $multiplier = $this->getProductUnitMultiplier(
+                    $transaction->business_id,
+                    $data['product_id'],
+                    $data['sub_unit_id'],
+                    $data['product_unit_id'] ?? null
+                );
             }
             $new_quantity = $this->num_uf($data['quantity']) * $multiplier;
 

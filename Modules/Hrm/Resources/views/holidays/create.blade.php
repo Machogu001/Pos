@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Create Holiday')
+@section('title', __('ui.create_holiday'))
 
 @section('content')
 @include('hrm::partials.hrm_page_header', [
-    'title' => 'Create Holiday',
-    'subtitle' => 'Add a company holiday.',
-    'actions' => '<a href="'.route('hrm.holidays.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Holidays</a>'
+    'title' => __('ui.create_holiday'),
+    'subtitle' => __('ui.add_a_company_holiday'),
+    'actions' => '<a href="'.route('hrm.holidays.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> '. __('ui.back_to_holidays') .'</a>'
 ])
 
 <section class="content">
@@ -17,9 +17,9 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label>Company</label>
+                            <label>{{ __('ui.company') }}</label>
                             <select name="company_id" class="form-control" required>
-                                <option value="">-- Select Company --</option>
+                                <option value="">{{ __('ui.select_company') }}</option>
                                 @foreach($companies as $company)
                                     <option value="{{ $company->id }}">{{ $company->name }}</option>
                                 @endforeach
@@ -28,7 +28,7 @@
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label>Title</label>
+                            <label>{{ __('ui.title') }}</label>
                             <input type="text" name="title" class="form-control" value="{{ old('title') }}" required>
                         </div>
                     </div>
@@ -36,26 +36,26 @@
                 <div class="row">
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label>Start Date</label>
+                            <label>{{ __('ui.start_date') }}</label>
                             <input type="date" name="start_date" class="form-control" value="{{ old('start_date') }}" required>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label>End Date</label>
+                            <label>{{ __('ui.end_date') }}</label>
                             <input type="date" name="end_date" class="form-control" value="{{ old('end_date') }}" required>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label>Description</label>
+                            <label>{{ __('ui.description') }}</label>
                             <input type="text" name="description" class="form-control" value="{{ old('description') }}">
                         </div>
                     </div>
                 </div>
             </div>
             <div class="box-footer text-right">
-                <button class="btn btn-primary">Save Holiday</button>
+                <button class="btn btn-primary">{{ __('ui.save_holiday') }}</button>
             </div>
         </form>
     </div>

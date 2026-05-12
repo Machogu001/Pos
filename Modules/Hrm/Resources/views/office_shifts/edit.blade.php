@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Office Shift')
+@section('title', __('ui.edit_office_shift'))
 
 @section('css')
 <style>
@@ -59,15 +59,15 @@
 
 @section('content')
 @include('hrm::partials.hrm_page_header', [
-    'title' => 'Edit Office Shift',
-    'subtitle' => 'Update the shift name and working time setup.',
-    'actions' => '<a href="'.route('hrm.office_shifts.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Shifts</a>'
+    'title' => __('ui.edit_office_shift'),
+    'subtitle' => __('ui.update_the_shift_name_and_working_time_setup'),
+    'actions' => '<a href="'.route('hrm.office_shifts.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> '. __('ui.back_to_shifts') .'</a>'
 ])
 
 <section class="content">
     <div class="box box-primary">
         <div class="box-header with-border">
-            <h3 class="box-title">Shift Details</h3>
+            <h3 class="box-title">{{ __('ui.shift_details') }}</h3>
         </div>
         <form action="{{ route('hrm.office_shifts.update', $office_shift->id) }}" method="POST">
             {{ csrf_field() }}
@@ -78,18 +78,18 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="name">Name</label>
+                            <label for="name">{{ __('ui.name') }}</label>
                             <input type="text" name="name" id="name" class="form-control" value="{{ old('name', $office_shift->name) }}" required />
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="company_id">Company</label>
+                            <label for="company_id">{{ __('ui.company') }}</label>
                             <select name="company_id" id="company_id" class="form-control" required>
                                 @foreach($companies as $c)
                                     @php
                                         $isBusiness = isset($c->business_id) && $c->business_id == session('business.id');
-                                        $label = $isBusiness ? 'Business - ' . $c->name : $c->name;
+                                        $label = $isBusiness ? __('ui.business_2') . $c->name : $c->name;
                                     @endphp
                                     <option value="{{ $c->id }}" @if(old('company_id', $office_shift->company_id) == $c->id) selected @endif>{{ $label }}</option>
                                 @endforeach
@@ -100,29 +100,29 @@
 
                 <div class="box box-default" style="box-shadow:none; margin-bottom:0;">
                     <div class="box-header with-border">
-                        <h3 class="box-title">Working Time Setup</h3>
+                        <h3 class="box-title">{{ __('ui.working_time_setup') }}</h3>
                     </div>
                     <div class="box-body">
-                        <p class="text-muted">Configure the shift times that apply to this office schedule.</p>
+                        <p class="text-muted">{{ __('ui.configure_the_shift_times_that_apply_to_this_office_schedule') }}</p>
                         <table class="table table-bordered table-condensed shift-edit-table">
                             <thead>
                                 <tr>
-                                    <th style="width:120px;">Day</th>
-                                    <th>Check In</th>
-                                    <th>Check Out</th>
-                                    <th class="text-center" style="width:80px;">Off</th>
+                                    <th style="width:120px;">{{ __('ui.day') }}</th>
+                                    <th>{{ __('ui.check_in') }}</th>
+                                    <th>{{ __('ui.check_out') }}</th>
+                                    <th class="text-center" style="width:80px;">{{ __('ui.off') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @php
                                 $days = [
-                                    'monday'    => 'Monday',
-                                    'tuesday'   => 'Tuesday',
-                                    'wednesday' => 'Wednesday',
-                                    'thursday'  => 'Thursday',
-                                    'friday'    => 'Friday',
-                                    'saturday'  => 'Saturday',
-                                    'sunday'    => 'Sunday',
+                                    'monday'    => __('ui.monday'),
+                                    'tuesday'   => __('ui.tuesday'),
+                                    'wednesday' => __('ui.wednesday'),
+                                    'thursday'  => __('ui.thursday'),
+                                    'friday'    => __('ui.friday'),
+                                    'saturday'  => __('ui.saturday'),
+                                    'sunday'    => __('ui.sunday'),
                                 ];
                                 @endphp
                                 @foreach($days as $key => $label)
@@ -137,7 +137,7 @@
                                 <tr class="shift-row {{ $isWeekend ? 'weekend-row' : '' }} {{ $isOff ? 'off-row' : '' }}" data-day="{{ $key }}">
                                     <td>
                                         <span class="shift-day-name">{{ $label }}</span>
-                                        <span class="off-day-badge" style="{{ $isOff ? '' : 'display:none;' }}">Off Day</span>
+                                        <span class="off-day-badge" style="{{ $isOff ? '' : 'display:none;' }}">{{ __('ui.off_day') }}</span>
                                     </td>
                                     <td>
                                         <input type="time" name="{{ $key }}_in" class="form-control shift-time-in"
@@ -151,7 +151,7 @@
                                         <input type="checkbox" class="shift-off-toggle"
                                                data-day="{{ $key }}"
                                                {{ $isOff ? 'checked' : '' }}
-                                               title="Mark as day off" />
+                                               title="{{ __('ui.mark_as_day_off') }}" />
                                     </td>
                                 </tr>
                                 @endforeach
@@ -162,8 +162,8 @@
             </div>
 
             <div class="box-footer text-right">
-                <a href="{{ route('hrm.office_shifts.index') }}" class="btn btn-default">Cancel</a>
-                <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Update Shift</button>
+                <a href="{{ route('hrm.office_shifts.index') }}" class="btn btn-default">{{ __('ui.cancel') }}</a>
+                <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> {{ __('ui.update_shift') }}</button>
             </div>
         </form>
     </div>

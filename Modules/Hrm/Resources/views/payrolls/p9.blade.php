@@ -1,7 +1,7 @@
 @php
     function p9Fmt($v){ return number_format((float)$v, 2); }
     $empName = $employee
-        ? trim(($employee->firstname ?? '') . ' ' . ($employee->lastname ?? '')) ?: ($employee->username ?? 'N/A')
+        ? trim(($employee->firstname ?? '') . ' ' . ($employee->lastname ?? '')) ?: ($employee->username ?? __('ui.n_a'))
         : null;
     $companyName = $company->name ?? '-';
     $hasData = $rows->isNotEmpty() && collect($rows)->sum('gross') > 0;
@@ -9,7 +9,7 @@
 
 @extends('layouts.app')
 
-@section('title', 'P9 Tax Certificate' . ($empName ? ' – ' . $empName : ''))
+@section('title', __('ui.p9_tax_certificate') . ($empName ? ' - ' . $empName : ''))
 
 @section('css')
 <style>
@@ -100,24 +100,24 @@
 
 @section('content')
 @include('hrm::partials.hrm_page_header', [
-    'title' => 'P9 Annual Tax Certificate',
-    'subtitle' => 'Employee Annual Income & PAYE Summary · KRA P9 Form',
+    'title' => __('ui.p9_annual_tax_certificate'),
+    'subtitle' => __('ui.employee_annual_income_paye_summary_kra_p9_form'),
     'actions' =>
-        '<a href="'.route('hrm.payrolls.index').'" class="btn btn-default no-print"><i class="fa fa-arrow-left"></i> Payrolls</a>
-         ' . ($empName ? '<button onclick="window.print()" class="btn btn-primary no-print"><i class="fa fa-print"></i> Print P9</button>' : '')
+        '<a href="'.route('hrm.payrolls.index').'" class="btn btn-default no-print"><i class="fa fa-arrow-left"></i> '. __('ui.payrolls') .'</a>
+         ' . ($empName ? '<button onclick="window.print()" class="btn btn-primary no-print"><i class="fa fa-print"></i> '. __('ui.print_p9') .'</button>' : '')
 ])
 
 <section class="content">
 
     {{-- Filter form --}}
     <div class="box box-default no-print">
-        <div class="box-header with-border"><h3 class="box-title">Select Employee &amp; Year</h3></div>
+        <div class="box-header with-border"><h3 class="box-title">{{ __('ui.select_employee_year') }}</h3></div>
         <div class="box-body">
             <form method="GET" action="{{ route('hrm.payrolls.p9') }}" class="form-inline" style="gap:12px; display:flex; flex-wrap:wrap; align-items:flex-end;">
                 <div class="form-group" style="margin-right:12px;">
-                    <label class="control-label" style="display:block; margin-bottom:4px;">Employee</label>
+                    <label class="control-label" style="display:block; margin-bottom:4px;">{{ __('ui.employee') }}</label>
                     <select name="employee_id" class="form-control" required style="min-width:220px;">
-                        <option value="">-- Select Employee --</option>
+                        <option value="">{{ __('ui.select_employee') }}</option>
                         @foreach($employees as $emp)
                         @php $eName = trim(($emp->firstname ?? '') . ' ' . ($emp->lastname ?? '')) ?: $emp->username; @endphp
                         <option value="{{ $emp->id }}" @selected($emp->id == $employeeId)>{{ $eName }}</option>
@@ -125,14 +125,14 @@
                     </select>
                 </div>
                 <div class="form-group" style="margin-right:12px;">
-                    <label class="control-label" style="display:block; margin-bottom:4px;">Tax Year</label>
+                    <label class="control-label" style="display:block; margin-bottom:4px;">{{ __('ui.tax_year') }}</label>
                     <select name="year" class="form-control">
                         @foreach($years as $y)
                         <option value="{{ $y }}" @selected($y == $year)>{{ $y }}</option>
                         @endforeach
                     </select>
                 </div>
-                <button type="submit" class="btn btn-primary"><i class="fa fa-search"></i> Generate P9</button>
+                <button type="submit" class="btn btn-primary"><i class="fa fa-search"></i> {{ __('ui.generate_p9') }}</button>
             </form>
         </div>
     </div>
@@ -144,34 +144,34 @@
         <div class="p9-header">
             <div>
                 <div class="co-name">{{ $companyName }}</div>
-                <div style="font-size:12px; margin-top:4px; opacity:0.8;">Annual PAYE Tax Certificate</div>
+                <div style="font-size:12px; margin-top:4px; opacity:0.8;">{{ __('ui.annual_paye_tax_certificate') }}</div>
             </div>
             <div class="p9-label">
-                <strong>P9 FORM</strong>
-                <span>Tax Year: {{ $year }}</span>
+                <strong>{{ __('ui.p9_form') }}</strong>
+                <span>{{ __('ui.tax_year_2') }} {{ $year }}</span>
             </div>
         </div>
 
         {{-- Employee meta --}}
         <div class="p9-meta">
             <dl>
-                <dt>Employee Name</dt>
+                <dt>{{ __('ui.employee_name') }}</dt>
                 <dd>{{ $empName }}</dd>
             </dl>
             <dl>
-                <dt>Employee ID</dt>
+                <dt>{{ __('ui.employee_id') }}</dt>
                 <dd>#{{ $employee->id }}</dd>
             </dl>
             <dl>
-                <dt>Designation</dt>
+                <dt>{{ __('ui.designation') }}</dt>
                 <dd>{{ optional($employee->designation)->name ?? '-' }}</dd>
             </dl>
             <dl>
-                <dt>Department</dt>
+                <dt>{{ __('ui.department') }}</dt>
                 <dd>{{ optional($employee->department)->name ?? '-' }}</dd>
             </dl>
             <dl>
-                <dt>Joining Date</dt>
+                <dt>{{ __('ui.joining_date') }}</dt>
                 <dd>{{ $employee->joining_date ? \Carbon\Carbon::parse($employee->joining_date)->format('d M Y') : '-' }}</dd>
             </dl>
         </div>
@@ -182,20 +182,20 @@
             <table class="p9-table">
                 <thead>
                     <tr>
-                        <th rowspan="2">Month</th>
-                        <th colspan="2">Earnings (KES)</th>
-                        <th colspan="3">Deductions (KES)</th>
-                        <th colspan="3">Tax Computation (KES)</th>
-                        <th rowspan="2">Net Pay</th>
+                        <th rowspan="2">{{ __('ui.month') }}</th>
+                        <th colspan="2">{{ __('ui.earnings_kes') }}</th>
+                        <th colspan="3">{{ __('ui.deductions_kes') }}</th>
+                        <th colspan="3">{{ __('ui.tax_computation_kes') }}</th>
+                        <th rowspan="2">{{ __('ui.net_pay') }}</th>
                     </tr>
                     <tr>
-                        <th>Basic Pay</th>
-                        <th>Gross Pay</th>
+                        <th>{{ __('ui.basic_pay') }}</th>
+                        <th>{{ __('ui.gross_pay') }}</th>
                         <th>NSSF</th>
                         <th>SHIF</th>
-                        <th>Housing Levy</th>
-                        <th>Taxable Pay</th>
-                        <th>Income Tax</th>
+                        <th>{{ __('ui.housing_levy_2') }}</th>
+                        <th>{{ __('ui.taxable_pay') }}</th>
+                        <th>{{ __('ui.income_tax') }}</th>
                         <th>P.A.Y.E</th>
                     </tr>
                 </thead>
@@ -218,7 +218,7 @@
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td><strong>TOTALS</strong></td>
+                        <td><strong>{{ __('ui.totals_2') }}</strong></td>
                         <td>{{ p9Fmt($annualTotals['basic_pay'] ?? 0) }}</td>
                         <td>{{ p9Fmt($annualTotals['gross'] ?? 0) }}</td>
                         <td>{{ p9Fmt($annualTotals['nssf'] ?? 0) }}</td>
@@ -234,14 +234,14 @@
             @else
             <div style="padding:40px; text-align:center; color:#9ca3af;">
                 <i class="fa fa-inbox fa-2x" style="display:block; margin-bottom:8px;"></i>
-                No payroll records found for <strong>{{ $empName }}</strong> in {{ $year }}.
+                {{ __('ui.no_payroll_records_found_for') }} <strong>{{ $empName }}</strong> {{ __('ui.in') }} {{ $year }}.
             </div>
             @endif
         </div>
 
         <div class="p9-note">
-            This P9 certificate is computer-generated from payroll records. &middot;
-            {{ $companyName }} &middot; Generated: {{ now()->format('d M Y') }}
+            {{ __('ui.this_p9_certificate_is_computer_generated_from_payroll_records') }} &middot;
+            {{ $companyName }} &middot; {{ __('ui.generated') }} {{ now()->format('d M Y') }}
         </div>
 
     </div>

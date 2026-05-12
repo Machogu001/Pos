@@ -1,10 +1,10 @@
 @extends('layouts.install', ['no_header' => 1])
-@section('title', 'Welcome - POS Installation')
+@section('title', __('ui.welcome_pos_installation'))
 
 @section('content')
 <div class="container">
     <div class="row">
-        <h3 class="text-center">{{ config('app.name', 'POS') }} Installation <small>Completed</small></h3>
+        <h3 class="text-center">{{ config('app.name', 'POS') }} {{ __('ui.installation') }} <small>{{ __('ui.completed') }}</small></h3>
 
         <div class="col-md-8 col-md-offset-2">
           @include('install.partials.nav', ['active' => 'success'])
@@ -13,74 +13,74 @@
             <div class="box-body">
               <h3 class="@if($all_passed) text-success @else text-danger @endif">
                 @if($all_passed)
-                  Great! Your application is successfully installed.
+                  {{ __('ui.great_your_application_is_successfully_installed') }}
                 @else
-                  Installation finished with validation issues.
+                  {{ __('ui.installation_finished_with_validation_issues') }}
                 @endif
               </h3>
 
-              <p>Installer validation summary:</p>
+              <p>{{ __('ui.installer_validation_summary') }}</p>
               <table class="table table-bordered table-striped">
                 <thead>
                   <tr>
-                    <th>Check</th>
-                    <th>Status</th>
+                    <th>{{ __('ui.check') }}</th>
+                    <th>{{ __('ui.status') }}</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td>.env file exists</td>
-                    <td>@if($checks['env_file']) <span class="text-success">PASS</span> @else <span class="text-danger">FAIL</span> @endif</td>
+                    <td>{{ __('ui.env_file_exists') }}</td>
+                    <td>@if($checks['env_file']) <span class="text-success">{{ __('ui.pass') }}</span> @else <span class="text-danger">{{ __('ui.fail') }}</span> @endif</td>
                   </tr>
                   <tr>
-                    <td>Application key configured</td>
-                    <td>@if($checks['app_key']) <span class="text-success">PASS</span> @else <span class="text-danger">FAIL</span> @endif</td>
+                    <td>{{ __('ui.application_key_configured') }}</td>
+                    <td>@if($checks['app_key']) <span class="text-success">{{ __('ui.pass') }}</span> @else <span class="text-danger">{{ __('ui.fail') }}</span> @endif</td>
                   </tr>
                   <tr>
-                    <td>Database connection</td>
-                    <td>@if($checks['db_connection']) <span class="text-success">PASS</span> @else <span class="text-danger">FAIL</span> @endif</td>
+                    <td>{{ __('ui.database_connection') }}</td>
+                    <td>@if($checks['db_connection']) <span class="text-success">{{ __('ui.pass') }}</span> @else <span class="text-danger">{{ __('ui.fail') }}</span> @endif</td>
                   </tr>
                   <tr>
-                    <td>users table</td>
-                    <td>@if($checks['users_table']) <span class="text-success">PASS</span> @else <span class="text-danger">FAIL</span> @endif</td>
+                    <td>{{ __('ui.users_table') }}</td>
+                    <td>@if($checks['users_table']) <span class="text-success">{{ __('ui.pass') }}</span> @else <span class="text-danger">{{ __('ui.fail') }}</span> @endif</td>
                   </tr>
                   <tr>
-                    <td>business table</td>
-                    <td>@if($checks['business_table']) <span class="text-success">PASS</span> @else <span class="text-danger">FAIL</span> @endif</td>
+                    <td>{{ __('ui.business_table') }}</td>
+                    <td>@if($checks['business_table']) <span class="text-success">{{ __('ui.pass') }}</span> @else <span class="text-danger">{{ __('ui.fail') }}</span> @endif</td>
                   </tr>
                   <tr>
-                    <td>admin_settings table</td>
-                    <td>@if($checks['admin_settings_table']) <span class="text-success">PASS</span> @else <span class="text-danger">FAIL</span> @endif</td>
+                    <td>{{ __('ui.admin_settings_table') }}</td>
+                    <td>@if($checks['admin_settings_table']) <span class="text-success">{{ __('ui.pass') }}</span> @else <span class="text-danger">{{ __('ui.fail') }}</span> @endif</td>
                   </tr>
                   <tr>
-                    <td>storage writable</td>
-                    <td>@if($checks['storage_writable']) <span class="text-success">PASS</span> @else <span class="text-danger">FAIL</span> @endif</td>
+                    <td>{{ __('ui.storage_writable') }}</td>
+                    <td>@if($checks['storage_writable']) <span class="text-success">{{ __('ui.pass') }}</span> @else <span class="text-danger">{{ __('ui.fail') }}</span> @endif</td>
                   </tr>
                   <tr>
-                    <td>bootstrap/cache writable</td>
-                    <td>@if($checks['cache_writable']) <span class="text-success">PASS</span> @else <span class="text-danger">FAIL</span> @endif</td>
+                    <td>{{ __('ui.bootstrap_cache_writable') }}</td>
+                    <td>@if($checks['cache_writable']) <span class="text-success">{{ __('ui.pass') }}</span> @else <span class="text-danger">{{ __('ui.fail') }}</span> @endif</td>
                   </tr>
                 </tbody>
               </table>
 
               @if($all_passed)
                 <p class="text-success">
-                  Redirecting you to login in <span id="redirect-seconds">8</span> seconds...
+                  {{ __('ui.redirecting_you_to_login_in') }} <span id="redirect-seconds">8</span> {{ __('ui.seconds') }}
                 </p>
-                <a href="{{ $redirect_to }}" class="btn btn-primary">Go to Login</a>
-                <a href="{{ url('/') }}" class="btn btn-default">Go to Home</a>
+                <a href="{{ $redirect_to }}" class="btn btn-primary">{{ __('ui.go_to_login') }}</a>
+                <a href="{{ url('/') }}" class="btn btn-default">{{ __('ui.go_to_home') }}</a>
 
                 <hr>
                 <div class="panel panel-warning">
-                  <div class="panel-heading"><strong>&#9888; Server Setup Required (run once as root/sudo)</strong></div>
+                  <div class="panel-heading"><strong>&#9888; {{ __('ui.server_setup_required_run_once_as_root_sudo') }}</strong></div>
                   <div class="panel-body">
-                    <p>The following two steps <strong>cannot be done by the web installer</strong> — they require server access. Run them now to ensure all features work correctly.</p>
+                    <p>{{ __('ui.the_following_two_steps') }} <strong>{{ __('ui.cannot_be_done_by_the_web_installer') }}</strong> {{ __('ui.they_require_server_access_run_them_now_to_ensure_all_features_work_correctly') }}</p>
 
-                    <p><strong>1. Register the Laravel Scheduler (required for subscriptions, M-Pesa checks, reminders)</strong></p>
+                    <p><strong>{{ __('ui.1_register_the_laravel_scheduler_required_for_subscriptions_m_pesa_checks_reminders') }}</strong></p>
                     <pre style="background:#f5f5f5;padding:10px;">echo "* * * * * www-data /usr/bin/php {{ base_path() }}/artisan schedule:run >> {{ storage_path() }}/logs/scheduler.log 2>&1" | sudo tee /etc/cron.d/pos-scheduler
 sudo chmod 644 /etc/cron.d/pos-scheduler</pre>
 
-                    <p><strong>2. Enable PHP OPcache (required for production performance)</strong></p>
+                    <p><strong>{{ __('ui.2_enable_php_opcache_required_for_production_performance') }}</strong></p>
                     <pre style="background:#f5f5f5;padding:10px;">PHP_VER=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")
 sudo tee /etc/php/${PHP_VER}/fpm/conf.d/10-opcache.ini > /dev/null << 'EOF'
 zend_extension=opcache.so
@@ -98,9 +98,9 @@ sudo systemctl reload php${PHP_VER}-fpm</pre>
                 </div>
               @else
                 <p class="text-danger">
-                  Please fix the failed checks above and run installation again.
+                  {{ __('ui.please_fix_the_failed_checks_above_and_run_installation_again') }}
                 </p>
-                <a href="{{ route('install.details') }}" class="btn btn-primary">Back to Install Details</a>
+                <a href="{{ route('install.details') }}" class="btn btn-primary">{{ __('ui.back_to_install_details') }}</a>
               @endif
             </div>
           </div>

@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Subscription Statement</title>
+    <title>{{ __('Subscription Statement') }}</title>
     <style>
         body { font-family: DejaVu Sans, Arial, sans-serif; line-height: 1.45; color: #333; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
@@ -21,7 +21,7 @@
                     @endphp
                     @if(!empty($settings->company_logo))
                         <div style="display:flex; align-items:center; gap:12px;">
-                            <img src="{{ public_path($settings->company_logo) }}" alt="logo" style="max-height:80px;" />
+                            <img src="{{ public_path($settings->company_logo) }}" alt="{{ __('logo') }}" style="max-height:80px;" />
                             <div>
                                 <h3 style="margin:0;">{{ $company_display }}</h3>
                             </div>
@@ -31,11 +31,11 @@
                     @endif
                 </td>
                 <td style="width:50%; text-align:right; vertical-align:middle;">
-                    <h2>Subscription Account Statement</h2>
+                    <h2>{{ __('Subscription Account Statement') }}</h2>
                     @if(!empty($settings->company_contact_phone))<div>{{ $settings->company_contact_phone }}</div>@endif
                     @if(!empty($settings->company_contact_email))<div>{{ $settings->company_contact_email }}</div>@endif
-                    @if(!empty($settings->invoice_pin))<div><small>Company PIN: {{ $settings->invoice_pin }}</small></div>@endif
-                    @if(!empty($subscription->user->client_pin))<div><small>Client PIN: {{ $subscription->user->client_pin }}</small></div>@endif
+                    @if(!empty($settings->invoice_pin))<div><small>{{ __('Company PIN:') }} {{ $settings->invoice_pin }}</small></div>@endif
+                    @if(!empty($subscription->user->client_pin))<div><small>{{ __('Client PIN:') }} {{ $subscription->user->client_pin }}</small></div>@endif
                 </td>
             </tr>
         </table>
@@ -49,16 +49,16 @@
         $startAt = $start instanceof \Carbon\Carbon ? $start : \Carbon\Carbon::parse($start);
         $endAt = $end instanceof \Carbon\Carbon ? $end : \Carbon\Carbon::parse($end);
     @endphp
-    <p><strong>Subscriber:</strong> {{ $subscriber_name }}</p>
-    <p><strong>Period:</strong> {{ $startAt->format('d/m/Y') }} — {{ $endAt->format('d/m/Y') }}</p>
+    <p><strong>{{ __('Subscriber:') }}</strong> {{ $subscriber_name }}</p>
+    <p><strong>{{ __('Period:') }}</strong> {{ $startAt->format('d/m/Y') }} — {{ $endAt->format('d/m/Y') }}</p>
 
     <table>
         <thead>
             <tr>
-                <th>Date</th>
-                <th>Reference</th>
-                <th>Description</th>
-                <th>Amount</th>
+                <th>{{ __('Date') }}</th>
+                <th>{{ __('Reference') }}</th>
+                <th>{{ __('Description') }}</th>
+                <th>{{ __('Amount') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -66,26 +66,26 @@
             <tr>
                 <td>{{ optional($p->created_at)->format('d/m/Y') }}</td>
                 <td>{{ $p->id }}</td>
-                <td>{{ $p->payment_type ?? 'Payment' }}</td>
+                <td>{{ $p->payment_type ?? __('Payment') }}</td>
                 <td style="text-align:right;">{{ number_format($p->amount ?? 0, 2) }}</td>
             </tr>
         @empty
             <tr>
-                <td colspan="4">No payments found for this period.</td>
+                <td colspan="4">{{ __('No payments found for this period.') }}</td>
             </tr>
         @endforelse
         </tbody>
     </table>
 
-    <h4 style="margin-top:20px;">Invoices</h4>
+    <h4 style="margin-top:20px;">{{ __('Invoices') }}</h4>
     <table>
         <thead>
             <tr>
-                <th>Date</th>
-                <th>Invoice #</th>
-                <th>Reference</th>
-                <th>VAT</th>
-                <th>Total</th>
+                <th>{{ __('Date') }}</th>
+                <th>{{ __('Invoice #') }}</th>
+                <th>{{ __('Reference') }}</th>
+                <th>{{ __('VAT') }}</th>
+                <th>{{ __('Total') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -99,14 +99,14 @@
             </tr>
         @empty
             <tr>
-                <td colspan="4">No invoices found for this period.</td>
+                <td colspan="4">{{ __('No invoices found for this period.') }}</td>
             </tr>
         @endforelse
         </tbody>
     </table>
 
     <div style="margin-top:20px;">
-        <small>Generated on {{ \Carbon\Carbon::now()->format('d/m/Y H:i') }}</small>
+        <small>{{ __('Generated on') }} {{ \Carbon\Carbon::now()->format('d/m/Y H:i') }}</small>
     </div>
 
     @if(!empty($settings->statement_footer))

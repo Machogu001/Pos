@@ -145,6 +145,27 @@ use App\MpesaPayment;
     box-shadow: 0 4px 8px rgba(74, 108, 247, 0.3);
 }
 
+#mpesa_submit_btn {
+    background: #00a651 url("{{ asset('img/mpesa-logo.svg') }}") no-repeat left 14px center;
+    background-size: auto 55%;
+    border: none;
+    color: #fff;
+    font-weight: 700;
+    padding-left: 48px;
+    letter-spacing: 0.02em;
+}
+
+#mpesa_submit_btn:hover,
+#mpesa_submit_btn:focus {
+    background-color: #008c44;
+    background-image: url("{{ asset('img/mpesa-logo.svg') }}");
+    background-repeat: no-repeat;
+    background-position: left 14px center;
+    background-size: auto 55%;
+    box-shadow: 0 4px 10px rgba(0, 166, 81, 0.35);
+    transform: translateY(-1px);
+}
+
 .alert {
     border-radius: 8px;
     padding: 12px 16px;
@@ -342,7 +363,7 @@ function showFloatingAlert(message, type = 'success', duration = 5000) {
                                 
                                 
                                 <button type="submit" class="btn btn-primary w-100" id="mpesa_submit_btn">
-                                    <i class="fas fa-mobile-alt me-2"></i>@lang('payment.pay_via_mpesa')
+                                    @lang('payment.pay_via_mpesa')
                                 </button>
                             </form>
                         </div>

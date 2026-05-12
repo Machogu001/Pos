@@ -1,9 +1,7 @@
 @extends('project::layouts.master')
 
-@section('content')
-    <h1>Hello World</h1>
+@section('title', config('project.name'))
 
-    <p>
-        This view is loaded from module: {!! config('project.name') !!}
-    </p>
+@section('content')
+    <h1>{{ config('project.name') }}</h1>
 @stop

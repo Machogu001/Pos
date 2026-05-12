@@ -593,6 +593,7 @@
                                     <th width="10%">@lang('product.sku')</th>
                                     <th width="15%">@lang('stocktake.system_quantity')</th>
                                     <th width="15%">@lang('stocktake.counted_quantity')</th>
+                                    <th width="10%">@lang('product.unit')</th>
                                     <th width="15%">@lang('stocktake.variance')</th>
                                     <th width="15%">@lang('stocktake.notes')</th>
                                 </tr>
@@ -604,6 +605,7 @@
                                     $varianceClass = $variance < 0 ? 'variance-negative' : ($variance > 0 ? 'variance-positive' : 'variance-neutral');
                                 @endphp
                                 <tr class="stocktake-item-row"
+                                    data-system-base="{{ $item->system_quantity }}"
                                     data-search="{{ strtolower($item->product->name . ' ' . ($item->variation->name ?? '') . ' ' . ($item->variation->sub_sku ?? '') . ' ' . ($item->product->sku ?? '')) }}">
                                     <td>
                                         <strong>{{ $item->product->name }}</strong>
@@ -612,13 +614,22 @@
                                         @endif
                                     </td>
                                     <td>{{ $item->variation->sub_sku }}</td>
-                                    <td class="text-center">{{ $item->system_quantity }}</td>
+                                    <td class="text-center">{{ number_format($item->system_display_quantity ?? $item->system_quantity, 4) }}</td>
                                     <td>
                                         <input type="number" class="form-control counted_quantity" 
                                             name="items[{{ $item->id }}][counted_quantity]" 
-                                            value="{{ $item->counted_quantity ?? $item->system_quantity }}" 
+                                            value="{{ number_format($item->counted_display_quantity ?? ($item->counted_quantity ?? $item->system_quantity), 4, '.', '') }}" 
                                             min="0" step="any" required>
                                         <input type="hidden" name="items[{{ $item->id }}][id]" value="{{ $item->id }}">
+                                    </td>
+                                    <td>
+                                        <select class="form-control counted_unit" name="items[{{ $item->id }}][counted_unit_id]">
+                                            @foreach(($item->sub_units_options ?? []) as $unit_id => $unit)
+                                                <option value="{{ $unit_id }}" data-multiplier="{{ $unit['multiplier'] }}" @if((int) ($item->default_count_unit_id ?? $item->product->unit_id) === (int) $unit_id) selected @endif>
+                                                    {{ $unit['name'] }}
+                                                </option>
+                                            @endforeach
+                                        </select>
                                     </td>
                                     <td class="variance text-center">
                                         <span class="badge variance-badge variance-value {{ $varianceClass }}">
@@ -634,7 +645,7 @@
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="6">
+                                    <td colspan="7">
                                         <div class="empty-state">
                                             <div class="empty-state-icon">
                                                 <i class="fas fa-box-open"></i>
@@ -653,7 +664,7 @@
                                 @endforelse
                                 @if(count($stocktake->items) > 0)
                                 <tr class="stocktake-no-results" style="display: none;">
-                                    <td colspan="6" class="text-center text-muted py-4">
+                                    <td colspan="7" class="text-center text-muted py-4">
                                         No items match your search.
                                     </td>
                                 </tr>
@@ -798,11 +809,16 @@ $(document).ready(function() {
         calculateVariance($(this));
     });
 
+    $(document).on('change', '.counted_unit', function() {
+        calculateVariance($(this).closest('tr').find('.counted_quantity'));
+    });
+
     function calculateVariance(inputElement) {
         var row = inputElement.closest('tr');
-        var system_qty = parseFloat(row.find('td:eq(2)').text()) || 0;
+        var system_qty = parseFloat(row.data('system-base')) || 0;
         var counted_qty = parseFloat(inputElement.val()) || 0;
-        var variance = counted_qty - system_qty;
+        var multiplier = parseFloat(row.find('.counted_unit option:selected').data('multiplier')) || 1;
+        var variance = (counted_qty * multiplier) - system_qty;
         
         var varianceElement = row.find('.variance-value');
         varianceElement.text(variance.toFixed(2));

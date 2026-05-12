@@ -105,6 +105,32 @@
             </div>
         </div>
 
+            <div class="col-sm-4">
+              <div class="form-group">
+                {!! Form::label('common_settings_default_purchase_unit_id', __('lang_v1.default_purchase_unit') . ':') !!}
+                {!! Form::select(
+                  'common_settings[default_purchase_unit_id]',
+                  $units_dropdown,
+                  !empty($common_settings['default_purchase_unit_id']) ? $common_settings['default_purchase_unit_id'] : null,
+                  ['class' => 'form-control select2', 'placeholder' => __('messages.please_select')]
+                ) !!}
+                <p class="help-block">@lang('lang_v1.default_purchase_unit_help')</p>
+              </div>
+            </div>
+
+            <div class="col-sm-4">
+              <div class="form-group">
+                {!! Form::label('common_settings_default_sale_unit_id', __('lang_v1.default_sales_unit') . ':') !!}
+                {!! Form::select(
+                  'common_settings[default_sale_unit_id]',
+                  $units_dropdown,
+                  !empty($common_settings['default_sale_unit_id']) ? $common_settings['default_sale_unit_id'] : null,
+                  ['class' => 'form-control select2', 'placeholder' => __('messages.please_select')]
+                ) !!}
+                <p class="help-block">@lang('lang_v1.default_sales_unit_help')</p>
+              </div>
+            </div>
+
         <div class="col-sm-4">
             <div class="form-group">
                 <div class="checkbox">

@@ -227,6 +227,23 @@ return [
     'showing_entries' => 'showing Entries',
     'previous' => 'Previous', 
     'next' => 'Next', 
+    'filter_by_status' => 'Filter By Status',
+    'error_loading_data' => 'Error loading data: :error',
+    'error_loading_stocktakes_retry' => 'Error loading stocktakes. Please try again.',
+    'excel' => 'Excel',
+    'csv' => 'CSV',
+    'pdf' => 'PDF',
+    'date' => 'Date',
+    'stocktake_ref' => 'Stocktake Ref',
+    'amount' => 'Amount',
+    'posting' => 'Posting',
+    'opening_stock_equity' => 'Opening Stock Equity',
+    'cutoff_date' => 'Cutoff date',
+    'opening_stock_equity_total' => 'Opening Stock Equity total',
+    'stocktake_batch' => ':count stocktake batch|:count stocktake batches',
+    'expand_view' => 'Expand view',
+    'export_to_excel' => 'Export to Excel',
+    'not_available' => 'N/A',
     
         
     // ==================== VALIDATION & ERROR MESSAGES ====================

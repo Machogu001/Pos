@@ -529,8 +529,11 @@
                                     </td>
                                     <td class="text-end">{{ number_format($history->old_quantity, 4) }}</td>
                                     <td class="text-end">{{ number_format($history->new_quantity, 4) }}</td>
-                                    <td class="text-end fw-bold {{ $history->actual_adjustment > 0 ? 'text-success' : ($history->actual_adjustment < 0 ? 'text-danger' : 'text-muted') }}">
-                                        {{ $history->actual_adjustment > 0 ? '+' : '' }}{{ number_format($history->actual_adjustment, 4) }}
+                                    @php
+                                        $display_adjustment = abs((float) $history->actual_adjustment) < 0.0001 ? 0.0 : (float) $history->actual_adjustment;
+                                    @endphp
+                                    <td class="text-end fw-bold {{ $display_adjustment > 0 ? 'text-success' : ($display_adjustment < 0 ? 'text-danger' : 'text-muted') }}">
+                                        {{ $display_adjustment > 0 ? '+' : '' }}{{ number_format($display_adjustment, 4) }}
                                     </td>
                                     <td>{{ $history->adjusted_by ?? 'System' }}</td>
                                     <td>

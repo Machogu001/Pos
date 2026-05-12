@@ -1,11 +1,11 @@
 @extends('layouts.app')
-@section('title', 'Report 607 (' . __('business.sale') . ')')
+@section('title', __('ui.report_607') . ' (' . __('business.sale') . ')')
 
 @section('content')
 
 <!-- Content Header (Page header) -->
 <section class="content-header no-print">
-    <h1 class="tw-text-xl md:tw-text-3xl tw-font-bold tw-text-black">Report 607 (@lang('business.sale'))
+    <h1 class="tw-text-xl md:tw-text-3xl tw-font-bold tw-text-black">{{ __('ui.report_607') }} (@lang('business.sale'))
     </h1>
 </section>
 

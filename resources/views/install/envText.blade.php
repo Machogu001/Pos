@@ -1,5 +1,5 @@
 @extends('layouts.install', ['no_header' => 1])
-@section('title', 'POS Installation - Check server')
+@section('title', __('ui.pos_installation_check_server'))
 
 @section('content')
 <div class="container">
@@ -34,9 +34,9 @@
                     id="env_details_form">
                   {{ csrf_field() }}
 
-                  <h4 class="install_instuction">Hey, I need your help. </h4>
+                  <h4 class="install_instuction">{{ __('ui.hey_i_need_your_help') }}</h4>
                   <p class="install_instuction">
-                    Please create a file with name <code>.env</code> at <strong>{{$envPath}}</strong> with <code>read & write permission</code> and paste the below content. <br/> Press install after it.
+                    {{ __('ui.please_create_a_file_with_name') }} <code>.env</code> {{ __('ui.at') }} <strong>{{$envPath}}</strong> {{ __('ui.with') }} <code>{{ __('ui.read_write_permission') }}</code> {{ __('ui.and_paste_the_below_content') }} <br/> {{ __('ui.press_install_after_it') }}
                   </p>
                   <hr/>
 
@@ -47,12 +47,11 @@
                   </div>
                   
                   <div class="col-md-12">
-                    <button type="submit" class="btn btn-primary pull-right" id="install_button">Install</button>
+                    <button type="submit" class="btn btn-primary pull-right" id="install_button">{{ __('ui.install') }}</button>
                   </div>
 
                   <div class="col-md-12 text-center text-danger install_msg hide">
-                    <h3>Installation in progress, Please do not refresh, go back or close the browser.</strong>
-                  </h3>
+                    <h3>{{ __('ui.installation_in_progress_please_do_not_refresh_go_back_or_close_the_browser') }}</h3>
               </form>
             </div>
           <!-- /.box-body -->
@@ -68,7 +67,7 @@
     $(document).ready(function(){
 
       $('form#env_details_form').submit(function(){
-        $('button#install_button').attr('disabled', true).text('Installing...');
+        $('button#install_button').attr('disabled', true).text("{{ __('ui.installing') }}");
         $(".install_instuction").addClass('hide');
         $('div.install_msg').removeClass('hide');
         $('textarea').addClass('hide');

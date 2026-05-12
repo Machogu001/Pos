@@ -1,28 +1,28 @@
 @extends('layouts.app')
 
-@section('title', 'Create Leave')
+@section('title', __('ui.create_leave'))
 
 @section('content')
 @include('hrm::partials.hrm_page_header', [
-    'title' => 'Create Leave',
-    'subtitle' => 'Submit a leave request using a structured and easy-to-review form.',
-    'actions' => '<a href="'.route('hrm.leaves.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Leaves</a>'
+    'title' => __('ui.create_leave'),
+    'subtitle' => __('ui.submit_a_leave_request_using_a_structured_and_easy_to_review_form'),
+    'actions' => '<a href="'.route('hrm.leaves.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> '. __('ui.back_to_leaves') .'</a>'
 ])
 
 <section class="content">
     <div class="box box-warning">
         <div class="box-header with-border">
-            <h3 class="box-title">Leave Request</h3>
+            <h3 class="box-title">{{ __('ui.leave_request') }}</h3>
         </div>
         <div class="box-body">
             <form id="leaveForm" enctype="multipart/form-data">
                 @csrf
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label class="form-label">Company</label>
+                        <label class="form-label">{{ __('ui.company') }}</label>
                         <select id="company_id" name="company_id" class="form-select">
                             @if(isset($companies) && count($companies) > 0)
-                                <option value="">-- Select Company --</option>
+                                <option value="">{{ __('ui.select_company') }}</option>
                                 @foreach($companies as $c)
                                     <option value="{{ $c->id }}">{{ $c->name }}</option>
                                 @endforeach
@@ -30,12 +30,12 @@
                         </select>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Leave Type</label>
+                        <label class="form-label">{{ __('ui.leave_type') }}</label>
                         <select id="leave_type_id" name="leave_type_id" class="form-select">
                             @if(isset($leave_types) && count($leave_types) > 0)
-                                <option value="">-- Select Leave Type --</option>
+                                <option value="">{{ __('ui.select_leave_type') }}</option>
                                 @foreach($leave_types as $t)
-                                    <option value="{{ $t->id }}">{{ $t->name ?? $t->title ?? 'Type #'.$t->id }}</option>
+                                    <option value="{{ $t->id }}">{{ $t->name ?? $t->title ?? __('ui.type_2') . $t->id }}</option>
                                 @endforeach
                             @endif
                         </select>
@@ -44,14 +44,14 @@
 
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label class="form-label">Employee</label>
+                        <label class="form-label">{{ __('ui.employee') }}</label>
                         <select id="employee_id" name="employee_id" class="form-select"></select>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Department</label>
+                        <label class="form-label">{{ __('ui.department') }}</label>
                         <select id="department_id" name="department_id" class="form-select">
                             @if(isset($departments) && count($departments) > 0)
-                                <option value="">-- Select Department --</option>
+                                <option value="">{{ __('ui.select_department') }}</option>
                                 @foreach($departments as $d)
                                     <option value="{{ $d->id }}" data-company="{{ $d->company_id ?? '' }}">{{ $d->department }}</option>
                                 @endforeach
@@ -62,44 +62,44 @@
 
                 <div class="row mb-3">
                     <div class="col-md-3">
-                        <label class="form-label">Start Date</label>
+                        <label class="form-label">{{ __('ui.start_date') }}</label>
                         <input type="date" id="start_date" name="start_date" class="form-control" />
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">End Date</label>
+                        <label class="form-label">{{ __('ui.end_date') }}</label>
                         <input type="date" id="end_date" name="end_date" class="form-control" />
                     </div>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Reason</label>
+                    <label class="form-label">{{ __('ui.reason') }}</label>
                     <textarea id="reason" name="reason" class="form-control" rows="3"></textarea>
                 </div>
 
                 <div class="row mb-3">
                     <div class="col-md-4">
-                        <label class="form-label">Attachment</label>
+                        <label class="form-label">{{ __('ui.attachment') }}</label>
                         <input type="file" id="attachment" name="attachment" class="form-control" />
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Half Day</label>
+                        <label class="form-label">{{ __('ui.half_day') }}</label>
                         <select id="half_day" name="half_day" class="form-select">
-                            <option value="0">No</option>
-                            <option value="1">Yes</option>
+                            <option value="0">{{ __('ui.no') }}</option>
+                            <option value="1">{{ __('ui.yes') }}</option>
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Status</label>
+                        <label class="form-label">{{ __('ui.status') }}</label>
                         <select id="status" name="status" class="form-select">
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved</option>
-                            <option value="rejected">Rejected</option>
+                            <option value="pending">{{ __('ui.pending') }}</option>
+                            <option value="approved">{{ __('ui.approved') }}</option>
+                            <option value="rejected">{{ __('ui.rejected') }}</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="text-right">
-                    <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Create Leave</button>
+                    <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> {{ __('ui.create_leave') }}</button>
                 </div>
             </form>
         </div>
@@ -115,10 +115,10 @@
                 .then(r => {
                     // only try to parse JSON when the server actually returned JSON
                     const ct = r.headers.get('content-type') || '';
-                    if (!r.ok) throw new Error('Network response was not ok: ' + r.status);
+                    if (!r.ok) throw new Error("{{ __('ui.network_response_was_not_ok') }}" + ' ' + r.status);
                     if (!ct.includes('application/json')) {
                         // server returned HTML (likely a login/redirect). Let server-side options remain
-                        throw new Error('Expected JSON but got ' + ct);
+                        throw new Error("{{ __('ui.expected_json_but_got') }}" + ' ' + ct);
                     }
                     return r.json();
                 })
@@ -147,7 +147,7 @@
                 })
                 .catch((err) => {
                     // keep server-rendered options if any and log for debugging
-                    console.warn('Could not load initial HRM metadata (companies/leave_types/departments):', err && err.message);
+                    console.warn("{{ __('ui.could_not_load_initial_hrm_metadata_companies_leave_types_departments') }}", err && err.message);
                 });
 
             // when company changes, fetch employees for that company and filter departments
@@ -157,7 +157,7 @@
                 const depSel = document.getElementById('department_id');
                 empSel.innerHTML = '';
                 // show loading placeholder
-                var loadingOpt = document.createElement('option'); loadingOpt.text = 'Loading...'; loadingOpt.disabled = true; empSel.appendChild(loadingOpt);
+                var loadingOpt = document.createElement('option'); loadingOpt.text = "{{ __('ui.loading') }}"; loadingOpt.disabled = true; empSel.appendChild(loadingOpt);
                 // filter departments client-side by company
                 Array.from(depSel.options).forEach(opt => {
                     // treat empty dataset.company as a global department and keep it visible
@@ -175,21 +175,21 @@
                 }
                 if (!id) {
                     empSel.innerHTML = ''; // clear
-                    var placeholder = document.createElement('option'); placeholder.text = '-- Select Employee --'; placeholder.value = ''; empSel.appendChild(placeholder);
+                    var placeholder = document.createElement('option'); placeholder.text = "{{ __('ui.select_employee') }}"; placeholder.value = ''; empSel.appendChild(placeholder);
                     return;
                 }
                 fetch('{{ route('hrm.employees.by_company') }}?id=' + encodeURIComponent(id), { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
                     .then(r => {
                         const ct = r.headers.get('content-type') || '';
-                        if (!r.ok) throw new Error('Network response was not ok: ' + r.status);
-                        if (!ct.includes('application/json')) throw new Error('Expected JSON but got ' + ct);
+                        if (!r.ok) throw new Error("{{ __('ui.network_response_was_not_ok') }}" + ' ' + r.status);
+                        if (!ct.includes('application/json')) throw new Error("{{ __('ui.expected_json_but_got') }}" + ' ' + ct);
                         return r.json();
                     })
                     .then(json => {
                         empSel.innerHTML = '';
                         var list = (json && json.employees) ? json.employees : (Array.isArray(json) ? json : []);
                         if (!list || list.length === 0) {
-                            var noOpt = document.createElement('option'); noOpt.text = 'No employees found'; noOpt.value = ''; noOpt.disabled = true; empSel.appendChild(noOpt);
+                            var noOpt = document.createElement('option'); noOpt.text = "{{ __('ui.no_employees_found_2') }}"; noOpt.value = ''; noOpt.disabled = true; empSel.appendChild(noOpt);
                             return;
                         }
                         list.forEach(emp => {
@@ -197,9 +197,9 @@
                         });
                     })
                     .catch((err) => {
-                        console.error('Failed to load employees for company', id, err && err.message);
+                        console.error("{{ __('ui.failed_to_load_employees_for_company') }}", id, err && err.message);
                         empSel.innerHTML = '';
-                        var errOpt = document.createElement('option'); errOpt.text = 'Error loading employees'; errOpt.value = ''; errOpt.disabled = true; empSel.appendChild(errOpt);
+                        var errOpt = document.createElement('option'); errOpt.text = "{{ __('ui.error_loading_employees') }}"; errOpt.value = ''; errOpt.disabled = true; empSel.appendChild(errOpt);
                     });
             });
 
@@ -211,18 +211,18 @@
                 .then(async r => { const text = await r.text(); try { return JSON.parse(text); } catch(e){ return { success:false, message:text }; } })
                 .then(json => {
                     if (json && json.success) {
-                        if (window.toastr) { toastr.success('Created successfully'); }
+                        if (window.toastr) { toastr.success("{{ __('ui.created_successfully') }}"); }
                         if (window.playSuccess) { window.playSuccess(); }
                         window.location = '{{ route('hrm.leaves.index') }}';
                     } else if (json && json.isvalid === false && json.remaining_leave) {
                         if (window.toastr) { toastr.error(json.remaining_leave); } else { window.hrmAlert(json.remaining_leave); }
                         if (window.playError) { window.playError(); }
                     } else {
-                        if (window.toastr) { toastr.error('Create failed'); } else { window.hrmAlert('Error creating leave'); }
+                        if (window.toastr) { toastr.error("{{ __('ui.create_failed') }}"); } else { window.hrmAlert("{{ __('ui.error_creating_leave') }}"); }
                         if (window.playError) { window.playError(); }
                     }
                 })
-                .catch((err) => { if (window.toastr) { toastr.error('Network error'); } else { window.hrmAlert('Network error'); } if (window.playError) { window.playError(); } });
+                .catch((err) => { if (window.toastr) { toastr.error("{{ __('ui.network_error_2') }}"); } else { window.hrmAlert("{{ __('ui.network_error_2') }}"); } if (window.playError) { window.playError(); } });
         });
     });
 </script>

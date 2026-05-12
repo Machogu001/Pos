@@ -123,12 +123,12 @@
                         <i class="fas fa-shield-alt"></i>
                     </div>
                     <div class="tw-flex-1 tw-min-w-0">
-                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">Subscription Enforcement</p>
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.subscription_enforcement') }}</p>
                         <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">
                             @if($settings->subscription_required ?? false)
-                                Enabled: Users must have an active subscription
+                                {{ __('payment.subscription_required_enabled') }}
                             @else
-                                Disabled: Users can use the system without subscription
+                                {{ __('payment.subscription_required_disabled') }}
                             @endif
                         </p>
                     </div>
@@ -144,8 +144,8 @@
                         <i class="fas fa-mobile-alt"></i>
                     </div>
                     <div class="tw-flex-1 tw-min-w-0">
-                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">Subscription M-Pesa Credentials</p>
-                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">Configure separate M-Pesa credentials for subscription payments</p>
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.subscription_mpesa_credentials') }}</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.configure_subscription_mpesa_credentials') }}</p>
                     </div>
                 </div>
             </div>
@@ -190,7 +190,7 @@
                     </div>
                     <div class="tw-flex-1 tw-min-w-0">
                         <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.manual_subscription_management') }}</p>
-                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">Manually create subscriptions for users without M-Pesa payment</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.manual_subscription_without_mpesa') }}</p>
                     </div>
                 </div>
             </div>
@@ -234,9 +234,9 @@
                     <i class="fas fa-user-tie"></i>
                 </div>
                 <div class="tw-flex-1 tw-min-w-0">
-                    <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">Human Resource Management</p>
+                    <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.human_resource_management') }}</p>
                     <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">
-                        Open HRM (employees, leave, HR payroll, departments)
+                        {{ __('payment.open_hrm_modules') }}
                     </p>
                 </div>
                 <div class="tw-hidden sm:tw-flex tw-items-center tw-text-indigo-500">
@@ -299,8 +299,8 @@
                         <i class="fas fa-exchange-alt"></i>
                     </div>
                     <div class="tw-flex-1 tw-min-w-0">
-                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">eTIMS Integration</p>
-                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">Configure KRA eTIMS API settings</p>
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">{{ __('payment.etims_integration') }}</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.configure_etims_settings') }}</p>
                     </div>
                 </div>
             </div>
@@ -356,14 +356,14 @@
                                                 </button>
                                             </form>
                                             @else
-                                                <span class="text-muted">N/A</span>
+                                                <span class="text-muted">{{ __('payment.na') }}</span>
                                             @endif
                                         </td>
                                         <td>
-                                            <span class="fw-medium">{{ $user->username ?? $user->name ?? 'N/A' }}</span>
+                                            <span class="fw-medium">{{ $user->username ?? $user->name ?? __('payment.na') }}</span>
                                         </td>
                                         <td>
-                                            <span class="fw-medium">{{ $user->phone ?? 'N/A' }}</span>
+                                            <span class="fw-medium">{{ $user->phone ?? __('payment.na') }}</span>
                                         </td>
                                         <td>
                                             <form action="{{ route('admin.users.update-status', $user) }}" 
@@ -503,9 +503,9 @@
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title" id="registrationModalLabel">
-                        <i class="fas fa-user-plus me-2"></i>Registration Settings
+                        <i class="fas fa-user-plus me-2"></i>{{ __('payment.registration') }} {{ __('messages.settings') }}
                     </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="{{ __('payment.close') }}">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -562,7 +562,7 @@
                             <span class="spinner-border spinner-border-sm" role="status"></span>
                         </span>
                     </button>
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('payment.close') }}</button>
                 </div>
               </form>
             </div>
@@ -575,9 +575,9 @@
             <div class="modal-content">
                 <div class="modal-header bg-success text-white">
                     <h5 class="modal-title" id="payrollModalLabel">
-                        <i class="fas fa-money-bill-wave me-2"></i>Payroll Settings
+                        <i class="fas fa-money-bill-wave me-2"></i>{{ __('payment.payroll_defaults') }}
                     </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="{{ __('payment.close') }}">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -672,7 +672,7 @@
                             <span class="spinner-border spinner-border-sm" role="status"></span>
                         </span>
                     </button>
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('payment.close') }}</button>
                 </div>
               </form>
             </div>
@@ -687,7 +687,7 @@
                     <h5 class="modal-title" id="invoicingModalLabel">
                         <i class="fas fa-file-invoice me-2"></i>Invoicing Settings
                     </h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="{{ __('payment.close') }}">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -703,39 +703,39 @@
                 <div class="modal-body">
                         <div class="row g-3 mb-3">
                             <div class="col-md-4">
-                                <label class="form-label fw-medium">Subscription invoice prefix</label>
-                                <input type="text" class="form-control" name="subscription_invoice_prefix" value="{{ $settings?->subscription_invoice_prefix ?? '' }}" placeholder="e.g. SUB">
-                                <small class="text-muted">Optional prefix for subscription invoices.</small>
+                                <label class="form-label fw-medium">{{ __('payment.subscription_invoice_prefix') }}</label>
+                                <input type="text" class="form-control" name="subscription_invoice_prefix" value="{{ $settings?->subscription_invoice_prefix ?? '' }}" placeholder="{{ __('payment.subscription_invoice_prefix_placeholder') }}">
+                                <small class="text-muted">{{ __('payment.subscription_invoice_prefix_help') }}</small>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-medium">Subscription invoice next</label>
+                                <label class="form-label fw-medium">{{ __('payment.subscription_invoice_next') }}</label>
                                 <input type="number" class="form-control" name="subscription_invoice_next" value="{{ $settings?->subscription_invoice_next ?? 1 }}" min="0">
-                                <small class="text-muted">Next numeric value for the subscription invoice sequence.</small>
+                                <small class="text-muted">{{ __('payment.subscription_invoice_next_help') }}</small>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-medium">Subscription VAT (%)</label>
+                                <label class="form-label fw-medium">{{ __('payment.subscription_vat_percent') }}</label>
                                 <input type="number" step="0.01" class="form-control" name="subscription_vat_percent" value="{{ $settings?->subscription_vat_percent ?? 0 }}" min="0" max="100">
-                                <small class="text-muted">Optional VAT percentage to apply to subscription invoices (e.g. 16).</small>
+                                <small class="text-muted">{{ __('payment.subscription_vat_percent_help') }}</small>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-medium">Subscription round precision</label>
+                                <label class="form-label fw-medium">{{ __('payment.subscription_round_precision') }}</label>
                                 <input type="number" class="form-control" name="subscription_round_precision" value="{{ $settings?->subscription_round_precision ?? 0 }}" min="0" max="6">
-                                <small class="text-muted">Number of decimal places to round invoice totals to (0 = whole number)</small>
+                                <small class="text-muted">{{ __('payment.subscription_round_precision_help') }}</small>
                             </div>
                         </div>
 
                         <div class="row g-3 mb-3">
                             <div class="col-12">
-                                <label class="form-label fw-medium">Invoice footer / note</label>
+                                <label class="form-label fw-medium">{{ __('payment.invoice_footer_note') }}</label>
                                 <textarea class="form-control" name="invoice_footer" rows="3">{{ $settings?->invoice_footer ?? '' }}</textarea>
                             </div>
                         </div>
 
                         <div class="row g-3 mb-3">
                             <div class="col-12">
-                                <label class="form-label fw-medium">Statement footer / note</label>
+                                <label class="form-label fw-medium">{{ __('payment.statement_footer_note') }}</label>
                                 <textarea class="form-control" name="statement_footer" rows="3">{{ $settings?->statement_footer ?? '' }}</textarea>
-                                <small class="text-muted">This will appear at the bottom of account statements only.</small>
+                                <small class="text-muted">{{ __('payment.statement_footer_help') }}</small>
                             </div>
                         </div>
                 </div>
@@ -746,7 +746,7 @@
                             <span class="spinner-border spinner-border-sm" role="status"></span>
                         </span>
                     </button>
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('payment.close') }}</button>
                 </div>
               </form>
             </div>
@@ -759,9 +759,9 @@
             <div class="modal-content">
                 <div class="modal-header bg-info text-white">
                     <h5 class="modal-title" id="systemModalLabel">
-                        <i class="fas fa-server me-2"></i>System Settings
+                        <i class="fas fa-server me-2"></i>{{ __('payment.system') }} {{ __('messages.settings') }}
                     </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="{{ __('payment.close') }}">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -804,7 +804,7 @@
                             <span class="spinner-border spinner-border-sm" role="status"></span>
                         </span>
                     </button>
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('payment.close') }}</button>
                 </div>
               </form>
             </div>
@@ -817,9 +817,9 @@
             <div class="modal-content">
                 <div class="modal-header bg-danger text-white">
                     <h5 class="modal-title" id="companyModalLabel">
-                        <i class="fas fa-building me-2"></i>Company Information
+                        <i class="fas fa-building me-2"></i>{{ __('payment.business_information') }}
                     </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="{{ __('payment.close') }}">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -835,29 +835,29 @@
                 <div class="modal-body">
                         <div class="row g-3 mb-3">
                             <div class="col-md-6">
-                                <label class="form-label fw-medium">Company name</label>
+                                <label class="form-label fw-medium">{{ __('payment.business_name') }}</label>
                                 <input type="text" class="form-control" name="company_name" value="{{ $settings?->company_name ?? '' }}">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-medium">Company logo</label>
+                                <label class="form-label fw-medium">{{ __('payment.company_logo') }}</label>
                                 <input type="file" class="form-control" name="company_logo" accept="image/*">
                                 @if(!empty($settings?->company_logo))
-                                    <div class="mt-2 small text-muted">Current: <a href="{{ asset($settings->company_logo) }}" target="_blank">View</a></div>
+                                    <div class="mt-2 small text-muted">{{ __('payment.current_label') }} <a href="{{ asset($settings->company_logo) }}" target="_blank">{{ __('messages.view') }}</a></div>
                                 @endif
                             </div>
                         </div>
 
                         <div class="row g-3 mb-3">
                             <div class="col-md-4">
-                                <label class="form-label fw-medium">Contact phone</label>
+                                <label class="form-label fw-medium">{{ __('payment.business_phone') }}</label>
                                 <input type="text" class="form-control" name="company_contact_phone" value="{{ $settings?->company_contact_phone ?? '' }}">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-medium">Contact email</label>
+                                <label class="form-label fw-medium">{{ __('payment.business_email') }}</label>
                                 <input type="email" class="form-control" name="company_contact_email" value="{{ $settings?->company_contact_email ?? '' }}">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-medium">Invoice PIN</label>
+                                <label class="form-label fw-medium">{{ __('payment.invoice_pin') }}</label>
                                 <input type="text" class="form-control" name="invoice_pin" value="{{ $settings?->invoice_pin ?? '' }}">
                             </div>
                         </div>
@@ -869,7 +869,7 @@
                             <span class="spinner-border spinner-border-sm" role="status"></span>
                         </span>
                     </button>
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('payment.close') }}</button>
                 </div>
               </form>
             </div>
@@ -882,9 +882,9 @@
             <div class="modal-content">
                 <div class="modal-header bg-success text-white">
                     <h5 class="modal-title" id="etimsModalLabel">
-                        <i class="fas fa-exchange-alt me-2"></i>eTIMS Integration Settings
+                        <i class="fas fa-exchange-alt me-2"></i>{{ __('payment.etims_integration_settings') }}
                     </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="{{ __('payment.close') }}">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -901,101 +901,101 @@
                     <div class="modal-body">
                         <div class="alert alert-info border-0">
                             <i class="fas fa-info-circle me-2"></i>
-                            <strong>Configure eTIMS API Integration</strong>
-                            <br><small class="text-dark">Set up automatic transmission of sales invoices to KRA when transactions are posted. Each item in an invoice can have different tax rates (0% Exempt or 16% VAT), and the system automatically assigns the correct tax code per item.</small>
+                            <strong>{{ __('payment.configure_etims_api_integration') }}</strong>
+                            <br><small class="text-dark">{{ __('payment.etims_integration_help') }}</small>
                         </div>
 
                         <div class="row g-3 mb-3">
                             <div class="col-12">
-                                <label class="form-label fw-medium">eTIMS API URL</label>
+                                <label class="form-label fw-medium">{{ __('payment.etims_api_url_label') }}</label>
                                 <input type="url" class="form-control" name="etims_api_url" 
                                        value="{{ $settings?->etims_api_url ?? '' }}" 
-                                       placeholder="https://your-etims-api-url.com">
-                                <small class="text-muted">The base URL for your eTIMS API endpoint</small>
+                                       placeholder="{{ __('payment.etims_api_url_placeholder') }}">
+                                <small class="text-muted">{{ __('payment.etims_api_url_help') }}</small>
                             </div>
                         </div>
 
                         <div class="row g-3 mb-3">
                             <div class="col-12">
-                                <label class="form-label fw-medium">API Token</label>
+                                <label class="form-label fw-medium">{{ __('payment.api_token') }}</label>
                                 <textarea class="form-control" name="etims_api_token" rows="3" 
-                                          placeholder="Enter your eTIMS API authentication token">{{ $settings?->etims_api_token ?? '' }}</textarea>
-                                <small class="text-muted">Authentication token for API access</small>
+                                          placeholder="{{ __('payment.etims_api_token_placeholder') }}">{{ $settings?->etims_api_token ?? '' }}</textarea>
+                                <small class="text-muted">{{ __('payment.etims_api_token_help') }}</small>
                             </div>
                         </div>
 
                         <div class="row g-3 mb-3">
                             <div class="col-md-6">
-                                <label class="form-label fw-medium">Branch ID</label>
+                                <label class="form-label fw-medium">{{ __('payment.branch_id') }}</label>
                                 <input type="text" class="form-control" name="etims_branch_id" 
                                        value="{{ $settings?->etims_branch_id ?? '' }}" 
-                                       placeholder="e.g., 02" maxlength="10">
-                                <small class="text-muted">Your eTIMS branch identifier</small>
+                                       placeholder="{{ __('payment.etims_branch_id_placeholder') }}" maxlength="10">
+                                <small class="text-muted">{{ __('payment.etims_branch_id_help') }}</small>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-medium">Auto Transmit (Products)</label>
+                                <label class="form-label fw-medium">{{ __('payment.auto_transmit_products') }}</label>
                                 <div class="form-check form-switch mt-2">
                                     <input class="form-check-input" type="checkbox" name="etims_auto_transmit" 
                                            id="etimsAutoTransmit" value="1"
                                            {{ ($settings?->etims_auto_transmit ?? false) ? 'checked' : '' }}>
                                     <label class="form-check-label" for="etimsAutoTransmit">
-                                        Automatically transmit product sales
+                                        {{ __('payment.automatically_transmit_product_sales') }}
                                     </label>
                                 </div>
-                                <small class="text-muted">Enable to send product invoices automatically when sales are posted</small>
+                                <small class="text-muted">{{ __('payment.auto_transmit_products_help') }}</small>
                             </div>
                         </div>
 
                         <div class="row g-3 mb-3">
                             <div class="col-md-6">
-                                <label class="form-label fw-medium">Transmit Subscriptions</label>
+                                <label class="form-label fw-medium">{{ __('payment.transmit_subscriptions') }}</label>
                                 <div class="form-check form-switch mt-2">
                                     <input class="form-check-input" type="checkbox" name="etims_transmit_subscriptions" 
                                            id="etimsTransmitSubscriptions" value="1"
                                            {{ ($settings?->etims_transmit_subscriptions ?? false) ? 'checked' : '' }}>
                                     <label class="form-check-label" for="etimsTransmitSubscriptions">
-                                        Include subscription invoices
+                                        {{ __('payment.include_subscription_invoices') }}
                                     </label>
                                 </div>
-                                <small class="text-muted">Enable to also transmit subscription payments to eTIMS</small>
+                                <small class="text-muted">{{ __('payment.transmit_subscriptions_help') }}</small>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-medium">Transmit Registrations</label>
+                                <label class="form-label fw-medium">{{ __('payment.transmit_registrations') }}</label>
                                 <div class="form-check form-switch mt-2">
                                     <input class="form-check-input" type="checkbox" name="etims_transmit_registrations" 
                                            id="etimsTransmitRegistrations" value="1"
                                            {{ ($settings?->etims_transmit_registrations ?? false) ? 'checked' : '' }}>
                                     <label class="form-check-label" for="etimsTransmitRegistrations">
-                                        Include registration payments
+                                        {{ __('payment.include_registration_payments') }}
                                     </label>
                                 </div>
-                                <small class="text-muted">Enable to also transmit registration fees to eTIMS</small>
+                                <small class="text-muted">{{ __('payment.transmit_registrations_help') }}</small>
                             </div>
                         </div>
 
                         <div class="alert alert-light border">
                             <div class="text-dark">
                                 <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
-                                <strong>Tax Code Information:</strong>
+                                <strong>{{ __('payment.tax_code_information') }}</strong>
                             </div>
                             <ul class="mb-0 mt-2 small">
-                                <li><strong>Code A</strong> = Exempt (0%) - Applied to items with 0% tax or no tax set</li>
-                                <li><strong>Code B</strong> = VAT Standard Rate (16%) - Applied to items with 16% tax</li>
-                                <li><strong>Code E</strong> = Special Rate - Applied to items with other tax rates</li>
+                                <li>{{ __('payment.tax_code_a_description') }}</li>
+                                <li>{{ __('payment.tax_code_b_description') }}</li>
+                                <li>{{ __('payment.tax_code_e_description') }}</li>
                             </ul>
-                            <small class="d-block mt-2">Each item in the invoice gets its own tax code based on its tax rate. An invoice can contain items with different tax codes.</small>
+                            <small class="d-block mt-2">{{ __('payment.tax_code_summary_note') }}</small>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="submit" class="btn btn-success px-4">
                             <span class="btn-text">
-                                <i class="fas fa-save me-2"></i>Save eTIMS Settings
+                                <i class="fas fa-save me-2"></i>{{ __('payment.save_etims_settings') }}
                             </span>
                             <span class="btn-loading d-none">
                                 <span class="spinner-border spinner-border-sm" role="status"></span>
                             </span>
                         </button>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('payment.close') }}</button>
                     </div>
                 </form>
             </div>
@@ -1008,9 +1008,9 @@
             <div class="modal-content">
                 <div class="modal-header {{ ($settings->subscription_required ?? false) ? 'bg-success' : 'bg-secondary' }} text-white">
                     <h5 class="modal-title" id="subscriptionEnforcementModalLabel">
-                        <i class="fas fa-shield-alt me-2"></i>Subscription Enforcement
+                        <i class="fas fa-shield-alt me-2"></i>{{ __('payment.subscription_enforcement') }}
                     </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="{{ __('payment.close') }}">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -1022,28 +1022,28 @@
                             </div>
                         </div>
                         
-                        <h4 class="mb-3">Current Status: 
+                        <h4 class="mb-3">{{ __('payment.current_status') }}: 
                             <span class="badge {{ ($settings->subscription_required ?? false) ? 'bg-success' : 'bg-secondary' }}">
-                                {{ ($settings->subscription_required ?? false) ? 'ENABLED' : 'DISABLED' }}
+                                {{ ($settings->subscription_required ?? false) ? __('payment.enabled_upper') : __('payment.disabled_upper') }}
                             </span>
                         </h4>
                         
                         <p class="text-muted mb-4">
                             @if($settings->subscription_required ?? false)
                                 <i class="fas fa-check-circle text-success me-1"></i>
-                                Users must have an active subscription to use the system.
+                                {{ __('payment.users_must_have_active_subscription') }}
                             @else
                                 <i class="fas fa-info-circle text-secondary me-1"></i>
-                                Users can use the system without a subscription.
+                                {{ __('payment.users_can_use_without_subscription') }}
                             @endif
                         </p>
 
                         <div class="alert {{ ($settings->subscription_required ?? false) ? 'alert-warning' : 'alert-info' }}">
                             <i class="fas fa-exclamation-triangle me-2"></i>
                             @if($settings->subscription_required ?? false)
-                                Disabling this will allow all users to access the system regardless of subscription status.
+                                {{ __('payment.disabling_subscription_enforcement_warning') }}
                             @else
-                                Enabling this will require all users to have an active subscription to use the system.
+                                {{ __('payment.enabling_subscription_enforcement_warning') }}
                             @endif
                         </div>
                     </div>
@@ -1054,14 +1054,14 @@
                         <button type="submit" class="btn {{ ($settings->subscription_required ?? false) ? 'btn-danger' : 'btn-success' }} px-4">
                             <span class="btn-text">
                                 <i class="fas fa-{{ ($settings->subscription_required ?? false) ? 'times' : 'check' }} me-1"></i>
-                                {{ ($settings->subscription_required ?? false) ? 'Disable' : 'Enable' }} Enforcement
+                                {{ ($settings->subscription_required ?? false) ? __('payment.disable_enforcement') : __('payment.enable_enforcement') }}
                             </span>
                             <span class="btn-loading d-none">
                                 <span class="spinner-border spinner-border-sm" role="status"></span>
                             </span>
                         </button>
                     </form>
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('payment.close') }}</button>
                 </div>
             </div>
         </div>
@@ -1073,9 +1073,9 @@
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title" id="mpesaCredentialsModalLabel">
-                        <i class="fas fa-mobile-alt me-2"></i>Subscription M-Pesa Credentials
+                        <i class="fas fa-mobile-alt me-2"></i>{{ __('payment.subscription_mpesa_credentials') }}
                     </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="{{ __('payment.close') }}">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -1084,66 +1084,66 @@
                     <div class="modal-body">
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle me-2"></i>
-                            Configure separate M-Pesa credentials for subscription payments. Leave all fields blank to use default (.env) credentials.
+                            {{ __('payment.configure_subscription_mpesa_credentials_help') }}
                         </div>
 
                         <div class="row g-3 mb-3">
                             <div class="col-md-6">
-                                <label for="subscription_mpesa_consumer_key" class="form-label fw-medium">Consumer Key</label>
+                                <label for="subscription_mpesa_consumer_key" class="form-label fw-medium">{{ __('payment.consumer_key') }}</label>
                                 <input type="text" class="form-control" id="subscription_mpesa_consumer_key" 
                                        name="subscription_mpesa_consumer_key" 
                                        value="{{ $settings->subscription_mpesa_consumer_key ?? '' }}"
-                                       placeholder="Enter M-Pesa Consumer Key">
+                                    placeholder="{{ __('payment.enter_mpesa_consumer_key') }}">
                             </div>
                             <div class="col-md-6">
-                                <label for="subscription_mpesa_consumer_secret" class="form-label fw-medium">Consumer Secret</label>
+                                <label for="subscription_mpesa_consumer_secret" class="form-label fw-medium">{{ __('payment.consumer_secret') }}</label>
                                 <input type="password" class="form-control" id="subscription_mpesa_consumer_secret" 
                                        name="subscription_mpesa_consumer_secret" 
                                        value="{{ $settings->subscription_mpesa_consumer_secret ?? '' }}"
-                                       placeholder="Enter M-Pesa Consumer Secret">
+                                    placeholder="{{ __('payment.enter_mpesa_consumer_secret') }}">
                             </div>
                         </div>
 
                         <div class="row g-3 mb-3">
                             <div class="col-md-4">
-                                <label for="subscription_mpesa_shortcode" class="form-label fw-medium">Shortcode</label>
+                                <label for="subscription_mpesa_shortcode" class="form-label fw-medium">{{ __('payment.shortcode') }}</label>
                                 <input type="text" class="form-control" id="subscription_mpesa_shortcode" 
                                        name="subscription_mpesa_shortcode" 
                                        value="{{ $settings->subscription_mpesa_shortcode ?? '' }}"
-                                       placeholder="e.g., 174379">
+                                    placeholder="{{ __('payment.shortcode_example') }}">
                             </div>
                             <div class="col-md-4">
-                                <label for="subscription_mpesa_passkey" class="form-label fw-medium">Passkey</label>
+                                <label for="subscription_mpesa_passkey" class="form-label fw-medium">{{ __('payment.passkey') }}</label>
                                 <input type="password" class="form-control" id="subscription_mpesa_passkey" 
                                        name="subscription_mpesa_passkey" 
                                        value="{{ $settings->subscription_mpesa_passkey ?? '' }}"
-                                       placeholder="Enter M-Pesa Passkey">
+                                    placeholder="{{ __('payment.enter_mpesa_passkey') }}">
                             </div>
                             <div class="col-md-4">
-                                <label for="subscription_mpesa_callback" class="form-label fw-medium">Callback URL</label>
+                                <label for="subscription_mpesa_callback" class="form-label fw-medium">{{ __('payment.callback_url') }}</label>
                                 <input type="url" class="form-control" id="subscription_mpesa_callback" 
                                        name="subscription_mpesa_callback" 
                                        value="{{ $settings->subscription_mpesa_callback ?? '' }}"
-                                       placeholder="https://yourdomain.com/mpesa/callback">
+                                    placeholder="{{ __('payment.mpesa_callback_placeholder') }}">
                             </div>
                         </div>
 
                         <div class="d-flex justify-content-start">
                             <button type="button" class="btn btn-sm btn-outline-secondary" id="toggle-password-visibility">
-                                <i class="fas fa-eye"></i> Show Credentials
+                                <i class="fas fa-eye"></i> {{ __('payment.show_credentials') }}
                             </button>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="submit" class="btn btn-primary px-4">
                             <span class="btn-text">
-                                <i class="fas fa-save me-1"></i>Save M-Pesa Credentials
+                                <i class="fas fa-save me-1"></i>{{ __('payment.save_mpesa_credentials') }}
                             </span>
                             <span class="btn-loading d-none">
                                 <span class="spinner-border spinner-border-sm" role="status"></span>
                             </span>
                         </button>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('payment.close') }}</button>
                     </div>
                 </form>
             </div>
@@ -1158,7 +1158,7 @@
                     <h5 class="modal-title" id="manualSubscriptionModalLabel">
                         <i class="fas fa-hand-holding-usd me-2"></i>{{ __('payment.manual_subscription_management') }}
                     </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="{{ __('payment.close') }}">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -1167,7 +1167,7 @@
                     <div class="modal-body">
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle me-2"></i>
-                            <span class="fw-semibold">Quick Creation:</span> Manually create subscriptions for users without M-Pesa payment. The system will use default pricing unless you specify a custom amount.
+                            <span class="fw-semibold">{{ __('payment.quick_creation') }}</span> {{ __('payment.manual_subscription_quick_creation_help') }}
                         </div>
 
                         <div class="row g-3 mb-3">
@@ -1202,11 +1202,11 @@
                             <div class="col-md-12">
                                 <label class="form-label fw-medium">
                                     <i class="fas fa-money-bill-wave me-1 text-warning"></i>
-                                    {{ __('payment.custom_amount') }} (Ksh)
+                                    {{ __('payment.custom_amount') }} ({{ __('payment.ksh') }})
                                 </label>
                                 <div class="input-group">
-                                    <span class="input-group-text bg-light fw-semibold">Ksh</span>
-                                    <input type="number" step="0.01" class="form-control" name="custom_amount" placeholder="Optional">
+                                    <span class="input-group-text bg-light fw-semibold">{{ __('payment.ksh') }}</span>
+                                    <input type="number" step="0.01" class="form-control" name="custom_amount" placeholder="{{ __('payment.optional') }}">
                                 </div>
                                 <small class="text-muted d-block mt-1">
                                     <i class="fas fa-lightbulb me-1"></i>
@@ -1225,7 +1225,7 @@
                                 <span class="spinner-border spinner-border-sm" role="status"></span>
                             </span>
                         </button>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('payment.close') }}</button>
                     </div>
                 </form>
             </div>
@@ -1721,13 +1721,13 @@
                                 <div class="modal-content">
                                     <div class="modal-header">
                                         <h5 class="modal-title">${DASHBOARD_I18N.registration_email_preview || 'Registration Email Preview'}</h5>
-                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                        <button type="button" class="close" data-dismiss="modal" aria-label="{{ __('payment.close') }}">
                                             <span aria-hidden="true">&times;</span>
                                         </button>
                                     </div>
                                     <div class="modal-body">${html}</div>
                                     <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('payment.close') }}</button>
                                     </div>
                                 </div>
                             </div>`;

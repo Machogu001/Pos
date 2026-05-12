@@ -64,6 +64,87 @@
                 {!! Form::select('sub_unit_ids[]', [], !empty($duplicate_product->sub_unit_ids) ? $duplicate_product->sub_unit_ids : null, ['class' => 'form-control select2', 'multiple', 'id' => 'sub_unit_ids']); !!}
             </div>
         </div>
+
+        @php
+            $system_default_purchase_unit_id = !empty($common_settings['default_purchase_unit_id']) ? (int) $common_settings['default_purchase_unit_id'] : null;
+            $system_default_sale_unit_id = !empty($common_settings['default_sale_unit_id']) ? (int) $common_settings['default_sale_unit_id'] : null;
+
+            $default_purchase_unit_id = old('purchase_default_unit_id', !empty($duplicate_product) && !empty($duplicate_product->unit_conversions)
+                ? optional($duplicate_product->unit_conversions->firstWhere('is_purchase_default', true))->unit_id
+                : $system_default_purchase_unit_id);
+            $default_sale_unit_id = old('sale_default_unit_id', !empty($duplicate_product) && !empty($duplicate_product->unit_conversions)
+                ? optional($duplicate_product->unit_conversions->firstWhere('is_sale_default', true))->unit_id
+                : $system_default_sale_unit_id);
+            $unit_conversions_old = old('unit_conversions');
+            $unit_conversions = [];
+            if (is_array($unit_conversions_old)) {
+                $unit_conversions = $unit_conversions_old;
+            } elseif (!empty($duplicate_product) && !empty($duplicate_product->unit_conversions)) {
+                foreach ($duplicate_product->unit_conversions as $conversion) {
+                    if ((int) $conversion->unit_id === (int) $duplicate_product->unit_id) {
+                        continue;
+                    }
+                    $unit_conversions[] = [
+                        'unit_id' => $conversion->unit_id,
+                        'qty_per_base' => (float) $conversion->qty_per_base,
+                    ];
+                }
+            }
+            if (empty($unit_conversions)) {
+                $unit_conversions[] = ['unit_id' => '', 'qty_per_base' => ''];
+            }
+        @endphp
+
+        <div class="col-sm-4">
+            <div class="form-group">
+                {!! Form::label('purchase_default_unit_id', 'Purchase Unit:') !!}
+                {!! Form::select('purchase_default_unit_id', $all_units, $default_purchase_unit_id, ['placeholder' => __('messages.please_select'), 'class' => 'form-control select2']); !!}
+            </div>
+        </div>
+
+        <div class="col-sm-4">
+            <div class="form-group">
+                {!! Form::label('sale_default_unit_id', 'Sales Unit:') !!}
+                {!! Form::select('sale_default_unit_id', $all_units, $default_sale_unit_id, ['placeholder' => __('messages.please_select'), 'class' => 'form-control select2']); !!}
+            </div>
+        </div>
+
+        <div class="col-sm-12">
+            <div class="box box-default" style="margin-top: 4px;">
+                <div class="box-header with-border">
+                    <h4 class="box-title">@lang('product.item_units_of_measure')</h4>
+                </div>
+                <div class="box-body">
+                    <p class="help-block" style="margin-top: 0;">@lang('product.unit_conversion_reference')</p>
+                    <table class="table table-condensed" id="unit-conversions-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 45%;">@lang('product.unit')</th>
+                                <th style="width: 35%;">@lang('product.qty_per_base_unit')</th>
+                                <th style="width: 20%;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="unit-conversions-body">
+                            @foreach($unit_conversions as $index => $row)
+                                <tr class="unit-conversion-row">
+                                    <td>
+                                        {!! Form::select('unit_conversions[' . $index . '][unit_id]', $all_units, $row['unit_id'] ?? null, ['placeholder' => __('messages.please_select'), 'class' => 'form-control select2 unit-conversion-unit']) !!}
+                                    </td>
+                                    <td>
+                                        {!! Form::text('unit_conversions[' . $index . '][qty_per_base]', $row['qty_per_base'] ?? null, ['class' => 'form-control input_number', 'placeholder' => __('product.qty_per_base_placeholder')]) !!}
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-xs btn-danger remove-unit-conversion-row"><i class="fa fa-trash"></i></button>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                    <button type="button" class="btn btn-sm btn-default" id="add-unit-conversion-row"><i class="fa fa-plus"></i> @lang('product.add_unit_conversion')</button>
+                </div>
+            </div>
+        </div>
+
         @if(!empty($common_settings['enable_secondary_unit']))
         <div class="col-sm-4">
             <div class="form-group">
@@ -375,6 +456,40 @@
 
 <script type="text/javascript">
     $(document).ready(function() {
+        function reindexUnitConversions() {
+            $('#unit-conversions-body .unit-conversion-row').each(function(index) {
+                $(this).find('select.unit-conversion-unit').attr('name', 'unit_conversions[' + index + '][unit_id]');
+                $(this).find('input.input_number').attr('name', 'unit_conversions[' + index + '][qty_per_base]');
+            });
+        }
+
+        $('#add-unit-conversion-row').on('click', function() {
+            const rowCount = $('#unit-conversions-body .unit-conversion-row').length;
+            const unitOptions = @json($all_units);
+            let optionsHtml = '<option value="">{{ __('messages.please_select') }}</option>';
+            Object.keys(unitOptions).forEach(function(key) {
+                optionsHtml += '<option value="' + key + '">' + unitOptions[key] + '</option>';
+            });
+
+            const rowHtml =
+                '<tr class="unit-conversion-row">' +
+                    '<td><select name="unit_conversions[' + rowCount + '][unit_id]" class="form-control select2 unit-conversion-unit">' + optionsHtml + '</select></td>' +
+                    '<td><input type="text" name="unit_conversions[' + rowCount + '][qty_per_base]" class="form-control input_number" placeholder="{{ __('product.qty_per_base_placeholder') }}"></td>' +
+                    '<td><button type="button" class="btn btn-xs btn-danger remove-unit-conversion-row"><i class="fa fa-trash"></i></button></td>' +
+                '</tr>';
+
+            $('#unit-conversions-body').append(rowHtml);
+            $('#unit-conversions-body .select2').select2();
+            reindexUnitConversions();
+        });
+
+        $(document).on('click', '.remove-unit-conversion-row', function() {
+            if ($('#unit-conversions-body .unit-conversion-row').length > 1) {
+                $(this).closest('tr').remove();
+                reindexUnitConversions();
+            }
+        });
+
         __page_leave_confirmation('#product_add_form');
         onScan.attachTo(document, {
             suffixKeyCodes: [13], // enter-key expected at the end of a scan

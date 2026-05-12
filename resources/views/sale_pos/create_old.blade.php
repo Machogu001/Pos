@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'POS')
+@section('title', __('ui.pos'))
 
 @section('content')
 
@@ -26,7 +26,7 @@
 			@component('components.widget', ['class' => 'box-success'])
 				@slot('header')
 					<div class="col-sm-6">
-						<h3 class="box-title">POS Terminal <i class="fa fa-keyboard-o hover-q text-muted" aria-hidden="true" data-container="body" data-toggle="popover" data-placement="bottom" data-content="@include('sale_pos.partials.keyboard_shortcuts_details')" data-html="true" data-trigger="hover" data-original-title="" title=""></i></h3>
+						<h3 class="box-title">{{ __('ui.pos_terminal') }} <i class="fa fa-keyboard-o hover-q text-muted" aria-hidden="true" data-container="body" data-toggle="popover" data-placement="bottom" data-content="@include('sale_pos.partials.keyboard_shortcuts_details')" data-html="true" data-trigger="hover" data-original-title="" title=""></i></h3>
 					</div>
 					<div class="col-sm-6">
 						<p class="text-right"><strong>@lang('sale.location'):</strong> {{$default_location->name}}</p>

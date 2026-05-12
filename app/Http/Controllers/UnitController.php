@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Business;
 use App\Product;
 use App\Unit;
 use App\Utils\Util;
@@ -75,7 +76,70 @@ class UnitController extends Controller
                 ->make(true);
         }
 
-        return view('unit.index');
+        $business_id = request()->session()->get('user.business_id');
+        $units_dropdown = Unit::forDropdown($business_id, true, false);
+        $common_settings = request()->session()->get('business.common_settings', []);
+
+        return view('unit.index')->with(compact('units_dropdown', 'common_settings'));
+    }
+
+    /**
+     * Save business-level default purchase/sales units.
+     */
+    public function updateDefaultProductUnits(Request $request)
+    {
+        if (! auth()->user()->can('business_settings.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        try {
+            $business_id = $request->session()->get('user.business_id');
+            $input = $request->validate([
+                'default_purchase_unit_id' => 'nullable|integer',
+                'default_sale_unit_id' => 'nullable|integer',
+            ]);
+
+            $default_purchase_unit_id = ! empty($input['default_purchase_unit_id']) ? (int) $input['default_purchase_unit_id'] : null;
+            $default_sale_unit_id = ! empty($input['default_sale_unit_id']) ? (int) $input['default_sale_unit_id'] : null;
+
+            if (! empty($default_purchase_unit_id)) {
+                $exists = Unit::where('business_id', $business_id)->where('id', $default_purchase_unit_id)->exists();
+                if (! $exists) {
+                    $default_purchase_unit_id = null;
+                }
+            }
+
+            if (! empty($default_sale_unit_id)) {
+                $exists = Unit::where('business_id', $business_id)->where('id', $default_sale_unit_id)->exists();
+                if (! $exists) {
+                    $default_sale_unit_id = null;
+                }
+            }
+
+            $business = Business::findOrFail($business_id);
+            $common_settings = is_array($business->common_settings) ? $business->common_settings : [];
+            $common_settings['default_purchase_unit_id'] = $default_purchase_unit_id;
+            $common_settings['default_sale_unit_id'] = $default_sale_unit_id;
+
+            $business->common_settings = Business::normalizeCommonSettings($common_settings);
+            $business->save();
+
+            $request->session()->put('business.common_settings', $business->common_settings);
+
+            $output = [
+                'success' => 1,
+                'msg' => __('lang_v1.updated_succesfully'),
+            ];
+        } catch (\Exception $e) {
+            \Log::emergency('File:'.$e->getFile().'Line:'.$e->getLine().'Message:'.$e->getMessage());
+
+            $output = [
+                'success' => 0,
+                'msg' => __('messages.something_went_wrong'),
+            ];
+        }
+
+        return redirect()->action([\App\Http\Controllers\UnitController::class, 'index'])->with('status', $output);
     }
 
     /**

@@ -770,36 +770,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Ensure any stray overlay is hidden on initial load
     try { hideLoading(); } catch (e) { /* noop */ }
     
-    // Toast notification function
-    window.showToast = function(type, message) {
-        const toastHtml = `
-            <div class="toast align-items-center text-white bg-${type} border-0" role="alert">
-                <div class="d-flex">
-                    <div class="toast-body">
-                        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
-                        ${message}
-                    </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>
-        `;
-        
-        let toastContainer = document.querySelector('.toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-            document.body.appendChild(toastContainer);
-        }
-        
-        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-        const toastElement = toastContainer.lastElementChild;
-        const toast = new bootstrap.Toast(toastElement, { delay: 4000 });
-        toast.show();
-        
-        toastElement.addEventListener('hidden.bs.toast', () => {
-            toastElement.remove();
-        });
-    };
 });
 </script>
 @endpush
@@ -970,7 +940,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }).get();
 
         if (selectedIds.length === 0) {
-            alert('{{ __("payment.please_select_subscriptions") }}');
+            showToast('warning', '{{ __("payment.please_select_subscriptions") }}');
             return;
         }
 

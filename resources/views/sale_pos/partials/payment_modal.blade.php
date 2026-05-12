@@ -2,7 +2,7 @@
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                <button type="button" class="close" data-dismiss="modal" aria-label="{{ __('messages.close') }}"><span
                         aria-hidden="true">&times;</span></button>
                 <h4 class="modal-title">@lang('lang_v1.payment')</h4>
             </div>
@@ -211,7 +211,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="mpesaLogModalLabel">@lang('payment.mpesa_log')</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="{{ __('messages.close') }}">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
@@ -228,6 +228,35 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const mpesaI18n = {
+        requestFailed: @json(__('payment.request_failed')),
+        unexpectedServerResponse: @json(__('payment.unexpected_server_response')),
+        paymentFailed: @json(__('payment.payment_failed_plain')),
+        noLinkedCheckoutYet: @json(__('payment.no_linked_checkout_yet')),
+        confirmationCheckoutMismatch: @json(__('payment.confirmation_checkout_mismatch')),
+        noRelatedCheckout: @json(__('payment.no_related_checkout')),
+        logsUnavailable: @json(__('payment.logs_unavailable')),
+        logsResponseUnreadable: @json(__('payment.logs_response_unreadable')),
+        noLogsFound: @json(__('payment.no_logs_found')),
+        paymentCheckoutLogs: @json(__('payment.payment_checkout_logs')),
+        recentPhoneLogs: @json(__('payment.recent_phone_logs')),
+        unableFetchLogs: @json(__('payment.unable_fetch_logs')),
+        notAvailable: @json(__('payment.not_available')),
+        invalidMpesaPhone: @json(__('payment.invalid_mpesa_phone')),
+        sendingStk: @json(__('payment.sending_stk')),
+        stkSent: @json(__('payment.stk_sent')),
+        paymentConfirmed: @json(__('payment.payment_confirmed_plain')),
+        pendingConfirmation: @json(__('payment.pending_confirmation')),
+        stkInitiationError: @json(__('payment.stk_initiation_error')),
+        statusLookupRequiresPhoneOrCheckout: @json(__('payment.status_lookup_requires_phone_or_checkout')),
+        checking: @json(__('payment.checking')),
+        pending: @json(__('payment.pending_plain')),
+        notFound: @json(__('payment.not_found')),
+        statusCheckError: @json(__('payment.status_check_error')),
+        statusCheckTimeout: @json(__('payment.status_check_timeout')),
+        pollingError: @json(__('payment.polling_error'))
+    };
+
     window.normalizeKenyanPhone = window.normalizeKenyanPhone || function(rawPhone) {
         const digits = String(rawPhone || '').trim().replace(/[^\d+]/g, '');
 
@@ -247,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (contentType.includes('application/json')) {
             const responseJson = await response.json();
             if (!response.ok) {
-                const error = new Error(responseJson.message || 'Request failed');
+                const error = new Error(responseJson.message || mpesaI18n.requestFailed);
                 error.payload = responseJson;
                 error.status = response.status;
                 throw error;
@@ -258,14 +287,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const responseText = await response.text();
         console.error(contextLabel + ' unexpected response:', responseText);
-        throw new Error('Unexpected server response');
+        throw new Error(mpesaI18n.unexpectedServerResponse);
     };
 
     function setMpesaFailedState(statusBadge, statusInput, message) {
         if (statusInput) {
             statusInput.value = 'failed';
         }
-        window.setMpesaStatusBadge(statusBadge, 'danger', message || 'Payment failed');
+        window.setMpesaStatusBadge(statusBadge, 'danger', message || mpesaI18n.paymentFailed);
     }
 
     window.resolveMpesaStatusMessage = window.resolveMpesaStatusMessage || function(data, fallback) {
@@ -468,10 +497,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function getSellCheckoutMismatchMessage(expectedCheckout) {
         if (!expectedCheckout) {
-            return 'No M-Pesa checkout is linked to this order yet. Send STK for this order first.';
+            return mpesaI18n.noLinkedCheckoutYet;
         }
 
-        return 'This M-Pesa confirmation does not belong to the current order checkout.';
+        return mpesaI18n.confirmationCheckoutMismatch;
     }
 
     function sellStatusMatchesCheckout(expectedCheckout, data) {
@@ -501,7 +530,7 @@ document.addEventListener('DOMContentLoaded', function() {
             $('#mpesa_log_modal').modal('show');
 
             if (!checkout && !normalizedPhoneView) {
-                body.innerHTML = '<div class="text-warning">No transaction is related to this payment checkout.</div>';
+                body.innerHTML = `<div class="text-warning">${mpesaI18n.noRelatedCheckout}</div>`;
                 return;
             }
 
@@ -528,12 +557,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         const text = await res.text();
                         console.error('Non-JSON response for mpesa.logs:', text);
-                        body.innerHTML = '<div class="text-danger">Unable to fetch M-Pesa logs right now.</div>';
+                        body.innerHTML = `<div class="text-danger">${mpesaI18n.logsUnavailable}</div>`;
                         return;
                     }
                 } catch (err) {
                     console.error('Error parsing JSON response for mpesa.logs', err);
-                    body.innerHTML = '<div class="text-danger">Unable to read M-Pesa logs response.</div>';
+                    body.innerHTML = `<div class="text-danger">${mpesaI18n.logsResponseUnreadable}</div>`;
                     return;
                 }
                 const renderPaymentsTable = (payments, title, highlightTarget) => {
@@ -545,7 +574,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     html += '<table class="table table-sm"><thead><tr><th>@lang('payment.status')</th><th>@lang('payment.failure_reason')</th><th>@lang('payment.receipt')</th><th>@lang('messages.date')</th></tr></thead><tbody>';
                     payments.forEach(p => {
                         const rowClass = highlightTarget && p.is_target ? ' class="bg-light-green"' : '';
-                        html += `<tr${rowClass}><td>${p.transaction_status || 'N/A'}</td><td>${p.result_desc || 'N/A'}</td><td>${p.mpesa_receipt_number || 'N/A'}</td><td>${p.created_at || 'N/A'}</td></tr>`;
+                        html += `<tr${rowClass}><td>${p.transaction_status || mpesaI18n.notAvailable}</td><td>${p.result_desc || mpesaI18n.notAvailable}</td><td>${p.mpesa_receipt_number || mpesaI18n.notAvailable}</td><td>${p.created_at || mpesaI18n.notAvailable}</td></tr>`;
                     });
                     html += '</tbody></table></div>';
 
@@ -557,22 +586,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (res.ok && data && data.success) {
                     if (exactPayments.length === 0 && relatedPayments.length === 0) {
-                        body.innerHTML = '<div class="text-center">No logs found</div>';
+                        body.innerHTML = `<div class="text-center">${mpesaI18n.noLogsFound}</div>`;
                     } else {
-                        let html = renderPaymentsTable(exactPayments, 'Payment checkout logs', true);
-                        html += renderPaymentsTable(relatedPayments, 'Other recent M-Pesa logs for this phone', false);
+                        let html = renderPaymentsTable(exactPayments, mpesaI18n.paymentCheckoutLogs, true);
+                        html += renderPaymentsTable(relatedPayments, mpesaI18n.recentPhoneLogs, false);
                         body.innerHTML = html;
                     }
                 } else {
-                    let html = '<div class="text-warning">' + ((data && data.message) || 'Unable to fetch logs') + '</div>';
+                    let html = '<div class="text-warning">' + ((data && data.message) || mpesaI18n.unableFetchLogs) + '</div>';
                     if (data && data.related_payments && data.related_payments.length) {
-                        html += renderPaymentsTable(data.related_payments, 'Other recent M-Pesa logs for this phone', false);
+                        html += renderPaymentsTable(data.related_payments, mpesaI18n.recentPhoneLogs, false);
                     }
                     body.innerHTML = html;
                 }
             } catch (err) {
                 console.error(err);
-                body.innerHTML = '<div class="text-danger">Unable to fetch M-Pesa logs right now.</div>';
+                body.innerHTML = `<div class="text-danger">${mpesaI18n.logsUnavailable}</div>`;
             }
             return;
         }
@@ -593,7 +622,7 @@ document.addEventListener('DOMContentLoaded', function() {
             let normalizedPhone = normalizeKenyanPhone(phone);
 
             if (!normalizedPhone) {
-                notifyMpesaError('Please enter a valid MPESA phone (e.g. 254712345678, 0712345678, or 0112345678)');
+                notifyMpesaError(mpesaI18n.invalidMpesaPhone);
                 return;
             }
 
@@ -610,7 +639,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             try {
                 sendBtn.disabled = true;
-                setMpesaStatusBadge(statusBadge, 'info', 'Sending STK...');
+                setMpesaStatusBadge(statusBadge, 'info', mpesaI18n.sendingStk);
 
                 const res = await fetch("{{ route('mpesa.initiate') }}", {
                     method: 'POST',
@@ -625,8 +654,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data && data.checkout_request_id) {
                     checkoutInput.value = data.checkout_request_id;
                     statusInput.value = 'pending';
-                    setMpesaStatusBadge(statusBadge, 'warning', resolveMpesaStatusMessage(data, 'STK push sent. Enter PIN on your phone.'));
-                    notifyMpesaStkSent(data.message || 'STK push sent. Enter PIN on your phone.');
+                    setMpesaStatusBadge(statusBadge, 'warning', resolveMpesaStatusMessage(data, mpesaI18n.stkSent));
+                    notifyMpesaStkSent(data.message || mpesaI18n.stkSent);
                     retryCountdownStarted = true;
                     startMpesaRetryCountdown(sendBtn, 59);
 
@@ -646,7 +675,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (mpesaReceipt) {
                         receiptInput.value = mpesaReceipt;
                         statusInput.value = 'paid';
-                        setMpesaStatusBadge(statusBadge, 'success', resolveMpesaStatusMessage(data, 'Payment confirmed') + ' - ' + mpesaReceipt);
+                        setMpesaStatusBadge(statusBadge, 'success', resolveMpesaStatusMessage(data, mpesaI18n.paymentConfirmed) + ' - ' + mpesaReceipt);
                         // Recalculate and auto-finalize when paid
                         try {
                             if (typeof calculate_balance_due === 'function') {
@@ -676,15 +705,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         // No receipt provided yet — treat as pending and show message to user
                         statusInput.value = 'pending';
-                        setMpesaStatusBadge(statusBadge, 'warning', resolveMpesaStatusMessage(data, 'Pending - awaiting confirmation'));
+                        setMpesaStatusBadge(statusBadge, 'warning', resolveMpesaStatusMessage(data, mpesaI18n.pendingConfirmation));
                     }
                 } else {
-                    setMpesaFailedState(statusBadge, statusInput, resolveMpesaStatusMessage(data, 'Error initiating STK'));
+                    setMpesaFailedState(statusBadge, statusInput, resolveMpesaStatusMessage(data, mpesaI18n.stkInitiationError));
                     setMpesaRetryButton(sendBtn);
                 }
             } catch (err) {
                 console.error(err);
-                setMpesaFailedState(statusBadge, statusInput, err.message || 'Error initiating STK');
+                setMpesaFailedState(statusBadge, statusInput, err.message || mpesaI18n.stkInitiationError);
                 setMpesaRetryButton(sendBtn);
             } finally {
                 if (!retryCountdownStarted && !sendBtn.dataset.retryUntil) {
@@ -708,14 +737,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const normalizedPhoneCheck = normalizeKenyanPhone(phone);
 
             if (!checkout && !normalizedPhoneCheck) {
-                const missingStatusMessage = 'Provide phone or checkout id to check status';
+                const missingStatusMessage = mpesaI18n.statusLookupRequiresPhoneOrCheckout;
                 notifyMpesaWarning(missingStatusMessage);
                 return;
             }
 
             try {
                 checkBtn.disabled = true;
-                setMpesaStatusBadge(statusBadge, 'info', 'Checking...');
+                setMpesaStatusBadge(statusBadge, 'info', mpesaI18n.checking);
 
                 const res = await fetch("{{ route('mpesa.queryStatus') }}", {
                     method: 'POST',
@@ -746,10 +775,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (mpesaReceipt) {
                         statusInput.value = 'paid';
                         receiptInput.value = mpesaReceipt;
-                        setMpesaStatusBadge(statusBadge, 'success', resolveMpesaStatusMessage(data, 'Payment confirmed') + ' - ' + mpesaReceipt);
+                        setMpesaStatusBadge(statusBadge, 'success', resolveMpesaStatusMessage(data, mpesaI18n.paymentConfirmed) + ' - ' + mpesaReceipt);
                     } else {
                         statusInput.value = 'pending';
-                        setMpesaStatusBadge(statusBadge, 'warning', resolveMpesaStatusMessage(data, 'Pending'));
+                        setMpesaStatusBadge(statusBadge, 'warning', resolveMpesaStatusMessage(data, mpesaI18n.pending));
                     }
                     try {
                         if (typeof calculate_balance_due === 'function') {
@@ -777,14 +806,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 } else if (data.success && data.transaction_status === 'pending') {
                     statusInput.value = 'pending';
-                    setMpesaStatusBadge(statusBadge, 'warning', resolveMpesaStatusMessage(data, 'Pending'));
+                    setMpesaStatusBadge(statusBadge, 'warning', resolveMpesaStatusMessage(data, mpesaI18n.pending));
                 } else {
-                    setMpesaFailedState(statusBadge, statusInput, resolveMpesaStatusMessage(data, data.status || 'Not found'));
+                    setMpesaFailedState(statusBadge, statusInput, resolveMpesaStatusMessage(data, data.status || mpesaI18n.notFound));
                     setMpesaRetryButton(sendBtn);
                 }
             } catch (err) {
                 console.error(err);
-                setMpesaFailedState(statusBadge, statusInput, err.message || 'Error checking status');
+                setMpesaFailedState(statusBadge, statusInput, err.message || mpesaI18n.statusCheckError);
                 setMpesaRetryButton(sendBtn);
             } finally {
                 checkBtn.disabled = false;
@@ -831,7 +860,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     row.querySelector('.mpesa_status').value = 'paid';
                     row.querySelector('.mpesa_receipt_number').value = data.mpesa_receipt_number || data.receipt_number || '';
                     const paidReceipt = data.mpesa_receipt_number || data.receipt_number || '';
-                    const paidMessage = resolveMpesaStatusMessage(data, 'Payment confirmed');
+                    const paidMessage = resolveMpesaStatusMessage(data, mpesaI18n.paymentConfirmed);
                     setMpesaStatusBadge(statusBadge, 'success', paidReceipt ? `${paidMessage} - ${paidReceipt}` : paidMessage);
                     // Recalculate balance and auto-finalize if balance is zero
                     try {
@@ -871,21 +900,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 if (data && data.transaction_status === 'failed') {
-                    setMpesaFailedState(statusBadge, row.querySelector('.mpesa_status'), resolveMpesaStatusMessage(data, 'Payment failed'));
+                    setMpesaFailedState(statusBadge, row.querySelector('.mpesa_status'), resolveMpesaStatusMessage(data, mpesaI18n.paymentFailed));
                     setMpesaRetryButton(sendBtn);
                     clearInterval(interval);
                     return;
                 }
                 if (data && data.transaction_status === 'pending') {
-                    setMpesaStatusBadge(statusBadge, 'warning', resolveMpesaStatusMessage(data, 'Pending'));
+                    setMpesaStatusBadge(statusBadge, 'warning', resolveMpesaStatusMessage(data, mpesaI18n.pending));
                 }
                 if (attempts >= maxAttempts) {
-                    setMpesaStatusBadge(statusBadge, 'warning', 'Timed out - try check status');
+                    setMpesaStatusBadge(statusBadge, 'warning', mpesaI18n.statusCheckTimeout);
                     clearInterval(interval);
                 }
             } catch (err) {
                 console.error(err);
-                setMpesaFailedState(statusBadge, row.querySelector('.mpesa_status'), err.message || 'Polling error');
+                setMpesaFailedState(statusBadge, row.querySelector('.mpesa_status'), err.message || mpesaI18n.pollingError);
                 setMpesaRetryButton(sendBtn);
                 clearInterval(interval);
             }
@@ -943,7 +972,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="col-md-3">
                             <div class="form-group">
                                 {!! Form::label('card_type', __('lang_v1.card_type')) !!}
-                                {!! Form::select('', ['visa' => 'Visa', 'master' => 'MasterCard'], 'visa', [
+                                {!! Form::select('', ['visa' => __('payment.visa'), 'master' => __('payment.mastercard')], 'visa', [
                                     'class' => 'form-control select2',
                                     'id' => 'card_type',
                                 ]) !!}

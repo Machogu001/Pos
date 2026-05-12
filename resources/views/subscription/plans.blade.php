@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', auth()->user()->is_admin ? __('Admin Dashboard') : __('Subscription Plans'))
+@section('title', auth()->user()->is_admin ? __('payment.admin_dashboard') : __('payment.subscription_plans'))
 
 @section('content')
 @php
@@ -39,16 +39,16 @@
             <div class="tw-mt-2 sm:tw-w-1/2 md:tw-w-1/2">
                 <h1 class="tw-text-2xl md:tw-text-4xl tw-tracking-tight tw-text-white tw-font-semibold tw-mb-2">
                     @if($user->is_admin)
-                        <i class="fas fa-tachometer-alt me-3"></i>Admin Dashboard
+                        <i class="fas fa-tachometer-alt me-3"></i>{{ __('payment.admin_dashboard') }}
                     @else
-                        <i class="fas fa-crown me-3"></i>Subscription Plans
+                        <i class="fas fa-crown me-3"></i>{{ __('payment.subscription_plans') }}
                     @endif
                 </h1>
                 <p class="tw-mb-0 tw-text-white">
                     @if($user->is_admin)
-                        Manage users, subscriptions, and system settings
+                        {{ __('payment.manage_users_subscriptions_settings') }}
                     @else
-                        Choose the perfect plan for your business needs
+                        {{ __('payment.choose_plan_for_business_needs') }}
                     @endif
                 </p>
             </div>
@@ -57,7 +57,7 @@
                 @if(!$user->is_admin && $hasActiveSubscription)
                     <div class="tw-inline-flex tw-flex-col tw-items-center tw-justify-center tw-rounded-xl tw-bg-white/15 tw-ring-1 tw-ring-white/20 tw-px-4 tw-py-3">
                         <i class="fas fa-check-circle tw-text-white/90 tw-text-2xl tw-mb-1"></i>
-                        <div class="tw-text-sm tw-text-white">Active Until</div>
+                        <div class="tw-text-sm tw-text-white">{{ __('payment.active_until') }}</div>
                         <div class="tw-text-white tw-font-semibold">
                             {{ \Carbon\Carbon::parse($userSubscription->end_date)->format('M j, Y') }}
                         </div>
@@ -91,7 +91,7 @@
                         <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
                             <span id="card-total-businesses">{{ $user->is_admin ? ($totalUsers ?? 0) : ($user->business ? 1 : 0) }}</span>
                         </p>
-                        <p class="tw-mt-1 tw-text-xs tw-text-gray-500">Total registered</p>
+                        <p class="tw-mt-1 tw-text-xs tw-text-gray-500">{{ __('payment.total_registered') }}</p>
                     </div>
                 </div>
             </div>
@@ -108,7 +108,7 @@
                         <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
                             <span id="card-active-count">{{ $user->is_admin ? ($activeUsers ?? 0) : ($hasActiveSubscription ? 1 : 0) }}</span>
                         </p>
-                        <p class="tw-mt-1 tw-text-xs tw-text-gray-500">Currently active</p>
+                        <p class="tw-mt-1 tw-text-xs tw-text-gray-500">{{ __('payment.currently_active') }}</p>
                     </div>
                 </div>
             </div>
@@ -125,7 +125,7 @@
                         <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
                             <span id="card-pending-count">{{ $user->is_admin ? ($pendingSubscriptions ?? 0) : ($userSubscription?->status === 'pending' ? 1 : 0) }}</span>
                         </p>
-                        <p class="tw-mt-1 tw-text-xs tw-text-gray-500">Awaiting payment</p>
+                        <p class="tw-mt-1 tw-text-xs tw-text-gray-500">{{ __('payment.awaiting_payment') }}</p>
                     </div>
                 </div>
             </div>
@@ -140,9 +140,9 @@
                     <div class="tw-flex-1 tw-min-w-0">
                         <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate tw-whitespace-nowrap">{{ __('payment.monthly_revenue') }}</p>
                         <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
-                            Ksh <span id="card-monthly-revenue">{{ $user->is_admin ? number_format($monthlyRevenue ?? 0, 0) : number_format($userSubscription?->amount ?? 0, 0) }}</span>
+                            {{ __('payment.ksh') }} <span id="card-monthly-revenue">{{ $user->is_admin ? number_format($monthlyRevenue ?? 0, 0) : number_format($userSubscription?->amount ?? 0, 0) }}</span>
                         </p>
-                        <p class="tw-mt-1 tw-text-xs tw-text-gray-500">Monthly revenue</p>
+                        <p class="tw-mt-1 tw-text-xs tw-text-gray-500">{{ __('payment.monthly_revenue_label') }}</p>
                     </div>
                 </div>
             </div>
@@ -175,7 +175,7 @@
                             
                             <div class="subscription-details">
                                 <p><i class="fas fa-tag me-2"></i>{{ __('payment.plan') }}: <strong>{{ $userSubscription->plan_name }}</strong></p>
-                                <p><i class="fas fa-money-bill me-2"></i>{{ __('payment.amount') }}: <strong>Ksh {{ number_format($userSubscription->amount, 2) }}</strong></p>
+                                <p><i class="fas fa-money-bill me-2"></i>{{ __('payment.amount') }}: <strong>{{ __('payment.ksh') }} {{ number_format($userSubscription->amount, 2) }}</strong></p>
                                 <p><i class="fas fa-calendar me-2"></i>
                                     @if($userSubscription->status === 'active')
                                         {{ __('payment.expires') }}: {{ \Carbon\Carbon::parse($userSubscription->end_date)->format('d M Y') }}
@@ -208,15 +208,15 @@
                                                 $allUsers = \App\User::where('role', '!=', 'admin')->orderBy('first_name')->get();
                                             @endphp
                                             <select name="user_id" class="form-control form-control-sm me-1" style="width: 150px;">
-                                                <option value="">Select User</option>
+                                                <option value="">{{ __('payment.select_user') }}</option>
                                                 @foreach($allUsers as $u)
                                                     <option value="{{ $u->id }}" {{ $u->id == $userSubscription->user_id ? 'selected' : '' }}>
                                                         {{ $u->first_name }} {{ $u->last_name }}
                                                     </option>
                                                 @endforeach
                                             </select>
-                                            <input type="date" name="start" class="form-control form-control-sm me-1" value="{{ $prefillStart }}" title="Start date" />
-                                            <input type="date" name="end" class="form-control form-control-sm me-1" value="{{ $prefillEnd }}" title="End date" />
+                                            <input type="date" name="start" class="form-control form-control-sm me-1" value="{{ $prefillStart }}" title="{{ __('payment.start_date_title') }}" />
+                                            <input type="date" name="end" class="form-control form-control-sm me-1" value="{{ $prefillEnd }}" title="{{ __('payment.end_date_title') }}" />
                                             <button class="btn btn-sm btn-outline-secondary" type="submit">{{ __('payment.download_statement') }}</button>
                                         </form>
                                     @else
@@ -226,10 +226,10 @@
                                                 $prefillStart = $userSubscription->start_date ? \Carbon\Carbon::parse($userSubscription->start_date)->format('Y-m-d') : '';
                                                 $prefillEnd = $userSubscription->end_date ? \Carbon\Carbon::parse($userSubscription->end_date)->format('Y-m-d') : '';
                                             @endphp
-                                            <input type="date" name="start" class="form-control form-control-sm me-1" value="{{ $prefillStart }}" title="Start date (dd/mm/yyyy)" />
-                                            <input type="date" name="end" class="form-control form-control-sm me-1" value="{{ $prefillEnd }}" title="End date (dd/mm/yyyy)" />
+                                            <input type="date" name="start" class="form-control form-control-sm me-1" value="{{ $prefillStart }}" title="{{ __('payment.start_date_title') }}" />
+                                            <input type="date" name="end" class="form-control form-control-sm me-1" value="{{ $prefillEnd }}" title="{{ __('payment.end_date_title') }}" />
                                             <button class="btn btn-sm btn-outline-secondary" type="submit">{{ __('payment.download_statement') }}</button>
-                                            <small class="text-muted ms-2 d-none d-md-inline">Format: dd/mm/yyyy</small>
+                                            <small class="text-muted ms-2 d-none d-md-inline">{{ __('payment.date_format_hint') }}</small>
                                         </form>
                                     @endif
                                 </div>
@@ -302,7 +302,7 @@
                             <select class="form-select mb-3" id="subscription_plan">
                                 @foreach($plans as $key => $plan)
                                     <option value="{{ $key }}" data-price="{{ $plan['price'] }}" {{ ($userSubscription && ($userSubscription->billing_cycle ?? '') === $key) ? 'selected' : '' }}>
-                                        {{ $plan['name'] }} - Ksh {{ number_format($plan['price'],2) }}
+                                        {{ $plan['name'] }} - {{ __('payment.ksh') }} {{ number_format($plan['price'],2) }}
                                     </option>
                                 @endforeach
                             </select>
@@ -395,13 +395,13 @@
                                     @foreach($paymentHistory as $payment)
                                     <tr data-checkout="{{ $payment->checkout_request_id ?? '' }}" data-payment-id="{{ $payment->id }}">
                                         <td>{{ $payment->created_at->format('d M Y H:i') }}</td>
-                                        <td>Ksh {{ number_format($payment->amount, 2) }}</td>
+                                        <td>{{ __('payment.ksh') }} {{ number_format($payment->amount, 2) }}</td>
                                         <td>
                                             <span class="badge bg-{{ $payment->transaction_status === 'paid' ? 'success' : ($payment->transaction_status === 'pending' ? 'warning' : 'danger') }}">
                                                 {{ ucfirst($payment->transaction_status) }}
                                             </span>
                                         </td>
-                                        <td>{{ $payment->mpesa_receipt_number ?? 'N/A' }}</td>
+                                        <td>{{ $payment->mpesa_receipt_number ?? __('payment.not_available') }}</td>
                                     </tr>
                                     @endforeach
                                 </tbody>
@@ -451,18 +451,18 @@
 
                         @if($userInvoices->count() > 0)
                             <hr />
-                            <h6 class="mt-3">Your Invoices</h6>
+                            <h6 class="mt-3">{{ __('payment.your_invoices') }}</h6>
                             <div class="table-responsive">
                                 <table class="table table-sm">
                                     <thead>
                                         <tr>
-                                            <th>Date</th>
-                                            <th>Invoice #</th>
+                                            <th>{{ __('payment.date') }}</th>
+                                            <th>{{ __('payment.invoice_number') }}</th>
                                             @if($isAdmin)
-                                                <th>User Name</th>
+                                                <th>{{ __('payment.user_name') }}</th>
                                             @endif
-                                            <th>Total</th>
-                                            <th>Action</th>
+                                            <th>{{ __('payment.total') }}</th>
+                                            <th>{{ __('payment.action') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -491,11 +491,11 @@
                                                 <td>{{ optional($inv->transaction_date)->format('d M Y') ?? optional($inv->created_at)->format('d M Y') }}</td>
                                                 <td>{{ $inv->invoice_no ?? $inv->id }}</td>
                                                 @if($isAdmin)
-                                                    <td>{{ $invoiceOwner ?? 'N/A' }}</td>
+                                                    <td>{{ $invoiceOwner ?? __('payment.not_available') }}</td>
                                                 @endif
-                                                <td>Ksh {{ number_format($inv->final_total ?? 0, 2) }}</td>
+                                                <td>{{ __('payment.ksh') }} {{ number_format($inv->final_total ?? 0, 2) }}</td>
                                                 <td>
-                                                    <a href="{{ route('transaction.invoice.download', $inv->id) }}" class="btn btn-sm btn-outline-primary" target="_blank">Download</a>
+                                                    <a href="{{ route('transaction.invoice.download', $inv->id) }}" class="btn btn-sm btn-outline-primary" target="_blank">{{ __('payment.download') }}</a>
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -685,9 +685,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const tds = tr.querySelectorAll('td');
                 if (tds.length >= 4) {
                     // status
-                    tds[2].innerHTML = `<span class="badge bg-success">Paid</span>`;
+                    tds[2].innerHTML = `<span class="badge bg-success">{{ __('payment.paid') }}</span>`;
                     // receipt
-                    tds[3].textContent = receipt || 'N/A';
+                    tds[3].textContent = receipt || @json(__('payment.not_available'));
                 }
             }
         } catch (e) {
@@ -1379,9 +1379,9 @@ document.addEventListener('DOMContentLoaded', function() {
         loadingOverlay.innerHTML = `
             <div class="loading-spinner text-center">
                 <div class="spinner-border text-primary mb-3" role="status">
-                    <span class="visually-hidden">Loading...</span>
+                    <span class="visually-hidden">{{ __('payment.processing') }}</span>
                 </div>
-                <p class="mb-0 fw-medium">Processing payment...</p>
+                <p class="mb-0 fw-medium">{{ __('payment.payment_processing') }}</p>
             </div>
         `;
         document.body.appendChild(loadingOverlay);

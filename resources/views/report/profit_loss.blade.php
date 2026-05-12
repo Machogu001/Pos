@@ -51,7 +51,7 @@
             aria-label="Print" onclick="window.print();"
             ><i class="fa fa-print"></i> @lang( 'messages.print' )</button> --}}
 
-                <button class="tw-dw-btn tw-dw-btn-primary tw-text-white pull-right" aria-label="Print"
+                <button class="tw-dw-btn tw-dw-btn-primary tw-text-white pull-right" aria-label="{{ __('messages.print') }}"
                     onclick="window.print();">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"

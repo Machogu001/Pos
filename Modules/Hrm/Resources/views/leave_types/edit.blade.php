@@ -1,30 +1,30 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Leave Type')
+@section('title', __('ui.edit_leave_type'))
 
 @section('content')
 @include('hrm::partials.hrm_page_header', [
-    'title' => 'Edit Leave Type',
-    'subtitle' => 'Rename the leave type used in HRM requests.',
-    'actions' => '<a href="'.route('hrm.leave_types.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Leave Types</a>'
+    'title' => __('ui.edit_leave_type'),
+    'subtitle' => __('ui.rename_the_leave_type_used_in_hrm_requests'),
+    'actions' => '<a href="'.route('hrm.leave_types.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> '. __('ui.back_to_leave_types') .'</a>'
 ])
 
 <section class="content">
     <div class="box box-primary">
         <div class="box-header with-border">
-            <h3 class="box-title">Leave Type Details</h3>
+            <h3 class="box-title">{{ __('ui.leave_type_details') }}</h3>
         </div>
         <div class="box-body">
             <form id="typeForm">
                 @csrf
                 @method('PUT')
                 <div class="form-group">
-                    <label class="form-label" for="name">Name</label>
+                    <label class="form-label" for="name">{{ __('ui.name') }}</label>
                     <input id="name" name="name" class="form-control" />
                 </div>
                 <div class="text-right">
-                    <a href="{{ route('hrm.leave_types.index') }}" class="btn btn-default">Cancel</a>
-                    <button class="btn btn-primary">Update Leave Type</button>
+                    <a href="{{ route('hrm.leave_types.index') }}" class="btn btn-default">{{ __('ui.cancel') }}</a>
+                    <button class="btn btn-primary">{{ __('ui.update_leave_type') }}</button>
                 </div>
             </form>
         </div>
@@ -36,7 +36,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         const idMatch = window.location.pathname.match(/\/(\d+)\/edit\/?$/);
         const id = idMatch ? idMatch[1] : null;
-        if (!id) { window.hrmAlert('Invalid id'); return; }
+        if (!id) { window.hrmAlert("{{ __('ui.invalid_id') }}"); return; }
         // fetch the leave type via edit endpoint (returns JSON)
         fetch(window.location.pathname, { headers: { 'Accept': 'application/json' } })
             .then(r => r.json())
@@ -62,19 +62,19 @@
                     try { json = text ? JSON.parse(text) : null; } catch (e) { }
                     if (!r.ok) {
                         const body = json ? JSON.stringify(json) : text;
-                        window.hrmAlert('Request failed: ' + r.status + ' ' + r.statusText);
+                        window.hrmAlert("{{ __('ui.request_failed_2') }}" + ' ' + r.status + ' ' + r.statusText);
                         return;
                     }
                     if (json && json.success) {
-                        if (window.toastr) { toastr.success('Updated successfully'); }
+                        if (window.toastr) { toastr.success("{{ __('ui.updated_successfully') }}"); }
                         if (window.playSuccess) { window.playSuccess(); }
                         window.location = '{{ route('hrm.leave_types.index') }}';
                     } else {
-                        if (window.toastr) { toastr.error('Update failed'); }
+                        if (window.toastr) { toastr.error("{{ __('ui.update_failed') }}"); }
                         if (window.playError) { window.playError(); }
                     }
                 })
-                .catch((err) => { window.hrmAlert('Network error: ' + (err && err.message ? err.message : 'unknown')); });
+                .catch((err) => { window.hrmAlert("{{ __('ui.network_error') }}" + ' ' + (err && err.message ? err.message : "{{ __('ui.unknown') }}")); });
         });
     });
 </script>

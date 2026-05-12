@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Purchase Details')
+@section('title', __('Purchase Details'))
 
 @section('content')
   <!-- Main content -->
@@ -7,21 +7,21 @@
     <div class="row">
       <div class="col-xs-12">
         <h2 class="page-header">
-          Purchase Details
-          <small class="pull-right"><b>Date:</b> {{ date( 'd/m/Y', strtotime( $purchase->transaction_date ) ) }}</small>
+          {{ __('Purchase Details') }}
+          <small class="pull-right"><b>{{ __('Date:') }}</b> {{ date( 'd/m/Y', strtotime( $purchase->transaction_date ) ) }}</small>
         </h2>
       </div>
     </div>
     <div class="row">
       <div class="col-sm-4">
-        <b>Reference No:</b> #{{ $purchase->ref_no }}<br>
-        <b>Location:</b> {{ $purchase->location->name }}<br>
-        <b>Status:</b> {{ ucfirst( $purchase->status ) }}<br>
-        <b>Payment Status:</b> {{ ucfirst( $purchase->payment_status ) }}<br>
+        <b>{{ __('Reference No:') }}</b> #{{ $purchase->ref_no }}<br>
+        <b>{{ __('Location:') }}</b> {{ $purchase->location->name }}<br>
+        <b>{{ __('Status:') }}</b> {{ ucfirst( $purchase->status ) }}<br>
+        <b>{{ __('Payment Status:') }}</b> {{ ucfirst( $purchase->payment_status ) }}<br>
       </div>
       <div class="col-sm-4">
-        <b>Supplier:</b> {{ $purchase->contact->name }}<br>
-        <b>Business:</b> {{ $purchase->contact->supplier_business_name }}<br>
+        <b>{{ __('Supplier:') }}</b> {{ $purchase->contact->name }}<br>
+        <b>{{ __('Business:') }}</b> {{ $purchase->contact->supplier_business_name }}<br>
       </div>
     </div>
     <br>
@@ -31,14 +31,14 @@
           <table class="table bg-gray">
             <tr class="bg-green">
               <th>#</th>
-              <th>Product</th>
-              <th>Quantity</th>
-              <th>Unit Cost Price (Before Tax)</th>
-              <th>Subtotal (Before Tax)</th>
-              <th>Tax</th>
-              <th>Unit Cost Price (After Tax)</th>
-              <th>Unit Selling Price</th>
-              <th>Subtotal</th>
+              <th>{{ __('Product') }}</th>
+              <th>{{ __('Quantity') }}</th>
+              <th>{{ __('Unit Cost Price (Before Tax)') }}</th>
+              <th>{{ __('Subtotal (Before Tax)') }}</th>
+              <th>{{ __('Tax') }}</th>
+              <th>{{ __('Unit Cost Price (After Tax)') }}</th>
+              <th>{{ __('Unit Selling Price') }}</th>
+              <th>{{ __('Subtotal') }}</th>
             </tr>
             @php 
               $total_before_tax = 0.00;
@@ -72,11 +72,11 @@
     <br>
     <div class="row">
       <div class="col-xs-6">
-        <p><b>Shipping details:</b></p>
+        <p><b>{{ __('Shipping details:') }}</b></p>
         <p class="well well-sm no-shadow bg-gray" style="border-radius: 0px;">
          {{ $purchase->shipping_details }}
         </p>
-        <p><b>Notes:</b></p>
+        <p><b>{{ __('Notes:') }}</b></p>
         <p class="well well-sm no-shadow bg-gray" style="border-radius: 0px;">
          {{ $purchase->additional_notes }}
         </p>
@@ -85,34 +85,34 @@
         <div class="table-responsive">
           <table class="table bg-gray">
             <tr>
-              <th>Total Before Tax: </th>
+              <th>{{ __('Total Before Tax:') }} </th>
               <td></td>
               <td><span class="display_currency pull-right">{{ $total_before_tax }}</span></td>
             </tr>
             <tr>
-              <th>Total After Tax: </th>
+              <th>{{ __('Total After Tax:') }} </th>
               <td></td>
               <td><span class="display_currency pull-right">{{ $total_before_tax }}</span></td>
             </tr>
             <tr>
-              <th>Purchase Tax:</th>
+              <th>{{ __('Purchase Tax:') }}</th>
               <td><b>(+)</b></td>
               <td><span class="display_currency pull-right">{{ $purchase->tax_amount }}</span></td>
             </tr>
             <tr>
-              <th>Discount:</th>
+              <th>{{ __('Discount:') }}</th>
               <td><b>(-)</b></td>
               <td><span class="display_currency pull-right">{{ $purchase->discount_amount }}</span></td>
             </tr>
             @if( !empty( $purchase->shipping_charges ) )
               <tr>
-                <th>Additional Shipping charges:</th>
+                <th>{{ __('Additional Shipping charges:') }}</th>
                 <td><b>(+)</b></td>
                 <td><span class="display_currency pull-right" >{{ $purchase->shipping_charges }}</span></td>
               </tr>
             @endif
             <tr>
-              <th>Purchase Total:</th>
+              <th>{{ __('Purchase Total:') }}</th>
               <td></td>
               <td><span class="display_currency pull-right" data-currency_symbol="true" >{{ $purchase->final_total }}</span></td>
             </tr>

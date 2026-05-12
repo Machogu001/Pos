@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Payroll Accounting Setup')
+@section('title', __('ui.payroll_accounting_setup'))
 
 @section('content')
 @include('hrm::partials.hrm_page_header', [
-    'title' => 'Payroll Accounting Setup',
-    'subtitle' => 'Choose the chart of accounts used when payroll is posted automatically.',
-    'actions' => '<a href="'.route('hrm.settings.modules.edit').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Modules</a>'
+    'title' => __('ui.payroll_accounting_setup'),
+    'subtitle' => __('ui.choose_the_chart_of_accounts_used_when_payroll_is_posted_automatically'),
+    'actions' => '<a href="'.route('hrm.settings.modules.edit').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> '. __('ui.back_to_modules') .'</a>'
 ])
 
 <section class="content">
@@ -22,17 +22,17 @@
 
     <div class="box box-primary">
         <div class="box-header with-border">
-            <h3 class="box-title">Payroll Posting Accounts</h3>
+            <h3 class="box-title">{{ __('ui.payroll_posting_accounts') }}</h3>
         </div>
         <form method="POST" action="{{ route('hrm.settings.payroll.update') }}">
             @csrf
             <div class="box-body">
-                <p class="help-block">Choose the accounts used when salaries are processed. Payroll will debit the expense account and credit the clearing account automatically.</p>
+                <p class="help-block">{{ __('ui.choose_the_accounts_used_when_salaries_are_processed_payroll_will_debit_the_expense_account_and_credit_the_clearing_account_automatically') }}</p>
 
                 <div class="form-group">
-                    <label for="payroll_expense_account_id">Payroll Expense Account</label>
+                    <label for="payroll_expense_account_id">{{ __('ui.payroll_expense_account') }}</label>
                     <select name="payroll_expense_account_id" id="payroll_expense_account_id" class="form-control" required>
-                        <option value="">-- Select Expense Account --</option>
+                        <option value="">{{ __('ui.select_expense_account') }}</option>
                         @foreach($accounts as $account)
                             <option value="{{ $account->id }}" {{ old('payroll_expense_account_id', $settings->payroll_expense_account_id ?? null) == $account->id ? 'selected' : '' }}>
                                 {{ $account->name }}
@@ -42,9 +42,9 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="payroll_clearing_account_id">Payroll Clearing Account</label>
+                    <label for="payroll_clearing_account_id">{{ __('ui.payroll_clearing_account') }}</label>
                     <select name="payroll_clearing_account_id" id="payroll_clearing_account_id" class="form-control" required>
-                        <option value="">-- Select Clearing Account --</option>
+                        <option value="">{{ __('ui.select_clearing_account') }}</option>
                         @foreach($accounts as $account)
                             <option value="{{ $account->id }}" {{ old('payroll_clearing_account_id', $settings->payroll_clearing_account_id ?? null) == $account->id ? 'selected' : '' }}>
                                 {{ $account->name }}
@@ -56,12 +56,12 @@
                 <div class="checkbox">
                     <label>
                         <input type="checkbox" name="payroll_auto_post" value="1" {{ old('payroll_auto_post', $settings->payroll_auto_post ?? true) ? 'checked' : '' }}>
-                        Automatically post payroll to the chart of accounts when saved
+                        {{ __('ui.automatically_post_payroll_to_the_chart_of_accounts_when_saved') }}
                     </label>
                 </div>
             </div>
             <div class="box-footer">
-                <button type="submit" class="btn btn-primary">Save Payroll Settings</button>
+                <button type="submit" class="btn btn-primary">{{ __('ui.save_payroll_settings') }}</button>
             </div>
         </form>
     </div>

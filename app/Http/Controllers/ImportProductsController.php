@@ -6,6 +6,7 @@ use App\Brands;
 use App\BusinessLocation;
 use App\Category;
 use App\Product;
+use App\ProductUnitConversion;
 use App\TaxRate;
 use App\Transaction;
 use App\Unit;
@@ -16,6 +17,7 @@ use App\VariationValueTemplate;
 use DB;
 use Excel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class ImportProductsController extends Controller
 {
@@ -656,6 +658,10 @@ class ImportProductsController extends Controller
                             }
                         }
 
+                        //Optional unit conversion import columns:
+                        //38: Purchase Unit, 39: Sales Unit, 40: Unit conversions (e.g. WHL=50|BOX=10)
+                        $this->syncImportedUnitConversions($product, $business_id, $imported_data[$index], $index + 1);
+
                         //Create single product variation
                         if ($product->type == 'single') {
                             $this->productUtil->createSingleProductVariation(
@@ -705,6 +711,115 @@ class ImportProductsController extends Controller
         }
 
         return redirect('import-products')->with('status', $output);
+    }
+
+    /**
+     * Sync product-level unit conversion mappings from optional import columns.
+     */
+    private function syncImportedUnitConversions(Product $product, int $business_id, array $row, int $row_no): void
+    {
+        if (! Schema::hasTable('product_unit_conversions')) {
+            return;
+        }
+
+        $base_unit_id = (int) $product->unit_id;
+        $purchase_default_unit_id = $base_unit_id;
+        $sale_default_unit_id = $base_unit_id;
+
+        $purchase_unit_name = isset($row[37]) ? trim((string) $row[37]) : '';
+        $sale_unit_name = isset($row[38]) ? trim((string) $row[38]) : '';
+        $conversion_pairs = isset($row[39]) ? trim((string) $row[39]) : '';
+
+        if ($purchase_unit_name !== '') {
+            $purchase_default_unit_id = $this->getUnitIdByName($purchase_unit_name, $business_id, $row_no, 'PURCHASE UNIT');
+        }
+
+        if ($sale_unit_name !== '') {
+            $sale_default_unit_id = $this->getUnitIdByName($sale_unit_name, $business_id, $row_no, 'SALES UNIT');
+        }
+
+        $conversions = [$base_unit_id => 1.0];
+
+        if ($conversion_pairs !== '') {
+            $pairs = array_filter(array_map('trim', explode('|', $conversion_pairs)));
+            foreach ($pairs as $pair) {
+                $parts = explode('=', $pair, 2);
+                if (count($parts) !== 2) {
+                    throw new \Exception("Invalid UNIT CONVERSIONS format in row no. $row_no. Use: UNIT=QTY|UNIT=QTY");
+                }
+
+                $unit_name = trim($parts[0]);
+                $qty_raw = trim($parts[1]);
+
+                if ($unit_name === '' || $qty_raw === '') {
+                    throw new \Exception("Invalid UNIT CONVERSIONS value '$pair' in row no. $row_no. Unit and qty are both required.");
+                }
+
+                $unit_id = $this->getUnitIdByName($unit_name, $business_id, $row_no, 'UNIT CONVERSIONS');
+                $qty_per_base = (float) $this->productUtil->num_uf($qty_raw);
+                if ($qty_per_base <= 0) {
+                    throw new \Exception("Invalid qty '$qty_raw' for unit '$unit_name' in row no. $row_no. Qty must be greater than 0.");
+                }
+
+                $conversions[$unit_id] = ($unit_id === $base_unit_id) ? 1.0 : $qty_per_base;
+            }
+        }
+
+        foreach ([$purchase_default_unit_id, $sale_default_unit_id] as $default_unit_id) {
+            if (! isset($conversions[$default_unit_id])) {
+                if ($default_unit_id === $base_unit_id) {
+                    $conversions[$default_unit_id] = 1.0;
+                } else {
+                    $fallback_multiplier = (float) $this->productUtil->getMultiplierOf2Units($base_unit_id, $default_unit_id);
+                    $conversions[$default_unit_id] = $fallback_multiplier > 0 ? $fallback_multiplier : 1.0;
+                }
+            }
+        }
+
+        ProductUnitConversion::where('business_id', $business_id)
+            ->where('product_id', $product->id)
+            ->delete();
+
+        $rows = [];
+        foreach ($conversions as $unit_id => $qty_per_base) {
+            $rows[] = [
+                'business_id' => $business_id,
+                'unit_id' => (int) $unit_id,
+                'qty_per_base' => (float) $qty_per_base,
+                'is_purchase_default' => (int) $unit_id === (int) $purchase_default_unit_id,
+                'is_sale_default' => (int) $unit_id === (int) $sale_default_unit_id,
+            ];
+        }
+
+        $product->unit_conversions()->createMany($rows);
+
+        $sub_unit_ids = [];
+        foreach (array_keys($conversions) as $unit_id) {
+            if ((int) $unit_id !== $base_unit_id) {
+                $sub_unit_ids[] = (int) $unit_id;
+            }
+        }
+        $sub_unit_ids = array_values(array_unique($sub_unit_ids));
+        $product->sub_unit_ids = ! empty($sub_unit_ids) ? $sub_unit_ids : null;
+        $product->save();
+    }
+
+    /**
+     * Resolve a unit by short_name or actual_name, or fail with an import row error.
+     */
+    private function getUnitIdByName(string $unit_name, int $business_id, int $row_no, string $column_label): int
+    {
+        $unit = Unit::where('business_id', $business_id)
+            ->where(function ($query) use ($unit_name) {
+                $query->where('short_name', $unit_name)
+                    ->orWhere('actual_name', $unit_name);
+            })->first();
+
+        if (empty($unit)) {
+            throw new \Exception("Unit '$unit_name' not found for $column_label in row no. $row_no.");
+        }
+
+        return (int) $unit->id;
     }
 
     private function calculateVariationPrices($dpp_exc_tax, $dpp_inc_tax, $selling_price, $tax_amount, $tax_type, $margin)

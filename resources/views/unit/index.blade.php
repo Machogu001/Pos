@@ -16,6 +16,34 @@
 
     <!-- Main content -->
     <section class="content">
+        @can('business_settings.access')
+            @component('components.widget', ['class' => 'box-primary', 'title' => __('lang_v1.default_unit')])
+                {!! Form::open(['url' => route('units.updateDefaultProductUnits'), 'method' => 'post']) !!}
+                    <div class="row">
+                        <div class="col-sm-5">
+                            <div class="form-group">
+                                {!! Form::label('default_purchase_unit_id', __('lang_v1.default_purchase_unit') . ':') !!}
+                                {!! Form::select('default_purchase_unit_id', $units_dropdown, !empty($common_settings['default_purchase_unit_id']) ? $common_settings['default_purchase_unit_id'] : null, ['class' => 'form-control select2', 'placeholder' => __('messages.please_select')]) !!}
+                                <p class="help-block">@lang('lang_v1.default_purchase_unit_help')</p>
+                            </div>
+                        </div>
+                        <div class="col-sm-5">
+                            <div class="form-group">
+                                {!! Form::label('default_sale_unit_id', __('lang_v1.default_sales_unit') . ':') !!}
+                                {!! Form::select('default_sale_unit_id', $units_dropdown, !empty($common_settings['default_sale_unit_id']) ? $common_settings['default_sale_unit_id'] : null, ['class' => 'form-control select2', 'placeholder' => __('messages.please_select')]) !!}
+                                <p class="help-block">@lang('lang_v1.default_sales_unit_help')</p>
+                            </div>
+                        </div>
+                        <div class="col-sm-2">
+                            <div class="form-group" style="margin-top: 25px;">
+                                <button type="submit" class="tw-dw-btn tw-dw-btn-primary tw-text-white">@lang('messages.save')</button>
+                            </div>
+                        </div>
+                    </div>
+                {!! Form::close() !!}
+            @endcomponent
+        @endcan
+
         @component('components.widget', ['class' => 'box-primary', 'title' => __('unit.all_your_units')])
             @can('unit.create')
                 @slot('tool')

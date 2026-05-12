@@ -61,7 +61,12 @@ return [
     'variation_sku_format' => 'Variation SKU Format',
     'variation_sku_format_help_text' => 'Variation SKU Format -  When variation SKU is empty this format will be used to generate SKU for variations',
     'sku_number' => 'SKU-Number (Example -> ABC-1, ABC-2)',
-    'sku_variation_number' => 'SKUVariation (Example -> ABCS, ABCM)'
+    'sku_variation_number' => 'SKUVariation (Example -> ABCS, ABCM)',
+    'item_units_of_measure' => 'Item Units of Measure',
+    'qty_per_base_unit' => 'Qty. per Base Unit',
+    'qty_per_base_placeholder' => 'e.g. 50',
+    'add_unit_conversion' => 'Add Unit Conversion',
+    'unit_conversion_reference' => 'Set quantity per unit (example: WHL = 50 when base unit is PCS).'
 
 
 ];

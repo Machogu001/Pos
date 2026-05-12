@@ -123,6 +123,40 @@
         </div>
 
         <div class="clearfix"></div>
+
+        <h4>M-Pesa: <small>(For KES currency)</small></h4>
+        <div class="col-xs-4">
+            <div class="form-group">
+                {!! Form::label('MPESA_CONSUMER_KEY', 'Consumer Key:') !!}
+                {!! Form::text('MPESA_CONSUMER_KEY', $default_values['MPESA_CONSUMER_KEY'], ['class' => 'form-control']); !!}
+            </div>
+        </div>
+        <div class="col-xs-4">
+            <div class="form-group">
+                {!! Form::label('MPESA_CONSUMER_SECRET', 'Consumer Secret:') !!}
+                {!! Form::text('MPESA_CONSUMER_SECRET', $default_values['MPESA_CONSUMER_SECRET'], ['class' => 'form-control']); !!}
+            </div>
+        </div>
+        <div class="col-xs-4">
+            <div class="form-group">
+                {!! Form::label('MPESA_SHORTCODE', 'Shortcode:') !!}
+                {!! Form::text('MPESA_SHORTCODE', $default_values['MPESA_SHORTCODE'], ['class' => 'form-control']); !!}
+            </div>
+        </div>
+        <div class="col-xs-6">
+            <div class="form-group">
+                {!! Form::label('MPESA_PASSKEY', 'Passkey:') !!}
+                {!! Form::text('MPESA_PASSKEY', $default_values['MPESA_PASSKEY'], ['class' => 'form-control']); !!}
+            </div>
+        </div>
+        <div class="col-xs-6">
+            <div class="form-group">
+                {!! Form::label('MPESA_CALLBACK', 'Callback URL:') !!}
+                {!! Form::text('MPESA_CALLBACK', $default_values['MPESA_CALLBACK'], ['class' => 'form-control']); !!}
+            </div>
+        </div>
+
+        <div class="clearfix"></div>
         
         <h4>Paystack: <small>(For NGN Nigeria, GHS Ghana)</small></h4>
         <div class="col-xs-6">
@@ -169,6 +203,7 @@
         <div class="col-xs-12">
             <br/>
             <p class="help-block"><i>@lang('superadmin::lang.payment_gateway_help')</i></p>
+            <p class="help-block"><i>Gateway setup documentation: <a href="https://pos.bremac.co.ke/superadmin/settings" target="_blank">https://pos.bremac.co.ke/superadmin/settings</a></i></p>
         </div>
     </div>
 </div>

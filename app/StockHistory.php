@@ -10,6 +10,8 @@ class StockHistory extends Model
 {
     use HasFactory;
 
+    private const VARIANCE_EPSILON = 0.0001;
+
     /**
      * The attributes that are mass assignable.
      *
@@ -272,7 +274,7 @@ public function scopeForHistoryPage($query)
             DB::raw('COALESCE(variations.sell_price_inc_tax, variations.default_sell_price, 0) as selling_price'),
             DB::raw('COALESCE((SELECT purchase_price_inc_tax FROM purchase_lines WHERE variation_id = stock_histories.variation_id ORDER BY id DESC LIMIT 1), (SELECT purchase_price_inc_tax FROM purchase_lines WHERE product_id = stock_histories.product_id ORDER BY id DESC LIMIT 1), 0) as last_purchased_price'),
             // Compute variance quantity as new_quantity - old_quantity, and use it for amount and percentage
-            DB::raw('(COALESCE(variations.sell_price_inc_tax, variations.default_sell_price, 0) * (stock_histories.new_quantity - stock_histories.old_quantity)) as variance_amount'),
+            DB::raw('(COALESCE(variations.sell_price_inc_tax, variations.default_sell_price, 0) * (CASE WHEN ABS(stock_histories.new_quantity - stock_histories.old_quantity) < 0.0001 THEN 0 ELSE (stock_histories.new_quantity - stock_histories.old_quantity) END)) as variance_amount'),
             DB::raw('CASE 
                 WHEN stock_histories.old_quantity = 0 AND stock_histories.new_quantity > 0 THEN (ABS(stock_histories.new_quantity - stock_histories.old_quantity) / NULLIF(stock_histories.new_quantity, 0)) * 100 
                 WHEN stock_histories.old_quantity = 0 THEN NULL 
@@ -599,11 +601,11 @@ public function scopeForHistoryPage($query)
 
         return $query->selectRaw('
             COUNT(*) as total_items,
-            SUM(ABS(actual_adjustment)) as total_variance_quantity,
-            SUM(CASE WHEN actual_adjustment > 0 THEN 1 ELSE 0 END) as overage_count,
-            SUM(CASE WHEN actual_adjustment < 0 THEN 1 ELSE 0 END) as shortage_count,
-            SUM(CASE WHEN actual_adjustment = 0 THEN 1 ELSE 0 END) as exact_count,
-            AVG(ABS(actual_adjustment)) as average_variance,
+            SUM(CASE WHEN ABS(actual_adjustment) < 0.0001 THEN 0 ELSE ABS(actual_adjustment) END) as total_variance_quantity,
+            SUM(CASE WHEN actual_adjustment >= 0.0001 THEN 1 ELSE 0 END) as overage_count,
+            SUM(CASE WHEN actual_adjustment <= -0.0001 THEN 1 ELSE 0 END) as shortage_count,
+            SUM(CASE WHEN ABS(actual_adjustment) < 0.0001 THEN 1 ELSE 0 END) as exact_count,
+            AVG(CASE WHEN ABS(actual_adjustment) < 0.0001 THEN 0 ELSE ABS(actual_adjustment) END) as average_variance,
             COUNT(DISTINCT reference_no) as stocktake_count
         ')->first();
     }
@@ -622,8 +624,8 @@ public function scopeForHistoryPage($query)
             location_id,
             COUNT(DISTINCT reference_no) as stocktake_count,
             COUNT(*) as total_items,
-            SUM(ABS(actual_adjustment)) as total_variance,
-            AVG(ABS(actual_adjustment)) as avg_variance_per_item,
+            SUM(CASE WHEN ABS(actual_adjustment) < 0.0001 THEN 0 ELSE ABS(actual_adjustment) END) as total_variance,
+            AVG(CASE WHEN ABS(actual_adjustment) < 0.0001 THEN 0 ELSE ABS(actual_adjustment) END) as avg_variance_per_item,
             MAX(stock_histories.created_at) as last_stocktake_date
         ')
         ->groupBy('location_id')
@@ -659,7 +661,7 @@ public function scopeForHistoryPage($query)
                 MIN(stock_histories.created_at) as started_at,
                 MAX(stock_histories.created_at) as completed_at,
                 COUNT(*) as item_count,
-                SUM(ABS(actual_adjustment)) as total_variance
+                SUM(CASE WHEN ABS(actual_adjustment) < 0.0001 THEN 0 ELSE ABS(actual_adjustment) END) as total_variance
             ')
             ->with(['location:id,name'])
             ->groupBy('reference_no', 'location_id')
@@ -677,7 +679,9 @@ public function scopeForHistoryPage($query)
             return 0;
         }
 
-        $exactMatches = $items->where('actual_adjustment', 0)->count();
+        $exactMatches = $items->filter(function ($item) {
+            return abs((float) $item->actual_adjustment) < self::VARIANCE_EPSILON;
+        })->count();
         
         return ($exactMatches / $items->count()) * 100;
     }
@@ -697,9 +701,9 @@ public function scopeForHistoryPage($query)
                 stock_histories.product_id as product_id,
                 stock_histories.variation_id as variation_id,
                 COUNT(*) as stocktake_count,
-                SUM(ABS(stock_histories.actual_adjustment)) as total_variance,
-                AVG(ABS(stock_histories.actual_adjustment)) as avg_variance,
-                MAX(ABS(stock_histories.actual_adjustment)) as max_variance,
+                SUM(CASE WHEN ABS(stock_histories.actual_adjustment) < 0.0001 THEN 0 ELSE ABS(stock_histories.actual_adjustment) END) as total_variance,
+                AVG(CASE WHEN ABS(stock_histories.actual_adjustment) < 0.0001 THEN 0 ELSE ABS(stock_histories.actual_adjustment) END) as avg_variance,
+                MAX(CASE WHEN ABS(stock_histories.actual_adjustment) < 0.0001 THEN 0 ELSE ABS(stock_histories.actual_adjustment) END) as max_variance,
                 products.name as product_name,
                 variations.name as variation_name,
                 COALESCE(variations.sub_sku, products.sku) as sku,

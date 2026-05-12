@@ -9,6 +9,7 @@ use App\Category;
 use App\Exports\ProductsExport;
 use App\Media;
 use App\Product;
+use App\ProductUnitConversion;
 use App\ProductVariation;
 use App\PurchaseLine;
 use App\SellingPriceGroup;
@@ -24,6 +25,7 @@ use App\Warranty;
 use Excel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Yajra\DataTables\Facades\DataTables;
 use App\Events\ProductsCreatedOrModified;
@@ -374,6 +376,7 @@ class ProductController extends Controller
 
         $brands = Brands::forDropdown($business_id);
         $units = Unit::forDropdown($business_id, true);
+        $all_units = Unit::forDropdown($business_id, true, false);
 
         $tax_dropdown = TaxRate::forBusinessDropdown($business_id, true, true);
         $taxes = $tax_dropdown['tax_rates'];
@@ -390,11 +393,21 @@ class ProductController extends Controller
         //Duplicate product
         $duplicate_product = null;
         $rack_details = null;
+        $has_product_unit_conversions = Schema::hasTable('product_unit_conversions');
 
         $sub_categories = [];
         if (! empty(request()->input('d'))) {
-            $duplicate_product = Product::where('business_id', $business_id)->find(request()->input('d'));
+            $duplicate_product_query = Product::where('business_id', $business_id);
+            if ($has_product_unit_conversions) {
+                $duplicate_product_query->with('unit_conversions');
+            }
+
+            $duplicate_product = $duplicate_product_query->find(request()->input('d'));
             $duplicate_product->name .= ' (copy)';
+
+            if ($duplicate_product && ! $has_product_unit_conversions) {
+                $duplicate_product->setRelation('unit_conversions', collect());
+            }
 
             if (! empty($duplicate_product->category_id)) {
                 $sub_categories = Category::where('business_id', $business_id)
@@ -421,7 +434,7 @@ class ProductController extends Controller
         $pos_module_data = $this->moduleUtil->getModuleData('get_product_screen_top_view');
 
         return view('product.create')
-            ->with(compact('categories', 'brands', 'units', 'taxes', 'barcode_types', 'default_profit_percent', 'tax_attributes', 'barcode_default', 'business_locations', 'duplicate_product', 'sub_categories', 'rack_details', 'selling_price_group_count', 'module_form_parts', 'product_types', 'common_settings', 'warranties', 'pos_module_data'));
+            ->with(compact('categories', 'brands', 'units', 'all_units', 'taxes', 'barcode_types', 'default_profit_percent', 'tax_attributes', 'barcode_default', 'business_locations', 'duplicate_product', 'sub_categories', 'rack_details', 'selling_price_group_count', 'module_form_parts', 'product_types', 'common_settings', 'warranties', 'pos_module_data'));
     }
 
     private function product_types()
@@ -431,6 +444,99 @@ class ProductController extends Controller
             'variable' => __('lang_v1.variable'),
             'combo' => __('lang_v1.combo'),
         ];
+    }
+
+    /**
+     * Persist item-level unit conversions and default purchase/sales units.
+     */
+    private function syncProductUnitConversions(Request $request, Product $product, int $business_id): void
+    {
+        if (! Schema::hasTable('product_unit_conversions')) {
+            return;
+        }
+
+        $valid_unit_ids = Unit::where('business_id', $business_id)->pluck('id')->map(function ($id) {
+            return (int) $id;
+        })->toArray();
+        $valid_unit_ids = array_flip($valid_unit_ids);
+
+        $base_unit_id = (int) $product->unit_id;
+        $common_settings = session()->get('business.common_settings', []);
+        $system_default_purchase_unit_id = ! empty($common_settings['default_purchase_unit_id']) ? (int) $common_settings['default_purchase_unit_id'] : $base_unit_id;
+        $system_default_sale_unit_id = ! empty($common_settings['default_sale_unit_id']) ? (int) $common_settings['default_sale_unit_id'] : $base_unit_id;
+
+        $purchase_default_unit_id = $request->filled('purchase_default_unit_id') ? (int) $request->input('purchase_default_unit_id') : $system_default_purchase_unit_id;
+        $sale_default_unit_id = $request->filled('sale_default_unit_id') ? (int) $request->input('sale_default_unit_id') : $system_default_sale_unit_id;
+
+        if (! isset($valid_unit_ids[$purchase_default_unit_id])) {
+            $purchase_default_unit_id = $base_unit_id;
+        }
+        if (! isset($valid_unit_ids[$sale_default_unit_id])) {
+            $sale_default_unit_id = $base_unit_id;
+        }
+
+        $conversions = [$base_unit_id => 1.0];
+        foreach ((array) $request->input('unit_conversions', []) as $row) {
+            $unit_id = ! empty($row['unit_id']) ? (int) $row['unit_id'] : 0;
+            if (empty($unit_id) || ! isset($valid_unit_ids[$unit_id])) {
+                continue;
+            }
+
+            if ($unit_id === $base_unit_id) {
+                $conversions[$unit_id] = 1.0;
+                continue;
+            }
+
+            if ($row['qty_per_base'] === null || $row['qty_per_base'] === '') {
+                continue;
+            }
+
+            $qty_per_base = (float) $this->productUtil->num_uf($row['qty_per_base']);
+            if ($qty_per_base > 0) {
+                $conversions[$unit_id] = $qty_per_base;
+            }
+        }
+
+        foreach ([$purchase_default_unit_id, $sale_default_unit_id] as $default_unit_id) {
+            if (empty($default_unit_id) || ! isset($valid_unit_ids[$default_unit_id])) {
+                continue;
+            }
+
+            if (! isset($conversions[$default_unit_id])) {
+                if ($default_unit_id === $base_unit_id) {
+                    $conversions[$default_unit_id] = 1.0;
+                } else {
+                    $fallback_multiplier = (float) $this->productUtil->getMultiplierOf2Units($base_unit_id, $default_unit_id);
+                    $conversions[$default_unit_id] = $fallback_multiplier > 0 ? $fallback_multiplier : 1.0;
+                }
+            }
+        }
+
+        ProductUnitConversion::where('business_id', $business_id)
+            ->where('product_id', $product->id)
+            ->delete();
+
+        $rows = [];
+        foreach ($conversions as $unit_id => $qty_per_base) {
+            $rows[] = [
+                'business_id' => $business_id,
+                'unit_id' => $unit_id,
+                'qty_per_base' => $qty_per_base,
+                'is_purchase_default' => $unit_id === $purchase_default_unit_id,
+                'is_sale_default' => $unit_id === $sale_default_unit_id,
+            ];
+        }
+        $product->unit_conversions()->createMany($rows);
+
+        $related_sub_units = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('sub_unit_ids', [])))));
+        foreach (array_keys($conversions) as $unit_id) {
+            if ($unit_id !== $base_unit_id && ! in_array($unit_id, $related_sub_units)) {
+                $related_sub_units[] = $unit_id;
+            }
+        }
+
+        $product->sub_unit_ids = ! empty($related_sub_units) ? $related_sub_units : null;
+        $product->save();
     }
 
     /**
@@ -495,6 +601,8 @@ class ProductController extends Controller
             DB::beginTransaction();
 
             $product = Product::create($product_details);
+
+            $this->syncProductUnitConversions($request, $product, $business_id);
 
             event(new ProductsCreatedOrModified($product_details, 'added'));
 
@@ -623,10 +731,19 @@ class ProductController extends Controller
 
         $barcode_types = $this->barcode_types;
 
-        $product = Product::where('business_id', $business_id)
+        $has_product_unit_conversions = Schema::hasTable('product_unit_conversions');
+        $product_query = Product::where('business_id', $business_id)
                             ->with(['product_locations'])
-                            ->where('id', $id)
-                            ->firstOrFail();
+                            ->where('id', $id);
+
+        if ($has_product_unit_conversions) {
+            $product_query->with('unit_conversions');
+        }
+
+        $product = $product_query->firstOrFail();
+        if (! $has_product_unit_conversions) {
+            $product->setRelation('unit_conversions', collect());
+        }
 
         //Sub-category
         $sub_categories = [];
@@ -640,6 +757,7 @@ class ProductController extends Controller
 
         //Get units.
         $units = Unit::forDropdown($business_id, true);
+        $all_units = Unit::forDropdown($business_id, true, false);
         $sub_units = $this->productUtil->getSubUnits($business_id, $product->unit_id, true);
 
         //Get all business locations
@@ -660,7 +778,7 @@ class ProductController extends Controller
         $alert_quantity = ! is_null($product->alert_quantity) ? $this->productUtil->num_f($product->alert_quantity, false, null, true) : null;
 
         return view('product.edit')
-                ->with(compact('categories', 'brands', 'units', 'sub_units', 'taxes', 'tax_attributes', 'barcode_types', 'product', 'sub_categories', 'default_profit_percent', 'business_locations', 'rack_details', 'selling_price_group_count', 'module_form_parts', 'product_types', 'common_settings', 'warranties', 'pos_module_data', 'alert_quantity'));
+            ->with(compact('categories', 'brands', 'units', 'all_units', 'sub_units', 'taxes', 'tax_attributes', 'barcode_types', 'product', 'sub_categories', 'default_profit_percent', 'business_locations', 'rack_details', 'selling_price_group_count', 'module_form_parts', 'product_types', 'common_settings', 'warranties', 'pos_module_data', 'alert_quantity'));
     }
 
     /**
@@ -779,6 +897,7 @@ class ProductController extends Controller
             }
 
             $product->save();
+            $this->syncProductUnitConversions($request, $product, $business_id);
             $product->touch();
 
             event(new ProductsCreatedOrModified($product, 'updated'));

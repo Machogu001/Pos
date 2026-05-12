@@ -20,6 +20,7 @@ use App\Variation;
 use Excel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Activitylog\Models\Activity;
 use Yajra\DataTables\Facades\DataTables;
 use App\Events\PurchaseCreatedOrModified;
@@ -1049,6 +1050,23 @@ class PurchaseController extends Controller
                                     ->first();
 
                 $sub_units = $this->productUtil->getSubUnits($business_id, $product->unit->id, false, $product_id);
+
+                if (Schema::hasTable('product_unit_conversions')) {
+                    $default_purchase_unit_id = DB::table('product_unit_conversions')
+                        ->where('business_id', $business_id)
+                        ->where('product_id', $product_id)
+                        ->where('is_purchase_default', 1)
+                        ->value('unit_id');
+
+                    if (empty($default_purchase_unit_id)) {
+                        $common_settings = session()->get('business.common_settings', []);
+                        $default_purchase_unit_id = ! empty($common_settings['default_purchase_unit_id']) ? (int) $common_settings['default_purchase_unit_id'] : null;
+                    }
+
+                    if (! empty($default_purchase_unit_id) && isset($sub_units[$default_purchase_unit_id])) {
+                        $product->sub_unit_id = (int) $default_purchase_unit_id;
+                    }
+                }
 
                 $query = Variation::where('product_id', $product_id)
                                 ->with([

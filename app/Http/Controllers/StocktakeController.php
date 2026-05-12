@@ -19,6 +19,7 @@ use App\Utils\TransactionUtil;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -293,6 +294,7 @@ class StocktakeController extends Controller
             'items.*.variation_id' => 'required|exists:variations,id',
             'items.*.product_variation_id' => 'required|exists:product_variations,id',
             'items.*.counted_quantity' => 'required|numeric|min:0',
+            'items.*.counted_unit_id' => 'nullable|exists:units,id',
             'items.*.lot_number' => 'nullable|string',
             'items.*.expiry_date' => 'nullable|date',
             'additional_notes' => 'nullable|string'
@@ -342,6 +344,13 @@ class StocktakeController extends Controller
                     $item['expiry_date'] ?? null
                 );
 
+                $baseCountedQty = $this->convertCountedToBaseQty(
+                    $business_id,
+                    $item['product_id'],
+                    $item['counted_quantity'],
+                    $item['counted_unit_id'] ?? null
+                );
+
                 StocktakeItem::create([
                     'stocktake_id' => $stocktake->id,
                     'product_id' => $item['product_id'],
@@ -352,8 +361,8 @@ class StocktakeController extends Controller
                         ? $this->productUtil->uf_date($item['expiry_date']) 
                         : null,
                     'system_quantity' => $expectedQty,
-                    'counted_quantity' => $item['counted_quantity'],
-                    'variance' => $item['counted_quantity'] - $expectedQty,
+                    'counted_quantity' => $baseCountedQty,
+                    'variance' => $this->normalizeVariance($baseCountedQty - $expectedQty),
                 ]);
             }
 
@@ -430,16 +439,18 @@ class StocktakeController extends Controller
 
         if ($stocktake->status === 'completed') {
             foreach ($stocktake->items as $item) {
-                if ($item->variance == 0) {
+                $itemVariance = $this->normalizeVariance($item->variance ?? 0);
+
+                if ($itemVariance == 0.0) {
                     $exactCount++;
-                } elseif ($item->variance > 0) {
+                } elseif ($itemVariance > 0) {
                     $overageCount++;
                 } else {
                     $shortageCount++;
                 }
 
                 $unit_price = optional($item->variation)->sell_price_inc_tax ?? 0;
-                $totalValueVariance += $item->variance * $unit_price;
+                $totalValueVariance += $this->normalizeAmount($itemVariance * $unit_price);
                 $totalValue += ($item->counted_quantity ?? 0) * $unit_price;
             }
         }
@@ -466,7 +477,7 @@ class StocktakeController extends Controller
             'items' => function($query) {
                 $query->with([
                     'variation:id,name,product_id,sub_sku,default_sell_price',
-                    'product:id,name,sku'
+                    'product:id,name,sku,unit_id'
                 ]);
             },
             'location'
@@ -474,6 +485,34 @@ class StocktakeController extends Controller
 
         if ($stocktake->status === 'completed') {
             abort(403, __('stocktake.cannot_edit_completed'));
+        }
+
+        $business_id = auth()->user()->business_id;
+        $defaultSaleUnits = [];
+        if (Schema::hasTable('product_unit_conversions')) {
+            $defaultSaleUnits = DB::table('product_unit_conversions')
+                ->where('business_id', $business_id)
+                ->whereIn('product_id', $stocktake->items->pluck('product_id')->unique()->toArray())
+                ->where('is_sale_default', 1)
+                ->pluck('unit_id', 'product_id')
+                ->map(function ($value) {
+                    return (int) $value;
+                })
+                ->toArray();
+        }
+
+        foreach ($stocktake->items as $item) {
+            $subUnits = $this->productUtil->getSubUnits($business_id, $item->product->unit_id, false, $item->product_id);
+            $defaultCountUnitId = ! empty($defaultSaleUnits[$item->product_id]) ? $defaultSaleUnits[$item->product_id] : (int) $item->product->unit_id;
+            $multiplier = ! empty($subUnits[$defaultCountUnitId]['multiplier']) ? (float) $subUnits[$defaultCountUnitId]['multiplier'] : 1;
+            if ($multiplier <= 0) {
+                $multiplier = 1;
+            }
+
+            $item->sub_units_options = $subUnits;
+            $item->default_count_unit_id = $defaultCountUnitId;
+            $item->counted_display_quantity = ((float) ($item->counted_quantity ?? $item->system_quantity)) / $multiplier;
+            $item->system_display_quantity = ((float) $item->system_quantity) / $multiplier;
         }
 
         $locations = BusinessLocation::forDropdown(auth()->user()->business_id);
@@ -489,6 +528,7 @@ class StocktakeController extends Controller
             'items' => 'required|array|min:1',
             'items.*.id' => 'required|exists:stocktake_items,id',
             'items.*.counted_quantity' => 'required|numeric|min:0',
+            'items.*.counted_unit_id' => 'nullable|exists:units,id',
             'additional_notes' => 'nullable|string'
         ]);
 
@@ -513,10 +553,17 @@ class StocktakeController extends Controller
 
             foreach ($validated['items'] as $itemData) {
                 $item = StocktakeItem::findOrFail($itemData['id']);
+
+                $baseCountedQty = $this->convertCountedToBaseQty(
+                    auth()->user()->business_id,
+                    $item->product_id,
+                    $itemData['counted_quantity'],
+                    $itemData['counted_unit_id'] ?? null
+                );
                 
                 $item->update([
-                    'counted_quantity' => $itemData['counted_quantity'],
-                    'variance' => $itemData['counted_quantity'] - $item->system_quantity,
+                    'counted_quantity' => $baseCountedQty,
+                    'variance' => $this->normalizeVariance($baseCountedQty - $item->system_quantity),
                 ]);
             }
 
@@ -660,7 +707,7 @@ class StocktakeController extends Controller
                         $item->update(['counted_quantity' => 0]);
                     }
 
-                    $adjustment_amount = $counted_qty - $current_system_qty;
+                    $adjustment_amount = $this->normalizeVariance($counted_qty - $current_system_qty);
 
                     Log::info('Processing stocktake adjustment', [
                         'product_id' => $item->product_id,
@@ -672,7 +719,7 @@ class StocktakeController extends Controller
                     ]);
 
                     // Only process if there's a difference
-                    if ($adjustment_amount != 0) {
+                    if ($adjustment_amount != 0.0) {
                         // Record stock history FIRST
                         $history_success = $this->productUtil->addStockHistory(
                             $item->product_id,
@@ -712,7 +759,7 @@ class StocktakeController extends Controller
                         $unit_price = ! empty($variation)
                             ? ((float) ($variation->dpp_inc_tax ?: $variation->default_purchase_price ?: 0))
                             : 0;
-                        $adjustment_value = round($adjustment_amount * $unit_price, 2);
+                        $adjustment_value = $this->normalizeAmount($adjustment_amount * $unit_price);
                         $total_variance_value += $adjustment_value;
 
                         // FIX: For stock adjustment lines, use the SIGNED adjustment amount
@@ -757,9 +804,11 @@ class StocktakeController extends Controller
 
             // Update transaction with signed variance value so overages and shortages
             // are recorded consistently in finance reports.
+            $total_variance_value = $this->normalizeAmount($total_variance_value);
+
             $transaction->update([
-                'final_total' => round($total_variance_value, 2),
-                'total_before_tax' => round($total_variance_value, 2),
+                'final_total' => $total_variance_value,
+                'total_before_tax' => $total_variance_value,
             ]);
 
             // Update stocktake with transaction reference
@@ -1002,7 +1051,7 @@ class StocktakeController extends Controller
             // Compute variance as new_quantity - old_quantity and return numeric value.
             $oldQty = isset($row->old_quantity) ? (float) $row->old_quantity : 0.0;
             $newQty = isset($row->new_quantity) ? (float) $row->new_quantity : 0.0;
-            $variance = $newQty - $oldQty;
+            $variance = $this->normalizeVariance($newQty - $oldQty);
 
             return (float) $variance;
         })
@@ -1149,7 +1198,7 @@ class StocktakeController extends Controller
             // Compute variance as new_quantity - old_quantity and return numeric
             $oldQty = isset($row->old_quantity) ? (float) $row->old_quantity : 0.0;
             $newQty = isset($row->new_quantity) ? (float) $row->new_quantity : 0.0;
-            $variance = $newQty - $oldQty;
+            $variance = $this->normalizeVariance($newQty - $oldQty);
 
             return (float) $variance;
         })
@@ -1260,7 +1309,7 @@ class StocktakeController extends Controller
                 foreach ($rows as $r) {
                     $oldQty = isset($r->old_quantity) ? (float) $r->old_quantity : 0.0;
                     $newQty = isset($r->new_quantity) ? (float) $r->new_quantity : 0.0;
-                    $varianceRaw = $newQty - $oldQty;
+                    $varianceRaw = $this->normalizeVariance($newQty - $oldQty);
 
                     // determine selling price from variation if present
                     $sellingPrice = 0.0;
@@ -1275,7 +1324,7 @@ class StocktakeController extends Controller
                     }
 
                     $unitPrice = $priceBasisForTimeline === 'purchase' ? $purchasePrice : $sellingPrice;
-                    $totalAmount += $varianceRaw * $unitPrice;
+                    $totalAmount += $this->normalizeAmount($varianceRaw * $unitPrice);
                 }
 
                 $timeline[$tkey]->variance_amount_raw = (float) $totalAmount;
@@ -1404,7 +1453,7 @@ class StocktakeController extends Controller
         $rows = collect($stocktake->items)->map(function ($item) use ($stocktake) {
             $countedQuantity = (float) ($item->counted_quantity ?? $item->system_quantity);
             $systemQuantity = (float) $item->system_quantity;
-            $variance = $countedQuantity - $systemQuantity;
+            $variance = $this->normalizeVariance($countedQuantity - $systemQuantity);
             $purchasePrice = (float) ($item->variation->default_purchase_price ?? 0);
             $sellingPrice = (float) ($item->variation->sell_price_inc_tax ?? $item->variation->default_sell_price ?? 0);
 
@@ -2006,6 +2055,7 @@ class StocktakeController extends Controller
                     'products.id as product_id',
                     'products.name',
                     'products.sku',
+                    'products.unit_id',
                     'products.enable_stock',
                     'variations.id as variation_id',
                     'variations.name as variation_name',
@@ -2028,7 +2078,24 @@ class StocktakeController extends Controller
             // Add ordering for better user experience
             $query->orderBy('products.name')->orderBy('variations.name');
 
-            $products = $query->get()->map(function($item) {
+            $rows = $query->get();
+            $defaultSaleUnits = [];
+            if (Schema::hasTable('product_unit_conversions')) {
+                $defaultSaleUnits = DB::table('product_unit_conversions')
+                    ->where('business_id', $business_id)
+                    ->whereIn('product_id', $rows->pluck('product_id')->unique()->toArray())
+                    ->where('is_sale_default', 1)
+                    ->pluck('unit_id', 'product_id')
+                    ->map(function ($value) {
+                        return (int) $value;
+                    })
+                    ->toArray();
+            }
+
+            $products = $rows->map(function($item) use ($business_id, $defaultSaleUnits) {
+                $subUnits = $this->productUtil->getSubUnits($business_id, $item->unit_id, false, $item->product_id);
+                $defaultCountUnitId = ! empty($defaultSaleUnits[$item->product_id]) ? $defaultSaleUnits[$item->product_id] : $item->unit_id;
+
                 return [
                     'product_id' => $item->product_id,
                     'variation_id' => $item->variation_id,
@@ -2039,7 +2106,10 @@ class StocktakeController extends Controller
                     'qty_available' => (float) $item->qty_available,
                     'formatted_qty_available' => $this->productUtil->num_f($item->qty_available),
                     'default_sell_price' => $item->default_sell_price,
-                    'enable_stock' => $item->enable_stock
+                    'enable_stock' => $item->enable_stock,
+                    'base_unit_id' => (int) $item->unit_id,
+                    'default_count_unit_id' => (int) $defaultCountUnitId,
+                    'sub_units' => $subUnits,
                 ];
             })->toArray();
 
@@ -2054,6 +2124,38 @@ class StocktakeController extends Controller
             ]);
             return [];
         }
+    }
+
+    /**
+     * Convert entered counted quantity (in selected unit) to base quantity.
+     */
+    private function convertCountedToBaseQty($business_id, $product_id, $countedQty, $countedUnitId = null)
+    {
+        $countedQty = (float) $countedQty;
+        if (empty($countedUnitId)) {
+            return $countedQty;
+        }
+
+        $baseUnitId = Product::where('business_id', $business_id)
+            ->where('id', $product_id)
+            ->value('unit_id');
+
+        if (empty($baseUnitId)) {
+            return $countedQty;
+        }
+
+        $multiplier = (float) $this->productUtil->getProductUnitMultiplier(
+            $business_id,
+            $product_id,
+            (int) $countedUnitId,
+            (int) $baseUnitId
+        );
+
+        if ($multiplier <= 0) {
+            $multiplier = 1;
+        }
+
+        return $countedQty * $multiplier;
     }
 
     /**
@@ -2183,11 +2285,11 @@ class StocktakeController extends Controller
 
         return $query->selectRaw('
             COUNT(*) as total_items,
-            SUM(ABS(stock_histories.actual_adjustment)) as total_variance_quantity,
-            SUM(ABS(stock_histories.actual_adjustment) * COALESCE(variations.sell_price_inc_tax, variations.default_sell_price, 0)) as total_variance_amount,
-            SUM(CASE WHEN stock_histories.actual_adjustment > 0 THEN 1 ELSE 0 END) as overage_count,
-            SUM(CASE WHEN stock_histories.actual_adjustment < 0 THEN 1 ELSE 0 END) as shortage_count,
-            SUM(CASE WHEN stock_histories.actual_adjustment = 0 THEN 1 ELSE 0 END) as exact_count,
+            SUM(CASE WHEN ABS(stock_histories.actual_adjustment) < 0.0001 THEN 0 ELSE ABS(stock_histories.actual_adjustment) END) as total_variance_quantity,
+            SUM(CASE WHEN ABS(stock_histories.actual_adjustment) < 0.0001 THEN 0 ELSE ABS(stock_histories.actual_adjustment) * COALESCE(variations.sell_price_inc_tax, variations.default_sell_price, 0) END) as total_variance_amount,
+            SUM(CASE WHEN stock_histories.actual_adjustment >= 0.0001 THEN 1 ELSE 0 END) as overage_count,
+            SUM(CASE WHEN stock_histories.actual_adjustment <= -0.0001 THEN 1 ELSE 0 END) as shortage_count,
+            SUM(CASE WHEN ABS(stock_histories.actual_adjustment) < 0.0001 THEN 1 ELSE 0 END) as exact_count,
             COUNT(DISTINCT stock_histories.reference_no) as stocktake_count
         ')->first();
     }
@@ -2275,7 +2377,7 @@ class StocktakeController extends Controller
             // Compute variance as new - old to ensure consistency across UI and exports
             $oldQty = isset($row->old_quantity) ? (float) $row->old_quantity : 0.0;
             $newQty = isset($row->new_quantity) ? (float) $row->new_quantity : 0.0;
-            $varianceRaw = $newQty - $oldQty;
+            $varianceRaw = $this->normalizeVariance($newQty - $oldQty);
 
             // Determine selling price (variation) and latest purchase price (from purchase_lines)
             $sellingPrice = 0;
@@ -2292,7 +2394,7 @@ class StocktakeController extends Controller
             $unitPrice = $priceBasis === 'purchase' ? $purchasePrice : $sellingPrice;
 
             // Compute variance amount using varianceRaw
-            $varianceAmount = (float) $varianceRaw * $unitPrice;
+            $varianceAmount = $this->normalizeAmount((float) $varianceRaw * $unitPrice);
 
             return [
                 'date' => $row->created_at->format('Y-m-d H:i'),
@@ -2539,7 +2641,7 @@ class StocktakeController extends Controller
                 foreach ($data as $row) {
                 $oldQty = isset($row->old_quantity) ? (float) $row->old_quantity : 0.0;
                 $newQty = isset($row->new_quantity) ? (float) $row->new_quantity : 0.0;
-                $variance = $newQty - $oldQty;
+                $variance = $this->normalizeVariance($newQty - $oldQty);
 
                 fputcsv($file, [
                     $row->created_at->format('Y-m-d H:i'),
@@ -2584,7 +2686,10 @@ class StocktakeController extends Controller
                         return $this->data->map(function($row) {
                             $oldQty = isset($row->old_quantity) ? (float) $row->old_quantity : 0.0;
                             $newQty = isset($row->new_quantity) ? (float) $row->new_quantity : 0.0;
-                            $variance = $newQty - $oldQty;
+                            $variance = round($newQty - $oldQty, 4);
+                            if (abs($variance) < 0.0001) {
+                                $variance = 0.0;
+                            }
                             return [
                                 'date' => $row->created_at->format('Y-m-d H:i'),
                                 'reference_no' => $row->reference_no,
@@ -2643,6 +2748,30 @@ class StocktakeController extends Controller
             ]);
             return 0;
         }
+    }
+
+    /**
+     * Normalize quantity deltas to business quantity precision and collapse tiny float noise to zero.
+     */
+    private function normalizeVariance($value)
+    {
+        $precision = (int) session('business.quantity_precision', 4);
+        $normalized = round((float) $value, $precision);
+
+        $epsilon = pow(10, -1 * $precision);
+        if (abs($normalized) < $epsilon) {
+            return 0.0;
+        }
+
+        return (float) $normalized;
+    }
+
+    /**
+     * Normalize monetary values to 2 decimals to keep report totals stable.
+     */
+    private function normalizeAmount($value)
+    {
+        return (float) round((float) $value, 2);
     }
 
     /**

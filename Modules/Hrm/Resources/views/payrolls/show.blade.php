@@ -2,14 +2,14 @@
     function fmtAmt($v){ return number_format((float)$v, 2); }
     $period = $payroll->period_start ? \Carbon\Carbon::parse($payroll->period_start)->format('F Y') : '-';
     $empName = $employee
-        ? trim(($employee->firstname ?? '') . ' ' . ($employee->lastname ?? '')) ?: ($employee->username ?? 'N/A')
-        : 'N/A';
+        ? trim(($employee->firstname ?? '') . ' ' . ($employee->lastname ?? '')) ?: ($employee->username ?? __('ui.n_a'))
+        : __('ui.n_a');
     $companyName = $company->name ?? '-';
 @endphp
 
 @extends('layouts.app')
 
-@section('title', 'Payslip – ' . $empName . ' – ' . $period)
+@section('title', __('ui.payslip') . ' - ' . $empName . ' - ' . $period)
 
 @section('css')
 <style>
@@ -106,12 +106,12 @@
 
 @section('content')
 @include('hrm::partials.hrm_page_header', [
-    'title' => 'Payslip',
+    'title' => __('ui.payslip'),
     'subtitle' => $empName . ' · ' . $period,
     'actions' =>
-        '<a href="'.route('hrm.payrolls.index').'" class="btn btn-default no-print"><i class="fa fa-arrow-left"></i> Back</a>
-         <a href="'.route('hrm.payrolls.p9', ['employee_id' => $payroll->employee_id]).'" class="btn btn-info no-print"><i class="fa fa-file-text"></i> P9 Form</a>
-         <button onclick="window.print()" class="btn btn-primary no-print"><i class="fa fa-print"></i> Print Payslip</button>'
+        '<a href="'.route('hrm.payrolls.index').'" class="btn btn-default no-print"><i class="fa fa-arrow-left"></i> '. __('ui.back') .'</a>
+         <a href="'.route('hrm.payrolls.p9', ['employee_id' => $payroll->employee_id]).'" class="btn btn-info no-print"><i class="fa fa-file-text"></i> '. __('ui.p9_form_2') .'</a>
+         <button onclick="window.print()" class="btn btn-primary no-print"><i class="fa fa-print"></i> '. __('ui.print_payslip') .'</button>'
 ])
 
 <section class="content">
@@ -126,7 +126,7 @@
             @endif
         </div>
         <div class="payslip-label">
-            <strong>PAYSLIP</strong>
+            <strong>{{ __('ui.payslip_2') }}</strong>
             {{ $period }}
         </div>
     </div>
@@ -135,25 +135,25 @@
     <div class="payslip-meta">
         <div class="payslip-meta-col">
             <dl>
-                <dt>Employee Name</dt>
+                <dt>{{ __('ui.employee_name') }}</dt>
                 <dd>{{ $empName }}</dd>
-                <dt>Employee ID</dt>
+                <dt>{{ __('ui.employee_id') }}</dt>
                 <dd>#{{ $employee->id ?? $payroll->employee_id }}</dd>
             </dl>
         </div>
         <div class="payslip-meta-col">
             <dl>
-                <dt>Designation</dt>
+                <dt>{{ __('ui.designation') }}</dt>
                 <dd>{{ optional($employee->designation ?? null)->name ?? '-' }}</dd>
-                <dt>Department</dt>
+                <dt>{{ __('ui.department') }}</dt>
                 <dd>{{ optional($employee->department ?? null)->name ?? '-' }}</dd>
             </dl>
         </div>
         <div class="payslip-meta-col">
             <dl>
-                <dt>Office Shift</dt>
+                <dt>{{ __('ui.office_shift_2') }}</dt>
                 <dd>{{ optional($employee->office_shift ?? null)->name ?? '-' }}</dd>
-                <dt>Period</dt>
+                <dt>{{ __('ui.period') }}</dt>
                 <dd>
                     {{ $payroll->period_start ? \Carbon\Carbon::parse($payroll->period_start)->format('d M Y') : '-' }}
                     –
@@ -166,78 +166,78 @@
     {{-- Earnings & Deductions --}}
     <div class="payslip-table-wrap">
 
-        <div class="payslip-section-title">Earnings</div>
+        <div class="payslip-section-title">{{ __('ui.earnings') }}</div>
         <table class="payslip-table">
             <thead>
                 <tr>
-                    <th>Description</th>
-                    <th class="text-right">Amount (KES)</th>
+                    <th>{{ __('ui.description') }}</th>
+                    <th class="text-right">{{ __('ui.amount_kes') }}</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td>Basic Pay</td>
+                    <td>{{ __('ui.basic_pay') }}</td>
                     <td class="text-right">{{ fmtAmt($payroll->basic_pay ?? $payroll->gross ?? 0) }}</td>
                 </tr>
                 <tr>
-                    <td><strong>Gross Pay</strong></td>
+                    <td><strong>{{ __('ui.gross_pay') }}</strong></td>
                     <td class="text-right"><strong>{{ fmtAmt($payroll->gross ?? 0) }}</strong></td>
                 </tr>
             </tbody>
         </table>
 
-        <div class="payslip-section-title">Statutory Deductions</div>
+        <div class="payslip-section-title">{{ __('ui.statutory_deductions') }}</div>
         <table class="payslip-table">
             <thead>
                 <tr>
-                    <th>Description</th>
-                    <th class="text-right">Amount (KES)</th>
+                    <th>{{ __('ui.description') }}</th>
+                    <th class="text-right">{{ __('ui.amount_kes') }}</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td>NSSF (National Social Security Fund)</td>
+                    <td>{{ __('ui.nssf_national_social_security_fund') }}</td>
                     <td class="text-right">{{ fmtAmt($payroll->nssf ?? 0) }}</td>
                 </tr>
                 <tr>
-                    <td>SHIF (Social Health Insurance Fund)</td>
+                    <td>{{ __('ui.shif_social_health_insurance_fund') }}</td>
                     <td class="text-right">{{ fmtAmt($payroll->shif ?? 0) }}</td>
                 </tr>
                 <tr>
-                    <td>Housing Levy (Affordable Housing)</td>
+                    <td>{{ __('ui.housing_levy_affordable_housing') }}</td>
                     <td class="text-right">{{ fmtAmt($payroll->housing_levy ?? 0) }}</td>
                 </tr>
                 <tr style="background:#fff8e6;">
-                    <td>Taxable Pay</td>
+                    <td>{{ __('ui.taxable_pay') }}</td>
                     <td class="text-right">{{ fmtAmt($payroll->taxable_pay ?? 0) }}</td>
                 </tr>
                 <tr>
-                    <td>Income Tax</td>
+                    <td>{{ __('ui.income_tax') }}</td>
                     <td class="text-right">{{ fmtAmt($payroll->income_tax ?? 0) }}</td>
                 </tr>
                 <tr>
-                    <td>Personal Relief</td>
+                    <td>{{ __('ui.personal_relief') }}</td>
                     <td class="text-right">({{ fmtAmt($payroll->personal_relief ?? 0) }})</td>
                 </tr>
                 <tr>
-                    <td><strong>P.A.Y.E</strong></td>
+                    <td><strong>{{ __('ui.p_a_y_e') }}</strong></td>
                     <td class="text-right"><strong>{{ fmtAmt($payroll->paye ?? 0) }}</strong></td>
                 </tr>
             </tbody>
             <tfoot>
                 <tr>
-                    <td>Pay After Tax</td>
+                    <td>{{ __('ui.pay_after_tax') }}</td>
                     <td class="text-right">{{ fmtAmt($payroll->pay_after_tax ?? 0) }}</td>
                 </tr>
             </tfoot>
         </table>
 
         @if(($payroll->deductions ?? 0) > 0)
-        <div class="payslip-section-title">Other Deductions</div>
+        <div class="payslip-section-title">{{ __('ui.other_deductions') }}</div>
         <table class="payslip-table">
             <tbody>
                 <tr>
-                    <td>Other Deductions</td>
+                    <td>{{ __('ui.other_deductions') }}</td>
                     <td class="text-right">{{ fmtAmt($payroll->deductions ?? 0) }}</td>
                 </tr>
             </tbody>
@@ -248,12 +248,12 @@
 
     {{-- Net Pay Box --}}
     <div class="payslip-net-box">
-        <div class="label"><i class="fa fa-check-circle"></i>&nbsp; NET PAY</div>
-        <div class="amount">KES {{ fmtAmt($payroll->net ?? 0) }}</div>
+        <div class="label"><i class="fa fa-check-circle"></i>&nbsp; {{ __('ui.net_pay_2') }}</div>
+        <div class="amount">{{ __('ui.kes') }} {{ fmtAmt($payroll->net ?? 0) }}</div>
     </div>
 
     <div class="payslip-footer-note">
-        This is a computer-generated payslip. No signature is required. &middot; {{ $companyName }} &middot; {{ now()->format('d M Y') }}
+        {{ __('ui.this_is_a_computer_generated_payslip_no_signature_is_required') }} &middot; {{ $companyName }} &middot; {{ now()->format('d M Y') }}
     </div>
 </div>
 </section>

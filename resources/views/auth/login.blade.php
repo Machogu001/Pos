@@ -34,71 +34,71 @@
                 @component('components.widget', [
                     'class' => 'box-primary',
                     'header' =>
-                        '<h4 class="text-center">Demo Shops <small><i> <br/>Demos are for example purpose only, this application <u>can be used in many other similar businesses.</u></i> <br/><b>Click button to login that business</b></small></h4>',
+                        '<h4 class="text-center">'. __('ui.demo_shops') .' <small><i> <br/>'. __('ui.demos_are_for_example_purpose_only_this_application') .' <u>'. __('ui.can_be_used_in_many_other_similar_businesses') .'</u></i> <br/><b>'. __('ui.click_button_to_login_that_business') .'</b></small></h4>',
                 ])
                     <a href="?demo_type=all_in_one" class="btn btn-app bg-olive demo-login" data-toggle="tooltip"
-                        title="Showcases all feature available in the application."
-                        data-admin="{{ $demo_types['all_in_one'] }}"> <i class="fas fa-star"></i> All In One</a>
+                        title="{{ __('ui.showcases_all_feature_available_in_the_application') }}"
+                        data-admin="{{ $demo_types['all_in_one'] }}"> <i class="fas fa-star"></i> {{ __('ui.all_in_one') }}</a>
 
                     <a href="?demo_type=pharmacy" class="btn bg-maroon btn-app demo-login" data-toggle="tooltip"
-                        title="Shops with products having expiry dates." data-admin="{{ $demo_types['pharmacy'] }}"><i
-                            class="fas fa-medkit"></i>Pharmacy</a>
+                        title="{{ __('ui.shops_with_products_having_expiry_dates') }}" data-admin="{{ $demo_types['pharmacy'] }}"><i
+                            class="fas fa-medkit"></i>{{ __('ui.pharmacy') }}</a>
 
                     <a href="?demo_type=services" class="btn bg-orange btn-app demo-login" data-toggle="tooltip"
-                        title="For all service providers like Web Development, Restaurants, Repairing, Plumber, Salons, Beauty Parlors etc."
-                        data-admin="{{ $demo_types['services'] }}"><i class="fas fa-wrench"></i>Multi-Service Center</a>
+                        title="{{ __('ui.for_all_service_providers_like_web_development_restaurants_repairing_plumber_salons_beauty_parlors_etc') }}"
+                        data-admin="{{ $demo_types['services'] }}"><i class="fas fa-wrench"></i>{{ __('ui.multi_service_center') }}</a>
 
                     <a href="?demo_type=electronics" class="btn bg-purple btn-app demo-login" data-toggle="tooltip"
-                        title="Products having IMEI or Serial number code." data-admin="{{ $demo_types['electronics'] }}"><i
-                            class="fas fa-laptop"></i>Electronics & Mobile Shop</a>
+                        title="{{ __('ui.products_having_imei_or_serial_number_code') }}" data-admin="{{ $demo_types['electronics'] }}"><i
+                            class="fas fa-laptop"></i>{{ __('ui.electronics_mobile_shop') }}</a>
 
                     <a href="?demo_type=super_market" class="btn bg-navy btn-app demo-login" data-toggle="tooltip"
-                        title="Super market & Similar kind of shops." data-admin="{{ $demo_types['super_market'] }}"><i
-                            class="fas fa-shopping-cart"></i> Super Market</a>
+                        title="{{ __('ui.super_market_similar_kind_of_shops') }}" data-admin="{{ $demo_types['super_market'] }}"><i
+                            class="fas fa-shopping-cart"></i> {{ __('ui.super_market') }}</a>
 
                     <a href="?demo_type=restaurant" class="btn bg-red btn-app demo-login" data-toggle="tooltip"
-                        title="Restaurants, Salons and other similar kind of shops."
-                        data-admin="{{ $demo_types['restaurant'] }}"><i class="fas fa-utensils"></i> Restaurant</a>
+                        title="{{ __('ui.restaurants_salons_and_other_similar_kind_of_shops') }}"
+                        data-admin="{{ $demo_types['restaurant'] }}"><i class="fas fa-utensils"></i> {{ __('ui.restaurant') }}</a>
                     <hr>
 
-                    <i class="icon fas fa-plug"></i> Premium optional modules:<br><br>
+                    <i class="icon fas fa-plug"></i> {{ __('ui.premium_optional_modules') }}<br><br>
 
                     <a href="?demo_type=superadmin" class="btn bg-red-active btn-app demo-login" data-toggle="tooltip"
-                        title="SaaS & Superadmin extension Demo" data-admin="{{ $demo_types['superadmin'] }}"><i
-                            class="fas fa-university"></i> SaaS / Superadmin</a>
+                        title="{{ __('ui.saas_superadmin_extension_demo') }}" data-admin="{{ $demo_types['superadmin'] }}"><i
+                            class="fas fa-university"></i> {{ __('ui.saas_superadmin') }}</a>
 
                     <a href="?demo_type=woocommerce" class="btn bg-woocommerce btn-app demo-login" data-toggle="tooltip"
-                        title="WooCommerce demo user - Open web shop in minutes!!" style="color:white !important"
-                        data-admin="{{ $demo_types['woocommerce'] }}"> <i class="fab fa-wordpress"></i> WooCommerce</a>
+                        title="{{ __('ui.woocommerce_demo_user_open_web_shop_in_minutes') }}" style="color:white !important"
+                        data-admin="{{ $demo_types['woocommerce'] }}"> <i class="fab fa-wordpress"></i> {{ __('ui.woocommerce') }}</a>
 
                     <a href="?demo_type=essentials" class="btn bg-navy btn-app demo-login" data-toggle="tooltip"
-                        title="Essentials & HRM (human resource management) Module Demo" style="color:white !important"
+                        title="{{ __('ui.essentials_hrm_human_resource_management_module_demo') }}" style="color:white !important"
                         data-admin="{{ $demo_types['essentials'] }}">
                         <i class="fas fa-check-circle"></i>
-                        Essentials & HRM</a>
+                        {{ __('ui.essentials_hrm') }}</a>
 
                     <a href="?demo_type=manufacturing" class="btn bg-orange btn-app demo-login" data-toggle="tooltip"
-                        title="Manufacturing module demo" style="color:white !important"
+                        title="{{ __('ui.manufacturing_module_demo') }}" style="color:white !important"
                         data-admin="{{ $demo_types['manufacturing'] }}">
                         <i class="fas fa-industry"></i>
-                        Manufacturing Module</a>
+                        {{ __('ui.manufacturing_module') }}</a>
 
                     <a href="?demo_type=superadmin" class="btn bg-maroon btn-app demo-login" data-toggle="tooltip"
-                        title="Project module demo" style="color:white !important"
+                        title="{{ __('ui.project_module_demo') }}" style="color:white !important"
                         data-admin="{{ $demo_types['superadmin'] }}">
                         <i class="fas fa-project-diagram"></i>
-                        Project Module</a>
+                        {{ __('ui.project_module') }}</a>
 
                     <a href="?demo_type=services" class="btn btn-app demo-login" data-toggle="tooltip"
-                        title="Advance repair module demo" style="color:white !important; background-color: #bc8f8f"
+                        title="{{ __('ui.advance_repair_module_demo') }}" style="color:white !important; background-color: #bc8f8f"
                         data-admin="{{ $demo_types['services'] }}">
                         <i class="fas fa-wrench"></i>
-                        Advance Repair Module</a>
+                        {{ __('ui.advance_repair_module') }}</a>
 
                     <a href="{{ url('docs') }}" target="_blank" class="btn btn-app" data-toggle="tooltip"
-                        title="Advance repair module demo" style="color:white !important; background-color: #2dce89">
+                        title="{{ __('ui.connector_module_api_documentation') }}" style="color:white !important; background-color: #2dce89">
                         <i class="fas fa-network-wired"></i>
-                        Connector Module / API Documentation</a>
+                        {{ __('ui.connector_module_api_documentation') }}</a>
                 @endcomponent
             
             
@@ -191,14 +191,14 @@
                         <div class="form-group {{ $errors->has('otp_delivery_method') ? ' has-error' : '' }}">
                             <label class="tw-dw-form-control">
                                 <div class="tw-dw-label">
-                                    <span class="tw-text-xs md:tw-text-sm tw-font-medium tw-text-black">Send OTP via</span>
+                                    <span class="tw-text-xs md:tw-text-sm tw-font-medium tw-text-black">{{ __('ui.send_otp_via') }}</span>
                                 </div>
                                 <select name="otp_delivery_method" class="tw-border tw-border-[#D1D5DA] tw-outline-none tw-h-12 tw-bg-transparent tw-rounded-lg tw-px-3 tw-font-medium tw-text-black">
-                                    <option value="sms" {{ $otpDeliveryMethod === 'sms' ? 'selected' : '' }}>SMS</option>
-                                    <option value="email" {{ $otpDeliveryMethod === 'email' ? 'selected' : '' }}>Email</option>
+                                    <option value="sms" {{ $otpDeliveryMethod === 'sms' ? 'selected' : '' }}>{{ __('ui.sms') }}</option>
+                                    <option value="email" {{ $otpDeliveryMethod === 'email' ? 'selected' : '' }}>{{ __('ui.email') }}</option>
                                 </select>
                             </label>
-                            <p class="tw-text-xs tw-text-gray-500 tw-mt-1">Choose how you want to receive your OTP.</p>
+                            <p class="tw-text-xs tw-text-gray-500 tw-mt-1">{{ __('ui.choose_how_you_want_to_receive_your_otp') }}</p>
                             @if ($errors->has('otp_delivery_method'))
                                 <span class="help-block">
                                     <strong>{{ $errors->first('otp_delivery_method') }}</strong>

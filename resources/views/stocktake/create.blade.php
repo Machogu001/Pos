@@ -92,6 +92,7 @@
                         <th class="tw-px-4 tw-py-3 tw-text-left" style="width:11%">@lang('stocktake.product_expiry_date')</th>
                         <th class="tw-px-4 tw-py-3 tw-text-center" style="width:11%">@lang('stocktake.current_stock_report')</th>
                         <th class="tw-px-4 tw-py-3 tw-text-center" style="width:13%">@lang('stocktake.stocktake_counted_qty') <span class="tw-text-red-400">*</span></th>
+                        <th class="tw-px-4 tw-py-3 tw-text-center" style="width:10%">@lang('product.unit')</th>
                         <th class="tw-px-4 tw-py-3 tw-text-center" style="width:12%">@lang('stocktake.stocktake_variance')</th>
                         <th class="tw-px-4 tw-py-3 tw-text-center" style="width:8%">@lang('stocktake.action')</th>
                     </tr>
@@ -116,6 +117,11 @@
                         <td class="counted-qty tw-px-3 tw-py-2">
                             <input type="number" class="form-control counted-input tw-text-sm tw-text-center"
                                    placeholder="0.00" min="0" step="0.0001" disabled>
+                        </td>
+                        <td class="counted-unit tw-px-3 tw-py-2">
+                            <select class="form-control counted-unit-input tw-text-sm" disabled>
+                                <option value="">@lang('messages.please_select')</option>
+                            </select>
                         </td>
                         <td class="stock-variance tw-px-3 tw-py-2 tw-text-center tw-font-semibold tw-font-mono">-</td>
                         <td class="action tw-px-3 tw-py-2 tw-text-center">
@@ -225,6 +231,11 @@ $(document).ready(function() {
                     <input type="number" class="form-control counted-input tw-text-sm tw-text-center" 
                            placeholder="0.00" min="0" step="0.0001" disabled>
                 </td>
+                <td class="counted-unit tw-px-3 tw-py-2">
+                    <select class="form-control counted-unit-input tw-text-sm" disabled>
+                        <option value="">@lang('messages.please_select')</option>
+                    </select>
+                </td>
                 <td class="stock-variance tw-px-3 tw-py-2 tw-text-center tw-font-semibold tw-font-mono">-</td>
                 <td class="action tw-px-3 tw-py-2 tw-text-center">
                     <button type="button" class="btn btn-sm remove-row tw-bg-red-50 tw-text-red-500 hover:tw-bg-red-100 tw-border-0 tw-rounded-lg tw-px-2.5 tw-py-1" disabled>
@@ -323,7 +334,9 @@ $(document).ready(function() {
                     data-product-variation-id="${product.product_variation_id}"
                     data-product-name="${product.name}"
                     data-sub-sku="${product.sub_sku || product.sku}"
-                    data-current-stock="${product.qty_available}">
+                    data-current-stock="${product.qty_available}"
+                    data-default-count-unit-id="${product.default_count_unit_id}"
+                    data-sub-units="${encodeURIComponent(JSON.stringify(product.sub_units || {}))}">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <strong>${product.name}${variation_name}</strong>
@@ -360,13 +373,26 @@ $(document).ready(function() {
     });
 
     function selectAutocompleteItem(item) {
+        let subUnits = item.attr('data-sub-units') || '';
+        if (typeof subUnits === 'string' && subUnits.length) {
+            try {
+                subUnits = JSON.parse(decodeURIComponent(subUnits));
+            } catch (e) {
+                subUnits = {};
+            }
+        } else if (typeof subUnits !== 'object') {
+            subUnits = {};
+        }
+
         const product = {
             product_id: item.data('product-id'),
             variation_id: item.data('variation-id'),
             product_variation_id: item.data('product-variation-id'),
             name: item.data('product-name'),
             sku: item.data('sub-sku'),
-            qty_available: item.data('current-stock')
+            qty_available: item.data('current-stock'),
+            default_count_unit_id: item.data('default-count-unit-id'),
+            sub_units: subUnits
         };
         
         const currentRow = $(`#items_table tbody tr[data-index="${current_row_index}"]`);
@@ -390,7 +416,15 @@ $(document).ready(function() {
         row.find('.search-input').val(product.name);
         row.find('.current-stock').text(product.qty_available);
         row.find('.counted-input').prop('disabled', false).val(product.qty_available);
+        row.find('.counted-unit-input').prop('disabled', false);
         row.find('.remove-row').prop('disabled', false);
+
+        const unitSelect = row.find('.counted-unit-input');
+        unitSelect.empty();
+        $.each(product.sub_units, function(unitId, unitData) {
+            const selected = parseInt(unitId) === parseInt(product.default_count_unit_id) ? 'selected' : '';
+            unitSelect.append(`<option value="${unitId}" data-multiplier="${unitData.multiplier}" ${selected}>${unitData.name}</option>`);
+        });
         
         // Add hidden fields for form submission - INCLUDING product_variation_id as required by controller
         row.append(`
@@ -413,6 +447,7 @@ $(document).ready(function() {
         row.find('.lot-input').attr('name', `items[${current_row_index}][lot_number]`);
         row.find('.expiry-input').attr('name', `items[${current_row_index}][expiry_date]`);
         row.find('.counted-input').attr('name', `items[${current_row_index}][counted_quantity]`);
+        row.find('.counted-unit-input').attr('name', `items[${current_row_index}][counted_unit_id]`);
         
         // Recalculate variance
         recalculateVariance(row);
@@ -580,7 +615,9 @@ $(document).ready(function() {
     function recalculateVariance($row) {
         const currentStock = parseFloat($row.find('.current-stock').text()) || 0;
         const countedQty = parseFloat($row.find('.counted-input').val()) || 0;
-        const variance = countedQty - currentStock;
+        const unitMultiplier = parseFloat($row.find('.counted-unit-input option:selected').data('multiplier')) || 1;
+        const countedQtyBase = countedQty * unitMultiplier;
+        const variance = countedQtyBase - currentStock;
 
         const $varianceCell = $row.find('.stock-variance');
         $varianceCell.text(variance.toFixed(4));
@@ -600,6 +637,11 @@ $(document).ready(function() {
 
     // When counted quantity changes
     $(document).on('input', '.counted-input', function() {
+        const $row = $(this).closest('tr');
+        recalculateVariance($row);
+    });
+
+    $(document).on('change', '.counted-unit-input', function() {
         const $row = $(this).closest('tr');
         recalculateVariance($row);
     });
@@ -700,6 +742,7 @@ $(document).ready(function() {
                 $(this).find('.expiry-input').val('');
                 $(this).find('.current-stock').text('-');
                 $(this).find('.counted-input').val('').prop('disabled', true);
+                $(this).find('.counted-unit-input').empty().append('<option value="">' + @json(__('messages.please_select')) + '</option>').prop('disabled', true);
                 $(this).find('.stock-variance').text('-');
                 $(this).find('.remove-row').prop('disabled', true);
                 $(this).find('input[type="hidden"]').remove();

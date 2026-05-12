@@ -1,9 +1,7 @@
 @extends('spreadsheet::layouts.master')
 
-@section('content')
-    <h1>Hello World</h1>
+@section('title', config('spreadsheet.name'))
 
-    <p>
-        This view is loaded from module: {!! config('spreadsheet.name') !!}
-    </p>
+@section('content')
+    <h1>{{ config('spreadsheet.name') }}</h1>
 @endsection

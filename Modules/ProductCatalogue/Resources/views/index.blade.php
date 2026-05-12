@@ -1,9 +1,7 @@
 @extends('productcatalogue::layouts.master')
 
-@section('content')
-    <h1>Hello World</h1>
+@section('title', config('productcatalogue.name'))
 
-    <p>
-        This view is loaded from module: {!! config('productcatalogue.name') !!}
-    </p>
+@section('content')
+    <h1>{{ config('productcatalogue.name') }}</h1>
 @endsection

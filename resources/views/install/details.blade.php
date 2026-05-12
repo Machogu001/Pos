@@ -1,10 +1,10 @@
 @extends('layouts.install', ['no_header' => 1])
-@section('title', 'POS Installation - Check server')
+@section('title', __('ui.pos_installation_check_server'))
 
 @section('content')
 <div class="container">
     <div class="row">
-        <h3 class="text-center">{{ config('app.name', 'POS') }} Installation <small>Step 3 of 3</small></h3>
+        <h3 class="text-center">{{ config('app.name', 'POS') }} {{ __('ui.installation') }} <small>{{ __('ui.step_3_of_3') }}</small></h3>
 
         <div class="col-md-8 col-md-offset-2">
           <hr/>
@@ -34,50 +34,50 @@
                       action="{{route('install.postDetails')}}">
                   {{ csrf_field() }}
 
-                  <h4>Application Details</h4>
+                  <h4>{{ __('ui.application_details') }}</h4>
                   <hr/>
 
                   <div class="col-md-6">
                     <div class="form-group">
-                        <label for="app_name">Application Name:*</label>
-                        <input type="text" class="form-control" name="APP_NAME" id="app_name" placeholder="Ultimate POS" required>
+                        <label for="app_name">{{ __('ui.application_name') }}</label>
+                        <input type="text" class="form-control" name="APP_NAME" id="app_name" placeholder="{{ __('ui.ultimate_pos') }}" required>
                     </div>
                   </div>
                   
                   <div class="col-md-6">
                     <div class="form-group">
-                        <label for="app_title">Application Title:</label>
+                        <label for="app_title">{{ __('ui.application_title') }}</label>
                         <input type="text" name="APP_TITLE" class="form-control" id="app_title">
                     </div>
                   </div>
 
-                <h4> License Details <small class="text-danger">Make sure to provide correct information from Envato/codecanyon</small></h4>
+                <h4> {{ __('ui.license_details') }} <small class="text-danger">{{ __('ui.make_sure_to_provide_correct_information_from_envato_codecanyon') }}</small></h4>
                 <hr/>
 
                 <div class="col-md-4">
                     <div class="form-group">
-                        <label for="envato_purchase_code">Envato Purchase Code:*</label>
+                        <label for="envato_purchase_code">{{ __('ui.envato_purchase_code') }}</label>
                         <input type="password" name="ENVATO_PURCHASE_CODE" required class="form-control" id="envato_purchase_code">
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="form-group">
-                        <label for="envato_username">Envato Username:*</label>
+                        <label for="envato_username">{{ __('ui.envato_username') }}</label>
                         <input type="text" name="ENVATO_USERNAME" required class="form-control" id="envato_username">
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="form-group">
-                        <label for="envato_email">Your Email:</label>
-                        <input type="email" name="ENVATO_EMAIL" class="form-control" id="envato_email" placeholder="optional">
-                        <p class="help-block">For Newsletter & support</p>
+                        <label for="envato_email">{{ __('ui.your_email') }}</label>
+                        <input type="email" name="ENVATO_EMAIL" class="form-control" id="envato_email" placeholder="{{ __('ui.optional') }}">
+                        <p class="help-block">{{ __('ui.for_newsletter_support') }}</p>
                     </div>
                 </div>
 
                   @if($activation_key)
                     <div class="col-md-6">
                       <div class="form-group">
-                          <label for="envato_purchase_code">Activation Licence Code:*</label>
+                          <label for="envato_purchase_code">{{ __('ui.activation_licence_code') }}</label>
                           <input type="password" name="MAC_LICENCE_CODE" required class="form-control" id="activation_licence_code">
                       </div>
                     </div>
@@ -85,53 +85,53 @@
                   
                   <div class="clearfix"></div>
                   
-                  <h4> Database Details <small>Make sure to provide correct information</small></h4>
+                  <h4> {{ __('ui.database_details') }} <small>{{ __('ui.make_sure_to_provide_correct_information') }}</small></h4>
                   <hr/>
 
                   <div class="col-md-4">
                     <div class="form-group">
-                        <label for="db_host">Database Host:*</label>
-                        <input type="text" class="form-control" id="db_host" name="DB_HOST" required placeholder="localhost / 127.0.0.1">
+                        <label for="db_host">{{ __('ui.database_host') }}</label>
+                        <input type="text" class="form-control" id="db_host" name="DB_HOST" required placeholder="{{ __('ui.localhost_127_0_0_1') }}">
                     </div>
                   </div>
 
                   <div class="col-md-4">
                     <div class="form-group">
-                        <label for="db_port">Database Port:*</label>
+                        <label for="db_port">{{ __('ui.database_port') }}</label>
                         <input type="text" class="form-control" id="db_port" name="DB_PORT" required value="3306">
                     </div>
                   </div>
 
                   <div class="col-md-4">
                     <div class="form-group">
-                        <label for="db_database">Database Name:*</label>
+                        <label for="db_database">{{ __('ui.database_name') }}</label>
                         <input type="text" class="form-control" id="db_database" name="DB_DATABASE" required>
                     </div>
                   </div>
 
                   <div class="col-md-6">
                     <div class="form-group">
-                        <label for="db_username">Database Username:*</label>
+                        <label for="db_username">{{ __('ui.database_username') }}</label>
                         <input type="text" class="form-control" id="db_username" name="DB_USERNAME" required>
                     </div>
                   </div>
 
                   <div class="col-md-6">
                     <div class="form-group">
-                        <label for="db_password">Database Password:*</label>
+                        <label for="db_password">{{ __('ui.database_password') }}</label>
                         <input type="password" class="form-control" id="db_password" name="DB_PASSWORD" required>
                     </div>
                   </div>
 
                   <div class="clearfix"></div>
 
-                  <h4>Email Configuration<small> Use for sending mails</small></h4>
+                  <h4>{{ __('ui.email_configuration') }}<small> {{ __('ui.use_for_sending_mails') }}</small></h4>
                   <hr/>
                   <div class="col-md-6">
                     <div class="form-group">
-                        <label for="MAIL_MAILER">Send mails using:*</label>
+                        <label for="MAIL_MAILER">{{ __('ui.send_mails_using') }}</label>
                         <select class="form-control" name="MAIL_MAILER" id="MAIL_MAILER">
-                          <option value="sendmail">PHP Mail</option>
+                          <option value="sendmail">{{ __('ui.php_mail') }}</option>
                           <option value="smtp">SMTP</option>
                         </select>
                     </div>
@@ -140,49 +140,49 @@
 
                   <div class="col-md-6">
                     <div class="form-group">
-                        <label for="MAIL_FROM_ADDRESS">Default from address:*</label>
-                        <input type="email" class="form-control" id="MAIL_FROM_ADDRESS" name="MAIL_FROM_ADDRESS" placeholder="hello@ultimatepos.com" required>
+                        <label for="MAIL_FROM_ADDRESS">{{ __('ui.default_from_address') }}</label>
+                        <input type="email" class="form-control" id="MAIL_FROM_ADDRESS" name="MAIL_FROM_ADDRESS" placeholder="{{ __('ui.hello_ultimatepos_com') }}" required>
                     </div>
                   </div>
 
                   <div class="col-md-6">
                     <div class="form-group">
-                        <label for="MAIL_FROM_NAME">Default from name:</label>
-                        <input type="text" class="form-control" id="MAIL_FROM_NAME" name="MAIL_FROM_NAME" placeholder="Ultimate POS (Optional)">
+                        <label for="MAIL_FROM_NAME">{{ __('ui.default_from_name') }}</label>
+                        <input type="text" class="form-control" id="MAIL_FROM_NAME" name="MAIL_FROM_NAME" placeholder="{{ __('ui.ultimate_pos_optional') }}">
                     </div>
                   </div>
 
                   <div class="col-md-4 smtp hide">
                     <div class="form-group">
-                        <label for="MAIL_HOST">SMTP Host:*</label>
+                        <label for="MAIL_HOST">{{ __('ui.smtp_host') }}</label>
                         <input type="text" class="form-control smtp_input" id="MAIL_HOST" name="MAIL_HOST" required disabled>
                     </div>
                   </div>
 
                   <div class="col-md-4  smtp hide">
                     <div class="form-group">
-                        <label for="MAIL_PORT">SMTP Mail Port:*</label>
+                        <label for="MAIL_PORT">{{ __('ui.smtp_mail_port') }}</label>
                         <input type="text" class="form-control smtp_input" id="MAIL_PORT" name="MAIL_PORT" required disabled>
                     </div>
                   </div>
 
                   <div class="col-md-4  smtp hide">
                     <div class="form-group">
-                        <label for="MAIL_ENCRYPTION">SMTP Mail Encryption:*</label>
-                        <input type="text" class="form-control smtp_input" id="MAIL_ENCRYPTION" name="MAIL_ENCRYPTION" required disabled placeholder="tls or ssl">
+                        <label for="MAIL_ENCRYPTION">{{ __('ui.smtp_mail_encryption') }}</label>
+                        <input type="text" class="form-control smtp_input" id="MAIL_ENCRYPTION" name="MAIL_ENCRYPTION" required disabled placeholder="{{ __('ui.tls_or_ssl') }}">
                     </div>
                   </div>
 
                   <div class="col-md-6  smtp hide">
                     <div class="form-group">
-                        <label for="MAIL_USERNAME">SMTP Username:*</label>
+                        <label for="MAIL_USERNAME">{{ __('ui.smtp_username') }}</label>
                         <input type="text" class="form-control smtp_input" id="MAIL_USERNAME" name="MAIL_USERNAME" required disabled>
                     </div>
                   </div>
 
                   <div class="col-md-6  smtp hide">
                     <div class="form-group">
-                        <label for="MAIL_PASSWORD">SMTP Password:*</label>
+                        <label for="MAIL_PASSWORD">{{ __('ui.smtp_password') }}</label>
                         <input type="password" class="form-control smtp_input" id="MAIL_PASSWORD" name="MAIL_PASSWORD" required disabled>
                     </div>
                   </div>
@@ -190,12 +190,12 @@
                   <hr/>
 
                   <div class="col-md-12">
-                    <a href="{{route('install.index')}}" class="btn btn-default pull-left back_button" tabindex="-1">Back</a>
-                    <button type="submit" id="install_button" class="btn btn-primary pull-right">Install</button>
+                    <a href="{{route('install.index')}}" class="btn btn-default pull-left back_button" tabindex="-1">{{ __('ui.back') }}</a>
+                    <button type="submit" id="install_button" class="btn btn-primary pull-right">{{ __('ui.install') }}</button>
                   </div>
 
                   <div class="col-md-12 text-center text-danger install_msg hide">
-                    <strong>Installation in progress, Please do not refresh, go back or close the browser.</strong>
+                    <strong>{{ __('ui.installation_in_progress_please_do_not_refresh_go_back_or_close_the_browser') }}</strong>
                   </div>
 
               </form>

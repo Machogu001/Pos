@@ -1,18 +1,18 @@
 @extends('layouts.app')
 
-@section('title', 'Create Office Shift')
+@section('title', __('ui.create_office_shift'))
 
 @section('content')
 @include('hrm::partials.hrm_page_header', [
-    'title' => 'Create Office Shift',
-    'subtitle' => 'Define shift hours and working patterns for a company.',
-    'actions' => '<a href="'.route('hrm.office_shifts.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> Back to Office Shifts</a>'
+    'title' => __('ui.create_office_shift'),
+    'subtitle' => __('ui.define_shift_hours_and_working_patterns_for_a_company'),
+    'actions' => '<a href="'.route('hrm.office_shifts.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> '. __('ui.back_to_office_shifts') .'</a>'
 ])
 
 <section class="content">
     <div class="box box-primary">
         <div class="box-header with-border">
-            <h3 class="box-title">Shift Details</h3>
+            <h3 class="box-title">{{ __('ui.shift_details') }}</h3>
         </div>
         <form action="{{ route('hrm.office_shifts.store') }}" method="POST">
             {{ csrf_field() }}
@@ -22,18 +22,18 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="name">Name</label>
-                            <input type="text" name="name" id="name" class="form-control" placeholder="e.g. Morning Shift" required />
+                            <label for="name">{{ __('ui.name') }}</label>
+                            <input type="text" name="name" id="name" class="form-control" placeholder="{{ __('ui.e_g_morning_shift') }}" required />
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="company_id">Company</label>
+                            <label for="company_id">{{ __('ui.company') }}</label>
                             <select name="company_id" id="company_id" class="form-control" required>
                                 @foreach($companies as $c)
                                     @php
                                         $isBusiness = isset($c->business_id) && $c->business_id == session('business.id');
-                                        $label = $isBusiness ? 'Business - ' . $c->name : $c->name;
+                                        $label = $isBusiness ? __('ui.business_2') . $c->name : $c->name;
                                     @endphp
                                     <option value="{{ $c->id }}">{{ $label }}</option>
                                 @endforeach
@@ -42,26 +42,26 @@
                     </div>
                 </div>
 
-                <h4 class="tw-font-semibold">Times <small class="text-muted">optional — leave blank for day off</small></h4>
+                <h4 class="tw-font-semibold">{{ __('ui.times') }} <small class="text-muted">{{ __('ui.optional_leave_blank_for_day_off') }}</small></h4>
                 <table class="table table-bordered table-condensed">
                     <thead>
                         <tr>
-                            <th style="width:120px;">Day</th>
-                            <th>Check In</th>
-                            <th>Check Out</th>
-                            <th class="text-center" style="width:80px;">Off</th>
+                            <th style="width:120px;">{{ __('ui.day') }}</th>
+                            <th>{{ __('ui.check_in') }}</th>
+                            <th>{{ __('ui.check_out') }}</th>
+                            <th class="text-center" style="width:80px;">{{ __('ui.off') }}</th>
                         </tr>
                     </thead>
                     <tbody>
                         @php
                         $days = [
-                            'monday'    => 'Monday',
-                            'tuesday'   => 'Tuesday',
-                            'wednesday' => 'Wednesday',
-                            'thursday'  => 'Thursday',
-                            'friday'    => 'Friday',
-                            'saturday'  => 'Saturday',
-                            'sunday'    => 'Sunday',
+                            'monday'    => __('ui.monday'),
+                            'tuesday'   => __('ui.tuesday'),
+                            'wednesday' => __('ui.wednesday'),
+                            'thursday'  => __('ui.thursday'),
+                            'friday'    => __('ui.friday'),
+                            'saturday'  => __('ui.saturday'),
+                            'sunday'    => __('ui.sunday'),
                         ];
                         // Default all days to 08:00–17:00; admin can disable any day via "Off" checkbox
                         $defaults = [
@@ -94,7 +94,7 @@
                                 <input type="checkbox" class="shift-off-toggle"
                                        data-day="{{ $key }}"
                                        {{ $isOff ? 'checked' : '' }}
-                                       title="Mark as day off" />
+                                       title="{{ __('ui.mark_as_day_off') }}" />
                             </td>
                         </tr>
                         @endforeach
@@ -103,7 +103,7 @@
             </div>
 
             <div class="box-footer text-right">
-                <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Save Shift</button>
+                <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> {{ __('ui.save_shift') }}</button>
             </div>
         </form>
     </div>

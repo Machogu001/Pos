@@ -1,28 +1,28 @@
 @extends('layouts.app')
 
-@section('title', 'Leaves')
+@section('title', __('ui.leaves'))
 
 @section('content')
 @include('hrm::partials.hrm_page_header', [
-	'title' => 'Leaves',
-	'subtitle' => 'Review leave applications, approvals, and employee time off at a glance.',
-	'actions' => '<a href="'.route('hrm.leaves.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> Create Leave</a>'
+	'title' => __('ui.leaves'),
+	'subtitle' => __('ui.review_leave_applications_approvals_and_employee_time_off_at_a_glance'),
+	'actions' => '<a href="'.route('hrm.leaves.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> '. __('ui.create_leave') .'</a>'
 ])
 
 <section class="content">
 	<div class="box box-primary">
 		<div class="box-header with-border">
-			<h2 class="box-title h3">Leave Register</h2>
+			<h2 class="box-title h3">{{ __('ui.leave_register') }}</h2>
 			<div class="box-tools pull-right">
-				<span class="label label-info">Total leaves: {{ $totalRows ?? 0 }}</span>
+				<span class="label label-info">{{ __('ui.total_leaves') }} {{ $totalRows ?? 0 }}</span>
 			</div>
 		</div>
 		<div class="box-body">
 			<div class="row mb-3">
 				<div class="col-md-3">
-					<label for="company_filter" class="form-label">Company</label>
+					<label for="company_filter" class="form-label">{{ __('ui.company') }}</label>
 					<select id="company_filter" class="form-control" onchange="applyFilters()">
-						<option value="">All companies</option>
+						<option value="">{{ __('ui.all_companies') }}</option>
 						@if(isset($companies))
 							@foreach($companies as $c)
 								<option value="{{ $c->id }}">{{ $c->name }}</option>
@@ -31,11 +31,11 @@
 					</select>
 				</div>
 				<div class="col-md-4">
-					<label for="search" class="form-label">Search</label>
-					<input id="search" class="form-control" placeholder="Search by employee, leave type, company or department" oninput="applyFilters()" />
+					<label for="search" class="form-label">{{ __('ui.search') }}</label>
+					<input id="search" class="form-control" placeholder="{{ __('ui.search_by_employee_leave_type_company_or_department') }}" oninput="applyFilters()" />
 				</div>
 				<div class="col-md-5 d-flex align-items-end justify-content-end">
-					<small class="text-muted">Classic list view with live filtering.</small>
+					<small class="text-muted">{{ __('ui.classic_list_view_with_live_filtering') }}</small>
 				</div>
 			</div>
 
@@ -43,13 +43,13 @@
 				<table class="table table-hover table-striped align-middle">
 					<thead class="table-light">
 						<tr>
-							<th>Employee</th>
-							<th>Leave Type</th>
-							<th>Start Date</th>
-							<th>End Date</th>
-							<th>Days</th>
-							<th>Status</th>
-							<th class="text-end">Actions</th>
+							<th>{{ __('ui.employee') }}</th>
+							<th>{{ __('ui.leave_type') }}</th>
+							<th>{{ __('ui.start_date') }}</th>
+							<th>{{ __('ui.end_date') }}</th>
+							<th>{{ __('ui.days_2') }}</th>
+							<th>{{ __('ui.status') }}</th>
+							<th class="text-end">{{ __('ui.actions') }}</th>
 						</tr>
 					</thead>
 					<tbody id="leaves_table_body">
@@ -64,13 +64,13 @@
 									<span class="label label-default">{{ ucfirst($l['status'] ?? '-') }}</span>
 								</td>
 								<td class="text-end">
-									<a href="{{ route('hrm.leaves.edit', $l['id']) }}" class="btn btn-sm btn-default">Edit</a>
-									<button class="btn btn-sm btn-danger" onclick="deleteLeave({{ $l['id'] }})">Delete</button>
+									<a href="{{ route('hrm.leaves.edit', $l['id']) }}" class="btn btn-sm btn-default">{{ __('ui.edit') }}</a>
+									<button class="btn btn-sm btn-danger" onclick="deleteLeave({{ $l['id'] }})">{{ __('ui.delete') }}</button>
 								</td>
 							</tr>
 						@empty
 							<tr>
-								<td colspan="7" class="text-center text-muted">No leaves found.</td>
+								<td colspan="7" class="text-center text-muted">{{ __('ui.no_leaves_found') }}</td>
 							</tr>
 						@endforelse
 					</tbody>
@@ -79,13 +79,13 @@
 
 			<div class="row" style="margin-top:15px;">
 				<div class="col-md-6">
-					<label for="leaves_per_page" class="me-2">Per page:</label>
+					<label for="leaves_per_page" class="me-2">{{ __('ui.per_page') }}</label>
 					<select id="leaves_per_page" class="form-control d-inline-block" style="width:120px" onchange="changePerPage()" aria-label="Leaves per page">
 						<option value="10">10</option>
 						<option value="25">25</option>
 						<option value="50">50</option>
 						<option value="100">100</option>
-						<option value="-1">All</option>
+						<option value="-1">{{ __('ui.all') }}</option>
 					</select>
 				</div>
 				<div class="col-md-6 text-right">
@@ -136,7 +136,7 @@
 		const tbody = document.getElementById('leaves_table_body');
 		tbody.innerHTML = '';
 		if (!json.leaves || !json.leaves.length) {
-			tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No leaves found.</td></tr>';
+			tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">{{ __('ui.no_leaves_found') }}</td></tr>';
 			return;
 		}
 		json.leaves.forEach(l => {
@@ -149,22 +149,22 @@
 				<td>${l.days || 0}</td>
 				<td>${(l.status || '-')}</td>
 				<td class="text-end">
-					<a href="${window.location.pathname}/${l.id}/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
-					<button class="btn btn-sm btn-outline-danger" onclick="deleteLeave(${l.id})">Delete</button>
+					<a href="${window.location.pathname}/${l.id}/edit" class="btn btn-sm btn-outline-secondary">{{ __('ui.edit') }}</a>
+					<button class="btn btn-sm btn-outline-danger" onclick="deleteLeave(${l.id})">{{ __('ui.delete') }}</button>
 				</td>
 			`;
 			tbody.appendChild(tr);
 		});
 		// Update total display
 		document.querySelectorAll('.text-muted').forEach(el => {
-			if (el.textContent.trim().startsWith('Total leaves:')) {
-				el.textContent = 'Total leaves: ' + (json.totalRows ?? 0);
+			if (el.textContent.trim().startsWith("{{ __('ui.total_leaves') }}")) {
+				el.textContent = "{{ __('ui.total_leaves') }}" + ' ' + (json.totalRows ?? 0);
 			}
 		});
 	}
 
 	function deleteLeave(id) {
-		window.hrmConfirm('Delete this leave?', { title: 'Delete Leave', confirmButtonText: 'Delete' }).then(confirmed => {
+		window.hrmConfirm("{{ __('ui.delete_this_leave') }}", { title: "{{ __('ui.delete_leave') }}", confirmButtonText: "{{ __('ui.delete') }}" }).then(confirmed => {
 			if (!confirmed) return;
 			fetch(`${window.location.pathname}/${id}`, {
 				method: 'POST',
@@ -177,15 +177,15 @@
 			.then(r => r.json())
 			.then(json => {
 				if (json && json.success) {
-					if (window.toastr) { toastr.success('Deleted successfully'); }
+					if (window.toastr) { toastr.success("{{ __('ui.deleted_successfully') }}"); }
 					if (window.playSuccess) { window.playSuccess(); }
 					applyFilters();
 				} else {
-					if (window.toastr) { toastr.error('Delete failed'); }
+					if (window.toastr) { toastr.error("{{ __('ui.delete_failed') }}"); }
 					if (window.playError) { window.playError(); }
 				}
 			})
-			.catch(() => { if (window.toastr) { toastr.error('Delete failed'); } if (window.playError) { window.playError(); } });
+			.catch(() => { if (window.toastr) { toastr.error("{{ __('ui.delete_failed') }}"); } if (window.playError) { window.playError(); } });
 		});
 	}
 

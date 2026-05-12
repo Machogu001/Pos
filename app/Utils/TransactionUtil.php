@@ -302,7 +302,14 @@ class TransactionUtil extends Util
                 unset($product['sub_unit_id']);
             }
 
-            if (! empty($product['sub_unit_id']) && ! empty($product['base_unit_multiplier'])) {
+            if (! empty($product['sub_unit_id'])) {
+                $multiplier = $this->getProductUnitMultiplier(
+                    $transaction->business_id,
+                    $product['product_id'],
+                    $product['sub_unit_id'],
+                    $product['product_unit_id'] ?? null
+                );
+            } elseif (! empty($product['base_unit_multiplier'])) {
                 $multiplier = $product['base_unit_multiplier'];
             }
 

@@ -89,7 +89,10 @@
 	{!! Form::hidden("payment[$row_index][mpesa_status]", $payment_line['mpesa_status'] ?? '', ['class' => 'mpesa_status']) !!}
 	<div class="col-md-12">
 		<div class="form-group">
-			<button type="button" class="btn btn-primary send-mpesa-stk">@lang('payment.send_stk')</button>
+			<button type="button" class="btn btn-primary send-mpesa-stk">
+				<img src="{{ asset('img/mpesa-logo.svg') }}" alt="@lang('payment.mpesa')" style="height: 14px; width: auto; margin-right: 6px;" loading="lazy">
+				@lang('payment.send_stk')
+			</button>
 					<button type="button" class="btn btn-default check-mpesa-status">@lang('payment.check_status')</button>
 					<button type="button" class="btn btn-info btn-sm mpesa-view-log ml-2">@lang('payment.view_log')</button>
 					<span class="mpesa-status-badge text-muted ml-2"></span>

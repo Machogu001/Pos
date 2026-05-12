@@ -1,12 +1,12 @@
 @extends('accounting::layouts.app')
-@section('title', 'Transfers')
+@section('title', __('ui.transfers'))
 
 @section('content')
     @include('accounting::layouts.nav')
     <!-- Content Header (Page header) -->
     <section class="content-header">
-        <h1>Transfer
-            <small>Manage your Transfers</small>
+        <h1>{{ __('ui.transfer') }}
+            <small>{{ __('ui.manage_your_transfers') }}</small>
         </h1>
     </section>
 
@@ -20,7 +20,7 @@
                         <ul class="nav nav-tabs">
                             <li class="active">
                                 <a href="#transfers" data-toggle="tab">
-                                    <i class="fa fa-book"></i> <strong>Transfer</strong>
+                                    <i class="fa fa-book"></i> <strong>{{ __('ui.transfer') }}</strong>
                                 </a>
                             </li>
                         </ul>
@@ -42,14 +42,14 @@
                                             <table class="table table-bordered table-striped" id="transfers_table">
                                                 <thead>
                                                     <tr>
-                                                        <th>ID</th>
-                                                        <th>Journal Entry</th>
-                                                        <th>Transfer from</th>
+                                                        <th>{{ __('ui.id') }}</th>
+                                                        <th>{{ __('ui.journal_entry') }}</th>
+                                                        <th>{{ __('ui.transfer_from') }}</th>
                                                         <th></th>
-                                                        <th>Transfer To</th>
-                                                        <th>Transfer By</th>
-                                                        <th>Amount</th>
-                                                        <th>Date</th>
+                                                        <th>{{ __('ui.transfer_to') }}</th>
+                                                        <th>{{ __('ui.transfer_by') }}</th>
+                                                        <th>{{ __('ui.amount') }}</th>
+                                                        <th>{{ __('ui.date') }}</th>
                                                     </tr>
                                                 </thead>
                                             </table>

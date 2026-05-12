@@ -8,9 +8,9 @@
             <div class="tw-p-5 md:tw-p-6 tw-mb-4 tw-rounded-2xl tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm tw-ring-1 tw-ring-gray-200">
                 <div class="tw-flex tw-flex-col tw-gap-4">
                     <div class="tw-flex tw-flex-col tw-gap-1 tw-text-center">
-                        <h1 class="tw-text-lg md:tw-text-xl tw-font-semibold tw-text-[#1e1e1e]">Verify your login</h1>
+                        <h1 class="tw-text-lg md:tw-text-xl tw-font-semibold tw-text-[#1e1e1e]">{{ __('ui.verify_your_login') }}</h1>
                         <p class="tw-text-sm tw-font-medium tw-text-gray-500">
-                            Enter the 6-digit code sent via {{ $deliveryMethodLabel }} to {{ $deliveryTargetMask }}.
+                            {{ __('ui.enter_the_6_digit_code_sent_via') }} {{ $deliveryMethodLabel }} {{ __('ui.to') }} {{ $deliveryTargetMask }}.
                         </p>
                     </div>
 
@@ -37,13 +37,13 @@
                         <div class="form-group {{ $errors->has('otp') ? ' has-error' : '' }}">
                             <label class="tw-dw-form-control">
                                 <div class="tw-dw-label">
-                                    <span class="tw-text-xs md:tw-text-sm tw-font-medium tw-text-black">OTP Code</span>
+                                    <span class="tw-text-xs md:tw-text-sm tw-font-medium tw-text-black">{{ __('ui.otp_code') }}</span>
                                 </div>
                                 <input
                                     id="otp"
                                     class="tw-border tw-border-[#D1D5DA] tw-outline-none tw-h-12 tw-bg-transparent tw-rounded-lg tw-px-3 tw-font-medium tw-text-black placeholder:tw-text-gray-500 placeholder:tw-font-medium"
                                     name="otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6"
-                                    pattern="[0-9]{6}" placeholder="Enter OTP" required autofocus>
+                                    pattern="[0-9]{6}" placeholder="{{ __('ui.enter_otp') }}" required autofocus>
                             </label>
                             @if ($errors->has('otp'))
                                 <span class="help-block">
@@ -54,7 +54,7 @@
 
                         <button type="submit"
                             class="tw-bg-gradient-to-r tw-from-indigo-500 tw-to-blue-500 tw-h-12 tw-rounded-xl tw-text-sm md:tw-text-base tw-text-white tw-font-semibold tw-w-full tw-max-w-full mt-2 hover:tw-from-indigo-600 hover:tw-to-blue-600 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-ring-offset-2 active:tw-from-indigo-700 active:tw-to-blue-700">
-                            Verify and continue
+                            {{ __('ui.verify_and_continue') }}
                         </button>
                     </form>
 
@@ -63,7 +63,7 @@
                         <div class="form-group tw-mb-2">
                             <label class="tw-dw-form-control">
                                 <div class="tw-dw-label">
-                                    <span class="tw-text-xs md:tw-text-sm tw-font-medium tw-text-black">Resend via</span>
+                                    <span class="tw-text-xs md:tw-text-sm tw-font-medium tw-text-black">{{ __('ui.resend_via') }}</span>
                                 </div>
                                 <select name="otp_delivery_method" id="otp-delivery-method" class="tw-border tw-border-[#D1D5DA] tw-outline-none tw-h-12 tw-bg-transparent tw-rounded-lg tw-px-3 tw-font-medium tw-text-black">
                                     @foreach($availableDeliveryMethods as $methodValue => $methodLabel)
@@ -71,23 +71,23 @@
                                     @endforeach
                                 </select>
                             </label>
-                            <p class="tw-text-xs tw-text-gray-500 tw-mt-1">Choose how you want the next OTP sent.</p>
+                            <p class="tw-text-xs tw-text-gray-500 tw-mt-1">{{ __('ui.choose_how_you_want_the_next_otp_sent') }}</p>
                         </div>
                         <button type="submit"
                             id="otp-resend-button"
                             data-resend-available-at="{{ $resendAvailableAt ?? 0 }}"
-                            data-default-text="Resend OTP"
-                            data-countdown-text="Resend via {{ $deliveryMethodLabel }} available in :seconds"
+                            data-default-text="{{ __('ui.resend_otp') }}"
+                            data-countdown-text="{{ __('ui.resend_via') }} {{ $deliveryMethodLabel }} {{ __('ui.available_in') }}"
                             {{ !empty($resendAvailableAt) && now()->timestamp < $resendAvailableAt ? 'disabled' : '' }}
                             class="tw-w-full tw-border tw-border-gray-300 tw-text-gray-700 tw-font-semibold tw-rounded-xl tw-h-12 tw-bg-white hover:tw-bg-gray-50">
-                            Resend via {{ $deliveryMethodLabel }}
+                            {{ __('ui.resend_via') }} {{ $deliveryMethodLabel }}
                         </button>
                         <div id="otp-resend-countdown" class="tw-mt-2 tw-text-center tw-text-xs tw-font-medium tw-text-gray-500"></div>
                     </form>
 
                     <div class="tw-text-center">
                         <a href="{{ route('login') }}" class="tw-text-sm tw-font-medium tw-text-gray-500 hover:tw-text-gray-700">
-                            Back to login
+                            {{ __('ui.back_to_login') }}
                         </a>
                     </div>
                 </div>
@@ -137,12 +137,12 @@
             var deliveryMethodSelect = document.getElementById('otp-delivery-method');
             var deliveryMethodLabel = deliveryMethodSelect && deliveryMethodSelect.options[deliveryMethodSelect.selectedIndex]
                 ? deliveryMethodSelect.options[deliveryMethodSelect.selectedIndex].text
-                : 'OTP';
+                : "{{ __('ui.otp') }}";
 
             var availableAt = parseInt(resendButton.getAttribute('data-resend-available-at') || '0', 10);
             if (!availableAt) {
                 resendButton.disabled = false;
-                resendButton.textContent = 'Resend via ' + deliveryMethodLabel;
+                resendButton.textContent = "{{ __('ui.resend_via') }} " + deliveryMethodLabel;
                 resendCountdown.textContent = '';
 
                 if (resendTimer) {
@@ -156,13 +156,13 @@
 
             if (secondsLeft > 0) {
                 resendButton.disabled = true;
-                resendButton.textContent = ('Resend via ' + deliveryMethodLabel + ' available in :seconds').replace(':seconds', secondsLeft);
-                resendCountdown.textContent = 'You can request a new OTP in ' + secondsLeft + ' second' + (secondsLeft === 1 ? '' : 's') + '.';
+                resendButton.textContent = ("{{ __('ui.resend_via') }} " + deliveryMethodLabel + " {{ __('ui.available_in') }}").replace(':seconds', secondsLeft);
+                resendCountdown.textContent = "{{ __('ui.you_can_request_a_new_otp_in') }} " + secondsLeft + ' ' + "{{ __('ui.seconds') }}" + '.';
                 return;
             }
 
             resendButton.disabled = false;
-            resendButton.textContent = 'Resend via ' + deliveryMethodLabel;
+            resendButton.textContent = "{{ __('ui.resend_via') }} " + deliveryMethodLabel;
             resendCountdown.textContent = '';
 
             if (resendTimer) {

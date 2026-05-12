@@ -10,7 +10,7 @@
         
         <div class="box box-solid">
             <div class="box-header with-border">
-                <h3 class="box-title text-center">Register and Get Started in minutes</h3>
+                <h3 class="box-title text-center">{{ __('ui.register_and_get_started_in_minutes') }}</h3>
             </div>
 
             {!! Form::open(['url' => {{ route('business.postRegister') }}]) !!}
@@ -20,96 +20,96 @@
                 <div class="box-body">
                     <div class="col-md-12">
                         <div class="form-group">
-                            {!! Form::label('name','Business Name:') !!}
+                            {!! Form::label('name', __('ui.business_name')) !!}
                             <div class="input-group">
                                 <span class="input-group-addon">
                                     <i class="fa fa-suitcase"></i>
                                 </span>
-                                {!! Form::text('name', null, ['class' => 'form-control','placeholder' => 'Business name']); !!}
+                                {!! Form::text('name', null, ['class' => 'form-control','placeholder' => __('ui.business_name_2')]); !!}
                             </div>
                         </div>
                     </div>
 
                     <div class="col-md-6">
                         <div class="form-group">
-                        {!! Form::label('start_date','Start Date:') !!}
+                        {!! Form::label('start_date', __('ui.start_date_2')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-calendar"></i>
                             </span>
-                            {!! Form::text('start_date', null, ['class' => 'form-control start-date-picker','placeholder' => 'Start Date', 'readonly']); !!}
+                            {!! Form::text('start_date', null, ['class' => 'form-control start-date-picker','placeholder' => __('ui.start_date'), 'readonly']); !!}
                         </div>
                         </div>
                     </div>
 
                     <div class="col-md-6">
                         <div class="form-group">
-                        {!! Form::label('currency','Currency:') !!}
+                        {!! Form::label('currency', __('ui.currency')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fas fa-money-bill-alt"></i>
                             </span>
-                            {!! Form::select('currency', $currencies, '', ['class' => 'form-control','placeholder' => 'Select Currency']); !!}
+                            {!! Form::select('currency', $currencies, '', ['class' => 'form-control','placeholder' => __('ui.select_currency')]); !!}
                         </div>
                         </div>
                     </div>
                     
                     <div class="col-md-4">
                         <div class="form-group">
-                        {!! Form::label('country','Country:') !!}
+                        {!! Form::label('country', __('ui.country_2')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-globe"></i>
                             </span>
-                            {!! Form::text('country', null, ['class' => 'form-control','placeholder' => 'Country']); !!}
+                            {!! Form::text('country', null, ['class' => 'form-control','placeholder' => __('ui.country')]); !!}
                         </div>
                         </div>
                     </div>
 
                     <div class="col-md-4">
                         <div class="form-group">
-                        {!! Form::label('state','State:') !!}
+                        {!! Form::label('state', __('ui.state_2')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-map-marker"></i>
                             </span>
-                            {!! Form::text('state', null, ['class' => 'form-control','placeholder' => 'State']); !!}
+                            {!! Form::text('state', null, ['class' => 'form-control','placeholder' => __('ui.state')]); !!}
                         </div>
                         </div>
                     </div>
 
                     <div class="col-md-4">
                         <div class="form-group">
-                        {!! Form::label('city','City:') !!}
+                        {!! Form::label('city', __('ui.city_2')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-map-marker"></i>
                             </span>
-                            {!! Form::text('city', null, ['class' => 'form-control','placeholder' => 'City']); !!}
+                            {!! Form::text('city', null, ['class' => 'form-control','placeholder' => __('ui.city')]); !!}
                         </div>
                         </div>
                     </div>
 
                     <div class="col-md-6">
                         <div class="form-group">
-                        {!! Form::label('zip_code','Zip Code:') !!}
+                        {!! Form::label('zip_code', __('ui.zip_code_2')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-map-marker"></i>
                             </span>
-                            {!! Form::text('zip_code', null, ['class' => 'form-control','placeholder' => 'Zip/Postal Code']); !!}
+                            {!! Form::text('zip_code', null, ['class' => 'form-control','placeholder' => __('ui.zip_postal_code')]); !!}
                         </div>
                         </div>
                     </div>
 
                     <div class="col-md-6">
                         <div class="form-group">
-                        {!! Form::label('landmark','Landmark:') !!}
+                        {!! Form::label('landmark', __('ui.landmark_2')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-map-marker"></i>
                             </span>
-                            {!! Form::text('landmark', null, ['class' => 'form-control','placeholder' => 'Landmark']); !!}
+                            {!! Form::text('landmark', null, ['class' => 'form-control','placeholder' => __('ui.landmark')]); !!}
                         </div>
                         </div>
                     </div>
@@ -120,19 +120,19 @@
 
                     <div class="col-md-6">
                         <div class="form-group">
-                        {!! Form::label('tax_label_1','Tax 1 Name:') !!}
+                        {!! Form::label('tax_label_1', __('ui.tax_1_name')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-info"></i>
                             </span>
-                            {!! Form::text('tax_label_1', null, ['class' => 'form-control','placeholder' => 'GST / VAT / Other']); !!}
+                            {!! Form::text('tax_label_1', null, ['class' => 'form-control','placeholder' => __('ui.gst_vat_other')]); !!}
                         </div>
                         </div>
                     </div>
 
                     <div class="col-md-6">
                         <div class="form-group">
-                        {!! Form::label('tax_number_1','Tax 1 No.:') !!}
+                        {!! Form::label('tax_number_1', __('ui.tax_1_no')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-info"></i>
@@ -144,19 +144,19 @@
 
                     <div class="col-md-6">
                         <div class="form-group">
-                        {!! Form::label('tax_label_2','Tax 2 Name:') !!}
+                        {!! Form::label('tax_label_2', __('ui.tax_2_name')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-info"></i>
                             </span>
-                            {!! Form::text('tax_label_2', null, ['class' => 'form-control','placeholder' => 'GST / VAT / Other']); !!}
+                            {!! Form::text('tax_label_2', null, ['class' => 'form-control','placeholder' => __('ui.gst_vat_other')]); !!}
                         </div>
                         </div>
                     </div>
 
                     <div class="col-md-6">
                         <div class="form-group">
-                        {!! Form::label('tax_number_2','Tax 2 No.:') !!}
+                        {!! Form::label('tax_number_2', __('ui.tax_2_no')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-info"></i>
@@ -173,55 +173,55 @@
                     <!-- Owner Information -->
                     <div class="col-md-4">
                         <div class="form-group">
-                        {!! Form::label('surname','Surname:') !!}
+                        {!! Form::label('surname', __('ui.surname')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-info"></i>
                             </span>
-                            {!! Form::text('surname', null, ['class' => 'form-control','placeholder' => 'GST / VAT / Other']); !!}
+                            {!! Form::text('surname', null, ['class' => 'form-control','placeholder' => __('ui.surname_2')]); !!}
                         </div>
                         </div>
                     </div>
 
                     <div class="col-md-4">
                         <div class="form-group">
-                        {!! Form::label('first_name','First Name:') !!}
+                        {!! Form::label('first_name', __('ui.first_name_2')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-info"></i>
                             </span>
-                            {!! Form::text('first_name', null, ['class' => 'form-control','placeholder' => 'Owner Name']); !!}
+                            {!! Form::text('first_name', null, ['class' => 'form-control','placeholder' => __('ui.owner_name')]); !!}
                         </div>
                         </div>
                     </div>
 
                     <div class="col-md-4">
                         <div class="form-group">
-                        {!! Form::label('last_name','Last Name:') !!}
+                        {!! Form::label('last_name', __('ui.last_name_2')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-info"></i>
                             </span>
-                            {!! Form::text('last_name', null, ['class' => 'form-control','placeholder' => 'Owner Name']); !!}
+                            {!! Form::text('last_name', null, ['class' => 'form-control','placeholder' => __('ui.owner_name')]); !!}
                         </div>
                         </div>
                     </div>
 
                     <div class="col-md-6">
                         <div class="form-group">
-                        {!! Form::label('username','Username:') !!}
+                        {!! Form::label('username', __('ui.username_2')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-user"></i>
                             </span>
-                            {!! Form::text('username', null, ['class' => 'form-control','placeholder' => 'Username used for login']); !!}
+                            {!! Form::text('username', null, ['class' => 'form-control','placeholder' => __('ui.username_used_for_login')]); !!}
                         </div>
                         </div>
                     </div>
 
                     <div class="col-md-6">
                         <div class="form-group">
-                        {!! Form::label('email','Email:') !!}
+                        {!! Form::label('email', __('ui.email_2')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-envelope"></i>
@@ -233,24 +233,24 @@
 
                     <div class="col-md-6">
                         <div class="form-group">
-                        {!! Form::label('password','Password:') !!}
+                        {!! Form::label('password', __('ui.password')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-lock"></i>
                             </span>
-                            {!! Form::password('password', ['class' => 'form-control','placeholder' => 'Login Password']); !!}
+                            {!! Form::password('password', ['class' => 'form-control','placeholder' => __('ui.login_password')]); !!}
                         </div>
                         </div>
                     </div>
 
                     <div class="col-md-6">
                         <div class="form-group">
-                        {!! Form::label('confirm_password','Confirm Password:') !!}
+                        {!! Form::label('confirm_password', __('ui.confirm_password')) !!}
                         <div class="input-group">
                             <span class="input-group-addon">
                                 <i class="fa fa-lock"></i>
                             </span>
-                            {!! Form::password('confirm_password', ['class' => 'form-control','placeholder' => 'Same as Login Password']); !!}
+                            {!! Form::password('confirm_password', ['class' => 'form-control','placeholder' => __('ui.same_as_login_password')]); !!}
                         </div>
                         </div>
                     </div>
@@ -259,7 +259,7 @@
                 <!-- /.box-body -->
                 
                 <div class="box-footer">
-                    <button type="button" class="btn btn-success pull-right">Register</button>
+                    <button type="button" class="btn btn-success pull-right">{{ __('ui.register') }}</button>
                 </div>
 
             {!! Form::close() !!}

@@ -224,7 +224,7 @@
                 },
                 error: function(xhr, ajaxOptions, thrownError) {
                     ladda.stop();
-                    toastr.error("something went wrong, please try again");
+                    toastr.error("{{ __('something went wrong, please try again') }}");
                     // $('#submit_btn').removeAttr('disabled');
                 }
             });
