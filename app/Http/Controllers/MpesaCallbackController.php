@@ -170,18 +170,20 @@ class MpesaCallbackController extends Controller
         }
     }
 
-    // Attempt to activate subscription immediately (if linked or discoverable)
-    try {
-        $subscriptionController = new SubscriptionController();
-        $activated = $subscriptionController->activateSubscription($payment);
+    // Attempt to activate subscription only when the payment succeeded and is a subscription type
+    if ($resultCode == 0 && ($payment->payment_type ?? null) === 'subscription') {
+        try {
+            $subscriptionController = new SubscriptionController();
+            $activated = $subscriptionController->activateSubscription($payment);
 
-        if ($activated) {
-            Log::info("✅ Subscription activated by API callback for payment ID: {$payment->id}");
-        } else {
-            Log::info("ℹ️ Subscription not activated automatically for payment ID: {$payment->id} - will require manual sync or check.");
+            if ($activated) {
+                Log::info("✅ Subscription activated by API callback for payment ID: {$payment->id}");
+            } else {
+                Log::info("ℹ️ Subscription not activated automatically for payment ID: {$payment->id} - will require manual sync or check.");
+            }
+        } catch (\Exception $e) {
+            Log::error('Error activating subscription from API callback: ' . $e->getMessage());
         }
-    } catch (\Exception $e) {
-        Log::error('Error activating subscription from API callback: ' . $e->getMessage());
     }
 
     return response()->json(['status' => 'Callback processed'], 200);

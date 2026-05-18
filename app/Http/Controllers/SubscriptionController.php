@@ -312,7 +312,7 @@ class SubscriptionController extends Controller
             DB::rollBack();
             Log::error('Payment processing error: ' . $e->getMessage());
 
-            return $this->safeJsonError('Payment request failed. Please try again or contact support.', 400);
+            return $this->safeJsonError($e->getMessage() ?: 'Payment request failed. Please try again.', 400);
         }
     }
 
@@ -682,7 +682,7 @@ class SubscriptionController extends Controller
             DB::rollBack();
             Log::error('STK Push error: ' . $e->getMessage());
 
-            return $this->safeJsonError('Failed to send STK push. Please try again.', 400);
+            return $this->safeJsonError($e->getMessage() ?: 'Failed to send STK push. Please try again.', 400);
         }
     }
 
@@ -827,7 +827,7 @@ class SubscriptionController extends Controller
             DB::rollBack();
             Log::error('Renewal error: ' . $e->getMessage());
 
-            return $this->safeJsonError('Renewal request failed. Please try again.', 400);
+            return $this->safeJsonError($e->getMessage() ?: 'Renewal request failed. Please try again.', 400);
         }
     }
 
@@ -1619,11 +1619,12 @@ class SubscriptionController extends Controller
                 }
 
                 return response()->json([
-                    'success' => true,
+                    'success'            => true,
                     'transaction_status' => $dbStatus,
-                    'receipt_number' => $payment->mpesa_receipt_number,
-                    'start_date' => $subscription?->start_date,
-                    'end_date' => $subscription?->end_date,
+                    'receipt_number'     => $payment->mpesa_receipt_number,
+                    'result_desc'        => $payment->result_desc,
+                    'start_date'         => $subscription?->start_date,
+                    'end_date'           => $subscription?->end_date,
                 ]);
             }
 

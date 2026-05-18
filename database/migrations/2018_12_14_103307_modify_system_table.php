@@ -12,7 +12,9 @@ return new class extends Migration
      */
     public function up()
     {
+        if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
         // DB::statement("ALTER TABLE system MODIFY COLUMN value TEXT DEFAULT NULL");
+        }
     }
 
     /**

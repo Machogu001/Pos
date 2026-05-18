@@ -248,6 +248,7 @@ return [
     'enter_mpesa_consumer_key' => 'Enter M-Pesa Consumer Key',
     'enter_mpesa_consumer_secret' => 'Enter M-Pesa Consumer Secret',
     'shortcode_example' => 'e.g., 174379',
+    'shortcode_type' => 'Shortcode Type',
     'enter_mpesa_passkey' => 'Enter M-Pesa Passkey',
     'mpesa_callback_placeholder' => 'https://yourdomain.com/mpesa/callback',
     'show_credentials' => 'Show Credentials',

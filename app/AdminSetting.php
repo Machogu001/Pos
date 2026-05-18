@@ -44,6 +44,8 @@ class AdminSetting extends Model
     'subscription_mpesa_shortcode',
     'subscription_mpesa_passkey',
     'subscription_mpesa_callback',
+    'subscription_mpesa_shortcode_type',  // 'paybill' or 'till'
+    'subscription_mpesa_store_number',    // For Till: PartyB store/head-office number
     // eTIMS Integration Settings
     'etims_api_url',
     'etims_api_token',

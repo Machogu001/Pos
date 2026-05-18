@@ -8,6 +8,30 @@ return new class extends Migration
 {
     public function up()
     {
+        if (Schema::hasTable('subscriptions')) {
+            // Table already created by Superadmin module — add any missing columns
+            Schema::table('subscriptions', function (Blueprint $table) {
+                if (! Schema::hasColumn('subscriptions', 'user_id')) {
+                    $table->unsignedInteger('user_id')->nullable()->after('id');
+                }
+                if (! Schema::hasColumn('subscriptions', 'plan_name')) {
+                    $table->string('plan_name')->nullable()->after('user_id');
+                }
+                if (! Schema::hasColumn('subscriptions', 'billing_cycle')) {
+                    $table->string('billing_cycle')->nullable()->after('plan_name');
+                }
+                if (! Schema::hasColumn('subscriptions', 'amount')) {
+                    $table->decimal('amount', 10, 2)->nullable()->after('billing_cycle');
+                }
+                if (! Schema::hasColumn('subscriptions', 'mpesa_receipt')) {
+                    $table->string('mpesa_receipt')->nullable();
+                }
+                if (! Schema::hasColumn('subscriptions', 'checkout_request_id')) {
+                    $table->string('checkout_request_id')->nullable();
+                }
+            });
+            return;
+        }
         Schema::create('subscriptions', function (Blueprint $table) {
             $table->id();
             

@@ -77,7 +77,7 @@ class UnitController extends Controller
         }
 
         $business_id = request()->session()->get('user.business_id');
-        $units_dropdown = Unit::forDropdown($business_id, true, false);
+        $units_dropdown = Unit::forDropdown($business_id, false, false);
         $common_settings = request()->session()->get('business.common_settings', []);
 
         return view('unit.index')->with(compact('units_dropdown', 'common_settings'));

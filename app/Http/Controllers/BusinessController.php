@@ -671,7 +671,7 @@ class BusinessController extends Controller
             'cmsn_agnt' => __('lang_v1.select_from_commisssion_agents_list'),
         ];
 
-        $units_dropdown = Unit::forDropdown($business_id, true);
+        $units_dropdown = Unit::forDropdown($business_id, false);
 
         $date_formats = Business::date_formats();
 

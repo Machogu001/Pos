@@ -22,16 +22,18 @@ return new class extends Migration
         });
 
         // Backfill: mark users who currently have an active subscription
-        DB::statement("
-            UPDATE users u
-            INNER JOIN subscriptions s ON s.user_id = u.id
-                AND s.status = 'active'
-                AND s.end_date > NOW()
-            SET u.has_active_subscription = 1,
-                u.subscription_expires_at  = s.end_date,
-                u.subscription_status      = 'active'
-            WHERE u.deleted_at IS NULL
-        ");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("
+                UPDATE users u
+                INNER JOIN subscriptions s ON s.user_id = u.id
+                    AND s.status = 'active'
+                    AND s.end_date > NOW()
+                SET u.has_active_subscription = 1,
+                    u.subscription_expires_at  = s.end_date,
+                    u.subscription_status      = 'active'
+                WHERE u.deleted_at IS NULL
+            ");
+        }
     }
 
     public function down()

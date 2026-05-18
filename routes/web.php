@@ -679,14 +679,14 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     Route::get('crm/dashboard', [\Modules\Crm\Http\Controllers\DashboardController::class, 'index'])->name('crm.dashboard');
 
     // Repair module stub routes
-    Route::get('repair', [\Modules\Repair\Http\Controllers\RepairController::class, 'index'])->name('repair.index');
+    Route::get('repair', [\Modules\Repair\Http\Controllers\RepairController::class, 'index']);
     Route::get('repair/{id}/print-label', [\Modules\Repair\Http\Controllers\RepairController::class, 'printLabel'])->name('repair.print_label');
     Route::get('repair-status', [\Modules\Repair\Http\Controllers\CustomerRepairStatusController::class, 'index'])->name('repair-status');
 
     // Superadmin module stub routes
     Route::get('subscription', [\Modules\Superadmin\Http\Controllers\SubscriptionController::class, 'index'])->name('superadmin.subscription.index');
     Route::get('pricing', [\Modules\Superadmin\Http\Controllers\PricingController::class, 'index'])->name('pricing');
-    Route::get('pages/{slug}', [\Modules\Superadmin\Http\Controllers\PageController::class, 'showPage'])->name('frontend-pages');
+    Route::get('pages/{slug}', [\Modules\Superadmin\Http\Controllers\PageController::class, 'showPage']);
 
     // Superadmin: switch active business context
     Route::get('superadmin/switch-business/{id}', function ($id) {

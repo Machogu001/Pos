@@ -19,26 +19,41 @@ class MpesaController extends Controller
     private $shortCode;
     private $passkey;
     private $callbackUrl;
+    /** 'paybill' → CustomerPayBillOnline | 'till' → CustomerBuyGoodsOnline */
+    private $shortcodeType;
+    /** For Till (Buy Goods): PartyB = store/head-office number; for PayBill: same as shortCode */
+    private $storeNumber;
 
     public function __construct()
     {
-        $this->consumerKey = env('MPESA_CONSUMER_KEY');
+        $this->consumerKey   = env('MPESA_CONSUMER_KEY');
         $this->consumerSecret = env('MPESA_CONSUMER_SECRET');
-        $this->shortCode = env('MPESA_SHORTCODE');
-        $this->passkey = env('MPESA_PASSKEY');
-        $this->callbackUrl = env('MPESA_CALLBACK');
+        $this->shortCode     = env('MPESA_SHORTCODE');
+        $this->passkey       = env('MPESA_PASSKEY');
+        $this->callbackUrl   = env('MPESA_CALLBACK');
+        $this->shortcodeType = strtolower(trim((string) env('MPESA_SHORTCODE_TYPE', 'paybill')));
+        if (! in_array($this->shortcodeType, ['paybill', 'till'], true)) {
+            $this->shortcodeType = 'paybill';
+        }
+        // For Till STK Push, PartyB must be the store/head-office number, not the Till number.
+        // Falls back to shortCode (correct for PayBill where BusinessShortCode == PartyB).
+        $this->storeNumber = env('MPESA_STORE_NUMBER') ?: $this->shortCode;
     }
 
     /**
-     * Set custom M-Pesa credentials (e.g., for subscription payments)
+     * Set custom M-Pesa credentials (e.g., for subscription payments).
+     * $shortcodeType: 'paybill' or 'till' (defaults to 'paybill' when omitted)
      */
-    public function setCustomCredentials($consumerKey, $consumerSecret, $shortCode, $passkey, $callbackUrl)
+    public function setCustomCredentials($consumerKey, $consumerSecret, $shortCode, $passkey, $callbackUrl, $shortcodeType = 'paybill', $storeNumber = null)
     {
-        $this->consumerKey = $consumerKey;
+        $this->consumerKey   = $consumerKey;
         $this->consumerSecret = $consumerSecret;
-        $this->shortCode = $shortCode;
-        $this->passkey = $passkey;
-        $this->callbackUrl = $callbackUrl;
+        $this->shortCode     = $shortCode;
+        $this->passkey       = $passkey;
+        $this->callbackUrl   = $callbackUrl;
+        $normalized          = strtolower(trim((string) $shortcodeType));
+        $this->shortcodeType = in_array($normalized, ['paybill', 'till'], true) ? $normalized : 'paybill';
+        $this->storeNumber   = $storeNumber ?: $shortCode;
     }
 
     public function showPaymentForm()
@@ -141,14 +156,17 @@ class MpesaController extends Controller
             : 5;
     }
 
-    // Use subscription-specific M-Pesa credentials ONLY for subscription payments.
-    if ($paymentType === 'subscription' && $settings && $settings->subscription_mpesa_consumer_key) {
+    // Use subscription-specific M-Pesa credentials for subscription AND new business registration payments.
+    // Falls back to .env credentials when no subscription credentials are configured.
+    if (in_array($paymentType, [MpesaPayment::TYPE_SUBSCRIPTION, MpesaPayment::TYPE_REGISTRATION], true) && $settings && $settings->subscription_mpesa_consumer_key) {
         $this->setCustomCredentials(
             $settings->subscription_mpesa_consumer_key,
             $settings->subscription_mpesa_consumer_secret,
             $settings->subscription_mpesa_shortcode,
             $settings->subscription_mpesa_passkey,
-            $settings->subscription_mpesa_callback
+            $settings->subscription_mpesa_callback,
+            $settings->subscription_mpesa_shortcode_type ?? 'paybill',
+            $settings->subscription_mpesa_store_number ?: null
         );
     }
 
@@ -225,7 +243,7 @@ class MpesaController extends Controller
         }
 
         // Send STK Push
-        $response = $this->sendStkPush($phone, $amount, $accountRef);
+        $response = $this->sendStkPush($phone, $amount, $accountRef, $paymentType);
         $responseBody = is_array($response) ? $response : json_decode($response, true);
 
         if (isset($responseBody['ResponseCode']) && $responseBody['ResponseCode'] === '0') {
@@ -291,17 +309,28 @@ class MpesaController extends Controller
     private function generateAccessToken()
     {
         $response = Http::withBasicAuth($this->consumerKey, $this->consumerSecret)
+            ->timeout(15)
             ->get('https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials');
 
         if ($response->successful()) {
             return $response['access_token'];
         }
 
-        Log::error('Failed to generate access token', ['response' => $response->body()]);
+        $statusCode = $response->status();
+        $hint = ($statusCode === 400 && empty(trim($response->body())))
+            ? ' Credentials may be sandbox/test credentials used against the production API, or the Daraja app has not been go-live approved.'
+            : '';
+
+        Log::error('Failed to generate access token', [
+            'http_status' => $statusCode,
+            'response'    => $response->body(),
+            'hint'        => $hint,
+            'shortcode'   => $this->shortCode,
+        ]);
         return null;
     }
 
-    private function sendStkPush($phone, $amount, $accountRef)
+    private function sendStkPush($phone, $amount, $accountRef, $paymentType = 'registration')
     {
         $accessToken = $this->generateAccessToken();
         if (!$accessToken) {
@@ -318,14 +347,19 @@ class MpesaController extends Controller
             "BusinessShortCode" => $this->shortCode,
             "Password" => $password,
             "Timestamp" => $timestamp,
-            "TransactionType" => "CustomerPayBillOnline",
+            "TransactionType" => $this->shortcodeType === 'till' ? 'CustomerBuyGoodsOnline' : 'CustomerPayBillOnline',
             "Amount" => $amount,
             "PartyA" => $phone,
-            "PartyB" => $this->shortCode,
+            "PartyB" => $this->storeNumber,
             "PhoneNumber" => $phone,
             "CallBackURL" => $this->callbackUrl,
             "AccountReference" => $accountRef,
-            "TransactionDesc" => "Registration Payment"
+            "TransactionDesc" => match ($paymentType) {
+                'sell'         => 'Invoice Payment',
+                'subscription' => 'Subscription Payment',
+                'purchase'     => 'Purchase Payment',
+                default        => 'Registration Payment',
+            },
         ];
 
         $response = Http::withToken($accessToken)
@@ -841,10 +875,10 @@ public function checkPaymentStatus(Request $request)
             "BusinessShortCode" => $this->shortCode,
             "Password" => $password,
             "Timestamp" => $timestamp,
-            "TransactionType" => "CustomerPayBillOnline",
+            "TransactionType" => $this->shortcodeType === 'till' ? 'CustomerBuyGoodsOnline' : 'CustomerPayBillOnline',
             "Amount" => $amount,
             "PartyA" => $phone,
-            "PartyB" => $this->shortCode,
+            "PartyB" => $this->storeNumber,
             "PhoneNumber" => $phone,
             "CallBackURL" => $this->callbackUrl,
             "AccountReference" => $accountReference,
@@ -860,7 +894,7 @@ public function checkPaymentStatus(Request $request)
             $logPayload['Password'] = '[REDACTED]';
         }
         Log::info('STK Push Request (Direct)', ['payload' => $logPayload]);
-        Log::info('STK Push Response (Direct)', ['body' => $response->body()]);
+        Log::info('STK Push Response (Direct)', ['http_status' => $response->status(), 'body' => $response->body()]);
 
         $responseData = $response->json();
         
@@ -871,10 +905,23 @@ public function checkPaymentStatus(Request $request)
                 'checkout_request_id' => $responseData['CheckoutRequestID']
             ];
         }
-        
+
+        $safaricomError = $responseData['errorMessage']
+            ?? $responseData['errorDesc']
+            ?? $responseData['ResponseDescription']
+            ?? $responseData['CustomerMessage']
+            ?? null;
+
+        Log::error('STK Push (Direct) failed', [
+            'http_status'    => $response->status(),
+            'safaricom_code' => $responseData['errorCode'] ?? $responseData['ResponseCode'] ?? null,
+            'safaricom_msg'  => $safaricomError,
+            'shortcode'      => $this->shortCode,
+        ]);
+
         return [
             'success' => false,
-            'errorMessage' => $responseData['errorMessage'] ?? $responseData['ResponseDescription'] ?? 'STK Push failed'
+            'errorMessage' => $safaricomError ?? 'STK Push failed'
         ];
     }
 
@@ -1063,6 +1110,53 @@ public function queryMpesaPaymentStatus($requestOrCheckoutId = null)
                     'payment_id' => $payment->id ?? null,
                 ];
             }
+        }
+
+        // Safaricom error-envelope: has 'errorCode'/'errorMessage' instead of 'ResultCode'.
+        // 500.001.1001 = "Transaction within processing limit" (queried too soon) → still pending.
+        if (isset($responseData['errorCode'])) {
+            $errorCode    = (string) ($responseData['errorCode'] ?? '');
+            $errorMessage = $responseData['errorMessage'] ?? 'M-Pesa query error';
+
+            if ($errorCode === '500.001.1001') {
+                Log::debug('M-Pesa query returned processing-limit error; treating as pending', [
+                    'checkout_request_id' => $checkoutRequestId,
+                    'errorCode'           => $errorCode,
+                    'errorMessage'        => $errorMessage,
+                ]);
+
+                return [
+                    'success'             => false,
+                    'status'              => 'pending',
+                    'transaction_status'  => 'pending',
+                    'checkout_request_id' => $payment->checkout_request_id ?? $checkoutRequestId,
+                    'result_code'         => null,
+                    'result_desc'         => $errorMessage,
+                    'message'             => $errorMessage,
+                    'mpesa_receipt_number' => $payment->mpesa_receipt_number ?? null,
+                    'payment_id'          => $payment->id ?? null,
+                ];
+            }
+
+            // Any other Safaricom errorCode is a genuine query failure — do not overwrite a
+            // payment that the callback has already resolved to 'paid' or 'failed'.
+            Log::warning('M-Pesa query returned errorCode', [
+                'checkout_request_id' => $checkoutRequestId,
+                'errorCode'           => $errorCode,
+                'errorMessage'        => $errorMessage,
+            ]);
+
+            return [
+                'success'             => false,
+                'status'              => 'failed',
+                'transaction_status'  => 'failed',
+                'checkout_request_id' => $payment->checkout_request_id ?? $checkoutRequestId,
+                'result_code'         => null,
+                'result_desc'         => $errorMessage,
+                'message'             => $errorMessage,
+                'mpesa_receipt_number' => $payment->mpesa_receipt_number ?? null,
+                'payment_id'          => $payment->id ?? null,
+            ];
         }
 
     return ['success' => false, 'error' => 'Invalid response from M-Pesa', 'message' => 'Invalid response from M-Pesa'];

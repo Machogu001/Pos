@@ -1,12 +1,12 @@
 <div class="modal fade" tabindex="-1" role="dialog" id="modal_payment">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
+    <div class="modal-dialog modal-lg" role="document" style="margin-top:20px;margin-bottom:20px;">
+        <div class="modal-content" style="max-height:calc(100vh - 40px);display:flex;flex-direction:column;">
+            <div class="modal-header" style="flex-shrink:0;padding:10px 15px;">
                 <button type="button" class="close" data-dismiss="modal" aria-label="{{ __('messages.close') }}"><span
                         aria-hidden="true">&times;</span></button>
                 <h4 class="modal-title">@lang('lang_v1.payment')</h4>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="overflow-y:auto;flex:1 1 auto;padding:10px 15px;">
                 <div class="row">
                     <div class="col-md-12 mb-12">
                         <strong>@lang('lang_v1.advance_balance'):</strong> <span id="advance_balance_text"></span>
@@ -113,7 +113,7 @@
                                     {!! Form::label('sale_note', __('sale.sell_note') . ':') !!}
                                     {!! Form::textarea('sale_note', !empty($transaction) ? $transaction->additional_notes : null, [
                                         'class' => 'form-control',
-                                        'rows' => 3,
+                                        'rows' => 2,
                                         'placeholder' => __('sale.sell_note'),
                                     ]) !!}
                                 </div>
@@ -123,7 +123,7 @@
                                     {!! Form::label('staff_note', __('sale.staff_note') . ':') !!}
                                     {!! Form::textarea('staff_note', !empty($transaction) ? $transaction->staff_note : null, [
                                         'class' => 'form-control',
-                                        'rows' => 3,
+                                        'rows' => 2,
                                         'placeholder' => __('sale.staff_note'),
                                     ]) !!}
                                 </div>
@@ -197,7 +197,7 @@
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer" style="flex-shrink:0;padding:8px 15px;">
                 <button type="button" class="tw-dw-btn tw-dw-btn-neutral tw-text-white" data-dismiss="modal">@lang('messages.close')</button>
                 <button type="submit" class="tw-dw-btn tw-dw-btn-primary tw-text-white" id="pos-save">@lang('sale.finalize_payment')</button>
             </div>
@@ -821,15 +821,29 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // polling helper
+    // polling helper — uses increasing delays to avoid hammering Safaricom's query API.
+    // Schedule: attempts 1-3 every 2s, 4-8 every 4s, 9+ every 6s — up to 20 attempts (~90s total).
     function startMpesaPolling(checkoutRequestId, phone, row) {
         const sendBtn = row.querySelector('.send-mpesa-stk');
         const statusBadge = row.querySelector('.mpesa-status-badge');
-    let attempts = 0;
-    // Poll more frequently so successful payments are detected quickly.
-    // Use 1s interval and allow up to 60 attempts (~60s total) so success is detected almost immediately.
-    const maxAttempts = 60;
-    const interval = setInterval(async () => {
+        let attempts = 0;
+        const maxAttempts = 20;
+        let timeoutId = null;
+        let stopped = false;
+
+        function delayFor(attempt) {
+            if (attempt <= 3) return 2000;
+            if (attempt <= 8) return 4000;
+            return 6000;
+        }
+
+        function stop() {
+            stopped = true;
+            if (timeoutId) clearTimeout(timeoutId);
+        }
+
+        async function poll() {
+            if (stopped) return;
             attempts++;
             try {
                 const res = await fetch("{{ route('mpesa.queryStatus') }}", {
@@ -852,7 +866,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     setMpesaStatusBadge(statusBadge, 'warning', mismatchMessage);
                     notifyMpesaWarning(mismatchMessage);
                     setMpesaRetryButton(sendBtn);
-                    clearInterval(interval);
+                    stop();
                     return;
                 }
 
@@ -896,13 +910,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     } catch (err) {
                         console.error('Error during post-paid auto-finalize check', err);
                     }
-                    clearInterval(interval);
+                    stop();
                     return;
                 }
                 if (data && data.transaction_status === 'failed') {
                     setMpesaFailedState(statusBadge, row.querySelector('.mpesa_status'), resolveMpesaStatusMessage(data, mpesaI18n.paymentFailed));
                     setMpesaRetryButton(sendBtn);
-                    clearInterval(interval);
+                    stop();
                     return;
                 }
                 if (data && data.transaction_status === 'pending') {
@@ -910,15 +924,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 if (attempts >= maxAttempts) {
                     setMpesaStatusBadge(statusBadge, 'warning', mpesaI18n.statusCheckTimeout);
-                    clearInterval(interval);
+                    stop();
+                    return;
                 }
             } catch (err) {
                 console.error(err);
                 setMpesaFailedState(statusBadge, row.querySelector('.mpesa_status'), err.message || mpesaI18n.pollingError);
                 setMpesaRetryButton(sendBtn);
-                clearInterval(interval);
+                stop();
+                return;
             }
-    }, 1000);
+            // schedule next poll only if still running
+            if (!stopped) {
+                timeoutId = setTimeout(poll, delayFor(attempts));
+            }
+        }
+
+        // kick off first poll
+        timeoutId = setTimeout(poll, delayFor(0));
     }
 });
 </script>

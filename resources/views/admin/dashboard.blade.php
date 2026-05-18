@@ -1105,21 +1105,41 @@
                         </div>
 
                         <div class="row g-3 mb-3">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label for="subscription_mpesa_shortcode" class="form-label fw-medium">{{ __('payment.shortcode') }}</label>
                                 <input type="text" class="form-control" id="subscription_mpesa_shortcode" 
                                        name="subscription_mpesa_shortcode" 
                                        value="{{ $settings->subscription_mpesa_shortcode ?? '' }}"
                                     placeholder="{{ __('payment.shortcode_example') }}">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <label for="subscription_mpesa_shortcode_type" class="form-label fw-medium">{{ __('payment.shortcode_type') }}</label>
+                                <select class="form-select" id="subscription_mpesa_shortcode_type" name="subscription_mpesa_shortcode_type"
+                                        onchange="document.getElementById('sub_store_number_row').style.display = this.value === 'till' ? '' : 'none'">
+                                    <option value="paybill" {{ ($settings->subscription_mpesa_shortcode_type ?? 'paybill') === 'paybill' ? 'selected' : '' }}>
+                                        PayBill
+                                    </option>
+                                    <option value="till" {{ ($settings->subscription_mpesa_shortcode_type ?? 'paybill') === 'till' ? 'selected' : '' }}>
+                                        Till (Buy Goods)
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-3" id="sub_store_number_row" style="display: {{ ($settings->subscription_mpesa_shortcode_type ?? 'paybill') === 'till' ? '' : 'none' }}">
+                                <label for="subscription_mpesa_store_number" class="form-label fw-medium">Store Number</label>
+                                <input type="text" class="form-control" id="subscription_mpesa_store_number"
+                                       name="subscription_mpesa_store_number"
+                                       value="{{ $settings->subscription_mpesa_store_number ?? '' }}"
+                                       placeholder="e.g. 5426425">
+                                <small class="text-muted">Head-office / agent number (PartyB)</small>
+                            </div>
+                            <div class="col-md-3">
                                 <label for="subscription_mpesa_passkey" class="form-label fw-medium">{{ __('payment.passkey') }}</label>
                                 <input type="password" class="form-control" id="subscription_mpesa_passkey" 
                                        name="subscription_mpesa_passkey" 
                                        value="{{ $settings->subscription_mpesa_passkey ?? '' }}"
                                     placeholder="{{ __('payment.enter_mpesa_passkey') }}">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label for="subscription_mpesa_callback" class="form-label fw-medium">{{ __('payment.callback_url') }}</label>
                                 <input type="url" class="form-control" id="subscription_mpesa_callback" 
                                        name="subscription_mpesa_callback" 
