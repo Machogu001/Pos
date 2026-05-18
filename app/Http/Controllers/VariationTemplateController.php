@@ -59,6 +59,10 @@ class VariationTemplateController extends Controller
      */
     public function create()
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         return view('variation.create');
     }
 

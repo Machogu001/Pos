@@ -55,6 +55,10 @@ class ExpenseCategoryController extends Controller
      */
     public function create()
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         if (! (auth()->user()->can('expense.add') || auth()->user()->can('expense.edit'))) {
             abort(403, 'Unauthorized action.');
         }

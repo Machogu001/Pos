@@ -12,7 +12,9 @@ class ChangePaymentTypeIdColumnFromIntToStringInPaymentDetailsTable extends Migr
      */
     public function up()
     {
+        if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
         DB::statement("ALTER TABLE `payment_details` CHANGE `payment_type_id` `payment_type_id` VARCHAR(11) NULL DEFAULT NULL;");
+        }
     }
     
     /**
@@ -22,6 +24,8 @@ class ChangePaymentTypeIdColumnFromIntToStringInPaymentDetailsTable extends Migr
      */
     public function down()
     {
+        if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
         DB::statement("ALTER TABLE `payment_details` CHANGE `payment_type_id` `payment_type_id` INT(11) NULL DEFAULT NULL;");
+        }
     }
 }

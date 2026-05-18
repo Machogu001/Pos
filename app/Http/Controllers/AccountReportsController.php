@@ -1162,54 +1162,67 @@ class AccountReportsController extends Controller
             $date = $line['date'];
             $amount = $line['amount'];
 
-            $query = TransactionPayment::where('business_id', $business_id)
-                ->where('amount', $amount);
+            $reference = $line['reference'];
 
-            if (! empty($account_id) && $account_id !== 'none') {
-                $query->where('account_id', $account_id);
-            }
+            // Build a base query scoped to this business
+            $baseQuery = function () use ($business_id, $account_id, $validated) {
+                $q = TransactionPayment::where('business_id', $business_id);
+                if (! empty($account_id) && $account_id !== 'none') {
+                    $q->where('account_id', $account_id);
+                }
+                if (! empty($validated['start_date']) && ! empty($validated['end_date'])) {
+                    $q->whereBetween(DB::raw('date(paid_on)'), [$validated['start_date'], $validated['end_date']]);
+                }
+                return $q;
+            };
 
-            // Allow a small window around the statement date when matching
+            // Allow a ±3-day window around the statement date
             $start = \Carbon\Carbon::parse($date)->subDays(3)->format('Y-m-d');
-            $end = \Carbon\Carbon::parse($date)->addDays(3)->format('Y-m-d');
+            $end   = \Carbon\Carbon::parse($date)->addDays(3)->format('Y-m-d');
 
-            $query->whereBetween(DB::raw('date(paid_on)'), [$start, $end]);
-
-            if (! empty($validated['start_date']) && ! empty($validated['end_date'])) {
-                $extra_start = $validated['start_date'];
-                $extra_end = $validated['end_date'];
-                $query->whereBetween(DB::raw('date(paid_on)'), [$extra_start, $extra_end]);
+            // 1. Try reference match first (most precise)
+            $candidates = collect();
+            if ($reference !== '') {
+                $candidates = $baseQuery()
+                    ->where('amount', $amount)
+                    ->whereBetween(DB::raw('date(paid_on)'), [$start, $end])
+                    ->where('payment_ref_no', $reference)
+                    ->with(['transaction'])
+                    ->get();
             }
 
-            $candidates = $query->with(['transaction'])->get();
+            // 2. Fall back to amount + date window
+            if ($candidates->isEmpty()) {
+                $candidates = $baseQuery()
+                    ->where('amount', $amount)
+                    ->whereBetween(DB::raw('date(paid_on)'), [$start, $end])
+                    ->with(['transaction'])
+                    ->get();
+            }
+
+            $formatPayment = function ($payment) {
+                $txn = $payment->transaction;
+                return [
+                    'id'              => $payment->id,
+                    'paid_on'         => $payment->paid_on,
+                    'amount'          => $payment->amount,
+                    'payment_ref_no'  => $payment->payment_ref_no,
+                    'invoice_no'      => optional($txn)->invoice_no ?? optional($txn)->ref_no ?? '',
+                    'transaction_type' => optional($txn)->type ?? '',
+                    'method'          => $payment->method ?? '',
+                ];
+            };
 
             if ($candidates->count() === 1) {
-                $payment = $candidates->first();
                 $matched[] = [
                     'statement' => $line,
-                    'payment' => [
-                        'id' => $payment->id,
-                        'paid_on' => $payment->paid_on,
-                        'amount' => $payment->amount,
-                        'payment_ref_no' => $payment->payment_ref_no,
-                        'transaction_type' => optional($payment->transaction)->type,
-                        'transaction_id' => optional($payment->transaction)->id,
-                    ],
+                    'payment'   => $formatPayment($candidates->first()),
                 ];
                 $total_matched_amount += $amount;
             } elseif ($candidates->count() > 1) {
                 $ambiguous[] = [
-                    'statement' => $line,
-                    'candidates' => $candidates->take(5)->map(function ($payment) {
-                        return [
-                            'id' => $payment->id,
-                            'paid_on' => $payment->paid_on,
-                            'amount' => $payment->amount,
-                            'payment_ref_no' => $payment->payment_ref_no,
-                            'transaction_type' => optional($payment->transaction)->type,
-                            'transaction_id' => optional($payment->transaction)->id,
-                        ];
-                    })->values(),
+                    'statement'  => $line,
+                    'candidates' => $candidates->take(5)->map($formatPayment)->values(),
                 ];
             } else {
                 $unmatched[] = $line;

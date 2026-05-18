@@ -271,6 +271,10 @@ class PurchaseRequisitionController extends Controller
      */
     public function show($id)
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         if (! auth()->user()->can('purchase_requisition.view_all') && ! auth()->user()->can('purchase_requisition.view_own')) {
             abort(403, 'Unauthorized action.');
         }

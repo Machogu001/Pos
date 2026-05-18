@@ -10,6 +10,8 @@
      'view' => 'Ver',
      'delete' => 'Excluir',
      'close' => 'Fechar',
+    'title' => 'Título',
+    'status' => 'Estado',
      'something_went_wrong' => 'Algo deu errado, por favor, tente novamente mais tarde',
      'required' => 'Este campo é obrigatório',
      'please_select' => 'Selecionar',

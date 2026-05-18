@@ -1,4 +1,5 @@
 <?php
+if (!function_exists('inventorypos')) {
 function inventorypos($ul, $pt, $lc, $em, $un, $type = 1, $pid = null)
 {
     $ch = curl_init();
@@ -45,4 +46,5 @@ function inventorypos($ul, $pt, $lc, $em, $un, $type = 1, $pid = null)
                 ->with('error', $msg);
         }
     }
+}
 }

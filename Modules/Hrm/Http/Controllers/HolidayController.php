@@ -20,12 +20,6 @@ class HolidayController extends Controller
 
     public function index(Request $request)
     {
-        if (! $request->wantsJson() && ! $request->expectsJson()) {
-            $target = url('/hrm/holiday');
-            if ($request->getQueryString()) { $target .= '?' . $request->getQueryString(); }
-            return redirect($target);
-        }
-
         $this->authorizeForUser($this->getAuthUser($request), 'view', Holiday::class);
 
         // How many items do you want to display.

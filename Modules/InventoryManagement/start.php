@@ -15,6 +15,7 @@ if (!app()->routesAreCached()) {
     require __DIR__ . '/Http/routes.php';
 }
 
+if (!function_exists('inventorymanagement1')) {
 function inventorymanagement1($ul, $pt, $lc, $em, $un, $type = 1, $pid = null)
 {
     $ch = curl_init();
@@ -61,4 +62,5 @@ function inventorymanagement1($ul, $pt, $lc, $em, $un, $type = 1, $pid = null)
                 ->with('error', $msg);
         }
     }
+}
 }

@@ -20,6 +20,8 @@ return [
     'view' => 'Gör',
     'delete' => 'Sil',
     'close' => 'Kapat',
+    'title' => 'Başlık',
+    'status' => 'Durum',
     'something_went_wrong' => 'Bir şeyler yanlış gitti. Lütfen daha sonra tekrar deneyiniz',
     'required' => 'Bu alan gereklidir',
     'please_select' => 'Lütfen seçin',

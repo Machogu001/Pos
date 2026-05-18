@@ -384,4 +384,23 @@ class HrmPayrollFeatureTest extends TestCase
 
         return $user;
     }
+
+    protected function tearDown(): void
+    {
+        Schema::dropIfExists('hrm_payrolls');
+        Schema::dropIfExists('employees');
+        Schema::dropIfExists('companies');
+        Schema::dropIfExists('admin_settings');
+        Schema::dropIfExists('role_has_permissions');
+        Schema::dropIfExists('model_has_roles');
+        Schema::dropIfExists('model_has_permissions');
+        Schema::dropIfExists('roles');
+        Schema::dropIfExists('permissions');
+        Schema::dropIfExists('users');
+        Schema::dropIfExists('business');
+        if (Schema::hasTable('migrations')) {
+            \DB::table('migrations')->truncate();
+        }
+        parent::tearDown();
+    }
 }

@@ -12,8 +12,12 @@ class ModifyTodosDateColumnType extends Migration
      */
     public function up()
     {
+        if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
         DB::statement('ALTER TABLE essentials_to_dos MODIFY COLUMN `date` DATETIME');
+        }
+        if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
         DB::statement('ALTER TABLE essentials_to_dos MODIFY COLUMN `end_date` DATETIME');
+        }
     }
 
     /**

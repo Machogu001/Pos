@@ -507,4 +507,31 @@ class StocktakeAccountingFeatureTest extends TestCase
         $this->assertEquals(10.00, (float) $entries['stock_adjustment_inventory_opening_equity']->amount);
         $this->assertEquals(104, (int) $entries['stock_adjustment_inventory_opening_equity']->account_id);
     }
+
+    protected function tearDown(): void
+    {
+        Schema::dropIfExists('role_has_permissions');
+        Schema::dropIfExists('model_has_roles');
+        Schema::dropIfExists('model_has_permissions');
+        Schema::dropIfExists('roles');
+        Schema::dropIfExists('permissions');
+        Schema::dropIfExists('account_transactions');
+        Schema::dropIfExists('accounts');
+        Schema::dropIfExists('stock_adjustment_lines');
+        Schema::dropIfExists('transactions');
+        Schema::dropIfExists('stocktake_items');
+        Schema::dropIfExists('stocktake');
+        Schema::dropIfExists('stocktakes');
+        Schema::dropIfExists('variations');
+        Schema::dropIfExists('product_variations');
+        Schema::dropIfExists('units');
+        Schema::dropIfExists('products');
+        Schema::dropIfExists('business_locations');
+        Schema::dropIfExists('users');
+        Schema::dropIfExists('business');
+        if (Schema::hasTable('migrations')) {
+            \DB::table('migrations')->truncate();
+        }
+        parent::tearDown();
+    }
 }

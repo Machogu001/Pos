@@ -10,6 +10,8 @@
      'view' => 'Pamje',
      'delete' => 'Delete',
      'close' => 'Mbyll',
+    'title' => 'Titulli',
+    'status' => 'Statusi',
      'something_went_wrong' => 'Diçka gaboi, provo përsëri më vonë',
      'required' => 'Kjo fushë është e nevojshme',
      'please_select' => 'Ju lutem zgjidhni',

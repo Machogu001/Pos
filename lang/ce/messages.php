@@ -10,6 +10,8 @@
      'view' => 'Aussicht',
      'delete' => 'Löschen',
      'close' => 'Schließen',
+    'title' => 'Title',
+    'status' => 'Status',
      'something_went_wrong' => 'Etwas ist schief gelaufen, bitte versuchen Sie es später erneut',
      'required' => 'Dieses Feld wird benötigt',
      'please_select' => 'Bitte auswählen',

@@ -192,8 +192,8 @@
                                 '<td>' + __currency_trans_from_en(s.amount || 0, true) + '</td>' +
                                 '<td>' + (s.description || '') + '</td>' +
                                 '<td>' + (p.payment_ref_no || '') + '</td>' +
-                                '<td>' + (p.transaction_id || '') + '</td>' +
-                                '<td>' + (p.transaction_type || '') + '</td>' +
+                                '<td>' + (p.invoice_no || '') + '</td>' +
+                                '<td>' + (p.method || p.transaction_type || '') + '</td>' +
                                 '</tr>';
                         });
                         $('#reco_matched_table tbody').html(matched_rows);

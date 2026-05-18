@@ -2054,6 +2054,10 @@ if ($product->type == 'single') {
 
     public function viewGroupPrice($id)
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         if (! auth()->user()->can('product.view')) {
             abort(403, 'Unauthorized action.');
         }

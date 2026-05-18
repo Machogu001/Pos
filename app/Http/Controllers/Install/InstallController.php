@@ -295,8 +295,25 @@ class InstallController extends Controller
         Artisan::call('pos:setup', ['--force' => true]);
 
         DB::statement('SET default_storage_engine=INNODB;');
+
+        // Run all migrations (core + all module migrations registered via loadMigrationsFrom)
         Artisan::call('migrate:fresh', ['--force' => true]);
+
+        // Explicitly run any module migrations not auto-discovered (belt-and-suspenders)
+        Artisan::call('module:migrate', ['--force' => true]);
+
+        // Publish module assets (JS/CSS/views) to public/
+        Artisan::call('module:publish');
+
+        // Seed core data: barcodes, permissions, currencies, admin_settings, superadmin
         Artisan::call('db:seed', ['--force' => true]);
+
+        // Create Passport OAuth clients in DB (pos:setup already created the keys)
+        Artisan::call('passport:install', ['--force' => true]);
+
+        // Reset Spatie permission cache to ensure fresh permissions are loaded
+        Artisan::call('permission:cache-reset');
+
         Artisan::call('optimize');
     }
 
@@ -407,9 +424,23 @@ class InstallController extends Controller
                     ini_set('memory_limit', '512M');
                     $this->installSettings();
                     DB::statement('SET default_storage_engine=INNODB;');
+
+                    // Run core migrations + any module migrations not yet applied
                     Artisan::call('migrate', ['--force' => true]);
+                    Artisan::call('module:migrate', ['--force' => true]);
+
+                    // Publish updated module assets
                     Artisan::call('module:publish');
+
+                    // Ensure OAuth clients exist
                     Artisan::call('passport:install', ['--force' => true]);
+
+                    // Re-seed permissions so new permissions from code are available
+                    Artisan::call('db:seed', ['--class' => 'PermissionsTableSeeder', '--force' => true]);
+
+                    // Reset Spatie permission cache so new permissions are immediately active
+                    Artisan::call('permission:cache-reset');
+
                     Artisan::call('optimize');
 
                     $installUtil->setSystemInfo('db_version', $this->appVersion);

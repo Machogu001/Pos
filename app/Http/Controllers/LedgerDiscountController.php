@@ -111,6 +111,10 @@ class LedgerDiscountController extends Controller
      */
     public function edit($id)
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         $is_admin = $this->commonUtil->is_admin(auth()->user());
 
         if (! $is_admin) {

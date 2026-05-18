@@ -585,6 +585,10 @@ class HomeController extends Controller
 
     public function showNotification($id)
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         $notification = DatabaseNotification::find($id);
 
         $data = $notification->data;

@@ -341,6 +341,10 @@ class PurchaseReturnController extends Controller
      */
     public function show($id)
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         if (! auth()->user()->can('purchase.view')) {
             abort(403, 'Unauthorized action.');
         }

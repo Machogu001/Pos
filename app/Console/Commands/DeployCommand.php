@@ -1,0 +1,140 @@
+<?php
+
+namespace App\Console\Commands;
+
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * pos:deploy
+ *
+ * Idempotent deployment command. Use after git pull / package updates.
+ * Safe to run multiple times. Does NOT wipe the database.
+ *
+ *   php artisan pos:deploy
+ *   php artisan pos:deploy --fresh   # WARNING: drops all tables + re-seeds
+ *
+ * Sequence (--fresh):
+ *   1. pos:setup          — dirs, symlinks, Passport keys, cache clear
+ *   2. migrate:fresh      — drop + re-run all core migrations
+ *   3. module:migrate     — run any module migrations not auto-discovered
+ *   4. module:publish     — publish module assets (CSS/JS/views)
+ *   5. db:seed            — seed barcodes, permissions, currencies, admin, superadmin
+ *   6. passport:install   — create OAuth clients in DB
+ *   7. permission:cache-reset
+ *   8. optimize
+ *
+ * Sequence (default update):
+ *   1. pos:setup          — dirs, symlinks, Passport keys
+ *   2. migrate            — run new core migrations
+ *   3. module:migrate     — run new module migrations
+ *   4. module:publish     — publish module assets
+ *   5. passport:install   — ensure OAuth clients exist
+ *   6. db:seed PermissionsTableSeeder — add any new permissions
+ *   7. permission:cache-reset
+ *   8. optimize
+ */
+class DeployCommand extends Command
+{
+    protected $signature   = 'pos:deploy
+                                {--fresh : Drop all tables and re-seed (use on a fresh database only)}
+                                {--force : Skip confirmation prompts}';
+
+    protected $description = 'Run all deployment steps: migrate, publish assets, seed, cache.';
+
+    public function handle(): int
+    {
+        $isFresh = $this->option('fresh');
+        $force   = $this->option('force');
+
+        if ($isFresh && ! $force) {
+            $confirmed = $this->confirm(
+                'WARNING: --fresh will drop ALL database tables and re-seed from scratch. Continue?',
+                false
+            );
+            if (! $confirmed) {
+                $this->info('Aborted.');
+                return self::FAILURE;
+            }
+        }
+
+        $this->info('==> pos:deploy starting' . ($isFresh ? ' (--fresh)' : '') . ' ...');
+
+        // Step 1: Setup dirs, symlinks, Passport keys, clear caches
+        $this->step('pos:setup (dirs, symlinks, keys)', function () use ($force) {
+            Artisan::call('pos:setup', ['--force' => true]);
+        });
+
+        DB::statement('SET default_storage_engine=INNODB;');
+
+        if ($isFresh) {
+            // Step 2a: Drop all + re-run all core migrations
+            $this->step('migrate:fresh', function () {
+                Artisan::call('migrate:fresh', ['--force' => true]);
+            });
+        } else {
+            // Step 2b: Run only new core migrations
+            $this->step('migrate', function () {
+                Artisan::call('migrate', ['--force' => true]);
+            });
+        }
+
+        // Step 3: Module migrations (belt-and-suspenders; safe no-op if already run)
+        $this->step('module:migrate', function () {
+            Artisan::call('module:migrate', ['--force' => true]);
+        });
+
+        // Step 4: Publish module assets
+        $this->step('module:publish', function () {
+            Artisan::call('module:publish');
+        });
+
+        if ($isFresh) {
+            // Step 5a: Full seed on fresh install
+            $this->step('db:seed (full)', function () {
+                Artisan::call('db:seed', ['--force' => true]);
+            });
+        } else {
+            // Step 5b: Re-seed only permissions on update (non-destructive)
+            $this->step('db:seed (PermissionsTableSeeder)', function () {
+                Artisan::call('db:seed', [
+                    '--class' => 'PermissionsTableSeeder',
+                    '--force' => true,
+                ]);
+            });
+        }
+
+        // Step 6: Ensure OAuth clients exist
+        $this->step('passport:install', function () {
+            Artisan::call('passport:install', ['--force' => true]);
+        });
+
+        // Step 7: Reset Spatie permission cache
+        $this->step('permission:cache-reset', function () {
+            Artisan::call('permission:cache-reset');
+        });
+
+        // Step 8: Cache config/routes/views
+        $this->step('optimize', function () {
+            Artisan::call('optimize');
+        });
+
+        $this->info('');
+        $this->info('==> pos:deploy complete.');
+
+        if ($isFresh) {
+            $this->newLine();
+            $this->warn('Next step: open the application in a browser and register your business.');
+            $this->warn('Business registration creates the Admin and Cashier roles automatically.');
+        }
+
+        return self::SUCCESS;
+    }
+
+    private function step(string $label, callable $fn): void
+    {
+        $this->line("  --> {$label}");
+        $fn();
+    }
+}

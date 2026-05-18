@@ -10,6 +10,8 @@
      'view' => 'Uitzicht',
      'delete' => 'Delete',
      'close' => 'Dichtbij',
+    'title' => 'Titel',
+    'status' => 'Status',
      'something_went_wrong' => 'Er is iets verkeerd gegaan, probeer het later opnieuw',
      'required' => 'Dit veld is verplicht',
      'please_select' => 'Selecteer alstublieft',

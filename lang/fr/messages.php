@@ -10,6 +10,8 @@
      'view' => 'Voir',
      'delete' => 'Effacer',
      'close' => 'Fermer',
+    'title' => 'Titre',
+    'status' => 'Statut',
      'something_went_wrong' => "Quelque chose c'est mal passé. Merci d'essayer plus tard",
      'required' => 'Ce champ est requis',
      'please_select' => 'Veuillez sélectionner',

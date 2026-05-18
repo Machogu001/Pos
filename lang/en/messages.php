@@ -20,6 +20,8 @@ return [
     'view' => 'View',
     'delete' => 'Delete',
     'close' => 'Close',
+    'title' => 'Title',
+    'status' => 'Status',
     'something_went_wrong' => 'Something went wrong, please try again later',
     'required' => 'This field is required',
     'please_select' => 'Please Select',

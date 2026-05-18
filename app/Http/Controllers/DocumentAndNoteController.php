@@ -191,6 +191,10 @@ class DocumentAndNoteController extends Controller
      */
     public function create()
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         //model id like project_id, user_id
         $notable_id = request()->get('notable_id');
         //model name like App\User
@@ -265,6 +269,10 @@ class DocumentAndNoteController extends Controller
      */
     public function show($id)
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         //model id like project_id, user_id
         $notable_id = request()->get('notable_id');
         //model name like App\User
@@ -289,6 +297,10 @@ class DocumentAndNoteController extends Controller
      */
     public function edit($id)
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         //model id like project_id, user_id
         $notable_id = request()->get('notable_id');
         //model name like App\User

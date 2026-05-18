@@ -107,6 +107,7 @@ class PopulateAccountSubtypesTable extends Migration
             ],
             10 => [
                 'id' => '11',
+                'business_id' => '0',
                 'account_type' => 'income',
                 'name' => 'Income',
                 'active' => '1',

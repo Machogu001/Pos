@@ -20,6 +20,8 @@ return [
     'view' => 'Melihat',
     'delete' => 'Hapus',
     'close' => 'Tutup',
+    'title' => 'Judul',
+    'status' => 'Status',
     'something_went_wrong' => 'Ada yang salah, silakan coba lagi nanti',
     'required' => 'Bagian ini diperlukan',
     'please_select' => 'Silahkan pilih',

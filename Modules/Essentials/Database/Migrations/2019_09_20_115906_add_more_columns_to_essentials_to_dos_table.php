@@ -42,7 +42,13 @@ class AddMoreColumnsToEssentialsToDosTable extends Migration
         }
 
         //Drop columns user_id and is_completed from essentials_to_dos table
-        DB::statement('ALTER TABLE essentials_to_dos DROP COLUMN is_completed, DROP COLUMN user_id');
+        if (DB::getDriverName() === 'sqlite') {
+            Schema::table('essentials_to_dos', function (Blueprint $table) {
+                $table->dropColumn(['is_completed', 'user_id']);
+            });
+        } else {
+            DB::statement('ALTER TABLE essentials_to_dos DROP COLUMN is_completed, DROP COLUMN user_id');
+        }
 
         Permission::create(['name' => 'essentials.assign_todos']);
     }

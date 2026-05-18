@@ -70,6 +70,10 @@ class SalesCommissionAgentController extends Controller
      */
     public function create()
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         if (! auth()->user()->can('user.create')) {
             abort(403, 'Unauthorized action.');
         }
@@ -121,6 +125,10 @@ class SalesCommissionAgentController extends Controller
      */
     public function edit($id)
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         if (! auth()->user()->can('user.update')) {
             abort(403, 'Unauthorized action.');
         }

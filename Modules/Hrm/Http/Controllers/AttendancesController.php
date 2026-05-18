@@ -27,12 +27,6 @@ class AttendancesController extends Controller
 
     public function index(Request $request)
     {
-        if (! $request->wantsJson() && ! $request->expectsJson()) {
-            $target = url('/hrm/attendance');
-            if ($request->getQueryString()) { $target .= '?' . $request->getQueryString(); }
-            return redirect($target);
-        }
-
         $user = $this->getAuthUser($request);
         $this->authorizeForUser($user, 'view', Attendance::class);
 
@@ -229,12 +223,21 @@ class AttendancesController extends Controller
         }
 
             try{
-                // Times might be in various formats (H:i, H:iA, etc); normalize via strtotime
-                $shift_in_ts   = strtotime($shift_in);
-                $shift_out_ts  = strtotime($shift_out);
-                if ($shift_in_ts === false || $shift_out_ts === false) {
-                    throw new \Exception('Invalid shift time format');
-                }
+                // Times might be in various formats (H:i, H:iA, etc); normalize via strtotime.
+                // Strip am/pm suffix when hour >= 13 to handle incorrect '17:00pm' storage.
+                $normalize = function (string $t): int {
+                    $ts = strtotime($t);
+                    if ($ts === false) {
+                        // Try stripping trailing am/pm
+                        $ts = strtotime(preg_replace('/\s*[aApP][mM]$/', '', trim($t)));
+                    }
+                    if ($ts === false) {
+                        throw new \Exception('Invalid shift time format: ' . $t);
+                    }
+                    return $ts;
+                };
+                $shift_in_ts   = $normalize($shift_in);
+                $shift_out_ts  = $normalize($shift_out);
                 $shift_in  = new DateTime(date('Y-m-d H:i', $shift_in_ts));
                 $shift_out  = new DateTime(date('Y-m-d H:i', $shift_out_ts));
             }catch(Exception $e){
@@ -276,6 +279,8 @@ class AttendancesController extends Controller
             $data['total_work'] = $work_duration;
             $data['clock_in_out'] = 0;
             $data['company_id'] = $company_id;
+            $data['employee_id'] = $employee_id;
+            $data['date'] = $date;
 
             $data['clock_in_ip'] = '';
             $data['clock_out_ip'] = '';

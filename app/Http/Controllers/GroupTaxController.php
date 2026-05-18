@@ -51,6 +51,10 @@ class GroupTaxController extends Controller
      */
     public function create()
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         $business_id = request()->session()->get('user.business_id');
         $taxes = TaxRate::where('business_id', $business_id)->where('is_tax_group', '0')->pluck('name', 'id');
 

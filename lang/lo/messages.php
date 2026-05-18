@@ -20,6 +20,8 @@ return [
     'view' => 'ເບິ່ງ',
     'delete' => 'ລຶບ',
     'close' => 'ປິດ',
+    'title' => 'Title',
+    'status' => 'Status',
     'something_went_wrong' => 'ມີບາງຢ່າງຜິດພາດ, ກະລຸນາລອງໃໝ່ອີກຄັ້ງ',
     'required' => 'ຟິວນີ້ຈຳເປັນຕ້ອງໃສ່',
     'please_select' => 'ກະລຸນາເລືອກ',

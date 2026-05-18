@@ -442,6 +442,10 @@ class PurchaseOrderController extends Controller
      */
     public function show($id)
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         if (! auth()->user()->can('purchase_order.view_all') && ! auth()->user()->can('purchase_order.view_own')) {
             abort(403, 'Unauthorized action.');
         }

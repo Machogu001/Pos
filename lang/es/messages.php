@@ -9,7 +9,9 @@
      'actions' => 'Acciones', /* modified */
      'view' => 'Ver',
      'delete' => 'Borrar',
-     'close' => 'Cerrar', /* modified */
+     'close' => 'Cerrar',
+    'title' => 'Título',
+    'status' => 'Estado', /* modified */
      'something_went_wrong' => 'Algo salió mal, por favor intente de nuevo más tarde',
      'required' => 'Este campo es requerido',
      'please_select' => 'Seleccione',

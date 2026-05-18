@@ -108,6 +108,10 @@ class CashRegisterController extends Controller
      */
     public function show($id)
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         if (! auth()->user()->can('view_cash_register')) {
             abort(403, 'Unauthorized action.');
         }
@@ -134,6 +138,10 @@ class CashRegisterController extends Controller
      */
     public function getRegisterDetails()
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         if (! auth()->user()->can('view_cash_register')) {
             abort(403, 'Unauthorized action.');
         }
@@ -164,6 +172,10 @@ class CashRegisterController extends Controller
      */
     public function getCloseRegister($id = null)
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         if (! auth()->user()->can('close_cash_register')) {
             abort(403, 'Unauthorized action.');
         }

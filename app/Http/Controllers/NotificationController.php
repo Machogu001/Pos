@@ -38,6 +38,10 @@ class NotificationController extends Controller
      */
     public function getTemplate($id, $template_for)
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         $business_id = request()->session()->get('user.business_id');
 
         $notification_template = NotificationTemplate::getTemplate($business_id, $template_for);

@@ -18,6 +18,15 @@ class LoginOtpFlowTest extends TestCase
     {
         parent::setUp();
 
+        Schema::dropIfExists('role_has_permissions');
+        Schema::dropIfExists('model_has_roles');
+        Schema::dropIfExists('model_has_permissions');
+        Schema::dropIfExists('roles');
+        Schema::dropIfExists('permissions');
+        Schema::dropIfExists('users');
+        Schema::dropIfExists('business');
+        Schema::dropIfExists('admin_settings');
+
         Schema::create('business', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
@@ -76,6 +85,12 @@ class LoginOtpFlowTest extends TestCase
             $table->unsignedBigInteger('role_id');
         });
 
+        Schema::create('admin_settings', function (Blueprint $table) {
+            $table->id();
+            $table->boolean('subscription_required')->default(false);
+            $table->timestamps();
+        });
+
         $businessUtil = \Mockery::mock(BusinessUtil::class);
         $businessUtil->shouldReceive('activityLog')->zeroOrMoreTimes();
         $this->app->instance(BusinessUtil::class, $businessUtil);
@@ -83,6 +98,24 @@ class LoginOtpFlowTest extends TestCase
         $moduleUtil = \Mockery::mock(ModuleUtil::class);
         $moduleUtil->shouldReceive('hasThePermissionInSubscription')->zeroOrMoreTimes()->andReturn(true);
         $this->app->instance(ModuleUtil::class, $moduleUtil);
+    }
+
+    protected function tearDown(): void
+    {
+        Schema::dropIfExists('admin_settings');
+        Schema::dropIfExists('role_has_permissions');
+        Schema::dropIfExists('model_has_roles');
+        Schema::dropIfExists('model_has_permissions');
+        Schema::dropIfExists('roles');
+        Schema::dropIfExists('permissions');
+        Schema::dropIfExists('users');
+        Schema::dropIfExists('business');
+        // Truncate the migrations table so subsequent RefreshDatabase tests
+        // re-run all migrations from scratch against the clean DB state.
+        if (Schema::hasTable('migrations')) {
+            \DB::table('migrations')->truncate();
+        }
+        parent::tearDown();
     }
 
     public function test_login_redirects_to_otp_challenge_when_otp_is_enabled()
@@ -100,7 +133,7 @@ class LoginOtpFlowTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        User::create([
+        \DB::table('users')->insert([
             'business_id' => 1,
             'surname' => 'Otp',
             'first_name' => 'Login',
@@ -114,6 +147,8 @@ class LoginOtpFlowTest extends TestCase
             'allow_login' => 1,
             'user_type' => 'user',
             'otp_login_enabled' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         $smsService = \Mockery::mock(MobileSasaSmsService::class);

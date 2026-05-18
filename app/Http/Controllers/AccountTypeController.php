@@ -24,6 +24,10 @@ class AccountTypeController extends Controller
      */
     public function create()
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         if (! auth()->user()->can('account.access')) {
             abort(403, 'Unauthorized action.');
         }
@@ -89,6 +93,10 @@ class AccountTypeController extends Controller
      */
     public function edit($id)
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         if (! auth()->user()->can('account.access')) {
             abort(403, 'Unauthorized action.');
         }

@@ -20,18 +20,18 @@ class CreateSubscriptionsTable extends Migration
         Schema::create('subscriptions', function (Blueprint $table) {
             $table->increments('id');
 
-            $table->integer('business_id')->unsigned();
+            $table->integer('business_id')->unsigned()->nullable();
             $table->foreign('business_id')->references('id')->on('business')->onDelete('cascade');
-            $table->integer('package_id')->unsigned();
+            $table->integer('package_id')->unsigned()->nullable();
             $table->date('start_date')->nullable();
             $table->date('trial_end_date')->nullable();
             $table->date('end_date')->nullable();
-            $table->decimal('package_price', 22, 4);
-            $table->longText('package_details');
-            $table->integer('created_id')->unsigned();
+            $table->decimal('package_price', 22, 4)->nullable();
+            $table->longText('package_details')->nullable();
+            $table->integer('created_id')->unsigned()->nullable();
             $table->string('paid_via')->nullable();
             $table->string('payment_transaction_id')->nullable();
-            $table->enum('status', ['approved', 'waiting', 'declined'])->default('waiting');
+            $table->string('status')->default('waiting');
             $table->softDeletes();
             $table->timestamps();
         });

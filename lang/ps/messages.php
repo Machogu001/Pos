@@ -20,6 +20,8 @@ return [
     'view' => 'وګوره',
     'delete' => 'پاک کړئ',
     'close' => 'وتړئ',
+    'title' => 'Title',
+    'status' => 'Status',
     'something_went_wrong' => 'یو څه خراب شو، لطفا وروسته بیا هڅه وکړئ',
     'required' => 'دغه سیمی ته اړتیا ده',
     'please_select' => 'لطفا غوره کړئ',

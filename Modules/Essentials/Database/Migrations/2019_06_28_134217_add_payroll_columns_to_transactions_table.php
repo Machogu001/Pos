@@ -16,7 +16,7 @@ class AddPayrollColumnsToTransactionsTable extends Migration
     public function up()
     {
         Schema::table('transactions', function (Blueprint $table) {
-            $table->decimal('essentials_duration', 8, 2)->deafult(0)->after('created_by');
+            $table->decimal('essentials_duration', 8, 2)->default(0)->nullable()->after('created_by');
             $table->string('essentials_duration_unit', 20)->nullable()->after('essentials_duration');
             $table->decimal('essentials_amount_per_unit_duration', 22, 4)->default(0)->after('essentials_duration_unit');
             $table->text('essentials_allowances')->nullable()->after('essentials_amount_per_unit_duration');

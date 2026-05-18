@@ -20,6 +20,16 @@ class SubscriptionPreBillingTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Override the in-memory database refresh to use migrate:fresh,
+     * ensuring a completely clean schema regardless of prior test state.
+     */
+    protected function refreshInMemoryDatabase(): void
+    {
+        $this->artisan('migrate:fresh', $this->migrateUsing());
+        $this->app[\Illuminate\Contracts\Console\Kernel::class]->setArtisan(null);
+    }
+
     /** @test */
     public function it_generates_invoice_and_pending_mpesa_for_subscriptions_14_days_before_end()
     {

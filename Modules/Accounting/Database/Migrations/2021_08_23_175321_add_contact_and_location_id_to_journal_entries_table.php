@@ -19,8 +19,13 @@ class AddContactAndLocationIdToJournalEntriesTable extends Migration
             Schema::table('journal_entries', function (Blueprint $table) {
                 $table->dropIndex('client_id_index');
                 $table->dropIndex('branch_id_index');
-                DB::statement('ALTER TABLE `journal_entries` CHANGE `client_id` `contact_id` INT(10) UNSIGNED NULL DEFAULT NULL;');
-                DB::statement('ALTER TABLE `journal_entries` CHANGE `branch_id` `location_id` INT(10) UNSIGNED NULL DEFAULT NULL;');
+                if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
+                    DB::statement('ALTER TABLE `journal_entries` CHANGE `client_id` `contact_id` INT(10) UNSIGNED NULL DEFAULT NULL;');
+                    DB::statement('ALTER TABLE `journal_entries` CHANGE `branch_id` `location_id` INT(10) UNSIGNED NULL DEFAULT NULL;');
+                } else {
+                    $table->renameColumn('client_id', 'contact_id');
+                    $table->renameColumn('branch_id', 'location_id');
+                }
                 $table->index('contact_id');
                 $table->index('location_id');
             });
@@ -38,8 +43,13 @@ class AddContactAndLocationIdToJournalEntriesTable extends Migration
             Schema::table('journal_entries', function (Blueprint $table) {
                 $table->dropIndex('journal_entries_contact_id_index');
                 $table->dropIndex('journal_entries_location_id_index');
-                DB::statement('ALTER TABLE `journal_entries` CHANGE `contact_id` `client_id` INT(10) UNSIGNED NULL DEFAULT NULL;');
-                DB::statement('ALTER TABLE `journal_entries` CHANGE `location_id` `branch_id` INT(10) UNSIGNED NULL DEFAULT NULL;');
+                if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
+                    DB::statement('ALTER TABLE `journal_entries` CHANGE `contact_id` `client_id` INT(10) UNSIGNED NULL DEFAULT NULL;');
+                    DB::statement('ALTER TABLE `journal_entries` CHANGE `location_id` `branch_id` INT(10) UNSIGNED NULL DEFAULT NULL;');
+                } else {
+                    $table->renameColumn('contact_id', 'client_id');
+                    $table->renameColumn('location_id', 'branch_id');
+                }
                 $table->index('client_id', 'client_id_index');
                 $table->index('branch_id', 'branch_id_index');
             });

@@ -31,7 +31,7 @@ Route::middleware('web', 'auth', 'language', 'AdminSidebarMenu')->prefix('hms')-
     Route::post('store-email-template', [Modules\Hms\Http\Controllers\HmsSettingController::class, 'store_email_template']);
     
     // booking route 
-    Route::resource('/bookings', Modules\Hms\Http\Controllers\HmsBookingController::class);
+    Route::resource('/bookings', Modules\Hms\Http\Controllers\HmsBookingController::class)->names('hms.bookings');
 
     Route::get('/booking-room-add', [Modules\Hms\Http\Controllers\HmsBookingController::class, 'booking_room_add'])->name('booking_room_add');
 

@@ -94,6 +94,10 @@ class TaxonomyController extends Controller
      */
     public function create()
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         $category_type = request()->get('type');
         if ($category_type == 'product' && ! auth()->user()->can('category.create')) {
             abort(403, 'Unauthorized action.');

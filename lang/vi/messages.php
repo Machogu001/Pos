@@ -20,6 +20,8 @@ return [
     'view' => 'Lượt xem',
     'delete' => 'Xóa',
     'close' => 'Đóng',
+    'title' => 'Tiêu đề',
+    'status' => 'Trạng thái',
     'something_went_wrong' => 'Đã xảy ra lỗi, vui lòng thử lại sau',
     'required' => 'Lĩnh vực này là bắt buộc',
     'please_select' => 'Lựa chọn',

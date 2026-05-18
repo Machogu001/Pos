@@ -297,6 +297,10 @@ class LeadController extends Controller
      */
     public function create()
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         $business_id = request()->session()->get('user.business_id');
         if (! (auth()->user()->can('superadmin') || $this->moduleUtil->hasThePermissionInSubscription($business_id, 'crm_module'))) {
             abort(403, 'Unauthorized action.');
@@ -412,6 +416,10 @@ class LeadController extends Controller
      */
     public function edit($id)
     {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
         $business_id = request()->session()->get('user.business_id');
         $can_access_all_leads = auth()->user()->can('crm.access_all_leads');
         $can_access_own_leads = auth()->user()->can('crm.access_own_leads');

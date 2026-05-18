@@ -97,19 +97,19 @@ class HrmAttendanceHolidayFeatureTest extends TestCase
             'name' => 'Main Shift',
             'company_id' => $company->id,
             'monday_in' => '09:00am',
-            'monday_out' => '17:00pm',
+            'monday_out' => '05:00pm',
             'tuesday_in' => '09:00am',
-            'tuesday_out' => '17:00pm',
+            'tuesday_out' => '05:00pm',
             'wednesday_in' => '09:00am',
-            'wednesday_out' => '17:00pm',
+            'wednesday_out' => '05:00pm',
             'thursday_in' => '09:00am',
-            'thursday_out' => '17:00pm',
+            'thursday_out' => '05:00pm',
             'friday_in' => '09:00am',
-            'friday_out' => '17:00pm',
+            'friday_out' => '05:00pm',
             'saturday_in' => '09:00am',
-            'saturday_out' => '13:00pm',
+            'saturday_out' => '01:00pm',
             'sunday_in' => '09:00am',
-            'sunday_out' => '13:00pm',
+            'sunday_out' => '01:00pm',
         ]);
         $employee = Employee::create([
             'firstname' => 'Alex',
@@ -247,6 +247,7 @@ class HrmAttendanceHolidayFeatureTest extends TestCase
         Schema::dropIfExists('permissions');
         Schema::dropIfExists('notifications');
         Schema::dropIfExists('roles');
+        Schema::dropIfExists('admin_settings');
         Schema::dropIfExists('users');
         Schema::dropIfExists('business');
 
@@ -255,6 +256,19 @@ class HrmAttendanceHolidayFeatureTest extends TestCase
             $table->string('name')->nullable();
             $table->json('enabled_modules')->nullable();
             $table->json('common_settings')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('admin_settings', function (Blueprint $table) {
+            $table->id();
+            $table->decimal('monthly_price', 15, 2)->nullable();
+            $table->decimal('quarterly_price', 15, 2)->nullable();
+            $table->decimal('yearly_price', 15, 2)->nullable();
+            $table->decimal('registration_price', 15, 2)->nullable();
+            $table->boolean('auto_renewal')->default(false);
+            $table->boolean('subscription_required')->default(false);
+            $table->integer('grace_period_days')->default(0);
+            $table->string('hrm_theme')->nullable();
             $table->timestamps();
         });
 

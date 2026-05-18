@@ -42,6 +42,21 @@ class AddMissingDatabaseColumnIndexes extends Migration
 
     private function hasIndexForColumn(string $table, string $column): bool
     {
+        $driver = DB::getDriverName();
+
+        if ($driver === 'sqlite') {
+            $indexes = DB::select("PRAGMA index_list({$table})");
+            foreach ($indexes as $index) {
+                $info = DB::select("PRAGMA index_info({$index->name})");
+                foreach ($info as $col) {
+                    if ($col->name === $column) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         $databaseName = DB::getDatabaseName();
 
         return DB::table('information_schema.statistics')
