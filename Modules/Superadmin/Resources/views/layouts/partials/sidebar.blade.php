@@ -69,6 +69,13 @@
 			  	</a>
 			</li>
 
+        <li class="{{ $request->segment(2) == 'sla' ? 'active active-sub' : '' }}">
+				<a href="{{ route('superadmin.sla.show') }}">
+					<i class="fa fa-file-text-o"></i>
+					<span class="title">SLA Document</span>
+				</a>
+			</li>
+
         </ul>
 	</li>
 @endcan

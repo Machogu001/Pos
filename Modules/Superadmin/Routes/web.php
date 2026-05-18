@@ -36,6 +36,11 @@ Route::middleware('web', 'auth', 'language', 'AdminSidebarMenu', 'superadmin')->
     Route::get('/communicator/get-history', [Modules\Superadmin\Http\Controllers\CommunicatorController::class, 'getHistory']);
 
     Route::resource('/frontend-pages', 'Modules\Superadmin\Http\Controllers\PageController');
+
+    // SLA
+    Route::get('/sla', [\Modules\Superadmin\Http\Controllers\SlaController::class, 'show'])->name('superadmin.sla.show');
+    Route::get('/sla/edit', [\Modules\Superadmin\Http\Controllers\SlaController::class, 'edit'])->name('superadmin.sla.edit');
+    Route::post('/sla', [\Modules\Superadmin\Http\Controllers\SlaController::class, 'update'])->name('superadmin.sla.update');
 });
 
 Route::middleware('web', 'SetSessionData', 'auth', 'language', 'timezone', 'AdminSidebarMenu')->group(function () {
