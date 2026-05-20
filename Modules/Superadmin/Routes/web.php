@@ -29,6 +29,7 @@ Route::middleware('web', 'auth', 'language', 'AdminSidebarMenu')->prefix('supera
     Route::post('/update/clients',          [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'storeClient'])->name('superadmin.update.clients.store');
     Route::delete('/update/clients/{id}',   [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'destroyClient'])->name('superadmin.update.clients.destroy');
     Route::post('/update/clients/{id}/push',[\Modules\Superadmin\Http\Controllers\UpdateController::class, 'pushToClient'])->name('superadmin.update.clients.push');
+    Route::post('/update/build-package',    [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'buildPackage'])->name('superadmin.update.build-package');
 });
 
 Route::middleware('web', 'auth', 'language', 'AdminSidebarMenu', 'superadmin')->prefix('superadmin')->group(function () {

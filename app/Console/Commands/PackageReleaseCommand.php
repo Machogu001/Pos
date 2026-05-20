@@ -16,7 +16,7 @@ use ZipArchive;
  */
 class PackageReleaseCommand extends Command
 {
-    protected $signature   = 'pos:package-release {--version= : Override the version string}';
+    protected $signature   = 'pos:package-release {--version= : Override the version string} {--force : Overwrite existing package without prompting}';
     protected $description = 'Package the current codebase into a distributable release zip.';
 
     private const EXCLUDE = [
@@ -49,7 +49,7 @@ class PackageReleaseCommand extends Command
         @mkdir($outDir, 0775, true);
 
         if (file_exists($zipFile)) {
-            if (! $this->confirm("v{$version}.zip already exists — overwrite?", false)) {
+            if (! $this->option('force') && ! $this->confirm("v{$version}.zip already exists — overwrite?", false)) {
                 $this->info('Aborted.');
                 return self::SUCCESS;
             }

@@ -193,11 +193,28 @@
         {{-- Modal footer --}}
         <div class="tw-flex tw-items-center tw-justify-between tw-gap-3 tw-px-6 tw-py-4 tw-border-t tw-border-gray-200">
             <div class="tw-flex tw-items-center tw-gap-2">
+                {{-- Build Package button — always visible to superadmin --}}
+                <button type="button" id="build-package-btn"
+                        class="tw-inline-flex tw-items-center tw-gap-1.5 tw-px-3 tw-py-2 tw-text-xs tw-font-semibold
+                               tw-text-white tw-bg-green-600 hover:tw-bg-green-700 tw-rounded-lg tw-transition-colors
+                               disabled:tw-opacity-50 disabled:tw-pointer-events-none"
+                        style="background-color:#16a34a !important;color:#ffffff !important;"
+                        title="Package current codebase into a distributable zip, then push to all clients">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-3.5" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3l8 4.5v9l-8 4.5l-8-4.5v-9l8-4.5"/><path d="M12 12l8-4.5"/><path d="M12 12v9"/><path d="M12 12l-8-4.5"/></svg>
+                    <span id="build-pkg-text">Build &amp; Push All Clients</span>
+                    <span id="build-pkg-spinner" class="tw-hidden">
+                        <svg class="tw-animate-spin tw-size-3.5 tw-text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="tw-opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="tw-opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"></path>
+                        </svg>
+                    </span>
+                </button>
                 @if($hasClientRegistry)
                 <button type="button" id="push-all-btn"
                         class="tw-inline-flex tw-items-center tw-gap-1.5 tw-px-3 tw-py-2 tw-text-xs tw-font-semibold
                                tw-text-white tw-bg-indigo-500 hover:tw-bg-indigo-600 tw-rounded-lg tw-transition-colors
-                               disabled:tw-opacity-50 disabled:tw-pointer-events-none">
+                               disabled:tw-opacity-50 disabled:tw-pointer-events-none"
+                        style="background-color:#6366f1 !important;color:#ffffff !important;">
                     <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-3.5" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M7 11l5-5l5 5"/><path d="M12 4v12"/></svg>
                     Push All Clients
                 </button>
@@ -275,6 +292,9 @@
     var pullBtnText = document.getElementById('pull-btn-text');
     var pullSpinner = document.getElementById('pull-spinner');
     var pushAllBtn  = document.getElementById('push-all-btn');
+    var buildPkgBtn  = document.getElementById('build-package-btn');
+    var buildPkgText = document.getElementById('build-pkg-text');
+    var buildPkgSpin = document.getElementById('build-pkg-spinner');
     var isSuperadmin = @json($isSuperadmin);
     var isRemoteOnly  = @json($remotePending && !$localPending);  // remote update available but code not yet pulled
 
@@ -570,6 +590,85 @@
                 resetButtons();
             };
         });
+    }
+
+    // ── Build release package + push to all clients ─────────────
+    if (buildPkgBtn) {
+        buildPkgBtn.addEventListener('click', function () {
+            if (! confirm('This will package the current codebase (v{{ config("author.app_version") }}) and push it to all registered client servers. Continue?')) return;
+
+            buildPkgBtn.disabled = true;
+            if (buildPkgText) buildPkgText.textContent = 'Building…';
+            if (buildPkgSpin) buildPkgSpin.classList.remove('tw-hidden');
+            if (checkResult) checkResult.classList.add('tw-hidden');
+            if (preRunEl)    preRunEl.classList.add('tw-hidden');
+            if (logWrap)     logWrap.classList.remove('tw-hidden');
+            if (logEl)       logEl.textContent = 'Building release package…\n';
+
+            fetch('{{ route("superadmin.update.build-package") }}', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (! data.success) {
+                    showRunResult(false, 'Build failed: ' + (data.message || 'unknown error'));
+                    resetBuildBtn();
+                    return;
+                }
+                if (logEl) {
+                    logEl.textContent += data.message + '\n';
+                    logEl.textContent += 'Package v' + data.version + ' ready (' + data.size_kb + ' KB). Pushing to clients…\n';
+                    logWrap.scrollTop = logWrap.scrollHeight;
+                }
+                if (buildPkgText) buildPkgText.textContent = 'Pushing…';
+
+                // Now push to all clients via SSE
+                deployDone = false;
+                stopDeployStream();
+                deploySource = new EventSource('{{ route("superadmin.update.push-all") }}');
+
+                deploySource.addEventListener('clientStart', function (e) {
+                    var d = JSON.parse(e.data);
+                    if (logEl) { logEl.textContent += 'Pushing to ' + d.name + '…\n'; logWrap.scrollTop = logWrap.scrollHeight; }
+                });
+                deploySource.addEventListener('clientResult', function (e) {
+                    var d = JSON.parse(e.data);
+                    if (logEl) {
+                        logEl.textContent += '  ' + (d.success ? '✓' : '✗') + ' ' + d.name + ': ' + d.message + '\n';
+                        logWrap.scrollTop = logWrap.scrollHeight;
+                    }
+                    if (typeof renderClients === 'function') renderClients();
+                });
+                deploySource.addEventListener('done', function (e) {
+                    deployDone = true;
+                    stopDeployStream();
+                    var d = JSON.parse(e.data);
+                    if (d.success) {
+                        showRunResult(true, 'Package built and pushed to ' + d.succeeded + '/' + d.total + ' client(s). They will self-update in the background.');
+                    } else {
+                        showRunResult(false, 'Package built, but ' + (d.failed || 0) + ' client(s) failed. Check log above.');
+                    }
+                    resetBuildBtn();
+                });
+                deploySource.onerror = function () {
+                    if (deployDone) return;
+                    stopDeployStream();
+                    showRunResult(false, 'Package built — push stream lost. Check server logs.');
+                    resetBuildBtn();
+                };
+            })
+            .catch(function (err) {
+                showRunResult(false, 'Build request failed: ' + err.message);
+                resetBuildBtn();
+            });
+        });
+    }
+
+    function resetBuildBtn() {
+        if (buildPkgBtn)  buildPkgBtn.disabled = false;
+        if (buildPkgText) buildPkgText.textContent = 'Build \u0026 Push All Clients';
+        if (buildPkgSpin) buildPkgSpin.classList.add('tw-hidden');
     }
 
     // ── Push to all clients (central server) ────────────────────

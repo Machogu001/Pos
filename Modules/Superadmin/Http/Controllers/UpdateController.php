@@ -400,6 +400,36 @@ class UpdateController extends BaseController
         return response()->json(['success' => true]);
     }
 
+    /** Build a release package from the current codebase (runs pos:package-release). */
+    public function buildPackage(Request $request): JsonResponse
+    {
+        if (! auth()->user()->can('superadmin')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        try {
+            $exitCode = Artisan::call('pos:package-release', ['--force' => true]);
+            $output   = trim(Artisan::output());
+        } catch (\Throwable $e) {
+            Log::error('buildPackage failed: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+
+        if ($exitCode !== 0) {
+            return response()->json(['success' => false, 'message' => $output ?: 'Package build failed.']);
+        }
+
+        $manifest = $this->loadManifest();
+
+        return response()->json([
+            'success'  => true,
+            'message'  => $output,
+            'version'  => $manifest['version']  ?? '',
+            'size_kb'  => $manifest['size_kb']  ?? 0,
+            'sha256'   => $manifest['sha256']    ?? '',
+        ]);
+    }
+
     /** Push update trigger to a single client. */
     public function pushToClient(Request $request, int $id): JsonResponse
     {
