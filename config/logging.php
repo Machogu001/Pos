@@ -53,8 +53,10 @@ return [
     'channels' => [
         'stack' => [
             'driver' => 'stack',
-            'channels' => ['single'],
-            'ignore_exceptions' => false,
+            // Keep file logs, but always include stderr so installs/migrations
+            // are not blocked by filesystem permission issues.
+            'channels' => ['single', 'stderr'],
+            'ignore_exceptions' => true,
         ],
 
         'single' => [

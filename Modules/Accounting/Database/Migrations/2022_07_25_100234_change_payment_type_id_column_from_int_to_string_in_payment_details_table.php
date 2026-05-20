@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ChangePaymentTypeIdColumnFromIntToStringInPaymentDetailsTable extends Migration
 {
@@ -12,9 +13,15 @@ class ChangePaymentTypeIdColumnFromIntToStringInPaymentDetailsTable extends Migr
      */
     public function up()
     {
-        if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
-        DB::statement("ALTER TABLE `payment_details` CHANGE `payment_type_id` `payment_type_id` VARCHAR(11) NULL DEFAULT NULL;");
+        if (DB::getDriverName() !== 'mysql') {
+            return;
         }
+
+        if (! Schema::hasTable('payment_details') || ! Schema::hasColumn('payment_details', 'payment_type_id')) {
+            return;
+        }
+
+        DB::statement("ALTER TABLE `payment_details` CHANGE `payment_type_id` `payment_type_id` VARCHAR(11) NULL DEFAULT NULL;");
     }
     
     /**
@@ -24,8 +31,14 @@ class ChangePaymentTypeIdColumnFromIntToStringInPaymentDetailsTable extends Migr
      */
     public function down()
     {
-        if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
-        DB::statement("ALTER TABLE `payment_details` CHANGE `payment_type_id` `payment_type_id` INT(11) NULL DEFAULT NULL;");
+        if (DB::getDriverName() !== 'mysql') {
+            return;
         }
+
+        if (! Schema::hasTable('payment_details') || ! Schema::hasColumn('payment_details', 'payment_type_id')) {
+            return;
+        }
+
+        DB::statement("ALTER TABLE `payment_details` CHANGE `payment_type_id` `payment_type_id` INT(11) NULL DEFAULT NULL;");
     }
 }

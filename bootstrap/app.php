@@ -1,5 +1,26 @@
 <?php
 
+// Early runtime permission self-heal for fresh installs and first boot.
+$basePath = $_ENV['APP_BASE_PATH'] ?? dirname(__DIR__);
+$runtimeDirs = [
+    $basePath . '/storage',
+    $basePath . '/storage/logs',
+    $basePath . '/storage/framework',
+    $basePath . '/storage/framework/cache',
+    $basePath . '/storage/framework/sessions',
+    $basePath . '/storage/framework/views',
+    $basePath . '/bootstrap/cache',
+];
+
+foreach ($runtimeDirs as $dir) {
+    if (! is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+    if (is_dir($dir) && ! is_writable($dir)) {
+        @chmod($dir, 0775);
+    }
+}
+
 /*
 |--------------------------------------------------------------------------
 | Create The Application
@@ -11,9 +32,7 @@
 |
 */
 
-$app = new Illuminate\Foundation\Application(
-    $_ENV['APP_BASE_PATH'] ?? dirname(__DIR__)
-);
+$app = new Illuminate\Foundation\Application($basePath);
 
 /*
 |--------------------------------------------------------------------------

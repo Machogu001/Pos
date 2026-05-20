@@ -260,10 +260,15 @@ class AppServiceProvider extends ServiceProvider
     {
         try {
             $logsDir = storage_path('logs');
+            $fallbackToStderr = false;
 
             // Fix directory if not writable
             if (is_dir($logsDir) && ! is_writable($logsDir)) {
                 @chmod($logsDir, 02775); // setgid + rwxrwxr-x
+            }
+
+            if (! is_dir($logsDir) || ! is_writable($logsDir)) {
+                $fallbackToStderr = true;
             }
 
             // Fix any existing log files that aren't writable
@@ -273,9 +278,45 @@ class AppServiceProvider extends ServiceProvider
                         @chmod($logFile, 0664);
                     }
                 }
+
+                $dailyLog = $logsDir . '/laravel-' . date('Y-m-d') . '.log';
+                if (! file_exists($dailyLog)) {
+                    @touch($dailyLog);
+                    @chmod($dailyLog, 0664);
+                }
+
+                if (! $this->canAppendToFile($dailyLog)) {
+                    $fallbackToStderr = true;
+                }
+            }
+
+            if ($fallbackToStderr) {
+                // Prevent fatal logging exceptions from blocking install/migrate.
+                config([
+                    'logging.default' => 'stderr',
+                    'logging.channels.stack.channels' => ['stderr'],
+                    'logging.channels.stack.ignore_exceptions' => true,
+                ]);
             }
         } catch (\Throwable $e) {
             // Non-fatal — never let a permission check break the app
+        }
+    }
+
+    /**
+     * Verify append access without throwing.
+     */
+    private function canAppendToFile(string $path): bool
+    {
+        try {
+            $handle = @fopen($path, 'ab');
+            if (! is_resource($handle)) {
+                return false;
+            }
+            fclose($handle);
+            return true;
+        } catch (\Throwable $e) {
+            return false;
         }
     }
 
