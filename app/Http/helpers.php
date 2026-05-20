@@ -45,6 +45,65 @@ function isAppInstalled()
     return file_exists($envPath);
 }
 
+if (! function_exists('pos_release_manifest')) {
+    function pos_release_manifest(): ?array
+    {
+        $path = storage_path('app/releases/manifest.json');
+
+        if (! file_exists($path)) {
+            return null;
+        }
+
+        $data = json_decode(@file_get_contents($path), true);
+
+        return is_array($data) ? $data : null;
+    }
+}
+
+if (! function_exists('pos_release_version')) {
+    function pos_release_version(): string
+    {
+        $manifest = pos_release_manifest();
+        if (! empty($manifest['version'])) {
+            return (string) $manifest['version'];
+        }
+
+        $envVersion = trim((string) env('APP_VERSION', ''));
+        if ($envVersion !== '') {
+            return ltrim($envVersion, 'vV');
+        }
+
+        $repoRoot = escapeshellarg(base_path());
+
+        $tag = trim((string) @shell_exec("cd {$repoRoot} && git describe --tags --abbrev=0 2>/dev/null"));
+        if ($tag !== '') {
+            return ltrim($tag, "vV");
+        }
+
+        return '12.9';
+    }
+}
+
+if (! function_exists('pos_release_date')) {
+    function pos_release_date(): string
+    {
+        $manifest = pos_release_manifest();
+        if (! empty($manifest['packaged_at'])) {
+            return substr((string) $manifest['packaged_at'], 0, 10);
+        }
+
+        $envDate = trim((string) env('APP_RELEASED_AT', ''));
+        if ($envDate !== '') {
+            return $envDate;
+        }
+
+        $repoRoot = escapeshellarg(base_path());
+        $gitDate = trim((string) @shell_exec("cd {$repoRoot} && git log -1 --format=%cs HEAD 2>/dev/null"));
+
+        return $gitDate !== '' ? $gitDate : date('Y-m-d');
+    }
+}
+
 /**
  * Checks if pusher has credential or not
  *
