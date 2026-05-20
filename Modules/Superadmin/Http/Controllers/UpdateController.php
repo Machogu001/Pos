@@ -21,9 +21,13 @@ class UpdateController extends BaseController
      */
     public function versionInfo(): JsonResponse
     {
+        // Read directly from the config file so version is always current,
+        // even when config:cache has not been re-run after a version bump.
+        $author = require base_path('config/author.php');
+
         return response()->json([
-            'version'     => config('author.app_version', '0'),
-            'released_at' => config('author.released_at', date('Y-m-d')),
+            'version'     => $author['app_version'] ?? '0',
+            'released_at' => $author['released_at'] ?? date('Y-m-d'),
         ]);
     }
 
