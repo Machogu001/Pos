@@ -13,6 +13,10 @@ class AddJournalEntryIdToTransactionsTable extends Migration
      */
     public function up()
     {
+        if (! Schema::hasTable('transactions') || Schema::hasColumn('transactions', 'journal_entry_id')) {
+            return;
+        }
+
         Schema::table('transactions', function (Blueprint $table) {
             $table->bigInteger('journal_entry_id')->unsigned()->nullable()->after('location_id');
         });
@@ -25,6 +29,10 @@ class AddJournalEntryIdToTransactionsTable extends Migration
      */
     public function down()
     {
+        if (! Schema::hasTable('transactions') || ! Schema::hasColumn('transactions', 'journal_entry_id')) {
+            return;
+        }
+
         Schema::table('transactions', function (Blueprint $table) {
             $table->dropColumn('journal_entry_id');
         });

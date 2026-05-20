@@ -13,6 +13,10 @@ class AddReconcileOpeningBalanceToChartOfAccountsTable extends Migration
      */
     public function up()
     {
+        if (! Schema::hasTable('chart_of_accounts') || Schema::hasColumn('chart_of_accounts', 'reconcile_opening_balance')) {
+            return;
+        }
+
         Schema::table('chart_of_accounts', function (Blueprint $table) {
             $table->integer('reconcile_opening_balance')->after('opening_balance')->nullable();
         });
@@ -25,6 +29,10 @@ class AddReconcileOpeningBalanceToChartOfAccountsTable extends Migration
      */
     public function down()
     {
+        if (! Schema::hasTable('chart_of_accounts') || ! Schema::hasColumn('chart_of_accounts', 'reconcile_opening_balance')) {
+            return;
+        }
+
         Schema::table('chart_of_accounts', function (Blueprint $table) {
             $table->dropColumn('reconcile_opening_balance');
         });

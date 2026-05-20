@@ -14,11 +14,25 @@ return new class extends Migration
      */
     public function up()
     {
-        DB::statement('ALTER TABLE discounts DROP COLUMN applicable_in_spg');
+        if (! Schema::hasTable('discounts')) {
+            return;
+        }
 
-        Schema::table('discounts', function (Blueprint $table) {
-            $table->string('spg', 100)->nullable()->after('is_active')->comment('Applicable in specified selling price group only. Use of applicable_in_spg column is discontinued')->index();
-        });
+        if (Schema::hasColumn('discounts', 'applicable_in_spg')) {
+            if (DB::getDriverName() === 'mysql') {
+                DB::statement('ALTER TABLE discounts DROP COLUMN applicable_in_spg');
+            } else {
+                Schema::table('discounts', function (Blueprint $table) {
+                    $table->dropColumn('applicable_in_spg');
+                });
+            }
+        }
+
+        if (! Schema::hasColumn('discounts', 'spg')) {
+            Schema::table('discounts', function (Blueprint $table) {
+                $table->string('spg', 100)->nullable()->after('is_active')->comment('Applicable in specified selling price group only. Use of applicable_in_spg column is discontinued')->index();
+            });
+        }
     }
 
     /**
