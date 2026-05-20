@@ -276,6 +276,21 @@
             </div>
         </div>
 
+        <!-- Push Updates to Clients -->
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-green-200 tw-cursor-pointer" onclick="if(typeof window.openUpdateModal==='function'){window.openUpdateModal();}else{alert('Update modal not available.');}">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 tw-bg-green-100 tw-text-green-600">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">Push Updates</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">Build &amp; push update package to all client servers</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Company Info -->
         <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('companyModal')">
             <div class="tw-p-4 sm:tw-p-5">

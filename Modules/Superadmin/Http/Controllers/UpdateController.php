@@ -400,33 +400,68 @@ class UpdateController extends BaseController
         return response()->json(['success' => true]);
     }
 
-    /** Build a release package from the current codebase (runs pos:package-release). */
-    public function buildPackage(Request $request): JsonResponse
+    /** Build a release package from the current codebase — streams live output as SSE. */
+    public function buildPackage(Request $request): StreamedResponse
     {
         if (! auth()->user()->can('superadmin')) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+            abort(403);
         }
 
-        try {
-            $exitCode = Artisan::call('pos:package-release', ['--force' => true]);
-            $output   = trim(Artisan::output());
-        } catch (\Throwable $e) {
-            Log::error('buildPackage failed: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => $e->getMessage()]);
-        }
+        $request->session()->save();
 
-        if ($exitCode !== 0) {
-            return response()->json(['success' => false, 'message' => $output ?: 'Package build failed.']);
-        }
+        return response()->stream(function () {
+            while (@ob_end_flush()) {}
 
-        $manifest = $this->loadManifest();
+            $emit = function (string $event, array $payload): void {
+                echo "event: {$event}\n";
+                echo 'data: ' . json_encode($payload) . "\n\n";
+                if (ob_get_level() > 0) ob_flush();
+                flush();
+            };
 
-        return response()->json([
-            'success'  => true,
-            'message'  => $output,
-            'version'  => $manifest['version']  ?? '',
-            'size_kb'  => $manifest['size_kb']  ?? 0,
-            'sha256'   => $manifest['sha256']    ?? '',
+            // PHP_BINARY is empty in web (Apache) context; resolve the binary explicitly.
+            $phpBin = PHP_BINARY;
+            if (empty($phpBin) || ! is_file($phpBin) || ! is_executable($phpBin)) {
+                $phpBin = trim((string) @shell_exec('command -v php8.4 2>/dev/null'))
+                    ?: trim((string) @shell_exec('command -v php 2>/dev/null'))
+                    ?: '/usr/bin/php8.4';
+            }
+            $artisan = base_path('artisan');
+            $cmd     = escapeshellarg($phpBin) . ' ' . escapeshellarg($artisan) . ' pos:package-release --force --no-ansi 2>&1';
+
+            $emit('progress', ['message' => 'Starting package build…']);
+
+            $handle = popen($cmd, 'r');
+            if (! $handle) {
+                $emit('done', ['success' => false, 'message' => 'Failed to start build process.']);
+                return;
+            }
+
+            while (! feof($handle)) {
+                $line = fgets($handle);
+                if ($line !== false && trim($line) !== '') {
+                    $emit('progress', ['message' => trim($line)]);
+                }
+            }
+
+            $exitCode = pclose($handle);
+
+            if ($exitCode !== 0) {
+                $emit('done', ['success' => false, 'message' => 'Build process exited with code ' . $exitCode]);
+                return;
+            }
+
+            $manifest = $this->loadManifest();
+            $emit('done', [
+                'success'  => true,
+                'version'  => $manifest['version']  ?? '',
+                'size_kb'  => $manifest['size_kb']  ?? 0,
+                'sha256'   => $manifest['sha256']    ?? '',
+            ]);
+        }, 200, [
+            'Content-Type'      => 'text/event-stream',
+            'Cache-Control'     => 'no-cache',
+            'X-Accel-Buffering' => 'no',
         ]);
     }
 
@@ -465,7 +500,7 @@ class UpdateController extends BaseController
             $clients = UpdateClient::where('is_active', true)->get();
 
             if ($clients->isEmpty()) {
-                $emit('done', ['success' => false, 'message' => 'No active clients registered.']);
+                $emit('done', ['success' => true, 'succeeded' => 0, 'failed' => 0, 'total' => 0, 'message' => 'No active clients registered.']);
                 return;
             }
 

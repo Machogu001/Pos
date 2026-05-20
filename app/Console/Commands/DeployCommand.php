@@ -156,7 +156,7 @@ class DeployCommand extends Command
         // Stamp installed version so the in-app update banner resolves correctly
         $this->step('stamp app_version', function () {
             try {
-                $version = config('author.app_version', '0');
+                $version = function_exists('pos_release_version') ? pos_release_version() : config('author.app_version', '0');
                 System::updateOrCreate(
                     ['key' => 'app_version'],
                     ['value' => $version]

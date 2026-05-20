@@ -50,53 +50,67 @@ class SuperadminSettingsController extends Controller
         $currencies = $this->businessUtil->allCurrencies();
 
         $superadmin_version = System::getProperty('superadmin_version');
-        $is_demo = env('APP_ENV') == 'demo' ? true : false;
+        $is_demo = config('app.env') == 'demo' ? true : false;
+
+        // env() returns null when config:cache is active; read .env file directly.
+        $raw_env = [];
+        $env_path = base_path('.env');
+        if (file_exists($env_path)) {
+            foreach (file($env_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+                $line = trim($line);
+                if ($line === '' || $line[0] === '#' || ! str_contains($line, '=')) {
+                    continue;
+                }
+                [$k, $v] = explode('=', $line, 2);
+                $raw_env[trim($k)] = trim($v, " \t\"'");
+            }
+        }
+        $re = fn ($key) => $raw_env[$key] ?? null;   // shorthand getter
 
         $default_values = [
-            'APP_NAME' => env('APP_NAME'),
-            'APP_TITLE' => env('APP_TITLE'),
-            'APP_LOCALE' => env('APP_LOCALE'),
-            'MAIL_MAILER' => $is_demo ? null : env('MAIL_MAILER'),
-            'MAIL_HOST' => $is_demo ? null : env('MAIL_HOST'),
-            'MAIL_PORT' => $is_demo ? null : env('MAIL_PORT'),
-            'MAIL_USERNAME' => $is_demo ? null : env('MAIL_USERNAME'),
-            'MAIL_PASSWORD' => $is_demo ? null : env('MAIL_PASSWORD'),
-            'MAIL_ENCRYPTION' => $is_demo ? null : env('MAIL_ENCRYPTION'),
-            'MAIL_FROM_ADDRESS' => $is_demo ? null : env('MAIL_FROM_ADDRESS'),
-            'MAIL_FROM_NAME' => $is_demo ? null : env('MAIL_FROM_NAME'),
-            'STRIPE_PUB_KEY' => $is_demo ? null : env('STRIPE_PUB_KEY'),
-            'STRIPE_SECRET_KEY' => $is_demo ? null : env('STRIPE_SECRET_KEY'),
-            'PAYPAL_MODE' => env('PAYPAL_MODE'),
-            'PAYPAL_SANDBOX_API_USERNAME' => $is_demo ? null : env('PAYPAL_SANDBOX_API_USERNAME'),
-            'PAYPAL_SANDBOX_API_PASSWORD' => $is_demo ? null : env('PAYPAL_SANDBOX_API_PASSWORD'),
-            'PAYPAL_SANDBOX_API_SECRET' => $is_demo ? null : env('PAYPAL_SANDBOX_API_SECRET'),
-            'PAYPAL_LIVE_API_USERNAME' => $is_demo ? null : env('PAYPAL_LIVE_API_USERNAME'),
-            'PAYPAL_LIVE_API_PASSWORD' => $is_demo ? null : env('PAYPAL_LIVE_API_PASSWORD'),
-            'PAYPAL_LIVE_API_SECRET' => $is_demo ? null : env('PAYPAL_LIVE_API_SECRET'),
-            'BACKUP_DISK' => env('BACKUP_DISK'),
-            'DROPBOX_ACCESS_TOKEN' => $is_demo ? null : env('DROPBOX_ACCESS_TOKEN'),
-            'RAZORPAY_KEY_ID' => $is_demo ? null : env('RAZORPAY_KEY_ID'),
-            'RAZORPAY_KEY_SECRET' => $is_demo ? null : env('RAZORPAY_KEY_SECRET'),
-
-            'PESAPAL_CONSUMER_KEY' => $is_demo ? null : env('PESAPAL_CONSUMER_KEY'),
-            'PESAPAL_CONSUMER_SECRET' => $is_demo ? null : env('PESAPAL_CONSUMER_SECRET'),
-            'PESAPAL_LIVE' => $is_demo ? null : env('PESAPAL_LIVE'),
-            'MPESA_CONSUMER_KEY' => $is_demo ? null : env('MPESA_CONSUMER_KEY'),
-            'MPESA_CONSUMER_SECRET' => $is_demo ? null : env('MPESA_CONSUMER_SECRET'),
-            'MPESA_SHORTCODE' => $is_demo ? null : env('MPESA_SHORTCODE'),
-            'MPESA_PASSKEY' => $is_demo ? null : env('MPESA_PASSKEY'),
-            'MPESA_CALLBACK' => $is_demo ? null : env('MPESA_CALLBACK'),
-            'PUSHER_APP_ID' => $is_demo ? null : env('PUSHER_APP_ID'),
-            'PUSHER_APP_KEY' => $is_demo ? null : env('PUSHER_APP_KEY'),
-            'PUSHER_APP_SECRET' => $is_demo ? null : env('PUSHER_APP_SECRET'),
-            'PUSHER_APP_CLUSTER' => $is_demo ? null : env('PUSHER_APP_CLUSTER'),
-            'GOOGLE_MAP_API_KEY' => $is_demo ? null : env('GOOGLE_MAP_API_KEY'),
-            'ALLOW_REGISTRATION' => $is_demo ? null : env('ALLOW_REGISTRATION'),
-            'PAYSTACK_PUBLIC_KEY' => $is_demo ? null : env('PAYSTACK_PUBLIC_KEY'),
-            'PAYSTACK_SECRET_KEY' => $is_demo ? null : env('PAYSTACK_SECRET_KEY'),
-            'FLUTTERWAVE_PUBLIC_KEY' => $is_demo ? null : env('FLUTTERWAVE_PUBLIC_KEY'),
-            'FLUTTERWAVE_SECRET_KEY' => $is_demo ? null : env('FLUTTERWAVE_SECRET_KEY'),
-            'FLUTTERWAVE_ENCRYPTION_KEY' => $is_demo ? null : env('FLUTTERWAVE_ENCRYPTION_KEY'),
+            'APP_NAME' => $re('APP_NAME'),
+            'APP_TITLE' => $re('APP_TITLE'),
+            'APP_LOCALE' => $re('APP_LOCALE'),
+            'MAIL_MAILER' => $is_demo ? null : $re('MAIL_MAILER'),
+            'MAIL_HOST' => $is_demo ? null : $re('MAIL_HOST'),
+            'MAIL_PORT' => $is_demo ? null : $re('MAIL_PORT'),
+            'MAIL_USERNAME' => $is_demo ? null : $re('MAIL_USERNAME'),
+            'MAIL_PASSWORD' => $is_demo ? null : $re('MAIL_PASSWORD'),
+            'MAIL_ENCRYPTION' => $is_demo ? null : $re('MAIL_ENCRYPTION'),
+            'MAIL_FROM_ADDRESS' => $is_demo ? null : $re('MAIL_FROM_ADDRESS'),
+            'MAIL_FROM_NAME' => $is_demo ? null : $re('MAIL_FROM_NAME'),
+            'STRIPE_PUB_KEY' => $is_demo ? null : $re('STRIPE_PUB_KEY'),
+            'STRIPE_SECRET_KEY' => $is_demo ? null : $re('STRIPE_SECRET_KEY'),
+            'PAYPAL_MODE' => $re('PAYPAL_MODE'),
+            'PAYPAL_SANDBOX_API_USERNAME' => $is_demo ? null : $re('PAYPAL_SANDBOX_API_USERNAME'),
+            'PAYPAL_SANDBOX_API_PASSWORD' => $is_demo ? null : $re('PAYPAL_SANDBOX_API_PASSWORD'),
+            'PAYPAL_SANDBOX_API_SECRET' => $is_demo ? null : $re('PAYPAL_SANDBOX_API_SECRET'),
+            'PAYPAL_LIVE_API_USERNAME' => $is_demo ? null : $re('PAYPAL_LIVE_API_USERNAME'),
+            'PAYPAL_LIVE_API_PASSWORD' => $is_demo ? null : $re('PAYPAL_LIVE_API_PASSWORD'),
+            'PAYPAL_LIVE_API_SECRET' => $is_demo ? null : $re('PAYPAL_LIVE_API_SECRET'),
+            'BACKUP_DISK' => $re('BACKUP_DISK'),
+            'DROPBOX_ACCESS_TOKEN' => $is_demo ? null : $re('DROPBOX_ACCESS_TOKEN'),
+            'RAZORPAY_KEY_ID' => $is_demo ? null : $re('RAZORPAY_KEY_ID'),
+            'RAZORPAY_KEY_SECRET' => $is_demo ? null : $re('RAZORPAY_KEY_SECRET'),
+            'PESAPAL_CONSUMER_KEY' => $is_demo ? null : $re('PESAPAL_CONSUMER_KEY'),
+            'PESAPAL_CONSUMER_SECRET' => $is_demo ? null : $re('PESAPAL_CONSUMER_SECRET'),
+            'PESAPAL_LIVE' => $is_demo ? null : $re('PESAPAL_LIVE'),
+            'MPESA_CONSUMER_KEY' => $is_demo ? null : $re('MPESA_CONSUMER_KEY'),
+            'MPESA_CONSUMER_SECRET' => $is_demo ? null : $re('MPESA_CONSUMER_SECRET'),
+            'MPESA_SHORTCODE' => $is_demo ? null : $re('MPESA_SHORTCODE'),
+            'MPESA_PASSKEY' => $is_demo ? null : $re('MPESA_PASSKEY'),
+            'MPESA_CALLBACK' => $is_demo ? null : $re('MPESA_CALLBACK'),
+            'PUSHER_APP_ID' => $is_demo ? null : $re('PUSHER_APP_ID'),
+            'PUSHER_APP_KEY' => $is_demo ? null : $re('PUSHER_APP_KEY'),
+            'PUSHER_APP_SECRET' => $is_demo ? null : $re('PUSHER_APP_SECRET'),
+            'PUSHER_APP_CLUSTER' => $is_demo ? null : $re('PUSHER_APP_CLUSTER'),
+            'GOOGLE_MAP_API_KEY' => $is_demo ? null : $re('GOOGLE_MAP_API_KEY'),
+            'ALLOW_REGISTRATION' => $is_demo ? null : $re('ALLOW_REGISTRATION'),
+            'PAYSTACK_PUBLIC_KEY' => $is_demo ? null : $re('PAYSTACK_PUBLIC_KEY'),
+            'PAYSTACK_SECRET_KEY' => $is_demo ? null : $re('PAYSTACK_SECRET_KEY'),
+            'FLUTTERWAVE_PUBLIC_KEY' => $is_demo ? null : $re('FLUTTERWAVE_PUBLIC_KEY'),
+            'FLUTTERWAVE_SECRET_KEY' => $is_demo ? null : $re('FLUTTERWAVE_SECRET_KEY'),
+            'FLUTTERWAVE_ENCRYPTION_KEY' => $is_demo ? null : $re('FLUTTERWAVE_ENCRYPTION_KEY'),
         ];
         $mail_drivers = $this->mailDrivers;
 
@@ -184,21 +198,25 @@ class SuperadminSettingsController extends Controller
             $env_settings['ALLOW_REGISTRATION'] = ! empty($request->input('ALLOW_REGISTRATION')) ? 'true' : 'false';
             $env_settings['BROADCAST_DRIVER'] = 'pusher';
 
+            // Remove keys that were not present in the submitted form (null means the
+            // field was never sent — preserve whatever is already in .env for those keys).
+            $env_settings = array_filter($env_settings, fn ($v) => $v !== null);
+
             $found_envs = [];
             $env_path = base_path('.env');
             $env_lines = file($env_path);
             foreach ($env_settings as $index => $value) {
                 foreach ($env_lines as $key => $line) {
-                    //Check if present then replace it.
-                    if (strpos($line, $index) !== false) {
+                    // Exact-key match: line must start with KEY= or KEY="
+                    // (avoids MAIL_HOST matching MAIL_HOST_VERIFY, etc.)
+                    if (preg_match('/^'.preg_quote($index, '/').'=/', $line)) {
                         $env_lines[$key] = $index.'="'.$value.'"'.PHP_EOL;
-
                         $found_envs[] = $index;
                     }
                 }
             }
 
-            //Add the missing env settings
+            //Add the missing env settings (only for keys that were actually submitted)
             $missing_envs = array_diff(array_keys($env_settings), $found_envs);
             if (! empty($missing_envs)) {
                 $missing_envs = array_values($missing_envs);
@@ -218,7 +236,9 @@ class SuperadminSettingsController extends Controller
                     'msg' => __('lang_v1.success'),
                 ];
             } else {
-                $output = ['success' => 0, 'msg' => 'Some setting could not be saved, make sure .env file has 644 permission & owned by www-data user'];
+                $envOwner = function_exists('posix_getpwuid') ? (posix_getpwuid(fileowner(base_path('.env')))['name'] ?? '?') : '?';
+                $envPerms = substr(sprintf('%o', fileperms(base_path('.env'))), -3);
+                $output = ['success' => 0, 'msg' => "Some settings could not be saved. Run: sudo chown www-data:www-data .env && sudo chmod 640 .env (current: {$envPerms} {$envOwner})"];
             }
         } catch (\Exception $e) {
             \Log::emergency('File:'.$e->getFile().'Line:'.$e->getLine().'Message:'.$e->getMessage());

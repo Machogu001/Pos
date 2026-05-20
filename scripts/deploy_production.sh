@@ -7,6 +7,21 @@ set -euo pipefail
 APP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$APP_ROOT"
 
+echo "[0/9] Setting file ownership and permissions"
+WEB_USER="www-data"
+# Dev/deploy user: whoever runs the script owns the codebase
+DEV_USER="${SUDO_USER:-$(whoami)}"
+# .env: dev user owns it, www-data is the group, 660 so both VSCode (dev) and Apache can read/write
+if [ -f "${APP_ROOT}/.env" ]; then
+    sudo chown "${DEV_USER}:${WEB_USER}" "${APP_ROOT}/.env"
+    sudo chmod 660 "${APP_ROOT}/.env"
+    echo "  -> .env: 660 ${DEV_USER}:${WEB_USER}"
+fi
+# Storage and bootstrap/cache writable by www-data
+sudo chown -R "${WEB_USER}:${WEB_USER}" "${APP_ROOT}/storage" "${APP_ROOT}/bootstrap/cache"
+sudo chmod -R ug+rwX "${APP_ROOT}/storage" "${APP_ROOT}/bootstrap/cache"
+echo "  -> storage/ and bootstrap/cache/: ug+rwX ${WEB_USER}:${WEB_USER}"
+
 echo "[1/9] Installing/updating PHP dependencies"
 composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
 

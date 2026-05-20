@@ -34,66 +34,12 @@
     $hasClientRegistry = $isSuperadmin && ! empty(env('UPDATE_DOWNLOAD_TOKEN'));
 @endphp
 
-{{-- ─── Update available banner (hidden via class when no update/snoozed) ── --}}
-<div id="update-banner"
-     class="no-print tw-w-full tw-flex tw-items-center tw-justify-between tw-gap-3 tw-px-5 tw-py-2
-            tw-bg-amber-500 tw-border-b tw-border-amber-600 tw-text-gray-900 tw-text-sm tw-font-medium
-            {{ ($updatePending && !$isSnoozed) ? '' : 'tw-hidden' }}"
-     style="z-index:9999;">
-
-    <div class="tw-flex tw-items-center tw-gap-2 tw-flex-1 tw-min-w-0">
-        <svg xmlns="http://www.w3.org/2000/svg" class="tw-shrink-0 tw-size-4" viewBox="0 0 24 24"
-             stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-            <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/>
-            <path d="M12 8v4"/>
-            <path d="M12 16v.01"/>
-        </svg>
-        <span id="update-banner-msg">
-            @if($isSuperadmin)
-                @if($remotePending && !$localPending)
-                    New version <strong>{{ $displayVersion }}</strong> is available &mdash; pull the latest code, then click Apply Update.
-                @else
-                    System update available &mdash; version <strong>{{ $displayVersion }}</strong> is ready to install.
-                @endif
-            @else
-                A system update is available (v{{ $displayVersion }}). Please contact your administrator.
-            @endif
-        </span>
-    </div>
-
-    <div class="tw-flex tw-items-center tw-gap-2 tw-shrink-0">
-        @if($isSuperadmin)
-            <button type="button" id="apply-update-btn"
-                    class="tw-inline-flex tw-items-center tw-gap-1.5 tw-rounded-md tw-bg-white tw-px-3 tw-py-1
-                           tw-text-xs tw-font-semibold tw-text-amber-900 tw-shadow hover:tw-bg-amber-50 tw-transition-colors tw-border tw-border-white/60"
-                    style="background-color:#ffffff !important;color:#78350f !important;border-color:#ffffff !important;">
-                <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-3.5" viewBox="0 0 24 24"
-                     stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                    <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/>
-                    <path d="M7 11l5 5l5 -5"/>
-                    <path d="M12 4l0 12"/>
-                </svg>
-                Apply Update
-            </button>
-        @endif
-
-        <button type="button" id="dismiss-update-btn" title="Dismiss for 24 hours"
-                class="tw-inline-flex tw-items-center tw-rounded-md tw-bg-amber-700 tw-px-2 tw-py-1
-                       tw-text-xs tw-font-medium tw-text-white hover:tw-bg-amber-800 tw-transition-colors"
-                style="background-color:#b45309 !important;color:#ffffff !important;">
-            Dismiss
-        </button>
-    </div>
-</div>
-
 {{-- ─── Apply Update Modal (always rendered for superadmins) ───────────── --}}
 @if($isSuperadmin)
 <div id="update-modal"
-     class="tw-fixed tw-inset-0 tw-z-[10000] tw-hidden tw-items-center tw-justify-center tw-bg-black/60 tw-backdrop-blur-sm">
-    <div class="tw-bg-white tw-rounded-xl tw-shadow-2xl tw-w-full tw-max-w-2xl tw-mx-4 tw-flex tw-flex-col"
-         style="max-height:85vh;">
+     style="display:none;position:fixed;inset:0;z-index:10000;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(2px);">
+    <div class="tw-bg-white tw-rounded-xl tw-shadow-2xl tw-w-full tw-mx-4 tw-flex tw-flex-col"
+         style="max-height:92vh;height:92vh;width:100%;max-width:60rem;margin-left:1rem;margin-right:1rem;display:flex;flex-direction:column;background:#fff;border-radius:0.75rem;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);">
         {{-- Modal header --}}
         <div class="tw-flex tw-items-center tw-justify-between tw-px-6 tw-py-4 tw-border-b tw-border-gray-200">
             <div class="tw-flex tw-items-center tw-gap-2">
@@ -105,7 +51,7 @@
                     <path d="M12 4l0 12"/>
                 </svg>
                 <h3 id="update-modal-title" class="tw-text-base tw-font-semibold tw-text-gray-900">
-                    Apply System Update — v{{ $codeVersion }}
+                    System Update — v{{ $codeVersion }}
                 </h3>
             </div>
             <button id="close-update-modal" type="button"
@@ -117,146 +63,145 @@
         </div>
 
         {{-- Modal body --}}
-        <div class="tw-px-6 tw-py-4 tw-flex tw-flex-col tw-gap-4 tw-flex-1 tw-overflow-hidden">
-            {{-- Result shown when Check for Updates finds a new version --}}
-            <div id="update-check-result" class="tw-hidden tw-rounded-lg tw-px-4 tw-py-3 tw-text-sm tw-font-medium"></div>
+        <div style="padding:1.25rem 1.5rem;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;gap:1rem;flex:1 1 0;min-height:0;overflow-y:auto;">
 
-            <div id="update-pre-run">
-                <p class="tw-text-sm tw-text-gray-600">
-                    This will run <code class="tw-font-mono tw-bg-gray-100 tw-px-1 tw-rounded">php artisan pos:deploy</code>
-                    on the server — it applies database migrations, re-seeds permissions, and refreshes cached assets.
-                    The operation is safe to run on a live database and takes ~30–90 seconds.
-                </p>
-                <p class="tw-text-sm tw-text-amber-700 tw-font-medium tw-mt-2">
-                    Tip: The site remains live during the update. Individual pages will continue working.
-                </p>
+            {{-- Result from "Check for Updates" button — spans both columns --}}
+            <div id="update-check-result" style="display:none;border-radius:0.5rem;padding:0.75rem 1rem;font-size:0.875rem;font-weight:500;grid-column:1/-1;"></div>
+
+            {{-- ── Column 1: Build & Push ──────────────────────────────── --}}
+            <div style="border:1px solid #e5e7eb;border-radius:0.625rem;padding:1rem;display:flex;flex-direction:column;gap:0.75rem;">
+                <div>
+                    <p style="font-size:0.875rem;font-weight:600;color:#111827;margin:0 0 0.375rem 0;">Build &amp; Push Update</p>
+                    <p style="font-size:0.8125rem;color:#4b5563;margin:0 0 0.75rem 0;">
+                        Package the current codebase <strong>(v{{ $codeVersion }})</strong> into a distributable zip and push it to all registered client servers.
+                    </p>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                        <button type="button" id="build-package-btn"
+                                style="display:inline-flex;align-items:center;gap:0.375rem;padding:0.4rem 0.875rem;font-size:0.8125rem;font-weight:600;color:#fff;background:#16a34a;border:none;border-radius:0.5rem;cursor:pointer;white-space:nowrap;"
+                                title="Package current codebase and push to all clients">
+                            <svg xmlns="http://www.w3.org/2000/svg" style="width:0.875rem;height:0.875rem;flex-shrink:0;" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3l8 4.5v9l-8 4.5l-8-4.5v-9l8-4.5"/><path d="M12 12l8-4.5"/><path d="M12 12v9"/><path d="M12 12l-8-4.5"/></svg>
+                            <span id="build-pkg-text">Build &amp; Push All Clients</span>
+                            <span id="build-pkg-spinner" style="display:none;">
+                                <svg class="tw-animate-spin" style="width:0.875rem;height:0.875rem;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"></path>
+                                </svg>
+                            </span>
+                        </button>
+                        @if($hasClientRegistry)
+                        <button type="button" id="push-all-btn"
+                                style="display:inline-flex;align-items:center;gap:0.375rem;padding:0.4rem 0.875rem;font-size:0.8125rem;font-weight:600;color:#fff;background:#6366f1;border:none;border-radius:0.5rem;cursor:pointer;white-space:nowrap;">
+                            <svg xmlns="http://www.w3.org/2000/svg" style="width:0.875rem;height:0.875rem;flex-shrink:0;" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M7 11l5-5l5 5"/><path d="M12 4v12"/></svg>
+                            Push All Clients
+                        </button>
+                        @endif
+                    </div>
+                </div>
+
+                @if($hasClientRegistry)
+                {{-- Registered Clients panel --}}
+                <div id="update-clients-wrap" style="flex:1;padding-top:0.75rem;border-top:1px solid #f3f4f6;overflow-y:auto;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+                        <span style="font-size:0.6875rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Registered Client Servers</span>
+                        <button type="button" id="add-client-btn"
+                                style="display:inline-flex;align-items:center;gap:0.25rem;font-size:0.75rem;font-weight:500;color:#b45309;background:none;border:none;cursor:pointer;">
+                            <svg xmlns="http://www.w3.org/2000/svg" style="width:0.875rem;height:0.875rem;" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg>
+                            Add Client
+                        </button>
+                    </div>
+                    <div id="add-client-form" style="display:none;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap;">
+                        <input id="new-client-name" type="text" placeholder="Name"
+                               style="flex:1;min-width:5rem;font-size:0.75rem;border:1px solid #d1d5db;border-radius:0.25rem;padding:0.25rem 0.5rem;">
+                        <input id="new-client-url" type="url" placeholder="https://client.example.com"
+                               style="flex:2;min-width:10rem;font-size:0.75rem;border:1px solid #d1d5db;border-radius:0.25rem;padding:0.25rem 0.5rem;">
+                        <button type="button" id="save-client-btn"
+                                style="font-size:0.75rem;font-weight:500;background:#f59e0b;color:#fff;border:none;border-radius:0.25rem;padding:0.25rem 0.75rem;cursor:pointer;">Save</button>
+                        <button type="button" id="cancel-add-client-btn"
+                                style="font-size:0.75rem;color:#6b7280;background:none;border:none;cursor:pointer;">Cancel</button>
+                    </div>
+                    <div id="client-secret-box"
+                         style="display:none;border-radius:0.375rem;background:#fffbeb;border:1px solid #fcd34d;padding:0.75rem;margin-bottom:0.75rem;font-size:0.75rem;">
+                        <p style="font-weight:600;color:#92400e;margin:0 0 0.25rem 0;">Set this on the client server's <code style="font-family:monospace;">.env</code> — it will not be shown again:</p>
+                        <code id="client-secret-value"
+                              style="display:block;background:#fff;border:1px solid #fde68a;border-radius:0.25rem;padding:0.25rem 0.5rem;font-family:monospace;word-break:break-all;color:#92400e;"></code>
+                        <button type="button" id="close-secret-box"
+                                style="margin-top:0.5rem;color:#b45309;background:none;border:none;cursor:pointer;font-size:0.75rem;text-decoration:underline;">Dismiss</button>
+                    </div>
+                    <div id="clients-list" style="font-size:0.75rem;color:#374151;">
+                        <p style="color:#9ca3af;font-style:italic;margin:0;">Loading clients&hellip;</p>
+                    </div>
+                </div>
+                @endif
             </div>
 
-            {{-- Progress bar --}}
-            <div id="update-progress-wrap" class="tw-hidden">
-                <div class="tw-flex tw-items-center tw-justify-between tw-mb-1">
-                    <span id="update-step-label" class="tw-text-xs tw-font-medium tw-text-gray-600">Preparing…</span>
-                    <span id="update-pct-label" class="tw-text-xs tw-font-bold tw-text-amber-700">0%</span>
+            {{-- ── Column 2: Apply System Update ───────────────────────── --}}
+            <div style="border:1px solid #e5e7eb;border-radius:0.625rem;padding:1rem;display:flex;flex-direction:column;gap:0.75rem;min-height:0;">
+                <div id="update-pre-run">
+                    <p style="font-size:0.875rem;font-weight:600;color:#111827;margin:0 0 0.375rem 0;">Apply System Update — v{{ $codeVersion }}</p>
+                    <p style="font-size:0.875rem;color:#4b5563;margin:0 0 0.375rem 0;">
+                        This will run <code style="font-family:monospace;background:#f3f4f6;padding:0.125rem 0.25rem;border-radius:0.25rem;">php artisan pos:deploy</code>
+                        on the server — it applies database migrations, re-seeds permissions, and refreshes cached assets.
+                        The operation is safe to run on a live database and takes ~30–90 seconds.
+                    </p>
+                    <p style="font-size:0.875rem;color:#b45309;font-weight:500;margin:0;">
+                        Tip: The site remains live during the update. Individual pages will continue working.
+                    </p>
                 </div>
-                <div class="tw-w-full tw-bg-gray-200 tw-rounded-full tw-h-3 tw-overflow-hidden">
-                    <div id="update-progress-bar"
-                         class="tw-h-3 tw-rounded-full tw-bg-amber-500 tw-transition-all tw-duration-700 tw-ease-in-out"
-                         style="width:0%;"></div>
+
+                {{-- Progress bar --}}
+                <div id="update-progress-wrap" style="display:none;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem;">
+                        <span id="update-step-label" style="font-size:0.75rem;font-weight:500;color:#4b5563;">Preparing…</span>
+                        <span id="update-pct-label" style="font-size:0.75rem;font-weight:700;color:#b45309;">0%</span>
+                    </div>
+                    <div style="width:100%;background:#e5e7eb;border-radius:9999px;height:0.75rem;overflow:hidden;">
+                        <div id="update-progress-bar"
+                             class="tw-transition-all tw-duration-700 tw-ease-in-out"
+                             style="width:0%;height:0.75rem;border-radius:9999px;background:#f59e0b;transition:width 0.7s ease-in-out;"></div>
+                    </div>
                 </div>
+
+                {{-- Output log --}}
+                <div id="update-log-wrap"
+                     style="display:none;flex:1;min-height:0;overflow-y:auto;background:#111827;padding:0.875rem;border-radius:0.5rem;">
+                    <pre id="update-log"
+                         style="font-size:0.75rem;color:#86efac;font-family:monospace;white-space:pre-wrap;margin:0;background:transparent;border:none;padding:0;"></pre>
+                </div>
+
+                {{-- Success / Error result --}}
+                <div id="update-result" style="display:none;font-size:0.875rem;font-weight:500;border-radius:0.5rem;padding:0.75rem 1rem;"></div>
             </div>
-
-            {{-- Output log --}}
-            <div id="update-log-wrap"
-                 class="tw-hidden tw-flex-1 tw-overflow-y-auto tw-rounded-lg tw-bg-gray-900 tw-p-4 tw-min-h-0"
-                 style="min-height:200px; max-height:300px;">
-                <pre id="update-log"
-                     class="tw-text-xs tw-text-green-300 tw-font-mono tw-whitespace-pre-wrap tw-m-0"></pre>
-            </div>
-
-            {{-- Success / Error state --}}
-            <div id="update-result" class="tw-hidden tw-text-sm tw-font-medium tw-rounded-lg tw-px-4 tw-py-3"></div>
-
-            @if($hasClientRegistry)
-            {{-- Registered Clients panel (central server only) --}}
-            <div id="update-clients-wrap" class="tw-border-t tw-border-gray-100 tw-pt-4">
-                <div class="tw-flex tw-items-center tw-justify-between tw-mb-2">
-                    <span class="tw-text-xs tw-font-semibold tw-text-gray-500 tw-uppercase tw-tracking-wide">Registered Client Servers</span>
-                    <button type="button" id="add-client-btn"
-                            class="tw-inline-flex tw-items-center tw-gap-1 tw-text-xs tw-font-medium tw-text-amber-700 hover:tw-text-amber-900">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-3.5" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg>
-                        Add Client
-                    </button>
-                </div>
-
-                {{-- Add client form (hidden by default) --}}
-                <div id="add-client-form" class="tw-hidden tw-flex tw-gap-2 tw-mb-3">
-                    <input id="new-client-name" type="text" placeholder="Name" class="tw-flex-1 tw-text-xs tw-border tw-border-gray-300 tw-rounded tw-px-2 tw-py-1">
-                    <input id="new-client-url"  type="url"  placeholder="https://client.example.com" class="tw-flex-[2] tw-text-xs tw-border tw-border-gray-300 tw-rounded tw-px-2 tw-py-1">
-                    <button type="button" id="save-client-btn" class="tw-text-xs tw-font-medium tw-bg-amber-500 tw-text-white tw-rounded tw-px-3 tw-py-1 hover:tw-bg-amber-600">Save</button>
-                    <button type="button" id="cancel-add-client-btn" class="tw-text-xs tw-text-gray-500 hover:tw-text-gray-700">Cancel</button>
-                </div>
-
-                {{-- Webhook secret modal (shown once after client creation) --}}
-                <div id="client-secret-box" class="tw-hidden tw-rounded tw-bg-amber-50 tw-border tw-border-amber-300 tw-p-3 tw-mb-3 tw-text-xs">
-                    <p class="tw-font-semibold tw-text-amber-800 tw-mb-1">Set this on the client server's <code>.env</code> — it will not be shown again:</p>
-                    <code id="client-secret-value" class="tw-block tw-bg-white tw-border tw-border-amber-200 tw-rounded tw-px-2 tw-py-1 tw-font-mono tw-break-all tw-text-amber-900"></code>
-                    <button type="button" id="close-secret-box" class="tw-mt-2 tw-text-amber-700 hover:tw-underline">Dismiss</button>
-                </div>
-
-                <div id="clients-list" class="tw-space-y-1 tw-text-xs tw-text-gray-700">
-                    <p class="tw-text-gray-400 tw-italic">Loading clients&hellip;</p>
-                </div>
-            </div>
-            @endif
         </div>
 
         {{-- Modal footer --}}
-        <div class="tw-flex tw-items-center tw-justify-between tw-gap-3 tw-px-6 tw-py-4 tw-border-t tw-border-gray-200">
-            <div class="tw-flex tw-items-center tw-gap-2">
-                {{-- Build Package button — always visible to superadmin --}}
-                <button type="button" id="build-package-btn"
-                        class="tw-inline-flex tw-items-center tw-gap-1.5 tw-px-3 tw-py-2 tw-text-xs tw-font-semibold
-                               tw-text-white tw-bg-green-600 hover:tw-bg-green-700 tw-rounded-lg tw-transition-colors
-                               disabled:tw-opacity-50 disabled:tw-pointer-events-none"
-                        style="background-color:#16a34a !important;color:#ffffff !important;"
-                        title="Package current codebase into a distributable zip, then push to all clients">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-3.5" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3l8 4.5v9l-8 4.5l-8-4.5v-9l8-4.5"/><path d="M12 12l8-4.5"/><path d="M12 12v9"/><path d="M12 12l-8-4.5"/></svg>
-                    <span id="build-pkg-text">Build &amp; Push All Clients</span>
-                    <span id="build-pkg-spinner" class="tw-hidden">
-                        <svg class="tw-animate-spin tw-size-3.5 tw-text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="tw-opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="tw-opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"></path>
-                        </svg>
-                    </span>
-                </button>
-                @if($hasClientRegistry)
-                <button type="button" id="push-all-btn"
-                        class="tw-inline-flex tw-items-center tw-gap-1.5 tw-px-3 tw-py-2 tw-text-xs tw-font-semibold
-                               tw-text-white tw-bg-indigo-500 hover:tw-bg-indigo-600 tw-rounded-lg tw-transition-colors
-                               disabled:tw-opacity-50 disabled:tw-pointer-events-none"
-                        style="background-color:#6366f1 !important;color:#ffffff !important;">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-3.5" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M7 11l5-5l5 5"/><path d="M12 4v12"/></svg>
-                    Push All Clients
-                </button>
-                @endif
-            </div>
-            <div class="tw-flex tw-items-center tw-gap-2">
-                <button id="cancel-update-btn" type="button"
-                        class="tw-px-4 tw-py-2 tw-text-sm tw-font-medium tw-text-gray-700 tw-bg-gray-100
-                               hover:tw-bg-gray-200 tw-rounded-lg tw-transition-colors"
-                        style="background-color:#f3f4f6 !important;color:#374151 !important;">
-                    Cancel
-                </button>
-                @if($hasUpdateServer)
-                <button type="button" id="pull-update-btn"
-                        class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-text-sm tw-font-semibold
-                               tw-text-white tw-bg-blue-600 hover:tw-bg-blue-700 tw-rounded-lg tw-transition-colors
-                               disabled:tw-opacity-50 disabled:tw-pointer-events-none"
-                        style="background-color:#2563eb !important;color:#ffffff !important;">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-4" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M7 11l5 5l5-5"/><path d="M12 4l0 12"/></svg>
-                    <span id="pull-btn-text">Pull &amp; Deploy</span>
-                    <span id="pull-spinner" class="tw-hidden">
-                        <svg class="tw-animate-spin tw-size-4 tw-text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="tw-opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="tw-opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"></path>
-                        </svg>
-                    </span>
-                </button>
-                @endif
-                <button id="confirm-update-btn" type="button"
-                        class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-text-sm tw-font-semibold
-                               tw-text-white tw-bg-amber-500 hover:tw-bg-amber-600 tw-rounded-lg tw-transition-colors
-                               disabled:tw-opacity-50 disabled:tw-pointer-events-none"
-                        style="background-color:#f59e0b !important;color:#ffffff !important;">
-                    <span id="update-btn-text">Run Update Now</span>
-                    <span id="update-spinner" class="tw-hidden">
-                        <svg class="tw-animate-spin tw-size-4 tw-text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="tw-opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="tw-opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"></path>
-                        </svg>
-                    </span>
-                </button>
-            </div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:0.625rem;padding:0.875rem 1.5rem;border-top:1px solid #e5e7eb;">
+            <button id="cancel-update-btn" type="button"
+                    style="padding:0.5rem 1rem;font-size:0.875rem;font-weight:500;color:#374151;background:#f3f4f6;border:none;border-radius:0.5rem;cursor:pointer;">
+                Cancel
+            </button>
+            @if($hasUpdateServer)
+            <button type="button" id="pull-update-btn"
+                    style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;font-size:0.875rem;font-weight:600;color:#fff;background:#2563eb;border:none;border-radius:0.5rem;cursor:pointer;white-space:nowrap;">
+                <svg xmlns="http://www.w3.org/2000/svg" style="width:1rem;height:1rem;flex-shrink:0;" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M7 11l5 5l5-5"/><path d="M12 4l0 12"/></svg>
+                <span id="pull-btn-text">Pull &amp; Deploy</span>
+                <span id="pull-spinner" style="display:none;">
+                    <svg class="tw-animate-spin" style="width:1rem;height:1rem;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"></path>
+                    </svg>
+                </span>
+            </button>
+            @endif
+            <button id="confirm-update-btn" type="button"
+                    style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;font-size:0.875rem;font-weight:600;color:#fff;background:#f59e0b;border:none;border-radius:0.5rem;cursor:pointer;white-space:nowrap;">
+                <span id="update-btn-text">Run Update Now</span>
+                <span id="update-spinner" style="display:none;">
+                    <svg class="tw-animate-spin" style="width:1rem;height:1rem;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"></path>
+                    </svg>
+                </span>
+            </button>
         </div>
     </div>
 </div>
@@ -317,7 +262,7 @@
                 method: 'POST',
                 headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
             }).catch(function () {});
-            if (banner) banner.classList.add('tw-hidden');
+            // banner removed; dismiss is a no-op
         });
     }
 
@@ -328,14 +273,15 @@
 
     function openModal() {
         if (!modal) return;
-        modal.classList.remove('tw-hidden');
-        modal.classList.add('tw-flex');
+        resetModal();
+        modal.style.display = 'flex';
         if (clientsList) renderClients(); // reload client list each open (central server only)
     }
+    // Expose globally so dashboard card and other pages can open this modal directly
+    window.openUpdateModal = openModal;
     function closeModalFn() {
         if (!modal) return;
-        modal.classList.add('tw-hidden');
-        modal.classList.remove('tw-flex');
+        modal.style.display = 'none';
     }
     if (closeModal) closeModal.addEventListener('click', closeModalFn);
     if (cancelBtn)  cancelBtn.addEventListener('click', closeModalFn);
@@ -344,8 +290,8 @@
     // ── "Check for Updates" header button ─────────────────────
     if (checkBtn) {
         checkBtn.addEventListener('click', function () {
-            if (checkBtnIcon) checkBtnIcon.classList.add('tw-hidden');
-            if (checkBtnSpin) checkBtnSpin.classList.remove('tw-hidden');
+            if (checkBtnIcon) checkBtnIcon.style.display = 'none';
+            if (checkBtnSpin) checkBtnSpin.style.display = '';
             checkBtn.disabled = true;
 
             fetch('{{ route("superadmin.update.status") }}', { headers: { 'Accept': 'application/json' } })
@@ -355,25 +301,12 @@
                 if (!data.pending) {
                     showToast('success', "You're up to date!", 'Running v' + data.new_version + ' — no updates available.');
                 } else {
-                    // Show/unhide the banner with refreshed text
-                    if (banner) {
-                        banner.classList.remove('tw-hidden');
-                        if (bannerMsg) {
-                            if (isSuperadmin) {
-                                var msg = data.remote_pending && !data.local_pending
-                                    ? 'New version <strong>' + data.new_version + '</strong> available — pull the latest code, then click Apply Update.'
-                                    : 'System update available — version <strong>' + data.new_version + '</strong> is ready to install.';
-                                bannerMsg.innerHTML = msg;
-                            } else {
-                                bannerMsg.textContent = 'A system update is available (v' + data.new_version + '). Please contact your administrator.';
-                            }
-                        }
-                    }
+                    // no banner to show; modal open below handles display
                     if (isSuperadmin && modal) {
                         resetModal();
-                        if (modalTitle) modalTitle.textContent = 'Apply System Update — v' + data.new_version;
+                        if (modalTitle) modalTitle.textContent = 'System Update — v' + data.new_version;
                         if (checkResult) {
-                            checkResult.classList.remove('tw-hidden');
+                            checkResult.style.display = 'block';
                             if (data.remote_pending && !data.local_pending) {
                                 checkResult.className = 'tw-rounded-lg tw-px-4 tw-py-3 tw-text-sm tw-font-medium tw-bg-blue-50 tw-text-blue-900';
                                 checkResult.textContent = 'Version ' + data.new_version + ' is available on the update server (you have v' + data.installed_version + '). Pull/deploy the new code files first, then click “Run Update Now” to apply migrations.';
@@ -397,8 +330,8 @@
 
     function restoreCheckBtn() {
         if (checkBtn)     checkBtn.disabled = false;
-        if (checkBtnIcon) checkBtnIcon.classList.remove('tw-hidden');
-        if (checkBtnSpin) checkBtnSpin.classList.add('tw-hidden');
+        if (checkBtnIcon) checkBtnIcon.style.display = '';
+        if (checkBtnSpin) checkBtnSpin.style.display = 'none';
     }
 
     // ── Real-time deploy progress via SSE ────────────────────
@@ -434,13 +367,13 @@
         confirmBtn.addEventListener('click', function () {
             confirmBtn.disabled = true;
             if (btnText)     btnText.textContent = 'Running…';
-            if (spinner)     spinner.classList.remove('tw-hidden');
+            if (spinner)     spinner.style.display = '';
             if (cancelBtn)   cancelBtn.disabled = true;
             if (closeModal)  closeModal.disabled = true;
-            if (checkResult) checkResult.classList.add('tw-hidden');
-            if (preRunEl)    preRunEl.classList.add('tw-hidden');
-            if (progressWrap) progressWrap.classList.remove('tw-hidden');
-            if (logWrap)     logWrap.classList.remove('tw-hidden');
+            if (checkResult) checkResult.style.display = 'none';
+            if (preRunEl)    preRunEl.style.display = 'none';
+            if (progressWrap) progressWrap.style.display = '';
+            if (logWrap)     logWrap.style.display = '';
             if (logEl)       logEl.textContent = '';
             setProgress(0, 'Connecting…');
             deployDone = false;
@@ -479,7 +412,6 @@
                 if (d.success) {
                     completeProgress(true);
                     showRunResult(true, 'Update applied successfully! Reloading in 5 seconds…');
-                    if (banner) banner.classList.add('tw-hidden');
                     setTimeout(function () { window.location.reload(); }, 5000);
                 } else {
                     completeProgress(false);
@@ -501,6 +433,7 @@
 
     function showRunResult(success, msg) {
         if (!resultEl) return;
+        resultEl.style.display = 'block';
         resultEl.className = 'tw-text-sm tw-font-medium tw-rounded-lg tw-px-4 tw-py-3 ' +
             (success ? 'tw-bg-green-50 tw-text-green-800' : 'tw-bg-red-50 tw-text-red-800');
         resultEl.textContent = msg;
@@ -509,7 +442,7 @@
     function resetButtons() {
         if (confirmBtn)  confirmBtn.disabled = false;
         if (btnText)     btnText.textContent = 'Retry';
-        if (spinner)     spinner.classList.add('tw-hidden');
+        if (spinner)     spinner.style.display = 'none';
         if (cancelBtn)   cancelBtn.disabled = false;
         if (closeModal)  closeModal.disabled = false;
     }
@@ -519,17 +452,17 @@
         deployDone = false;
         if (pullBtn)     { pullBtn.disabled = false; }
         if (pullBtnText) pullBtnText.textContent = 'Pull & Deploy';
-        if (pullSpinner) pullSpinner.classList.add('tw-hidden');
+        if (pullSpinner) pullSpinner.style.display = 'none';
         if (pushAllBtn)  pushAllBtn.disabled = false;
-        if (progressWrap) progressWrap.classList.add('tw-hidden');
+        if (progressWrap) progressWrap.style.display = 'none';
         if (progressBar)  { progressBar.style.width = '0%'; progressBar.className = 'tw-h-3 tw-rounded-full tw-bg-amber-500 tw-transition-all tw-duration-700 tw-ease-in-out'; }
-        if (checkResult)  checkResult.classList.add('tw-hidden');
-        if (preRunEl)     preRunEl.classList.remove('tw-hidden');
-        if (logWrap)      logWrap.classList.add('tw-hidden');
-        if (resultEl)     resultEl.className = 'tw-hidden';
+        if (checkResult)  checkResult.style.display = 'none';
+        if (preRunEl)     preRunEl.style.display = '';
+        if (logWrap)      logWrap.style.display = 'none';
+        if (resultEl)     { resultEl.style.display = 'none'; resultEl.textContent = ''; }
         if (logEl)        logEl.textContent = '';
         if (btnText)      btnText.textContent = 'Run Update Now';
-        if (spinner)      spinner.classList.add('tw-hidden');
+        if (spinner)      spinner.style.display = 'none';
         if (confirmBtn)   confirmBtn.disabled = false;
         if (cancelBtn)    cancelBtn.disabled = false;
     }
@@ -538,14 +471,14 @@
         pullBtn.addEventListener('click', function () {
             pullBtn.disabled = true;
             if (pullBtnText) pullBtnText.textContent = 'Pulling…';
-            if (pullSpinner) pullSpinner.classList.remove('tw-hidden');
+            if (pullSpinner) pullSpinner.style.display = '';
             if (confirmBtn)  confirmBtn.disabled = true;
             if (cancelBtn)   cancelBtn.disabled = true;
             if (closeModal)  closeModal.disabled = true;
-            if (checkResult) checkResult.classList.add('tw-hidden');
-            if (preRunEl)    preRunEl.classList.add('tw-hidden');
-            if (progressWrap) progressWrap.classList.remove('tw-hidden');
-            if (logWrap)     logWrap.classList.remove('tw-hidden');
+            if (checkResult) checkResult.style.display = 'none';
+            if (preRunEl)    preRunEl.style.display = 'none';
+            if (progressWrap) progressWrap.style.display = '';
+            if (logWrap)     logWrap.style.display = '';
             if (logEl)       logEl.textContent = '';
             setProgress(0, 'Connecting to central server…');
             deployDone = false;
@@ -573,7 +506,6 @@
                 if (d.success) {
                     completeProgress(true);
                     showRunResult(true, 'Update pulled and applied! Reloading in 5 seconds…');
-                    if (banner) banner.classList.add('tw-hidden');
                     setTimeout(function () { window.location.reload(); }, 5000);
                 } else {
                     completeProgress(false);
@@ -595,37 +527,57 @@
     // ── Build release package + push to all clients ─────────────
     if (buildPkgBtn) {
         buildPkgBtn.addEventListener('click', function () {
-            if (! confirm('This will package the current codebase (v{{ config("author.app_version") }}) and push it to all registered client servers. Continue?')) return;
+            Swal.fire({
+                title: 'Build &amp; Push v{{ config("author.app_version") }}?',
+                text: 'Package the current codebase and push it to all registered client servers.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, build &amp; push',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#16a34a',
+                cancelButtonColor: '#6b7280',
+                reverseButtons: true,
+                didOpen: function () {
+                    var c = document.querySelector('.swal2-container');
+                    if (c) c.style.zIndex = '20000';
+                },
+            }).then(function (result) {
+                if (! result.isConfirmed) return;
 
-            buildPkgBtn.disabled = true;
-            if (buildPkgText) buildPkgText.textContent = 'Building…';
-            if (buildPkgSpin) buildPkgSpin.classList.remove('tw-hidden');
-            if (checkResult) checkResult.classList.add('tw-hidden');
-            if (preRunEl)    preRunEl.classList.add('tw-hidden');
-            if (logWrap)     logWrap.classList.remove('tw-hidden');
-            if (logEl)       logEl.textContent = 'Building release package…\n';
+                buildPkgBtn.disabled = true;
+                if (buildPkgText) buildPkgText.textContent = 'Building…';
+            if (buildPkgSpin) buildPkgSpin.style.display = '';
+            if (checkResult) checkResult.style.display = 'none';
+            if (preRunEl)    preRunEl.style.display = 'none';
+            if (logWrap)     logWrap.style.display = '';
+            if (logEl)       logEl.textContent = '';
 
-            fetch('{{ route("superadmin.update.build-package") }}', {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
-            })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                if (! data.success) {
-                    showRunResult(false, 'Build failed: ' + (data.message || 'unknown error'));
+            // Phase 1: stream build progress via SSE
+            deployDone = false;
+            stopDeployStream();
+            deploySource = new EventSource('{{ $isSuperadmin ? route("superadmin.update.build-package") : "" }}');
+
+            deploySource.addEventListener('progress', function (e) {
+                var d = JSON.parse(e.data);
+                if (logEl) { logEl.textContent += d.message + '\n'; logWrap.scrollTop = logWrap.scrollHeight; }
+            });
+
+            deploySource.addEventListener('done', function (e) {
+                stopDeployStream();
+                var d = JSON.parse(e.data);
+                if (! d.success) {
+                    showRunResult(false, 'Build failed: ' + (d.message || 'unknown error'));
                     resetBuildBtn();
                     return;
                 }
                 if (logEl) {
-                    logEl.textContent += data.message + '\n';
-                    logEl.textContent += 'Package v' + data.version + ' ready (' + data.size_kb + ' KB). Pushing to clients…\n';
+                    logEl.textContent += 'Package v' + d.version + ' ready (' + d.size_kb + ' KB).\nPushing to clients…\n';
                     logWrap.scrollTop = logWrap.scrollHeight;
                 }
                 if (buildPkgText) buildPkgText.textContent = 'Pushing…';
 
-                // Now push to all clients via SSE
+                // Phase 2: push to all clients via SSE
                 deployDone = false;
-                stopDeployStream();
                 deploySource = new EventSource('{{ route("superadmin.update.push-all") }}');
 
                 deploySource.addEventListener('clientStart', function (e) {
@@ -644,10 +596,12 @@
                     deployDone = true;
                     stopDeployStream();
                     var d = JSON.parse(e.data);
-                    if (d.success) {
-                        showRunResult(true, 'Package built and pushed to ' + d.succeeded + '/' + d.total + ' client(s). They will self-update in the background.');
-                    } else {
+                    if (! d.success) {
                         showRunResult(false, 'Package built, but ' + (d.failed || 0) + ' client(s) failed. Check log above.');
+                    } else if (d.total === 0) {
+                        showRunResult(true, 'Package built successfully. ' + (d.message || 'No active clients registered.'));
+                    } else {
+                        showRunResult(true, 'Package built and pushed to ' + d.succeeded + '/' + d.total + ' client(s). They will self-update in the background.');
                     }
                     resetBuildBtn();
                 });
@@ -657,18 +611,21 @@
                     showRunResult(false, 'Package built — push stream lost. Check server logs.');
                     resetBuildBtn();
                 };
-            })
-            .catch(function (err) {
-                showRunResult(false, 'Build request failed: ' + err.message);
-                resetBuildBtn();
             });
+
+            deploySource.onerror = function () {
+                stopDeployStream();
+                showRunResult(false, 'Build stream lost. Check server logs.');
+                resetBuildBtn();
+            };
+            }); // end Swal.then
         });
     }
 
     function resetBuildBtn() {
         if (buildPkgBtn)  buildPkgBtn.disabled = false;
         if (buildPkgText) buildPkgText.textContent = 'Build \u0026 Push All Clients';
-        if (buildPkgSpin) buildPkgSpin.classList.add('tw-hidden');
+        if (buildPkgSpin) buildPkgSpin.style.display = 'none';
     }
 
     // ── Push to all clients (central server) ────────────────────
@@ -678,9 +635,9 @@
             pushAllBtn.disabled = true;
             if (cancelBtn)  cancelBtn.disabled = true;
             if (closeModal) closeModal.disabled = true;
-            if (checkResult) checkResult.classList.add('tw-hidden');
-            if (preRunEl)   preRunEl.classList.add('tw-hidden');
-            if (logWrap)    logWrap.classList.remove('tw-hidden');
+            if (checkResult) checkResult.style.display = 'none';
+            if (preRunEl)   preRunEl.style.display = 'none';
+            if (logWrap)    logWrap.style.display = '';
             if (logEl)      logEl.textContent = 'Pushing to clients…\n';
             deployDone = false;
             stopDeployStream();
@@ -734,9 +691,9 @@
     var clientSecretValue  = document.getElementById('client-secret-value');
     var closeSecretBox     = document.getElementById('close-secret-box');
 
-    if (addClientBtn)       addClientBtn.addEventListener('click', function () { addClientForm && addClientForm.classList.remove('tw-hidden'); });
-    if (cancelAddClientBtn) cancelAddClientBtn.addEventListener('click', function () { addClientForm && addClientForm.classList.add('tw-hidden'); });
-    if (closeSecretBox)     closeSecretBox.addEventListener('click', function () { clientSecretBox && clientSecretBox.classList.add('tw-hidden'); });
+    if (addClientBtn)       addClientBtn.addEventListener('click', function () { addClientForm && (addClientForm.style.display = 'flex'); });
+    if (cancelAddClientBtn) cancelAddClientBtn.addEventListener('click', function () { addClientForm && (addClientForm.style.display = 'none'); });
+    if (closeSecretBox)     closeSecretBox.addEventListener('click', function () { clientSecretBox && (clientSecretBox.style.display = 'none'); });
 
     if (saveClientBtn) {
         saveClientBtn.addEventListener('click', function () {
@@ -756,9 +713,9 @@
                 if (data.success) {
                     if (newClientName) newClientName.value = '';
                     if (newClientUrl)  newClientUrl.value  = '';
-                    addClientForm && addClientForm.classList.add('tw-hidden');
+                    addClientForm && (addClientForm.style.display = 'none');
                     if (clientSecretValue) clientSecretValue.textContent = 'UPDATE_WEBHOOK_SECRET=' + data.webhook_secret;
-                    clientSecretBox && clientSecretBox.classList.remove('tw-hidden');
+                    clientSecretBox && (clientSecretBox.style.display = '');
                     renderClients();
                 } else {
                     alert(data.message || 'Failed to add client.');
@@ -832,9 +789,7 @@
         fetch('{{ route("superadmin.update.status") }}', { headers: { 'Accept': 'application/json' } })
         .then(function (r) { return r.json(); })
         .then(function (data) {
-            if (data.pending && banner && banner.classList.contains('tw-hidden')) {
-                banner.classList.remove('tw-hidden');
-            }
+            // banner removed; update badge refreshes on next page load
         })
         .catch(function () {});
     }, 10 * 60 * 1000);

@@ -16,7 +16,7 @@ use ZipArchive;
  */
 class PackageReleaseCommand extends Command
 {
-    protected $signature   = 'pos:package-release {--version= : Override the version string} {--force : Overwrite existing package without prompting}';
+    protected $signature   = 'pos:package-release {--pkg-version= : Override the version string} {--force : Overwrite existing package without prompting}';
     protected $description = 'Package the current codebase into a distributable release zip.';
 
     private const EXCLUDE = [
@@ -42,7 +42,7 @@ class PackageReleaseCommand extends Command
 
     public function handle(): int
     {
-        $version = $this->option('version') ?: config('author.app_version', '0');
+        $version = $this->option('pkg-version') ?: config('author.app_version', '0');
         $outDir  = storage_path('app/releases');
         $zipFile = "{$outDir}/v{$version}.zip";
 

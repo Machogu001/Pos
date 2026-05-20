@@ -164,6 +164,44 @@
                 </details>
 
 
+                {{-- Superadmin: system-update notification bell --}}
+                @if(Module::has('Superadmin') && auth()->check() && (auth()->user()->can('superadmin') || auth()->user()->role === 'admin'))
+                @php
+                    $__updPending = false;
+                    try {
+                        $__codeVer    = config('author.app_version', '0');
+                        $__instVer    = \App\System::getProperty('app_version') ?? '';
+                        $__updPending = $__instVer === '' || \Composer\Semver\Comparator::greaterThan($__codeVer, $__instVer);
+                        if (! $__updPending) {
+                            $__checkUrl = config('author.update_check_url', '');
+                            $__remVer   = ($__checkUrl !== '') ? (\App\System::getProperty('remote_available_version') ?? '') : '';
+                            if ($__remVer !== '' && \Composer\Semver\Comparator::greaterThan($__remVer, $__instVer)) {
+                                $__updPending = true;
+                            }
+                        }
+                    } catch (\Throwable $__e) {}
+                @endphp
+                <button type="button"
+                    onclick="if(typeof window.openUpdateModal==='function')window.openUpdateModal();"
+                    title="System Updates{{ $__updPending ? ' — update available!' : '' }}"
+                    class="tw-relative tw-inline-flex tw-items-center tw-justify-center tw-text-sm tw-font-medium tw-text-white tw-transition-all tw-duration-200 tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-800 hover:tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-700 tw-p-1.5 tw-rounded-lg tw-ring-1 hover:tw-text-white tw-ring-white/10">
+                    <span class="tw-sr-only">System Updates</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-5" viewBox="0 0 24 24"
+                        stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/>
+                        <path d="M7 11l5 5l5 -5"/>
+                        <path d="M12 4l0 12"/>
+                    </svg>
+                    @if($__updPending)
+                    <span class="tw-absolute tw-top-0.5 tw-right-0.5 tw-flex tw-size-2.5">
+                        <span class="tw-animate-ping tw-absolute tw-inline-flex tw-h-full tw-w-full tw-rounded-full tw-bg-amber-400 tw-opacity-75"></span>
+                        <span class="tw-relative tw-inline-flex tw-rounded-full tw-h-2.5 tw-w-2.5 tw-bg-amber-500"></span>
+                    </span>
+                    @endif
+                </button>
+                @endif
+
                 {{-- data-toggle="popover" remove this for on hover show --}}
 
                 <button id="btnCalculator" title="@lang('lang_v1.calculator')" data-content='@include('layouts.partials.calculator')'
@@ -254,7 +292,7 @@
                         </svg>
                     </span>
                     {{-- Spinner (shown while checking) --}}
-                    <span id="check-update-spin" class="tw-hidden">
+                    <span id="check-update-spin" style="display:none;">
                         <svg class="tw-animate-spin tw-size-5 tw-text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="tw-opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="tw-opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"></path>
