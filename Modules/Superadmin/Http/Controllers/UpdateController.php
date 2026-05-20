@@ -15,6 +15,15 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class UpdateController extends BaseController
 {
     /**
+     * Keep controller auth logic consistent with update-banner visibility.
+     */
+    private function canManageUpdates(): bool
+    {
+        $user = auth()->user();
+        return $user && ($user->role === 'admin' || $user->can('superadmin'));
+    }
+
+    /**
      * Public endpoint — returns the current code version.
      * Client installations poll this URL to detect new releases.
      * No authentication required.
@@ -90,7 +99,7 @@ class UpdateController extends BaseController
      */
     public function progress(Request $request): StreamedResponse
     {
-        if (! auth()->user()->can('superadmin')) {
+        if (! $this->canManageUpdates()) {
             abort(403);
         }
 
@@ -255,7 +264,7 @@ class UpdateController extends BaseController
      */
     public function run(Request $request): JsonResponse
     {
-        if (! auth()->user()->can('superadmin')) {
+        if (! $this->canManageUpdates()) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
         }
 
@@ -353,7 +362,7 @@ class UpdateController extends BaseController
     /** List registered client servers. */
     public function clients(): JsonResponse
     {
-        if (! auth()->user()->can('superadmin')) {
+        if (! $this->canManageUpdates()) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
         }
 
@@ -366,7 +375,7 @@ class UpdateController extends BaseController
     /** Register a new client server. Returns the one-time webhook secret. */
     public function storeClient(Request $request): JsonResponse
     {
-        if (! auth()->user()->can('superadmin')) {
+        if (! $this->canManageUpdates()) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
         }
 
@@ -392,7 +401,7 @@ class UpdateController extends BaseController
     /** Remove a registered client. */
     public function destroyClient(int $id): JsonResponse
     {
-        if (! auth()->user()->can('superadmin')) {
+        if (! $this->canManageUpdates()) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
         }
 
@@ -403,7 +412,7 @@ class UpdateController extends BaseController
     /** Build a release package from the current codebase — streams live output as SSE. */
     public function buildPackage(Request $request): StreamedResponse
     {
-        if (! auth()->user()->can('superadmin')) {
+        if (! $this->canManageUpdates()) {
             abort(403);
         }
 
@@ -468,7 +477,7 @@ class UpdateController extends BaseController
     /** Push update trigger to a single client. */
     public function pushToClient(Request $request, int $id): JsonResponse
     {
-        if (! auth()->user()->can('superadmin')) {
+        if (! $this->canManageUpdates()) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
         }
 
@@ -481,7 +490,7 @@ class UpdateController extends BaseController
     /** Push update trigger to ALL active clients — streams results as SSE. */
     public function pushAll(Request $request): StreamedResponse
     {
-        if (! auth()->user()->can('superadmin')) {
+        if (! $this->canManageUpdates()) {
             abort(403);
         }
 
@@ -543,7 +552,7 @@ class UpdateController extends BaseController
      */
     public function pullProgress(Request $request): StreamedResponse
     {
-        if (! auth()->user()->can('superadmin')) {
+        if (! $this->canManageUpdates()) {
             abort(403);
         }
 
