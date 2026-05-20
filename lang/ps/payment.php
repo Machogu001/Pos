@@ -549,4 +549,13 @@ return [
     'current_label' => 'Current:',
     'invoice_pin' => 'Invoice PIN',
     'company_logo' => 'Company Logo',
+
+    // ── Auto-close Register ─────────────────────────────────────────────
+    'auto_close_register' => 'د ثبت اتوماتیک بندول',
+    'auto_close_register_hint' => 'د ټاکل شوي وخت کې خلاص ثبتونه اتوماتیک وتړئ',
+    'toggle_auto_close_register' => 'د ثبت اتوماتیک بندول فعال/غیرفعال کړئ',
+    'enabled' => 'فعال',
+    'disabled' => 'غیرفعال',
+    'auto_close_register_note' => 'هغه ثبتونه چې پدې ورځ خرڅلاو نلري بدلیدلي پریږدي.',
+    'close_at' => 'بند کول',
 ];

@@ -194,4 +194,5 @@ return [
     'offline_payment_details_tooltip' => 'Offline-Zahlungsanweisungen, wie Bankkontodaten',
     'allow_registration' => 'Registrierung zulassen',
     'flutterwave_help_text' => 'Klicken Sie auf diesen Link, um die unterstützten Währungen auf Flatterwave zu überprüfen',
+    'sla_document' => 'SLA-Dokument',
 ];

@@ -19,4 +19,5 @@
      'due_amount' => 'Fälliger Betrag',
      'stock_expiry_alert' => 'Verfall der Lagerbestände',
      'todays_profit' => 'Der heutige Profit',
- ];
+     'stats_refreshed' => 'Statistiken aktualisiert',
+];

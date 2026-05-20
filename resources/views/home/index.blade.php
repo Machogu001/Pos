@@ -68,6 +68,15 @@
                     </div>
                     @if (auth()->user()->can('dashboard.data'))
                         @if ($is_admin)
+                            {{-- Live auto-refresh indicator ──────────────────────────── --}}
+                            <div class="tw-flex tw-items-center tw-gap-1.5 tw-mt-3 tw-mb-1">
+                                <span id="stats-live-indicator"
+                                      style="display:none;opacity:0;"
+                                      class="tw-inline-flex tw-items-center tw-gap-1 tw-text-xs tw-text-emerald-600 tw-font-medium">
+                                    <span class="tw-inline-block tw-w-1.5 tw-h-1.5 tw-rounded-full tw-bg-emerald-500 tw-animate-ping"></span>
+                                    {{ __('home.stats_refreshed') }}
+                                </span>
+                            </div>
                             <div class="tw-grid tw-grid-cols-1 tw-gap-4 tw-mt-6 sm:tw-grid-cols-2 xl:tw-grid-cols-4 sm:tw-gap-5">
                             
                                 <div

@@ -19,4 +19,5 @@
      'due_amount' => 'Shuma e duhur',
      'stock_expiry_alert' => 'Alarmi i skadimit të aksioneve',
      'todays_profit' => 'Fitimi i sotëm',
- ];
+     'stats_refreshed' => 'Statistikat u përditësuan',
+];

@@ -65,7 +65,7 @@ class DataController extends Controller
                     function ($sub) {
                         // Alphabetical order
                         $sub->url(
-                            action('\Modules\Accounting\Http\Controllers\DashboardController@index'),
+                            action([\Modules\Accounting\Http\Controllers\DashboardController::class, 'index']),
                             __('home.dashboard'),
                             ['icon' => '', 'active' => request()->segment(1) == 'accounting' && request()->segment(2) == 'dashboard']
                         );
@@ -80,13 +80,13 @@ class DataController extends Controller
                         }
 
                         $sub->url(
-                               action('\Modules\Accounting\Http\Controllers\BudgetController@index'),
+                               action([\Modules\Accounting\Http\Controllers\BudgetController::class, 'index']),
                             trans('accounting::general.budgeting'),
                             ['icon' => '', 'active' => request()->segment(1) == 'accounting' && request()->segment(2) == 'budget']
                         );
 
                         $sub->url(
-                            action('\Modules\Accounting\Http\Controllers\ChartOfAccountController@index'),
+                            action([\Modules\Accounting\Http\Controllers\ChartOfAccountController::class, 'index']),
                             __('accounting::lang.view_charts_of_accounts'),
                             ['icon' => '', 'active' => request()->segment(1) == 'accounting' && request()->segment(2) == 'chart_of_account']
                         );
@@ -107,19 +107,19 @@ class DataController extends Controller
                         }
 
                         $sub->url(
-                            action('\Modules\Accounting\Http\Controllers\JournalEntryController@index'),
+                            action([\Modules\Accounting\Http\Controllers\JournalEntryController::class, 'index']),
                             __('accounting::lang.journal_of_entries'),
                             ['icon' => '', 'active' => request()->segment(1) == 'accounting' && request()->segment(2) == 'journal_entry']
                         );
 
                         $sub->url(
-                            action('\Modules\Accounting\Http\Controllers\ReconcileController@index'),
+                            action([\Modules\Accounting\Http\Controllers\ReconcileController::class, 'index']),
                             __('accounting::lang.reconcile'),
                             ['icon' => '', 'active' => request()->segment(1) == 'accounting' && request()->segment(2) == 'reconcile']
                         );
 
                         $sub->url(
-                            action('\Modules\Accounting\Http\Controllers\ReportController@index'),
+                            action([\Modules\Accounting\Http\Controllers\ReportController::class, 'index']),
                             __('accounting::lang.reports'),
                             ['icon' => '', 'active' => request()->segment(1) == 'report' && request()->segment(2) == 'accounting']
                         );

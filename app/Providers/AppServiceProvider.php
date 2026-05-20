@@ -33,6 +33,11 @@ class AppServiceProvider extends ServiceProvider
     {
         Transaction::observe(TransactionObserver::class);
 
+        // Auto-repair storage/logs permissions so the web server can always
+        // write log files even if a CLI command created them as a different user.
+        // is_writable() is a single stat call — cheap enough to run every boot.
+        $this->repairStoragePermissions();
+
         ini_set('memory_limit', '-1');
         set_time_limit(0);
 
@@ -246,6 +251,34 @@ class AppServiceProvider extends ServiceProvider
      *
      * @return void
      */
+    /**
+     * Silently ensure storage/logs and its files are writable by the current
+     * process. Handles the common case where artisan (run as a deploy user)
+     * creates log files that the web server user cannot append to.
+     */
+    private function repairStoragePermissions(): void
+    {
+        try {
+            $logsDir = storage_path('logs');
+
+            // Fix directory if not writable
+            if (is_dir($logsDir) && ! is_writable($logsDir)) {
+                @chmod($logsDir, 02775); // setgid + rwxrwxr-x
+            }
+
+            // Fix any existing log files that aren't writable
+            if (is_dir($logsDir)) {
+                foreach (glob($logsDir . '/*.log') ?: [] as $logFile) {
+                    if (is_file($logFile) && ! is_writable($logFile)) {
+                        @chmod($logFile, 0664);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Non-fatal — never let a permission check break the app
+        }
+    }
+
     public function register()
     {
         //

@@ -549,4 +549,13 @@ return [
     'current_label' => 'Current:',
     'invoice_pin' => 'Invoice PIN',
     'company_logo' => 'Company Logo',
+
+    // ── Auto-close Register ─────────────────────────────────────────────
+    'auto_close_register' => 'Fechar caixa automaticamente',
+    'auto_close_register_hint' => 'Fechar automaticamente os caixas abertos no horário configurado',
+    'toggle_auto_close_register' => 'Ativar fechamento automático do caixa',
+    'enabled' => 'Ativado',
+    'disabled' => 'Desativado',
+    'auto_close_register_note' => 'Os caixas sem vendas naquele dia ficam inalterados.',
+    'close_at' => 'Fechar às',
 ];

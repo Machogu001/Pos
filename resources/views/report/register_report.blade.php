@@ -42,6 +42,7 @@
                 <table class="table table-bordered table-striped" id="register_report_table">
                     <thead>
                         <tr>
+                            <th>#</th>
                             <th>@lang('report.open_time')</th>
                             <th>@lang('report.close_time')</th>
                             <th>@lang('sale.location')</th>
@@ -50,6 +51,7 @@
                             <th>@lang('cash_register.total_cheques')</th>
                             <th>@lang('cash_register.total_cash')</th>
                             <th>@lang('lang_v1.total_bank_transfer')</th>
+                            <th>M-Pesa</th>
                             <th>@lang('lang_v1.total_advance_payment')</th>
                             <th>{{$payment_types['custom_pay_1']}}</th>
                             <th>{{$payment_types['custom_pay_2']}}</th>
@@ -65,12 +67,14 @@
                     </thead>
                     <tfoot>
                         <tr class="bg-gray font-17 text-center footer-total">
+                            <td></td>
                             <td colspan="4"><strong>@lang('sale.total'):</strong></td>
                             <td class="footer_total_card_payment"></td>
                             <td class="footer_total_cheque_payment"></td>
                             <td class="footer_total_cash_payment"></td>
                             <td class="footer_total_bank_transfer_payment"></td>
-                            <td class="footer_total_advance_payment"></td>'
+                            <td class="footer_total_mpesa_payment"></td>
+                            <td class="footer_total_advance_payment"></td>
                             <td class="footer_total_custom_pay_1"></td>
                             <td class="footer_total_custom_pay_2"></td>
                             <td class="footer_total_custom_pay_3"></td>

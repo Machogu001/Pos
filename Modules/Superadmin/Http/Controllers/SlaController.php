@@ -18,6 +18,29 @@ class SlaController extends BaseController
     }
 
     /**
+     * Replace the {{APP_URL}} placeholder (and any previously hardcoded URL
+     * in the "System URL:" line) with the current installation URL.
+     */
+    private function resolveUrl(string $content): string
+    {
+        $appUrl = rtrim(config('app.url'), '/');
+
+        // Replace explicit placeholder
+        $content = str_replace('{{APP_URL}}', $appUrl, $content);
+
+        // Backward-compat: normalise the "System URL:" line if it still
+        // carries a different hardcoded URL (e.g. content saved to DB before
+        // the placeholder was introduced).
+        $content = preg_replace(
+            '/^(\*{0,2}System URL:\*{0,2}\s*)https?:\/\/[^\s`]+/im',
+            '$1' . $appUrl,
+            $content
+        );
+
+        return $content;
+    }
+
+    /**
      * Display the SLA with a print button.
      */
     public function show()
@@ -26,7 +49,7 @@ class SlaController extends BaseController
             abort(403, 'Unauthorized action.');
         }
 
-        $content    = System::getProperty('sla_content') ?: $this->defaultContent();
+        $content    = $this->resolveUrl(System::getProperty('sla_content') ?: $this->defaultContent());
         $signatures = json_decode(System::getProperty('sla_signatures') ?? '[]', true) ?: [];
 
         $defaultSigs = [
@@ -55,7 +78,7 @@ class SlaController extends BaseController
             abort(403, 'Unauthorized action.');
         }
 
-        $content    = System::getProperty('sla_content') ?: $this->defaultContent();
+        $content    = $this->resolveUrl(System::getProperty('sla_content') ?: $this->defaultContent());
         $signatures = json_decode(System::getProperty('sla_signatures') ?? '[]', true) ?: [];
 
         $defaultSigs = [
@@ -103,6 +126,11 @@ class SlaController extends BaseController
         // Regenerate the SLA.md file so pandoc/CLI stays in sync
         $md = $request->input('sla_content');
         File::put(base_path('SLA.md'), $md);
+
+        // Regenerate public/SLA.pdf
+        $mdPath = escapeshellarg(base_path('SLA.md'));
+        $pdfPath = escapeshellarg(public_path('SLA.pdf'));
+        exec("pandoc {$mdPath} -o {$pdfPath} --pdf-engine=xelatex -V geometry:margin=2cm -V fontsize=11pt -V colorlinks=true -V 'mainfont=Liberation Serif' 2>/dev/null");
 
         $output = ['success' => 1, 'msg' => 'SLA updated successfully.'];
 

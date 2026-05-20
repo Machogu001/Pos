@@ -194,4 +194,5 @@ return [
     'offline_payment_details_tooltip' => '离线付款说明，例如银行帐户详细信息',
     'allow_registration' => '允许注册',
     'flutterwave_help_text' => '单击此链接以查看flutterwave的受支持货币',
+    'sla_document' => 'SLA Document',
 ];

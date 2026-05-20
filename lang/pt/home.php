@@ -19,4 +19,5 @@
      'due_amount' => 'Valor devido',
      'stock_expiry_alert' => 'Alerta de expiração',
      'todays_profit' => 'Benefício de hoje',
- ];
+     'stats_refreshed' => 'Estatísticas atualizadas',
+];

@@ -549,4 +549,13 @@ return [
     'current_label' => 'Current:',
     'invoice_pin' => 'Invoice PIN',
     'company_logo' => 'Company Logo',
+
+    // ── Auto-close Register ─────────────────────────────────────────────
+    'auto_close_register' => 'Închidere automată a casei',
+    'auto_close_register_hint' => 'Închideți automat casele deschise la ora configurată',
+    'toggle_auto_close_register' => 'Activați închiderea automată a casei',
+    'enabled' => 'Activat',
+    'disabled' => 'Dezactivat',
+    'auto_close_register_note' => 'Casele fără vânzări în acea zi rămân neschimbate.',
+    'close_at' => 'Închide la',
 ];

@@ -194,4 +194,5 @@ return [
     'offline_payment_details_tooltip' => 'Offline betalingsinstructies, zoals bankrekeninggegevens',
     'allow_registration' => 'Sta registratie toe',
     'flutterwave_help_text' => "Klik op deze link om de ondersteunde valuta's voor flutterwave te controleren",
+    'sla_document' => 'SLA-document',
 ];

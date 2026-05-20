@@ -1,8 +1,8 @@
 # Service Level Agreement (SLA)
-## BreMac POS / ERP System — v6.4
+## BreMac POS / ERP System — v12.5
 
-**System URL:** https://pos.bremac.co.ke  
-**Effective Date:** May 18, 2026  
+**System URL:** {{APP_URL}}  
+**Effective Date:** May 19, 2026  
 **Review Cycle:** Annually or on major version upgrade  
 
 ---
@@ -13,7 +13,7 @@ This SLA covers the **BreMac POS/ERP System** — a multi-module point-of-sale a
 
 - All registered business users (Admins, Cashiers, Managers)
 - All enabled modules: POS, Accounting, HRM, Inventory Management, Purchasing, CRM, Stocktake, Subscriptions, Asset Management, and related modules
-- The production environment at `https://pos.bremac.co.ke`
+- The production environment at `{{APP_URL}}`
 
 ---
 
@@ -150,6 +150,8 @@ All changes to the production system follow this process:
 | MySQL replication lag (if applicable) | Every 5 minutes | Alert if > 30 seconds |
 | Laravel error log scan | Every 15 minutes | Alert on new P1-class exceptions |
 | Cron scheduler heartbeat | Every minute | Alert if `schedule:run` missed for > 5 minutes |
+| Remote version check | Every 6 hours | `pos:fetchRemoteVersion` — stores latest available version in system table |
+| Cash register auto-close | Daily at 00:00 | `pos:autoCloseRegister` — closes open registers with sales; skips empty ones |
 
 ### 10.2 Deployment Runbook
 
@@ -186,6 +188,8 @@ php artisan pos:deploy
 | `php artisan schedule:run` | Run due scheduled jobs |
 | `php artisan optimize:clear` | Clear all caches |
 | `php artisan permission:cache-reset` | Reset Spatie permission cache |
+| `php artisan pos:autoCloseRegister` | Manually trigger midnight register auto-close |
+| `php artisan pos:fetchRemoteVersion` | Manually trigger remote version check |
 
 ---
 

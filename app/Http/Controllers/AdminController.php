@@ -381,6 +381,8 @@ class AdminController extends Controller
             'etims_auto_transmit' => 'nullable|boolean',
             'etims_transmit_subscriptions' => 'nullable|boolean',
             'etims_transmit_registrations' => 'nullable|boolean',
+            'auto_close_register' => 'nullable|boolean',
+            'auto_close_register_time' => 'nullable|date_format:H:i',
         ]);
 
         $settings = AdminSetting::first();
@@ -403,7 +405,9 @@ class AdminController extends Controller
             // subscription sequence fields
             'subscription_invoice_prefix', 'subscription_invoice_next', 'subscription_vat_percent', 'subscription_round_precision',
             // eTIMS fields
-            'etims_api_url', 'etims_api_token', 'etims_branch_id', 'etims_auto_transmit', 'etims_transmit_subscriptions', 'etims_transmit_registrations'
+            'etims_api_url', 'etims_api_token', 'etims_branch_id', 'etims_auto_transmit', 'etims_transmit_subscriptions', 'etims_transmit_registrations',
+            'auto_close_register',
+            'auto_close_register_time',
         ]));
 
         // update payroll-related settings if present

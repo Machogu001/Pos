@@ -19,4 +19,5 @@
      'due_amount' => 'المبلغ المستحق',
      'stock_expiry_alert' => 'تنبيه انتهاء الصلاحية',
      'todays_profit' => 'ربح اليوم',
- ];
+     'stats_refreshed' => 'تم تحديث الإحصائيات',
+];

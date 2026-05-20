@@ -549,4 +549,13 @@ return [
     'current_label' => 'Current:',
     'invoice_pin' => 'Invoice PIN',
     'company_logo' => 'Company Logo',
+
+    // ── Auto-close Register ─────────────────────────────────────────────
+    'auto_close_register' => 'إغلاق تلقائي للسجل',
+    'auto_close_register_hint' => 'إغلاق السجلات المفتوحة تلقائيًا في الوقت المحدد',
+    'toggle_auto_close_register' => 'تبديل الإغلاق التلقائي للسجل',
+    'enabled' => 'مفعّل',
+    'disabled' => 'معطّل',
+    'auto_close_register_note' => 'السجلات التي لا تحتوي على مبيعات في ذلك اليوم تُترك دون تغيير.',
+    'close_at' => 'أغلق عند',
 ];

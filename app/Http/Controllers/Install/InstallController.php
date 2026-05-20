@@ -71,6 +71,17 @@ class InstallController extends Controller
     private function installSettings()
     {
         config(['app.debug' => true]);
+
+        // Wipe stale bootstrap/cache package manifests on every installer page
+        // load. This prevents "Class SentinelServiceProvider not found" from
+        // a partial or failed previous install attempt.
+        foreach (['packages.php', 'services.php'] as $cacheFile) {
+            $path = base_path('bootstrap/cache/' . $cacheFile);
+            if (file_exists($path)) {
+                @unlink($path);
+            }
+        }
+
         Artisan::call('config:clear');
         Artisan::call('cache:clear');
     }
@@ -291,6 +302,16 @@ class InstallController extends Controller
 
         $this->installSettings();
 
+        // Delete stale bootstrap/cache package manifests before any artisan call.
+        // Stale packages.php / services.php are the root cause of
+        // "Class SentinelServiceProvider not found" on fresh installs.
+        foreach (['packages.php', 'services.php'] as $cacheFile) {
+            $path = base_path('bootstrap/cache/' . $cacheFile);
+            if (file_exists($path)) {
+                @unlink($path);
+            }
+        }
+
         // Run all directory/symlink/key setup tasks first
         Artisan::call('pos:setup', ['--force' => true]);
 
@@ -313,6 +334,10 @@ class InstallController extends Controller
 
         // Reset Spatie permission cache to ensure fresh permissions are loaded
         Artisan::call('permission:cache-reset');
+
+        // Rebuild bootstrap/cache/packages.php + services.php so all providers
+        // (including laravel/sentinel) are correctly registered before optimize.
+        Artisan::call('package:discover', ['--ansi' => false]);
 
         Artisan::call('optimize');
     }
@@ -440,6 +465,9 @@ class InstallController extends Controller
 
                     // Reset Spatie permission cache so new permissions are immediately active
                     Artisan::call('permission:cache-reset');
+
+                    // Rebuild package manifest before optimize to prevent stale provider errors
+                    Artisan::call('package:discover', ['--ansi' => false]);
 
                     Artisan::call('optimize');
 

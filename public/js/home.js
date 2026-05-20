@@ -13,6 +13,18 @@ $(document).ready(function() {
         });
 
         update_statistics(moment().format('YYYY-MM-DD'), moment().format('YYYY-MM-DD'));
+
+        // ── Auto-refresh stats cards every 30 seconds (silent — no spinner) ──
+        setInterval(function () {
+            if ($('#dashboard_date_filter').length && $('#dashboard_date_filter').data('daterangepicker')) {
+                var picker = $('#dashboard_date_filter').data('daterangepicker');
+                update_statistics(
+                    picker.startDate.format('YYYY-MM-DD'),
+                    picker.endDate.format('YYYY-MM-DD'),
+                    true
+                );
+            }
+        }, 30000);
     }
 
     $('#dashboard_location').change( function(e) {
@@ -169,7 +181,7 @@ $(document).ready(function() {
     }
 });
 
-function update_statistics(start, end) {
+function update_statistics(start, end, silent) {
     var location_id = '';
     if ($('#dashboard_location').length > 0) {
         location_id = $('#dashboard_location').val();
@@ -177,14 +189,16 @@ function update_statistics(start, end) {
     var data = { start: start, end: end, location_id: location_id };
     //get purchase details
     var loader = '<i class="fas fa-sync fa-spin fa-fw margin-bottom"></i>';
-    $('.total_purchase').html(loader);
-    $('.purchase_due').html(loader);
-    $('.total_sell').html(loader);
-    $('.invoice_due').html(loader);
-    $('.total_expense').html(loader);
-    $('.total_purchase_return').html(loader);
-    $('.total_sell_return').html(loader);
-    $('.net').html(loader);
+    if (!silent) {
+        $('.total_purchase').html(loader);
+        $('.purchase_due').html(loader);
+        $('.total_sell').html(loader);
+        $('.invoice_due').html(loader);
+        $('.total_expense').html(loader);
+        $('.total_purchase_return').html(loader);
+        $('.total_sell_return').html(loader);
+        $('.net').html(loader);
+    }
     $.ajax({
         method: 'get',
         url: '/home/get-totals',
@@ -224,6 +238,13 @@ function update_statistics(start, end) {
             
             $('#total_prp').attr('data-content', newContent);
 
+            // Show a brief "live" pulse on silent refresh
+            if (silent) {
+                var $indicator = $('#stats-live-indicator');
+                if ($indicator.length) {
+                    $indicator.stop(true).css('opacity', 1).fadeOut(1500);
+                }
+            }
         },
     });
 }

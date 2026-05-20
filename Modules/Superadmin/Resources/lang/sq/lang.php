@@ -194,4 +194,5 @@ return [
     'offline_payment_details_tooltip' => 'Udhëzimet e pagesës offline, si detajet e llogarisë bankare',
     'allow_registration' => 'Lejo regjistrimin',
     'flutterwave_help_text' => 'Klikoni këtë lidhje për të kontrolluar valutat e mbështetura',
+    'sla_document' => 'Dokumenti SLA',
 ];

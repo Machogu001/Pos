@@ -16,7 +16,7 @@
 </section>
 
 <section class="content">
-    @include('layouts.partials.error_modal')
+    @include('layouts.partials.error')
 
     @if(session('status'))
         @php $status = session('status'); @endphp
@@ -32,7 +32,7 @@
             <a href="{{ route('superadmin.sla.edit') }}" class="btn btn-primary">
                 <i class="fa fa-pencil"></i> Edit SLA
             </a>
-            <button onclick="window.print()" class="btn btn-success">
+            <button onclick="printSLA()" class="btn btn-success">
                 <i class="fa fa-print"></i> Print / Save as PDF
             </button>
             <a href="{{ url('SLA.pdf') }}" target="_blank" class="btn btn-default">
@@ -49,6 +49,7 @@
             <div id="sla-body"></div>
 
             {{-- Signature table (always rendered from DB/form fields) --}}
+            <div class="signature-section">
             <hr>
             <h2>13. Review &amp; Acceptance</h2>
             <table class="table table-bordered" style="margin-top:15px;">
@@ -85,6 +86,7 @@
             <p class="text-muted" style="margin-top:20px;font-size:12px;">
                 <em>This document is version-controlled in the system repository at <code>SLA.md</code>.</em>
             </p>
+            </div>{{-- /.signature-section --}}
         </div>
     </div>
 </section>
@@ -100,6 +102,40 @@
     var stripped = raw.replace(/^#{1,3}\s+13[\.\s][\s\S]*$/m, '').trim();
     document.getElementById('sla-body').innerHTML = marked.parse(stripped);
 })();
+
+function printSLA() {
+    var content = document.getElementById('sla-document').innerHTML;
+    var win = window.open('', '_blank', 'width=900,height=700');
+    win.document.write('<!DOCTYPE html><html><head><meta charset="utf-8">' +
+        '<title>Service Level Agreement — BreMac POS/ERP</title>' +
+        '<style>' +
+        '  @page { margin:2cm; size:A4 portrait; }' +
+        '  * { box-sizing:border-box; }' +
+        '  body { font-family:Georgia,"Times New Roman",serif; font-size:11pt; color:#000; margin:0; padding:0; }' +
+        '  h1 { font-size:20pt; border-bottom:2pt solid #000; padding-bottom:6pt; page-break-after:avoid; }' +
+        '  h2 { font-size:14pt; margin-top:18pt; border-bottom:1pt solid #999; padding-bottom:3pt; page-break-after:avoid; }' +
+        '  h3 { font-size:12pt; margin-top:12pt; page-break-after:avoid; }' +
+        '  h1+*, h2+*, h3+* { page-break-before:avoid; }' +
+        '  p, li { orphans:3; widows:3; line-height:1.6; }' +
+        '  table { width:100%; border-collapse:collapse; margin:10pt 0; }' +
+        '  thead { display:table-header-group; }' +
+        '  tr { page-break-inside:avoid; }' +
+        '  td, th { padding:5pt 7pt; border:1pt solid #999; font-size:10pt; }' +
+        '  th { background:#f0f0f0; font-weight:bold; }' +
+        '  code { background:#f5f5f5; padding:1pt 4pt; font-size:9pt; }' +
+        '  pre  { background:#f5f5f5; padding:8pt; font-size:9pt; overflow:visible; white-space:pre-wrap; }' +
+        '  blockquote { border-left:3pt solid #ccc; padding-left:10pt; color:#444; margin:8pt 0; }' +
+        '  hr { border:none; border-top:1pt solid #ccc; margin:14pt 0; }' +
+        '  .signature-section { page-break-inside:avoid; }' +
+        '  .box-body { padding:0; }' +
+        '</style>' +
+        '</head><body>' + content + '</body></html>');
+    win.document.close();
+    win.focus();
+    // Wait for content to render before printing
+    win.onload = function() { win.print(); };
+    setTimeout(function() { if (!win.closed) win.print(); }, 800);
+}
 </script>
 
 <style>
@@ -112,16 +148,6 @@
     #sla-document pre  { background:#f5f5f5; padding:12px; border-radius:4px; }
     #sla-document blockquote { border-left:4px solid #ddd; padding-left:12px; color:#666; }
 
-    @media print {
-        .no-print, .main-sidebar, .main-header, .content-header { display:none !important; }
-        .content-wrapper { margin-left:0 !important; }
-        #sla-document { box-shadow:none !important; border:none !important; }
-        #sla-document .box-body { padding:0 !important; }
-        body { font-size:11pt; }
-        h1 { font-size:20pt !important; }
-        h2 { font-size:14pt !important; page-break-after:avoid; }
-        table { page-break-inside:avoid; }
-        @page { margin: 2cm; }
-    }
+    @media print { body { display:none !important; } }
 </style>
 @endsection

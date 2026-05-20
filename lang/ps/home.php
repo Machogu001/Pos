@@ -28,4 +28,5 @@ return [
     'due_amount' => 'د پیسو راکړه',
     'stock_expiry_alert' => 'د سټاک د تاریخ ختمولو خبرتیا',
     'todays_profit' => 'د نن ورځې ګټه',
+    'stats_refreshed' => 'احصایې تازه شوې',
 ];

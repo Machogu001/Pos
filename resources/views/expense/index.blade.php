@@ -133,6 +133,26 @@
 <div class="modal fade edit_payment_modal" tabindex="-1" role="dialog" 
     aria-labelledby="gridSystemModalLabel">
 </div>
+
+{{-- M-Pesa log modal (used by the View Log button in the expense payment row) --}}
+<div class="modal fade" id="mpesa_log_modal" tabindex="-1" role="dialog" aria-labelledby="mpesaLogModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="mpesaLogModalLabel">@lang('payment.mpesa_log')</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="{{ __('messages.close') }}">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body mpesa-log-body" style="max-height:55vh;overflow-y:auto;">
+                <div class="text-center">@lang('messages.loading')</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">@lang('messages.close')</button>
+            </div>
+        </div>
+    </div>
+</div>
 @stop
 @section('javascript')
  <script src="{{ asset('js/payment.js?v=' . filemtime(public_path('js/payment.js'))) }}"></script>

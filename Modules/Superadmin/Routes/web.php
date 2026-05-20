@@ -6,6 +6,31 @@
 
 Route::get('/pricing', [Modules\Superadmin\Http\Controllers\PricingController::class, 'index'])->name('pricing');
 
+// Public version-check endpoint — no auth required.
+// Other installations poll this to discover new releases.
+Route::get('/version-check', [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'versionInfo'])->name('superadmin.version.info');
+
+// Update notification routes — available to ALL authenticated users (not superadmin-only)
+// so that every user can check status and dismiss the banner.
+// The 'run' (apply update) action enforces superadmin inside the controller.
+// ── Release download (no session auth — bearer token only) ─────────────────
+Route::get('/superadmin/update/release-info', [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'releaseInfo'])->name('superadmin.update.release-info');
+Route::get('/superadmin/update/package',      [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'downloadPackage'])->name('superadmin.update.package');
+
+Route::middleware('web', 'auth', 'language', 'AdminSidebarMenu')->prefix('superadmin')->group(function () {
+    Route::get('/update/status',        [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'status'])->name('superadmin.update.status');
+    Route::get('/update/progress',      [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'progress'])->name('superadmin.update.progress');
+    Route::get('/update/pull-progress', [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'pullProgress'])->name('superadmin.update.pull-progress');
+    Route::get('/update/push-all',      [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'pushAll'])->name('superadmin.update.push-all');
+    Route::post('/update/run',          [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'run'])->name('superadmin.update.run');
+    Route::post('/update/dismiss',      [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'dismiss'])->name('superadmin.update.dismiss');
+    // Client registry (central server)
+    Route::get('/update/clients',           [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'clients'])->name('superadmin.update.clients');
+    Route::post('/update/clients',          [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'storeClient'])->name('superadmin.update.clients.store');
+    Route::delete('/update/clients/{id}',   [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'destroyClient'])->name('superadmin.update.clients.destroy');
+    Route::post('/update/clients/{id}/push',[\Modules\Superadmin\Http\Controllers\UpdateController::class, 'pushToClient'])->name('superadmin.update.clients.push');
+});
+
 Route::middleware('web', 'auth', 'language', 'AdminSidebarMenu', 'superadmin')->prefix('superadmin')->group(function () {
     Route::get('/install', [Modules\Superadmin\Http\Controllers\InstallController::class, 'index']);
     Route::get('/install/update', [Modules\Superadmin\Http\Controllers\InstallController::class, 'update']);

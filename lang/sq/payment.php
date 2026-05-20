@@ -549,4 +549,13 @@ return [
     'current_label' => 'Current:',
     'invoice_pin' => 'Invoice PIN',
     'company_logo' => 'Company Logo',
+
+    // ── Auto-close Register ─────────────────────────────────────────────
+    'auto_close_register' => 'Mbyllje automatike e regjistrit',
+    'auto_close_register_hint' => 'Mbylle automatikisht regjistrat e hapur në kohën e caktuar',
+    'toggle_auto_close_register' => 'Aktivizo mbylljen automatike të regjistrit',
+    'enabled' => 'Aktivizuar',
+    'disabled' => 'Çaktivizuar',
+    'auto_close_register_note' => 'Regjistrat pa shitje në atë ditë mbeten të paprekur.',
+    'close_at' => 'Mbylle në',
 ];

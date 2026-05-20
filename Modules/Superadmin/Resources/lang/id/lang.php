@@ -193,4 +193,5 @@ return [
     'offline_payment_details_tooltip' => 'Petunjuk pembayaran offline, seperti detail rekening bank',
     'allow_registration' => 'Bolehkan Registrasi',
     'flutterwave_help_text' => 'Klik tautan ini untuk memeriksa mata uang yang didukung untuk flutterwave',
+    'sla_document' => 'Dokumen SLA',
 ];

@@ -5,7 +5,7 @@
             <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
             <h4 class="modal-title">@lang( 'expense.add_expense' )</h4>
         </div>
-        <div class="modal-body">
+        <div class="modal-body" style="max-height:75vh;overflow-y:auto;">
             <div class="row">
                 @if(count($business_locations) == 1)
                     @php 

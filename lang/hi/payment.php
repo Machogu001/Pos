@@ -549,4 +549,13 @@ return [
     'current_label' => 'Current:',
     'invoice_pin' => 'Invoice PIN',
     'company_logo' => 'Company Logo',
+
+    // ── Auto-close Register ─────────────────────────────────────────────
+    'auto_close_register' => 'रजिस्टर स्वतः बंद करें',
+    'auto_close_register_hint' => 'निर्धारित समय पर खुले रजिस्टरों को स्वतः बंद करें',
+    'toggle_auto_close_register' => 'स्वतः बंद रजिस्टर टॉगल करें',
+    'enabled' => 'सक्षम',
+    'disabled' => 'अक्षम',
+    'auto_close_register_note' => 'उस दिन बिना बिक्री वाले रजिस्टर अपरिवर्तित रहते हैं।',
+    'close_at' => 'बंद करें',
 ];

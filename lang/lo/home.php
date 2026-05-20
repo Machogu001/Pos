@@ -28,4 +28,5 @@ return [
     'due_amount' => 'ກຳນົດຊຳລະຈຳນວນ',
     'stock_expiry_alert' => 'ແຈ້ງເຕືອນສະຕັອກໝົດອາຍຸ',
     'todays_profit' => 'ກຳໄລ ມື້ນີ້',
+    'stats_refreshed' => 'ສະຖິຕິໄດ້ຖືກອັບເດດ',
 ];

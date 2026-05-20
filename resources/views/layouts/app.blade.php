@@ -129,6 +129,10 @@
         {{-- status_span removed: flash handled by the inline showToast script below --}}
         <main class="tw-flex tw-flex-col tw-flex-1 tw-h-full tw-min-w-0 tw-bg-gray-100">
 
+            @if (Module::has('Superadmin') && auth()->check())
+                @includeIf('superadmin::layouts.partials.update-banner')
+            @endif
+
             @if (!$pos_layout)
                 @include('layouts.partials.header')
             @else

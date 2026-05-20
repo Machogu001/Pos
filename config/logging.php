@@ -61,7 +61,11 @@ return [
             'driver' => 'single',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
-            'permission' => 0664,
+            // null = don't call chmod() on the log file.
+            // The storage/logs directory is set sgid (2775) so both www-data
+            // and CLI users share the same group; explicit chmod is unnecessary
+            // and fails when one user tries to chmod a file owned by the other.
+            'permission' => null,
         ],
 
         'daily' => [
@@ -69,7 +73,7 @@ return [
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => 14,
-            'permission' => 0664,
+            'permission' => null,
         ],
 
         'slack' => [

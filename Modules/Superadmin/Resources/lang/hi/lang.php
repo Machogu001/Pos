@@ -194,4 +194,5 @@ return [
     'offline_payment_details_tooltip' => 'ऑफ़लाइन भुगतान निर्देश, जैसे बैंक खाता विवरण',
     'allow_registration' => 'पंजीकरण की अनुमति दें',
     'flutterwave_help_text' => 'स्पंदन के लिए समर्थित मुद्राओं की जांच के लिए इस लिंक पर क्लिक करें',
+    'sla_document' => 'एसएलए दस्तावेज़',
 ];

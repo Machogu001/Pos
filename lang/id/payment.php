@@ -549,4 +549,13 @@ return [
     'current_label' => 'Current:',
     'invoice_pin' => 'Invoice PIN',
     'company_logo' => 'Company Logo',
+
+    // ── Auto-close Register ─────────────────────────────────────────────
+    'auto_close_register' => 'Tutup Register Otomatis',
+    'auto_close_register_hint' => 'Tutup register yang terbuka secara otomatis pada waktu yang ditentukan',
+    'toggle_auto_close_register' => 'Aktifkan penutupan register otomatis',
+    'enabled' => 'Aktif',
+    'disabled' => 'Nonaktif',
+    'auto_close_register_note' => 'Register tanpa penjualan hari itu tidak akan diubah.',
+    'close_at' => 'Tutup pada',
 ];

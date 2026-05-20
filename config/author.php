@@ -13,10 +13,12 @@ return [
     |
     */
 
-    'vendor' => 'Ultimate Fosters',
-    'vendor_url' => 'http://ultimatefosters.com',
-    'email' => 'thewebfosters@gmail.com',
-    'app_version' => '6.4',
+    'vendor' => 'Ultimate BreMac Systems Ltd',
+    'vendor_url' => 'http://bremac.co.ke',
+    'email' => 'info@bremac.co.ke',
+    'app_version' => '12.6',
+    'released_at'  => '2026-05-19',
+    'update_check_url' => env('UPDATE_CHECK_URL', ''),
     'lic1' => 'aHR0cHM6Ly9sLnVsdGltYXRlZm9zdGVycy5jb20vYXBpL3R5cGVfMQ==',
     'pid' => 1,
     'envato_purchase_code' => env('ENVATO_PURCHASE_CODE', 0),

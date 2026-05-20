@@ -192,4 +192,5 @@ return [
     'offline_payment_details_tooltip' => 'Hướng dẫn thanh toán ngoại tuyến, như chi tiết tài khoản ngân hàng',
     'allow_registration' => 'Cho phép đăng ký',
     'flutterwave_help_text' => 'Nhấp vào liên kết này để kiểm tra các đơn vị tiền tệ được hỗ trợ cho flutwave',
+    'sla_document' => 'Tài liệu SLA',
 ];

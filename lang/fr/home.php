@@ -19,4 +19,5 @@
      'due_amount' => 'Montant dû',
      'stock_expiry_alert' => "Alerte d'expiration de stock",
      'todays_profit' => "Le profit d'aujourd'hui",
- ];
+     'stats_refreshed' => 'Statistiques mises à jour',
+];

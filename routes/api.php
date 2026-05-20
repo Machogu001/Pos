@@ -20,3 +20,7 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 
 });
 Route::post('/mpesa/callback', [MpesaCallbackController::class, 'handleCallback']);
+
+// Update webhook — called by the central server when pushing a new release.
+// Authenticated by HMAC-SHA256 signature (X-Update-Signature header), not by session.
+Route::post('/update/trigger', [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'triggerWebhook']);

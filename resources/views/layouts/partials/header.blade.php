@@ -233,6 +233,36 @@
 
                 @include('layouts.partials.header-notifications')
 
+                @if(Module::has('Superadmin') && auth()->check())
+                {{-- Check for Updates button (visible to all authenticated users) --}}
+                <button type="button" id="check-update-btn"
+                        title="Check for system updates"
+                        class="tw-inline-flex tw-items-center tw-justify-center tw-text-sm tw-font-medium
+                               tw-text-white tw-transition-all tw-duration-200
+                               tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-800
+                               hover:tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-700
+                               tw-p-1.5 tw-rounded-lg tw-ring-1 hover:tw-text-white tw-ring-white/10">
+                    <span class="tw-sr-only">Check for updates</span>
+                    {{-- Default icon (cloud + arrow) --}}
+                    <span id="check-update-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-5" viewBox="0 0 24 24"
+                             stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <path d="M7 18a4.6 4.4 0 0 1 0 -9a5 4.5 0 0 1 11 2h1a3.5 3.5 0 0 1 0 7h-1"/>
+                            <path d="M12 15l-3 3l3 3"/>
+                            <path d="M12 15v9"/>
+                        </svg>
+                    </span>
+                    {{-- Spinner (shown while checking) --}}
+                    <span id="check-update-spin" class="tw-hidden">
+                        <svg class="tw-animate-spin tw-size-5 tw-text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="tw-opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="tw-opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"></path>
+                        </svg>
+                    </span>
+                </button>
+                @endif
+
 
 
                 <div class="tw-relative tw-inline-block tw-text-left" id="user-dropdown-wrapper" style="overflow: visible;">

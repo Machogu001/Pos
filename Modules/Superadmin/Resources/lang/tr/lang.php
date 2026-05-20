@@ -192,4 +192,5 @@ return [
     'offline_payment_details_tooltip' => 'Banka hesabı bilgileri gibi çevrimdışı ödeme talimatları',
     'allow_registration' => 'Kayda İzin Ver',
     'flutterwave_help_text' => 'Flutterwave için desteklenen para birimlerini kontrol etmek için bu bağlantıyı tıklayın',
+    'sla_document' => 'SLA Belgesi',
 ];

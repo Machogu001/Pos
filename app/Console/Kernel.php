@@ -23,6 +23,10 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\SendSubscriptionReminders::class,
         \App\Console\Commands\BackfillDefaultAccountTransactions::class,
         \App\Console\Commands\RealignPaymentAccountMappings::class,
+        \App\Console\Commands\AutoCloseRegister::class,
+        \App\Console\Commands\FetchRemoteVersion::class,
+        \App\Console\Commands\PullUpdateCommand::class,
+        \App\Console\Commands\PackageReleaseCommand::class,
     ];
 
     /**
@@ -57,6 +61,21 @@ class Kernel extends ConsoleKernel
 
         // Check for expired subscriptions - runs daily in all environments
         $schedule->command('subscriptions:check')->dailyAt('00:00');
+
+        // Auto-close open cash registers at admin-configured time (respects admin toggle)
+        try {
+            $closeTime = \App\AdminSetting::first()?->auto_close_register_time ?? '23:59';
+            // Validate HH:MM format; fall back to midnight on bad data
+            if (! preg_match('/^\d{2}:\d{2}$/', $closeTime)) {
+                $closeTime = '00:00';
+            }
+        } catch (\Throwable $e) {
+            $closeTime = '00:00';
+        }
+        $schedule->command('pos:autoCloseRegister')->dailyAt($closeTime);
+
+        // Fetch latest available version from the update server every 6 hours
+        $schedule->command('pos:fetchRemoteVersion')->everySixHours();
 
         // Generate subscription pre-expiry invoice notices and reminders (14d & 7d)
         $schedule->command('subscriptions:send_reminders')->dailyAt('09:00');

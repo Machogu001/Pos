@@ -194,4 +194,5 @@ return [
     'offline_payment_details_tooltip' => 'Instructions de paiement hors ligne, telles que les coordonnées bancaires',
     'allow_registration' => "Autoriser l'enregistrement",
     'flutterwave_help_text' => 'Cliquez sur ce lien pour vérifier les devises prises en charge pour Flutterwave',
+    'sla_document' => 'Document SLA',
 ];

@@ -19,4 +19,5 @@
      'due_amount' => 'Cantidad debida',
      'stock_expiry_alert' => 'Alerta de caducidad',
      'todays_profit' => 'Beneficio de hoy',
- ];
+     'stats_refreshed' => 'Estadísticas actualizadas',
+];

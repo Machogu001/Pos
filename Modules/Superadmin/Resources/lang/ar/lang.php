@@ -194,4 +194,5 @@ return [
     'offline_payment_details_tooltip' => 'تعليمات الدفع في وضع عدم الاتصال , مثل تفاصيل الحساب المصرفي',
     'allow_registration' => 'السماح بالتسجيل',
     'flutterwave_help_text' => 'انقر فوق هذا الارتباط للتحقق من العملات المدعومة لـ flutterwave',
+    'sla_document' => 'وثيقة اتفاقية مستوى الخدمة',
 ];

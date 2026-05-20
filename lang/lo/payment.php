@@ -549,4 +549,13 @@ return [
     'current_label' => 'Current:',
     'invoice_pin' => 'Invoice PIN',
     'company_logo' => 'Company Logo',
+
+    // ── Auto-close Register ─────────────────────────────────────────────
+    'auto_close_register' => 'ປິດລົງທະບຽນອັດຕະໂນມັດ',
+    'auto_close_register_hint' => 'ປິດລົງທະບຽນທີ່ເປີດໄວ້ໂດຍອັດຕະໂນມັດໃນເວລາທີ່ກຳນົດ',
+    'toggle_auto_close_register' => 'ສະຫຼັບການປິດອັດຕະໂນມັດ',
+    'enabled' => 'ເປີດໃຊ້',
+    'disabled' => 'ປິດໃຊ້',
+    'auto_close_register_note' => 'ລົງທະບຽນທີ່ບໍ່ມີການຂາຍໃນມື້ນັ້ນຈະຖືກປ່ອຍໄວ້ໂດຍບໍ່ມີການປ່ຽນແປງ.',
+    'close_at' => 'ປິດໃນ',
 ];

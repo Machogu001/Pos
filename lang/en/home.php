@@ -29,4 +29,5 @@ return [
     'stock_expiry_alert' => 'Stock Expiry Alert',
     'todays_profit' => "Today's profit",
     'dashboard' => 'Dashboard',
+    'stats_refreshed' => 'Stats updated',
 ];

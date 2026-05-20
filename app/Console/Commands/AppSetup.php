@@ -36,10 +36,13 @@ class AppSetup extends Command
 
         $this->ensureAppKey();
         $this->ensureDirectories();
+        $this->ensureStoragePermissions();
+        $this->ensureLogFileExists();
         $this->ensureStorageLink();
         $this->ensurePassportKeys();
         $this->ensureBootstrapCache();
         $this->clearCaches();
+        $this->rediscoverPackages();
 
         $this->info('');
         $this->info('Setup complete.');
@@ -95,7 +98,7 @@ class AppSetup extends Command
             }
         }
 
-        // Ensure storage/ and bootstrap/cache/ are writable by web server
+        // Ensure top-level storage/ and bootstrap/cache/ are writable
         @chmod(storage_path(), 0775);
         @chmod(base_path('bootstrap/cache'), 0775);
 
@@ -160,6 +163,44 @@ class AppSetup extends Command
         $this->line('  bootstrap/cache: OK');
     }
 
+    /**
+     * Recursively fix permissions on storage subdirectories and existing files
+     * so both CLI users and the web server (www-data) can read/write.
+     *
+     * Directories → 0775 + setgid (new files inherit the directory group)
+     * Files       → 0664
+     *
+     * Uses only PHP's chmod() — no shell exec, no root required.
+     * The setgid bit ensures files created by any user inherit the group.
+     */
+    private function ensureStoragePermissions(): void
+    {
+        $targets = [
+            storage_path('logs'),
+            storage_path('framework/cache'),
+            storage_path('framework/sessions'),
+            storage_path('framework/views'),
+        ];
+
+        foreach ($targets as $dir) {
+            if (! is_dir($dir)) {
+                continue;
+            }
+
+            // Directory itself: rwxrwsr-x (setgid so new files inherit group)
+            @chmod($dir, 02775);
+
+            // All existing files in the directory
+            foreach (new \FilesystemIterator($dir, \FilesystemIterator::SKIP_DOTS) as $entry) {
+                if ($entry->isFile()) {
+                    @chmod($entry->getPathname(), 0664);
+                }
+            }
+        }
+
+        $this->line('  Storage permissions: OK');
+    }
+
     private function clearCaches(): void
     {
         Artisan::call('config:clear');
@@ -167,5 +208,47 @@ class AppSetup extends Command
         Artisan::call('view:clear');
         Artisan::call('cache:clear');
         $this->line('  Caches cleared.');
+    }
+
+    /**
+     * Re-run package:discover so bootstrap/cache/packages.php and
+     * bootstrap/cache/services.php are always in sync with the installed
+     * vendor packages. Stale cache files are the most common cause of the
+     * "Class SentinelServiceProvider not found" error on fresh installs.
+     */
+    private function rediscoverPackages(): void
+    {
+        try {
+            Artisan::call('package:discover', ['--ansi' => false]);
+            $this->line('  Package discovery: OK');
+        } catch (\Throwable $e) {
+            $this->warn('  Package discovery: failed — ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Pre-create today's log file owned by the current process user with
+     * group-writable permissions (0664). This prevents the "chmod():
+     * Operation not permitted" error that occurs when www-data tries to
+     * chmod a file it didn't create, or vice-versa for CLI users.
+     *
+     * With 'permission => null' in config/logging.php, Monolog no longer
+     * calls chmod() at all — but we still seed the file here so it exists
+     * with correct permissions before either user writes to it.
+     */
+    private function ensureLogFileExists(): void
+    {
+        $logDir  = storage_path('logs');
+        $logFile = $logDir . '/laravel.log';
+
+        if (! file_exists($logFile)) {
+            touch($logFile);
+            @chmod($logFile, 0664);
+            $this->line('  Log file created: ' . $logFile);
+        } else {
+            // Ensure it's group-writable even if it already exists and is owned by us
+            @chmod($logFile, 0664);
+            $this->line('  Log file: OK');
+        }
     }
 }

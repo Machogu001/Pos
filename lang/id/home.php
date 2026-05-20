@@ -28,4 +28,5 @@ return [
     'due_amount' => 'Jumlah Jatuh Tempo',
     'stock_expiry_alert' => 'Peringatan Stok Kadaluarsa',
     'todays_profit' => 'Keuntungan hari ini',
+    'stats_refreshed' => 'Statistik diperbarui',
 ];

@@ -115,7 +115,32 @@ The system supports mapping individual payments (including Sell and Purchase pay
 
 Any future schema or accounting-related changes should be accompanied by a brief note in this section or in a dedicated Markdown file.
 
+## Auto-Close Cash Register
+
+Registers can be automatically closed at midnight by the scheduler:
+
+- Enable the toggle in **Admin Dashboard → System Settings → Cash Register**.
+- Registers that had at least one sale that day are closed at 00:00 with note "Auto-closed by system at midnight."
+- Registers with zero sales are left open (they were never used for selling).
+- Run manually: `php artisan pos:autoCloseRegister`
+
+## Remote Version Notifications
+
+Every installation can poll a central update server for new releases:
+
+1. Set `UPDATE_CHECK_URL=https://your-update-server/version-check` in `.env`.
+2. The scheduler fetches this URL every 6 hours and caches the result.
+3. If a newer version is detected, an amber banner appears for all users; superadmins see an "Apply Update" modal.
+4. The public version endpoint on this server lives at `/version-check` (no auth required).
+
+Run a manual check: `php artisan pos:fetchRemoteVersion`
+
 ## Changelog (Highlights)
+
+### May 2026 — v12.5
+- **Version bump to 12.5.** `config/author.php` updated; `released_at` and `update_check_url` config keys added.
+- **Remote version notifications.** Public `/version-check` endpoint; `pos:fetchRemoteVersion` scheduled every 6 hours; update banner now surfaces both local-deploy and remote-update pending states with distinct messages.
+- **Auto-close cash register.** Admin toggle in System Settings; `pos:autoCloseRegister` command closes open registers with sales at midnight (skips registers with no sales).
 
 ### January 2026
 - Added dual MPESA credential support for subscriptions vs POS/sell payments (see DUAL_MPESA_CREDENTIALS.md).

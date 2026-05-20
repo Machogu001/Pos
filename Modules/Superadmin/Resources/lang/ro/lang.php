@@ -192,4 +192,5 @@ return [
     'offline_payment_details_tooltip' => 'Instrucțiuni de plată offline, cum ar fi detaliile contului bancar',
     'allow_registration' => 'Permite înregistrarea',
     'flutterwave_help_text' => 'Faceți clic pe acest link pentru a verifica valutele acceptate pentru flutterwave',
+    'sla_document' => 'Document SLA',
 ];

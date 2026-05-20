@@ -549,4 +549,13 @@ return [
     'current_label' => 'Current:',
     'invoice_pin' => 'Invoice PIN',
     'company_logo' => 'Company Logo',
+
+    // ── Auto-close Register ─────────────────────────────────────────────
+    'auto_close_register' => 'Kasa Otomatik Kapat',
+    'auto_close_register_hint' => 'Açık kasaları ayarlanan saatte otomatik olarak kapat',
+    'toggle_auto_close_register' => 'Otomatik kasa kapamayı aç/kapat',
+    'enabled' => 'Etkin',
+    'disabled' => 'Devre Dışı',
+    'auto_close_register_note' => 'O gün satışı olmayan kasalar değiştirilmeden bırakılır.',
+    'close_at' => 'Kapat saat',
 ];

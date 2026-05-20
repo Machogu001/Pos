@@ -26,18 +26,52 @@ class MpesaController extends Controller
 
     public function __construct()
     {
-        $this->consumerKey   = env('MPESA_CONSUMER_KEY');
-        $this->consumerSecret = env('MPESA_CONSUMER_SECRET');
-        $this->shortCode     = env('MPESA_SHORTCODE');
-        $this->passkey       = env('MPESA_PASSKEY');
-        $this->callbackUrl   = env('MPESA_CALLBACK');
-        $this->shortcodeType = strtolower(trim((string) env('MPESA_SHORTCODE_TYPE', 'paybill')));
+        $this->consumerKey    = config('mpesa.consumer_key');
+        $this->consumerSecret = config('mpesa.consumer_secret');
+        $this->shortCode      = config('mpesa.shortcode');
+        $this->passkey        = config('mpesa.passkey');
+        $this->callbackUrl    = config('mpesa.callback');
+        $this->shortcodeType  = strtolower(trim((string) config('mpesa.shortcode_type', 'paybill')));
         if (! in_array($this->shortcodeType, ['paybill', 'till'], true)) {
             $this->shortcodeType = 'paybill';
         }
-        // For Till STK Push, PartyB must be the store/head-office number, not the Till number.
-        // Falls back to shortCode (correct for PayBill where BusinessShortCode == PartyB).
-        $this->storeNumber = env('MPESA_STORE_NUMBER') ?: $this->shortCode;
+        $this->storeNumber = config('mpesa.store_number') ?: $this->shortCode;
+    }
+
+    /**
+     * Apply the correct M-Pesa credentials for a subscription/registration payment.
+     *
+     * Priority:
+     *   1. Subscription credentials configured in admin_settings (DB)
+     *   2. Default .env credentials loaded in __construct() (already set)
+     *
+     * Safe for new installations: if admin_settings has no rows, or the columns
+     * don't exist yet, or the DB is unreachable, we silently keep the .env values.
+     */
+    public function applySubscriptionCredentials(): void
+    {
+        try {
+            $settings = \App\AdminSetting::first();
+
+            if ($settings && ! empty($settings->subscription_mpesa_consumer_key)) {
+                $this->setCustomCredentials(
+                    $settings->subscription_mpesa_consumer_key,
+                    $settings->subscription_mpesa_consumer_secret,
+                    $settings->subscription_mpesa_shortcode,
+                    $settings->subscription_mpesa_passkey,
+                    $settings->subscription_mpesa_callback,
+                    $settings->subscription_mpesa_shortcode_type ?? 'paybill',
+                    $settings->subscription_mpesa_store_number ?: null
+                );
+                Log::info('MpesaController: using subscription M-Pesa credentials from admin settings.');
+                return;
+            }
+        } catch (\Throwable $e) {
+            // DB unavailable, columns missing, or any other error — fall through to .env
+            Log::warning('MpesaController: could not load subscription DB credentials, using .env fallback. ' . $e->getMessage());
+        }
+
+        Log::info('MpesaController: no subscription DB credentials configured, using .env M-Pesa credentials.');
     }
 
     /**
@@ -46,14 +80,21 @@ class MpesaController extends Controller
      */
     public function setCustomCredentials($consumerKey, $consumerSecret, $shortCode, $passkey, $callbackUrl, $shortcodeType = 'paybill', $storeNumber = null)
     {
-        $this->consumerKey   = $consumerKey;
+        // Only override if the supplied credentials are complete; otherwise keep the .env-based values
+        // so that a partially-filled admin_settings row doesn't silently nullify working credentials.
+        if (empty($consumerKey) || empty($consumerSecret) || empty($shortCode) || empty($passkey)) {
+            Log::warning('MpesaController::setCustomCredentials called with incomplete credentials — keeping existing values.');
+            return;
+        }
+
+        $this->consumerKey    = $consumerKey;
         $this->consumerSecret = $consumerSecret;
-        $this->shortCode     = $shortCode;
-        $this->passkey       = $passkey;
-        $this->callbackUrl   = $callbackUrl;
-        $normalized          = strtolower(trim((string) $shortcodeType));
-        $this->shortcodeType = in_array($normalized, ['paybill', 'till'], true) ? $normalized : 'paybill';
-        $this->storeNumber   = $storeNumber ?: $shortCode;
+        $this->shortCode      = $shortCode;
+        $this->passkey        = $passkey;
+        $this->callbackUrl    = $callbackUrl ?: $this->callbackUrl; // keep existing if blank
+        $normalized           = strtolower(trim((string) $shortcodeType));
+        $this->shortcodeType  = in_array($normalized, ['paybill', 'till'], true) ? $normalized : 'paybill';
+        $this->storeNumber    = $storeNumber ?: $shortCode;
     }
 
     public function showPaymentForm()
@@ -157,18 +198,27 @@ class MpesaController extends Controller
     }
 
     // Use subscription-specific M-Pesa credentials for subscription AND new business registration payments.
-    // Falls back to .env credentials when no subscription credentials are configured.
-    if (in_array($paymentType, [MpesaPayment::TYPE_SUBSCRIPTION, MpesaPayment::TYPE_REGISTRATION], true) && $settings && $settings->subscription_mpesa_consumer_key) {
-        $this->setCustomCredentials(
-            $settings->subscription_mpesa_consumer_key,
-            $settings->subscription_mpesa_consumer_secret,
-            $settings->subscription_mpesa_shortcode,
-            $settings->subscription_mpesa_passkey,
-            $settings->subscription_mpesa_callback,
-            $settings->subscription_mpesa_shortcode_type ?? 'paybill',
-            $settings->subscription_mpesa_store_number ?: null
-        );
-    }
+        // Falls back to .env credentials when no subscription credentials are configured.
+        if (in_array($paymentType, [MpesaPayment::TYPE_SUBSCRIPTION, MpesaPayment::TYPE_REGISTRATION], true)) {
+            $this->applySubscriptionCredentials();
+        }
+
+        // After credential source is resolved, validate that credentials are actually present.
+        // For sell/purchase payments these come from .env; if not set, fail early with a user-facing message.
+        if (empty($this->consumerKey) || empty($this->consumerSecret) || empty($this->shortCode) || empty($this->passkey)) {
+            Log::error('MpesaController initiatePayment: M-Pesa credentials missing.', [
+                'user_id'      => auth()->id(),
+                'payment_type' => $paymentType,
+                'has_key'      => ! empty($this->consumerKey),
+                'has_secret'   => ! empty($this->consumerSecret),
+                'has_shortcode'=> ! empty($this->shortCode),
+                'has_passkey'  => ! empty($this->passkey),
+            ]);
+            return response()->json([
+                'transaction_status' => 'error',
+                'message' => 'M-Pesa is not configured for this business. Please contact the administrator.',
+            ], 503);
+        }
 
         // Store names/phone in session for later use (may be blank for POS flow)
         session([
@@ -308,6 +358,13 @@ class MpesaController extends Controller
 
     private function generateAccessToken()
     {
+        if (empty($this->consumerKey) || empty($this->consumerSecret)) {
+            Log::error('MpesaController generateAccessToken: consumer key or secret is not configured.', [
+                'shortcode' => $this->shortCode,
+            ]);
+            return null;
+        }
+
         $response = Http::withBasicAuth($this->consumerKey, $this->consumerSecret)
             ->timeout(15)
             ->get('https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials');

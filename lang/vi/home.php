@@ -28,4 +28,5 @@ return [
     'due_amount' => 'Chưa thanh toán',
     'stock_expiry_alert' => 'Thông báo hết hạn cổ phiếu',
     'todays_profit' => 'Lợi nhuận hôm nay',
+    'stats_refreshed' => 'Số liệu đã cập nhật',
 ];

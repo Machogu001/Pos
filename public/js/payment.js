@@ -514,6 +514,161 @@ $(document).on('click', '.check-mpesa-status-purchase', async function(e) {
     }
 });
 
+// ─── Expense / non-payment-modal M-Pesa handlers ─────────────────────────────
+// These serve pages that load payment.js and use sale_pos/partials/payment_type_details.blade.php
+// (e.g. the Add Expense modal). The direct-sale screen (sale_pos/create) uses
+// payment_modal.blade.php inline handlers and does NOT load payment.js, so there is no conflict.
+
+$(document).on('click', '.send-mpesa-stk', async function(e) {
+    e.preventDefault();
+    const btn = $(this);
+    const row = btn.closest('.payment_row');
+    if (!row.length) return;
+
+    const phoneInput    = row.find('.mpesa-phone');
+    const amountInput   = row.find('.payment-amount');
+    const checkoutInput = row.find('.checkout_request_id');
+    const receiptInput  = row.find('.mpesa_receipt_number');
+    const statusInput   = row.find('.mpesa_status');
+    const statusBadge   = row.find('.mpesa-status-badge');
+
+    const retryUntil = Number(btn.data('retryUntil') || 0);
+    if (retryUntil > Date.now()) return;
+
+    const phone  = phoneInput.val().trim();
+    const amount = typeof __read_number === 'function' ? __read_number(amountInput) : parseFloat(amountInput.val() || 0);
+
+    if (!phone) {
+        toastr.error(translatePaymentText('payment.mpesa_phone_required', 'M-Pesa phone number is required.'));
+        return;
+    }
+    if (!amount || amount <= 0) {
+        toastr.error('Please enter a valid payment amount');
+        return;
+    }
+
+    const normalizedPhone = normalizeKenyanPhone(phone);
+    if (!normalizedPhone) {
+        toastr.error(translatePaymentText('payment.invalid_phone_format', 'Invalid phone number format. Use 254712345678, 0712345678, or 0112345678.'));
+        return;
+    }
+
+    let retryCountdownStarted = false;
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> ' + translatePaymentText('payment.initiating_payment', 'Initiating payment... please wait.'));
+    setMpesaStatusBadge(statusBadge, 'info', translatePaymentText('payment.initiating_payment', 'Initiating payment... please wait.'));
+
+    try {
+        const response = await fetch('/mpesa/initiate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            body: JSON.stringify({ phone: normalizedPhone, amount: amount, payment_type: 'purchase' })
+        });
+
+        const data = await readJsonResponse(response, 'mpesa.initiate expense');
+        const checkoutRequestId = data.checkout_request_id || data.checkoutRequestId || '';
+
+        if (data.success || checkoutRequestId) {
+            checkoutInput.val(checkoutRequestId);
+            notifyMpesaStkSent(data.message || translatePaymentText('payment.stk_sent', 'STK push sent. Enter PIN on your phone.'));
+            setMpesaStatusBadge(statusBadge, 'warning', getMpesaStatusMessage(data, 'STK push sent. Enter PIN on your phone.'));
+            retryCountdownStarted = true;
+            startMpesaRetryCountdown(btn, 59);
+            pollMpesaStatusExpense(checkoutRequestId, normalizedPhone, row);
+        } else {
+            toastr.error(data.message || translatePaymentText('payment.payment_initiation_failed', 'Payment initiation failed. Please try again.'));
+            setMpesaStatusBadge(statusBadge, 'danger', getMpesaStatusMessage(data, 'Payment initiation failed'));
+            setMpesaRetryButton(btn);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        toastr.error(error.message || translatePaymentText('payment.payment_initiation_failed', 'Payment initiation failed. Please try again.'));
+        setMpesaStatusBadge(statusBadge, 'danger', error.message || 'Payment initiation failed');
+        setMpesaRetryButton(btn);
+    } finally {
+        if (!retryCountdownStarted) {
+            btn.prop('disabled', false).text(translatePaymentText('payment.send_stk', 'Send STK'));
+        }
+    }
+});
+
+$(document).on('click', '.mpesa-view-log', async function(e) {
+    e.preventDefault();
+    const row      = $(this).closest('.payment_row');
+    const checkout = row.find('.checkout_request_id').val() || '';
+    const phone    = normalizeKenyanPhone((row.find('.mpesa-phone').val() || '').trim());
+
+    const modal = document.getElementById('mpesa_log_modal');
+    if (!modal) return;
+
+    // If payment_modal.blade.php's native handler already opened / is opening this modal
+    // (it fires first because it's on document.body, not document), skip to avoid double-fire.
+    if ($(modal).hasClass('in') || $(modal).hasClass('show')) return;
+
+    const body = modal.querySelector('.mpesa-log-body');
+    body.innerHTML = '<div class="text-center">Loading...</div>';
+
+    // Ensure this modal stacks on top of any already-open modals (e.g. the Add Expense modal).
+    const visibleModals = $('.modal.in, .modal.show').not('#mpesa_log_modal').length;
+    const newZ = 1050 + (visibleModals * 20);
+    $(modal).css('z-index', newZ);
+    $(modal).one('shown.bs.modal', function() {
+        $('.modal-backdrop').last().css('z-index', newZ - 5);
+    });
+
+    $(modal).modal('show');
+
+    if (!checkout && !phone) {
+        body.innerHTML = '<div class="text-warning">' + translatePaymentText('payment.no_related_checkout', 'No transaction is related to this payment checkout.') + '</div>';
+        return;
+    }
+
+    try {
+        const url = new URL('/mpesa/logs', window.location.origin);
+        if (checkout) url.searchParams.set('checkout_request_id', checkout);
+        if (phone)    url.searchParams.set('phone', phone);
+
+        const res = await fetch(url.toString(), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        });
+
+        let data;
+        try { data = await res.json(); } catch (ex) {
+            body.innerHTML = '<div class="text-danger">' + translatePaymentText('payment.logs_response_unreadable', 'M-Pesa log response could not be read.') + '</div>';
+            return;
+        }
+
+        function renderLogsTable(payments, title) {
+            if (!payments || !payments.length) return '';
+            let html = '<strong>' + title + '</strong><div class="table-responsive"><table class="table table-condensed table-bordered"><thead><tr><th>Date</th><th>Phone</th><th>Amount</th><th>Receipt</th><th>Status</th></tr></thead><tbody>';
+            payments.forEach(function(p) {
+                html += '<tr><td>' + (p.created_at || '') + '</td><td>' + (p.phone_number || '') + '</td><td>' + (p.amount || '') + '</td><td>' + (p.mpesa_receipt_number || '-') + '</td><td>' + (p.transaction_status || '') + '</td></tr>';
+            });
+            html += '</tbody></table></div>';
+            return html;
+        }
+
+        if (data && data.success) {
+            const exact   = data.payments || [];
+            const related = data.related_payments || [];
+            body.innerHTML = renderLogsTable(exact, translatePaymentText('payment.payment_checkout_logs', 'Payment Checkout Logs'))
+                           + renderLogsTable(related, translatePaymentText('payment.recent_phone_logs', 'Recent Phone Logs'));
+            if (!body.innerHTML.trim()) {
+                body.innerHTML = '<div class="text-muted">' + translatePaymentText('payment.no_logs_found', 'No logs found.') + '</div>';
+            }
+        } else {
+            body.innerHTML = '<div class="text-warning">' + ((data && data.message) || translatePaymentText('payment.unable_fetch_logs', 'Unable to fetch logs.')) + '</div>';
+        }
+    } catch (err) {
+        console.error(err);
+        body.innerHTML = '<div class="text-danger">' + translatePaymentText('payment.logs_unavailable', 'Logs temporarily unavailable.') + '</div>';
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Poll M-Pesa status for purchase payments
 function pollMpesaStatusPurchase(checkoutRequestId, phone, statusBadge, receiptInput, statusInput, attempts = 0) {
     if (attempts >= 20) { // Stop after 20 attempts (60 seconds)
@@ -562,4 +717,58 @@ function pollMpesaStatusPurchase(checkoutRequestId, phone, statusBadge, receiptI
             pollMpesaStatusPurchase(checkoutRequestId, phone, statusBadge, receiptInput, statusInput, attempts + 1);
         }
     }, 3000); // Check every 3 seconds
+}
+
+// Polling helper for the expense (row-scoped) M-Pesa flow
+function pollMpesaStatusExpense(checkoutRequestId, phone, row, attempts) {
+    attempts = attempts || 0;
+    if (attempts >= 20) {
+        const statusBadge = row.find('.mpesa-status-badge');
+        setMpesaStatusBadge(statusBadge, 'warning', 'Timeout - Check Status');
+        return;
+    }
+
+    const sendBtn     = row.find('.send-mpesa-stk');
+    const statusBadge = row.find('.mpesa-status-badge');
+    const receiptInput = row.find('.mpesa_receipt_number');
+    const statusInput  = row.find('.mpesa_status');
+
+    setTimeout(async function() {
+        try {
+            const response = await fetch('/payment/check-status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                body: JSON.stringify({ checkout_request_id: checkoutRequestId, phone: phone })
+            });
+
+            const data = await readJsonResponse(response, 'payment.checkStatus expense poll');
+
+            if (isMpesaFinalResponse(data)) {
+                stopMpesaRetryCountdown(sendBtn);
+            }
+
+            if (data.status === 'paid' || data.status === 'success') {
+                receiptInput.val(data.mpesa_receipt_number);
+                statusInput.val('paid');
+                const msg = getMpesaStatusMessage(data, 'Payment confirmed') + (data.mpesa_receipt_number ? ' - ' + data.mpesa_receipt_number : '');
+                setMpesaStatusBadge(statusBadge, 'success', msg);
+                toastr.success(msg);
+            } else if (data.status === 'pending') {
+                setMpesaStatusBadge(statusBadge, 'warning', getMpesaStatusMessage(data, 'Payment is still pending'));
+                pollMpesaStatusExpense(checkoutRequestId, phone, row, attempts + 1);
+            } else {
+                const failedMsg = getMpesaStatusMessage(data, 'Payment failed');
+                setMpesaStatusBadge(statusBadge, 'danger', failedMsg);
+                toastr.error(failedMsg);
+                setMpesaRetryButton(sendBtn);
+            }
+        } catch (error) {
+            console.error('Expense polling error:', error);
+            setMpesaRetryButton(sendBtn);
+            pollMpesaStatusExpense(checkoutRequestId, phone, row, attempts + 1);
+        }
+    }, 3000);
 }

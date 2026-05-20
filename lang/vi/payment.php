@@ -549,4 +549,13 @@ return [
     'current_label' => 'Current:',
     'invoice_pin' => 'Invoice PIN',
     'company_logo' => 'Company Logo',
+
+    // ── Auto-close Register ─────────────────────────────────────────────
+    'auto_close_register' => 'Tự động đóng máy tính tiền',
+    'auto_close_register_hint' => 'Tự động đóng các máy tính tiền mở vào thời gian đã cài đặt',
+    'toggle_auto_close_register' => 'Bật/tắt tự động đóng máy tính tiền',
+    'enabled' => 'Đã bật',
+    'disabled' => 'Đã tắt',
+    'auto_close_register_note' => 'Các máy tính tiền không có bán hàng trong ngày đó sẽ không bị thay đổi.',
+    'close_at' => 'Đóng lúc',
 ];

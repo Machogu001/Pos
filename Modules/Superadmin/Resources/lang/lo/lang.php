@@ -192,4 +192,5 @@ return [
     'offline_payment_details_tooltip' => 'ຄຳ ແນະ ນຳ ກ່ຽວກັບການຈ່າຍເງິນແບບອອບລາຍ, ເຊັ່ນລາຍລະອຽດກ່ຽວກັບບັນຊີທະນາຄານ',
     'allow_registration' => 'ອະນຸຍາດໃຫ້ລົງທະບຽນ',
     'flutterwave_help_text' => 'ກົດລິ້ງນີ້ເພື່ອກວດສອບສະກຸນເງິນທີ່ຮອງຮັບ ສຳ ລັບດອກໄຟ flutterwave',
+    'sla_document' => 'ເອກະສານ SLA',
 ];

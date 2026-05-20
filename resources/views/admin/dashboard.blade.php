@@ -796,6 +796,40 @@
                                 <small class="text-muted">{{ __('payment.controls_how_many_recent') }}</small>
                             </div>
                         </div>
+
+                        {{-- ── Cash Register ──────────────────────────────────────── --}}
+                        <hr class="my-3">
+                        <h6 class="fw-semibold mb-3"><i class="fas fa-cash-register me-1"></i> {{ __('cash_register.cash_register') }}</h6>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <div class="otp-card">
+                                    <div class="otp-card__header">
+                                        <div>
+                                            <div class="otp-card__label">{{ __('payment.auto_close_register') }}</div>
+                                            <div class="otp-card__hint">{{ __('payment.auto_close_register_hint') }}</div>
+                                        </div>
+                                        <label class="otp-switch" title="{{ __('payment.toggle_auto_close_register') }}">
+                                            <input type="checkbox" name="auto_close_register"
+                                                   id="autoCloseRegister" value="1"
+                                                   {{ ($settings?->auto_close_register ?? false) ? 'checked' : '' }}>
+                                            <span class="otp-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="otp-card__status {{ ($settings?->auto_close_register ?? false) ? 'is-on' : 'is-off' }}"
+                                         id="autoCloseRegisterStatus">
+                                        {{ ($settings?->auto_close_register ?? false) ? __('payment.enabled') : __('payment.disabled') }}
+                                    </div>
+                                    <div class="otp-card__phone">{{ __('payment.auto_close_register_note') }}</div>
+                                    <div class="mt-3 d-flex align-items-center gap-2">
+                                        <label for="autoCloseRegisterTime" class="mb-0 fw-medium" style="font-size:0.85rem;white-space:nowrap;">{{ __('payment.close_at') }}</label>
+                                        <input type="time" class="form-control form-control-sm" style="max-width:110px;"
+                                               name="auto_close_register_time"
+                                               id="autoCloseRegisterTime"
+                                               value="{{ $settings?->auto_close_register_time ?? '23:59' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                 </div>
                 <div class="modal-footer">
                     <button type="submit" class="btn btn-info px-4">
@@ -1255,9 +1289,83 @@
 </div>
 @endsection
 
-@push('styles')
+@section('styles')
     <link rel="stylesheet" href="{{ asset('css/admin-dashboard.css') }}">
     <style>
+        /* ── OTP-style switch (shared with manage_user/edit) ── */
+        .otp-card {
+            padding: 14px 16px;
+            border: 1px solid #dbe2ea;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            min-height: 120px;
+        }
+        .otp-card__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .otp-card__label {
+            font-weight: 700;
+            color: #111827;
+            font-size: 0.95rem;
+        }
+        .otp-card__hint,
+        .otp-card__phone {
+            color: #6b7280;
+            font-size: 0.85rem;
+            margin-top: 3px;
+        }
+        .otp-card__status {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 10px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-top: 10px;
+        }
+        .otp-card__status.is-on  { background: #dcfce7; color: #166534; }
+        .otp-card__status.is-off { background: #e5e7eb; color: #374151; }
+        .otp-switch {
+            position: relative;
+            display: inline-block;
+            width: 54px;
+            height: 30px;
+            margin: 0;
+            flex: 0 0 auto;
+        }
+        .otp-switch input {
+            position: absolute !important;
+            opacity: 0 !important;
+            width: 0 !important;
+            height: 0 !important;
+            pointer-events: none !important;
+        }
+        .otp-slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background-color: #cbd5e1;
+            transition: 0.25s;
+            border-radius: 999px;
+            box-shadow: inset 0 0 0 1px rgba(15,23,42,0.08);
+        }
+        .otp-slider:before {
+            position: absolute;
+            content: '';
+            height: 22px; width: 22px;
+            left: 4px; top: 4px;
+            background-color: white;
+            transition: 0.25s;
+            border-radius: 50%;
+            box-shadow: 0 2px 6px rgba(15,23,42,0.18);
+        }
+        .otp-switch input:checked + .otp-slider              { background-color: #2563eb; }
+        .otp-switch input:checked + .otp-slider:before       { transform: translateX(24px); }
+        .otp-switch input:disabled + .otp-slider             { cursor: not-allowed; opacity: 0.6; }
+
         /* Fix dashboard layout and prevent horizontal scrollbar */
         body {
             overflow-x: hidden !important;
@@ -1361,11 +1469,24 @@
             }
         }
     </style>
-@endpush
+@endsection
 
 @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        // ── Auto-close register switch: live status badge update ──────────
+        document.getElementById('autoCloseRegister')?.addEventListener('change', function () {
+            var badge = document.getElementById('autoCloseRegisterStatus');
+            if (!badge) return;
+            if (this.checked) {
+                badge.textContent = '{{ __('payment.enabled') }}';
+                badge.classList.replace('is-off', 'is-on');
+            } else {
+                badge.textContent = '{{ __('payment.disabled') }}';
+                badge.classList.replace('is-on', 'is-off');
+            }
+        });
+
         // Small set of translations used in runtime JS. Keep minimal to avoid large inlined objects.
         const DASHBOARD_I18N = {!! json_encode([
             'remove' => __('payment.remove'),

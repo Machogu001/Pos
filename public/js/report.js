@@ -292,12 +292,11 @@ $(document).ready(function() {
     register_report_table = $('#register_report_table').DataTable({
         processing: true,
         serverSide: true,
-        scrollY:        "75vh",
         scrollX:        true,
-        scrollCollapse: true,
         fixedHeader:false,
         ajax: '/reports/register-report',
         columns: [
+            { data: 'id', name: 'cash_registers.id' },
             { data: 'created_at', name: 'created_at' },
             { data: 'closed_at', name: 'closed_at' },
             { data: 'location_name', name: 'bl.name' },
@@ -306,6 +305,7 @@ $(document).ready(function() {
             { data: 'total_cheque_payment', name: 'total_cheque_payment', searchable: false },
             { data: 'total_cash_payment', name: 'total_cash_payment', searchable: false },
             { data: 'total_bank_transfer_payment', name: 'total_bank_transfer_payment', searchable: false },
+            { data: 'total_mpesa_payment', name: 'total_mpesa_payment', searchable: false },
             { data: 'total_advance_payment', name: 'total_advance_payment', searchable: false },
             { data: 'total_custom_pay_1', name: 'total_custom_pay_1', searchable: false },
             { data: 'total_custom_pay_2', name: 'total_custom_pay_2', searchable: false },
@@ -323,6 +323,7 @@ $(document).ready(function() {
             var total_cheque_payment = 0;
             var total_cash_payment = 0;
             var total_bank_transfer_payment = 0;
+            var total_mpesa_payment = 0;
             var total_other_payment = 0;
             var total_advance_payment = 0;
             var total_custom_pay_1 = 0;
@@ -345,6 +346,9 @@ $(document).ready(function() {
 
                 total_bank_transfer_payment += $(data[r].total_bank_transfer_payment).data('orig-value') ? 
                 parseFloat($(data[r].total_bank_transfer_payment).data('orig-value')) : 0;
+
+                total_mpesa_payment += $(data[r].total_mpesa_payment).data('orig-value') ? 
+                parseFloat($(data[r].total_mpesa_payment).data('orig-value')) : 0;
 
                 total_other_payment += $(data[r].total_other_payment).data('orig-value') ? 
                 parseFloat($(data[r].total_other_payment).data('orig-value')) : 0;
@@ -381,6 +385,7 @@ $(document).ready(function() {
             $('.footer_total_cheque_payment').html(__currency_trans_from_en(total_cheque_payment));
             $('.footer_total_cash_payment').html(__currency_trans_from_en(total_cash_payment));
             $('.footer_total_bank_transfer_payment').html(__currency_trans_from_en(total_bank_transfer_payment));
+            $('.footer_total_mpesa_payment').html(__currency_trans_from_en(total_mpesa_payment));
             $('.footer_total_other_payments').html(__currency_trans_from_en(total_other_payment));
             $('.footer_total_advance_payment').html(__currency_trans_from_en(total_advance_payment));
             $('.footer_total_custom_pay_1').html(__currency_trans_from_en(total_custom_pay_1));

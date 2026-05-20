@@ -19,4 +19,5 @@
      'due_amount' => '應付金額',
      'stock_expiry_alert' => '庫存到期',
      'todays_profit' => '今天的利潤',
- ];
+     'stats_refreshed' => 'Stats updated',
+];

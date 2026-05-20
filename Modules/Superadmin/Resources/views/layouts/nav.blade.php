@@ -24,6 +24,8 @@
                     <li @if(request()->segment(1) == 'superadmin' && request()->segment(2) == 'settings') class="active" @endif><a href="{{action([\Modules\Superadmin\Http\Controllers\SuperadminSettingsController::class, 'edit'])}}">@lang('superadmin::lang.super_admin_settings')</a></li>
 
                     <li @if(request()->segment(1) == 'superadmin' && request()->segment(2) == 'communicator') class="active" @endif><a href="{{action([\Modules\Superadmin\Http\Controllers\CommunicatorController::class, 'index'])}}">@lang('superadmin::lang.communicator')</a></li>
+
+                    <li @if(request()->segment(1) == 'superadmin' && request()->segment(2) == 'sla') class="active" @endif><a href="{{ route('superadmin.sla.show') }}"><i class="fa fa-file-text-o"></i> {{__('superadmin::lang.sla_document')}}</a></li>
                 </ul>
 
             </div><!-- /.navbar-collapse -->

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\System;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -115,9 +116,54 @@ class DeployCommand extends Command
             Artisan::call('permission:cache-reset');
         });
 
-        // Step 8: Cache config/routes/views
-        $this->step('optimize', function () {
-            Artisan::call('optimize');
+        // Step 8: Cache config/routes — graceful fallback if config has Closures
+        $this->step('cache (config/routes)', function () {
+            // config:cache — throws LogicException if any config file contains a Closure
+            try {
+                Artisan::call('config:cache');
+                $this->line('    config:cache  ✓');
+            } catch (\LogicException $e) {
+                // Non-serializable config (e.g. Closures in a custom config file)
+                Artisan::call('config:clear');
+                $this->warn('    config:cache skipped — config contains non-serializable values.');
+                $this->line('    config:clear  ✓ (applied as fallback)');
+            } catch (\Throwable $e) {
+                Artisan::call('config:clear');
+                $this->warn('    config:cache skipped (' . $e->getMessage() . ')');
+                $this->line('    config:clear  ✓ (applied as fallback)');
+            }
+
+            // route:cache — safe on nearly all installations
+            try {
+                Artisan::call('route:cache');
+                $this->line('    route:cache   ✓');
+            } catch (\Throwable $e) {
+                Artisan::call('route:clear');
+                $this->warn('    route:cache skipped (' . $e->getMessage() . ')');
+                $this->line('    route:clear   ✓ (applied as fallback)');
+            }
+
+            // view:cache — compile Blade templates up front (best-effort)
+            try {
+                Artisan::call('view:cache');
+                $this->line('    view:cache    ✓');
+            } catch (\Throwable $e) {
+                Artisan::call('view:clear');
+                $this->warn('    view:cache skipped (' . $e->getMessage() . ')');
+            }
+        });
+
+        // Stamp installed version so the in-app update banner resolves correctly
+        $this->step('stamp app_version', function () {
+            try {
+                $version = config('author.app_version', '0');
+                System::updateOrCreate(
+                    ['key' => 'app_version'],
+                    ['value' => $version]
+                );
+            } catch (\Throwable $e) {
+                // Non-fatal — may fail on a brand-new DB before migrations run
+            }
         });
 
         $this->info('');

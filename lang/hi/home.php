@@ -19,4 +19,5 @@
      'due_amount' => 'देय राशि',
      'stock_expiry_alert' => 'स्टॉक समाप्ति चेतावनी',
      'todays_profit' => 'आज का लाभ',
- ];
+     'stats_refreshed' => 'आँकड़े अपडेट हुए',
+];

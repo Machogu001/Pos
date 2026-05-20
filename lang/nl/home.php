@@ -19,4 +19,5 @@
      'due_amount' => 'Te betalen bedrag',
      'stock_expiry_alert' => 'Stock Vervaldatum Alert',
      'todays_profit' => 'De winst van vandaag',
- ];
+     'stats_refreshed' => 'Statistieken bijgewerkt',
+];

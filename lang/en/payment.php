@@ -547,4 +547,13 @@ return [
     'invoicing' => 'Invoicing',
     'system' => 'System',
     'company_info' => 'Company Info',
+
+    // ── Auto-close Register ─────────────────────────────────────────────
+    'auto_close_register'        => 'Auto-close Register',
+    'auto_close_register_hint'   => 'Automatically close open registers at the set time',
+    'toggle_auto_close_register' => 'Toggle auto-close register',
+    'enabled'                    => 'Enabled',
+    'disabled'                   => 'Disabled',
+    'auto_close_register_note'   => 'Registers with no sales that day are left untouched.',
+    'close_at'                   => 'Close at',
 ];

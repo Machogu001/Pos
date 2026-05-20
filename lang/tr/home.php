@@ -28,4 +28,5 @@ return [
     'due_amount' => 'Ödenmemiş Tutar',
     'stock_expiry_alert' => 'Stok Son Kullanma Tarihi Uyarısı',
     'todays_profit' => 'Bugünün karı',
+    'stats_refreshed' => 'İstatistikler güncellendi',
 ];

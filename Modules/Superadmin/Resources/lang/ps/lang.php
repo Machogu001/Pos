@@ -193,4 +193,5 @@ return [
     'offline_payment_details_tooltip' => 'د آف لائن تادیاتو لارښوونې , لکه د بانکي حساب جزییات',
     'allow_registration' => 'د ثبت اجازه ورکړه',
     'flutterwave_help_text' => 'د روانو څپو لپاره ملاتړ شوي اسعارو چیک کولو لپاره دا لینک کلیک وکړئ',
+    'sla_document' => 'د SLA سند',
 ];

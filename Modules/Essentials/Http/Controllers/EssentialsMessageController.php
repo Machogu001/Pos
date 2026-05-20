@@ -177,7 +177,12 @@ class EssentialsMessageController extends Controller
         if (empty($message->location_id)) {
             $users = $query->get();
         } else {
-            $users = $query->permission('location.'.$message->location_id)->get();
+            try {
+                $users = $query->permission('location.'.$message->location_id)->get();
+            } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist $e) {
+                // Permission for this location hasn't been created yet; notify all business users.
+                $users = $query->get();
+            }
         }
 
         if (count($users)) {

@@ -28,4 +28,5 @@ return [
     'due_amount' => 'Due Amount',
     'stock_expiry_alert' => 'Alerta expirate',
     'todays_profit' => 'Profit azi',
+    'stats_refreshed' => 'Statistici actualizate',
 ];

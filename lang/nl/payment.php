@@ -549,4 +549,13 @@ return [
     'current_label' => 'Current:',
     'invoice_pin' => 'Invoice PIN',
     'company_logo' => 'Company Logo',
+
+    // ── Auto-close Register ─────────────────────────────────────────────
+    'auto_close_register' => 'Register automatisch sluiten',
+    'auto_close_register_hint' => 'Open kassa\'s automatisch sluiten op het ingestelde tijdstip',
+    'toggle_auto_close_register' => 'Automatisch sluiten in-/uitschakelen',
+    'enabled' => 'Ingeschakeld',
+    'disabled' => 'Uitgeschakeld',
+    'auto_close_register_note' => 'Kassa\'s zonder verkopen op die dag blijven ongewijzigd.',
+    'close_at' => 'Sluiten om',
 ];

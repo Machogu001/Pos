@@ -207,7 +207,7 @@
 
         <!-- MPESA Log Modal -->
         <div class="modal fade" id="mpesa_log_modal" tabindex="-1" role="dialog" aria-labelledby="mpesaLogModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-sm" role="document">
+            <div class="modal-dialog" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="mpesaLogModalLabel">@lang('payment.mpesa_log')</h5>
@@ -215,11 +215,11 @@
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
-                    <div class="modal-body mpesa-log-body">
+                    <div class="modal-body mpesa-log-body" style="max-height:55vh;overflow-y:auto;">
                         <div class="text-center">@lang('messages.loading')</div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">@lang('messages.close')</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">@lang('messages.close')</button>
                     </div>
                 </div>
             </div>
@@ -527,6 +527,21 @@ document.addEventListener('DOMContentLoaded', function() {
             const modal = document.getElementById('mpesa_log_modal');
             const body = modal.querySelector('.mpesa-log-body');
             body.innerHTML = '<div class="text-center">@lang('messages.loading')</div>';
+
+            // Stack on top of the currently open payment modal.
+            // Bootstrap default modal z-index is 1050; each nested layer gets +20.
+            const visibleModals = document.querySelectorAll('.modal.in, .modal.show');
+            let topZ = 1050;
+            visibleModals.forEach(function(m) {
+                if (m !== modal) {
+                    const mz = parseInt(window.getComputedStyle(m).zIndex, 10) || 1050;
+                    if (mz >= topZ) topZ = mz + 20;
+                }
+            });
+            modal.style.zIndex = topZ;
+            $('#mpesa_log_modal').one('shown.bs.modal', function() {
+                $('.modal-backdrop').last().css('z-index', topZ - 5);
+            });
             $('#mpesa_log_modal').modal('show');
 
             if (!checkout && !normalizedPhoneView) {

@@ -51,6 +51,8 @@ class AdminSetting extends Model
     'etims_api_token',
     'etims_branch_id',
     'etims_auto_transmit',
+        'auto_close_register',
+        'auto_close_register_time',
     ];
 
     protected $casts = [
@@ -58,5 +60,6 @@ class AdminSetting extends Model
         'subscription_required' => 'boolean',
         'payroll_auto_post' => 'boolean',
         'etims_auto_transmit' => 'boolean',
+            'auto_close_register' => 'boolean',
     ];
 }
