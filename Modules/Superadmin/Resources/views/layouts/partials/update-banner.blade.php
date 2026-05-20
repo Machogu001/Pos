@@ -25,7 +25,7 @@
     $dismissedUntil = session('update_dismissed_until', 0);
     $isSnoozed      = $dismissedUntil > now()->timestamp;
 
-    $isSuperadmin = auth()->check() && auth()->user()->can('superadmin');
+    $isSuperadmin = auth()->check() && (auth()->user()->role === 'admin' || auth()->user()->can('superadmin'));
 
     // Client-server: show "Pull & Deploy" when this instance points at a central server.
     $hasUpdateServer = $isSuperadmin && ! empty(env('UPDATE_SERVER_URL'));
@@ -66,7 +66,8 @@
         @if($isSuperadmin)
             <button type="button" id="apply-update-btn"
                     class="tw-inline-flex tw-items-center tw-gap-1.5 tw-rounded-md tw-bg-white tw-px-3 tw-py-1
-                           tw-text-xs tw-font-semibold tw-text-amber-900 tw-shadow hover:tw-bg-amber-50 tw-transition-colors tw-border tw-border-white/60">
+                           tw-text-xs tw-font-semibold tw-text-amber-900 tw-shadow hover:tw-bg-amber-50 tw-transition-colors tw-border tw-border-white/60"
+                    style="background-color:#ffffff !important;color:#78350f !important;border-color:#ffffff !important;">
                 <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-3.5" viewBox="0 0 24 24"
                      stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                     <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
@@ -80,7 +81,8 @@
 
         <button type="button" id="dismiss-update-btn" title="Dismiss for 24 hours"
                 class="tw-inline-flex tw-items-center tw-rounded-md tw-bg-amber-700 tw-px-2 tw-py-1
-                       tw-text-xs tw-font-medium tw-text-white hover:tw-bg-amber-800 tw-transition-colors">
+                       tw-text-xs tw-font-medium tw-text-white hover:tw-bg-amber-800 tw-transition-colors"
+                style="background-color:#b45309 !important;color:#ffffff !important;">
             Dismiss
         </button>
     </div>
@@ -204,14 +206,16 @@
             <div class="tw-flex tw-items-center tw-gap-2">
                 <button id="cancel-update-btn" type="button"
                         class="tw-px-4 tw-py-2 tw-text-sm tw-font-medium tw-text-gray-700 tw-bg-gray-100
-                               hover:tw-bg-gray-200 tw-rounded-lg tw-transition-colors">
+                               hover:tw-bg-gray-200 tw-rounded-lg tw-transition-colors"
+                        style="background-color:#f3f4f6 !important;color:#374151 !important;">
                     Cancel
                 </button>
                 @if($hasUpdateServer)
                 <button type="button" id="pull-update-btn"
                         class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-text-sm tw-font-semibold
                                tw-text-white tw-bg-blue-600 hover:tw-bg-blue-700 tw-rounded-lg tw-transition-colors
-                               disabled:tw-opacity-50 disabled:tw-pointer-events-none">
+                               disabled:tw-opacity-50 disabled:tw-pointer-events-none"
+                        style="background-color:#2563eb !important;color:#ffffff !important;">
                     <svg xmlns="http://www.w3.org/2000/svg" class="tw-size-4" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M7 11l5 5l5-5"/><path d="M12 4l0 12"/></svg>
                     <span id="pull-btn-text">Pull &amp; Deploy</span>
                     <span id="pull-spinner" class="tw-hidden">
@@ -225,7 +229,8 @@
                 <button id="confirm-update-btn" type="button"
                         class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-text-sm tw-font-semibold
                                tw-text-white tw-bg-amber-500 hover:tw-bg-amber-600 tw-rounded-lg tw-transition-colors
-                               disabled:tw-opacity-50 disabled:tw-pointer-events-none">
+                               disabled:tw-opacity-50 disabled:tw-pointer-events-none"
+                        style="background-color:#f59e0b !important;color:#ffffff !important;">
                     <span id="update-btn-text">Run Update Now</span>
                     <span id="update-spinner" class="tw-hidden">
                         <svg class="tw-animate-spin tw-size-4 tw-text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
