@@ -911,16 +911,35 @@ class UpdateController extends BaseController
         $status = $data['status'] ?? 'unknown'; // 'success' or 'failed'
         $version = $data['version'] ?? 'unknown';
         $message = $data['message'] ?? '';
+        $clientUrl = rtrim((string) ($data['client_url'] ?? ''), '/');
         $clientIp = $request->ip();
 
-        // Find the client by matching the request IP (best-effort identification).
-        // In production, consider using a more robust identifier (e.g., server UUID, client ID token).
-        $client = UpdateClient::whereRaw("INET_ATON(SUBSTRING_INDEX(url, '://', -1)) = INET_ATON(?)", [$clientIp])
-            ->first();
+        // Preferred matching: explicit URL sent by the client callback.
+        $client = null;
+        if ($clientUrl !== '') {
+            $client = UpdateClient::where('url', $clientUrl)->first();
+        }
+
+        // Fallback matching by host when URL is unavailable/mismatched.
+        if (! $client) {
+            $allClients = UpdateClient::get(['id', 'name', 'url']);
+            foreach ($allClients as $candidate) {
+                $host = parse_url((string) $candidate->url, PHP_URL_HOST);
+                if (! $host) {
+                    continue;
+                }
+
+                $resolved = @gethostbyname($host);
+                if ($resolved === $clientIp) {
+                    $client = $candidate;
+                    break;
+                }
+            }
+        }
 
         if (! $client) {
             // Fallback: just log the status report without updating a specific client record.
-            Log::info("Update status report received but client not identified: v{$version} {$status} from {$clientIp}");
+            Log::info("Update status report received but client not identified: v{$version} {$status} from {$clientIp} (client_url={$clientUrl})");
             return response()->json(['accepted' => true, 'message' => 'Status logged']);
         }
 

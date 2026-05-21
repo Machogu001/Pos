@@ -851,29 +851,65 @@
                 alert('Select a package to delete.');
                 return;
             }
-            if (!confirm('Delete stored release package ' + filename + '?')) return;
 
-            deletePackageBtn.disabled = true;
-            fetch('{{ route("superadmin.update.packages.destroy") }}', {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ filename: filename }),
-            })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                showToast(data.success ? 'success' : 'error', data.message || (data.success ? 'Package deleted.' : 'Delete failed.'));
-                renderPackages();
-            })
-            .catch(function () {
-                showToast('error', 'Delete failed', 'Request could not be completed.');
-            })
-            .finally(function () {
-                deletePackageBtn.disabled = false;
-            });
+            var performDelete = function () {
+                deletePackageBtn.disabled = true;
+                fetch('{{ route("superadmin.update.packages.destroy") }}', {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ filename: filename }),
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    showToast(data.success ? 'success' : 'error', data.message || (data.success ? 'Package deleted.' : 'Delete failed.'));
+                    renderPackages();
+                })
+                .catch(function () {
+                    showToast('error', 'Delete failed', 'Request could not be completed.');
+                })
+                .finally(function () {
+                    deletePackageBtn.disabled = false;
+                });
+            };
+
+            if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                Swal.fire({
+                    title: 'Delete stored release package?',
+                    text: filename,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, delete',
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: '#dc2626',
+                    cancelButtonColor: '#6b7280',
+                    reverseButtons: true,
+                }).then(function (result) {
+                    if (!result.isConfirmed) return;
+                    performDelete();
+                });
+                return;
+            }
+
+            if (typeof swal === 'function') {
+                swal({
+                    title: 'Delete stored release package?',
+                    text: filename,
+                    icon: 'warning',
+                    buttons: true,
+                    dangerMode: true,
+                }).then(function (confirmed) {
+                    if (!confirmed) return;
+                    performDelete();
+                });
+                return;
+            }
+
+            if (!confirm('Delete stored release package ' + filename + '?')) return;
+            performDelete();
         });
     }
 
