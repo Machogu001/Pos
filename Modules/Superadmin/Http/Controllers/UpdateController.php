@@ -1234,8 +1234,6 @@ class UpdateController extends BaseController
             escapeshellarg($phpBin) . " {$artisan} pos:pull-update --force >> {$logArg} 2>&1",
             // Fallback: env-resolved php in PATH.
             '/usr/bin/env php ' . $artisan . " pos:pull-update --force >> {$logArg} 2>&1",
-            // Last-resort for hosts where shebang execution is expected.
-            $artisan . " pos:pull-update --force >> {$logArg} 2>&1",
         ];
 
         $lastError = '';
