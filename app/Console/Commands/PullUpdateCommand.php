@@ -185,7 +185,7 @@ class PullUpdateCommand extends Command
 
     /**
      * Ensure a directory exists and is writable by the current process.
-     * This tries to create the directory tree and repairs permissions on the path.
+     * This tries to create the directory tree and repairs permissions only on the target directory.
      */
     private function ensureWritableDirectory(string $dir): bool
     {
@@ -200,22 +200,7 @@ class PullUpdateCommand extends Command
             }
         }
 
-        $current = $dir;
-        $paths = [];
-        while ($current !== '' && $current !== '/' && ! in_array($current, $paths, true)) {
-            $paths[] = $current;
-            $parent = dirname($current);
-            if ($parent === $current) {
-                break;
-            }
-            $current = $parent;
-        }
-
-        foreach (array_reverse($paths) as $path) {
-            if (is_dir($path)) {
-                @chmod($path, 0775);
-            }
-        }
+        @chmod($dir, 0775);
 
         return is_dir($dir) && is_writable($dir);
     }
