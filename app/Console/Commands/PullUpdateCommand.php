@@ -81,7 +81,12 @@ class PullUpdateCommand extends Command
         // ── 2. Download ───────────────────────────────────────────────
         $this->line("==> Downloading v{$remoteVersion}…");
         $zipPath = storage_path("app/releases/update-{$remoteVersion}.zip");
-        @mkdir(dirname($zipPath), 0775, true);
+        $releaseDir = dirname($zipPath);
+        if (! $this->ensureWritableDirectory($releaseDir)) {
+            $this->error("Release directory is not writable: {$releaseDir}");
+            $this->error('I tried to create and repair permissions automatically, but the current user still cannot write there.');
+            return self::FAILURE;
+        }
 
         try {
             $dlRes = Http::withToken($authToken)->timeout(300)->sink($zipPath)->get($downloadUrl);
@@ -112,7 +117,10 @@ class PullUpdateCommand extends Command
         // ── 4. Extract ────────────────────────────────────────────────
         $this->line('==> Extracting…');
         $extractDir = storage_path("app/releases/extract-{$remoteVersion}");
-        @mkdir($extractDir, 0775, true);
+        if (! $this->ensureWritableDirectory($extractDir)) {
+            $this->error("Extract directory is not writable: {$extractDir}");
+            return self::FAILURE;
+        }
 
         $zip = new ZipArchive;
         if ($zip->open($zipPath) !== true) {
@@ -136,11 +144,80 @@ class PullUpdateCommand extends Command
 
         if ($exitCode !== 0) {
             $this->error('pos:deploy finished with errors.');
+            $this->reportStatusToCentral($serverUrl, $authToken, $remoteVersion, 'failed', 'pos:deploy failed');
             return self::FAILURE;
         }
 
         $this->info("==> pos:pull-update complete. Now on v{$remoteVersion}.");
+        $this->reportStatusToCentral($serverUrl, $authToken, $remoteVersion, 'success', 'Update applied successfully');
         return self::SUCCESS;
+    }
+
+    /**
+     * Report the update completion status back to the central server.
+     * Called after pos:pull-update finishes (success or failure).
+     */
+    private function reportStatusToCentral(string $serverUrl, string $authToken, string $version, string $status, string $message = ''): void
+    {
+        try {
+            $this->line("==> Reporting status to central server…");
+            $payload = json_encode([
+                'status'  => $status,
+                'version' => $version,
+                'message' => $message,
+            ]);
+
+            $response = Http::withToken($authToken)
+                ->withHeaders(['Content-Type' => 'application/json', 'Accept' => 'application/json'])
+                ->timeout(15)
+                ->post("{$serverUrl}/api/update/report-status", json_decode($payload, true));
+
+            if ($response->successful()) {
+                $this->line("    Status reported: {$status}");
+            } else {
+                $this->warn("    Failed to report status (HTTP " . $response->status() . ")");
+            }
+        } catch (\Throwable $e) {
+            $this->warn("    Could not report status to central: " . $e->getMessage());
+            // Don't fail the overall command — the update was applied successfully even if the callback fails
+        }
+    }
+
+    /**
+     * Ensure a directory exists and is writable by the current process.
+     * This tries to create the directory tree and repairs permissions on the path.
+     */
+    private function ensureWritableDirectory(string $dir): bool
+    {
+        $dir = rtrim($dir, '/');
+        if ($dir === '') {
+            return false;
+        }
+
+        if (! is_dir($dir)) {
+            if (! @mkdir($dir, 0775, true) && ! is_dir($dir)) {
+                return false;
+            }
+        }
+
+        $current = $dir;
+        $paths = [];
+        while ($current !== '' && $current !== '/' && ! in_array($current, $paths, true)) {
+            $paths[] = $current;
+            $parent = dirname($current);
+            if ($parent === $current) {
+                break;
+            }
+            $current = $parent;
+        }
+
+        foreach (array_reverse($paths) as $path) {
+            if (is_dir($path)) {
+                @chmod($path, 0775);
+            }
+        }
+
+        return is_dir($dir) && is_writable($dir);
     }
 
     private function copyFiles(string $src, string $dst): void

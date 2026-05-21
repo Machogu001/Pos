@@ -24,3 +24,7 @@ Route::post('/mpesa/callback', [MpesaCallbackController::class, 'handleCallback'
 // Update webhook — called by the central server when pushing a new release.
 // Authenticated by HMAC-SHA256 signature (X-Update-Signature header), not by session.
 Route::post('/update/trigger', [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'triggerWebhook']);
+
+// Update status report — called by the client after pos:pull-update completes.
+// Authenticated by UPDATE_AUTH_TOKEN bearer token.
+Route::post('/update/report-status', [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'reportUpdateStatus']);

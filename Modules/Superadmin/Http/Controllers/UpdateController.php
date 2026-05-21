@@ -886,6 +886,52 @@ class UpdateController extends BaseController
         return response()->json(['accepted' => true, 'version' => $version]);
     }
 
+    /**
+     * Status report from client — called after pos:pull-update completes (success or failure).
+     * Authenticated by UPDATE_AUTH_TOKEN bearer token.
+     * Updates the central server's client registry with completion status.
+     */
+    public function reportUpdateStatus(Request $request): JsonResponse
+    {
+        // CENTRAL SERVER: Verify bearer token (client's UPDATE_AUTH_TOKEN must match our UPDATE_DOWNLOAD_TOKEN)
+        if (! $this->authorizeDownloadToken($request)) {
+            Log::warning('Update status report: invalid/missing auth token from ' . $request->ip());
+            return response()->json(['error' => 'Unauthorized.'], 401);
+        }
+
+        $data   = $request->json()->all();
+        $status = $data['status'] ?? 'unknown'; // 'success' or 'failed'
+        $version = $data['version'] ?? 'unknown';
+        $message = $data['message'] ?? '';
+        $clientIp = $request->ip();
+
+        // Find the client by matching the request IP (best-effort identification).
+        // In production, consider using a more robust identifier (e.g., server UUID, client ID token).
+        $client = UpdateClient::whereRaw("INET_ATON(SUBSTRING_INDEX(url, '://', -1)) = INET_ATON(?)", [$clientIp])
+            ->first();
+
+        if (! $client) {
+            // Fallback: just log the status report without updating a specific client record.
+            Log::info("Update status report received but client not identified: v{$version} {$status} from {$clientIp}");
+            return response()->json(['accepted' => true, 'message' => 'Status logged']);
+        }
+
+        // Update the client record with the final status
+        $client->update([
+            'last_push_status' => $status === 'success' ? 'success' : 'failed',
+            'last_version'     => $status === 'success' ? $version : $client->last_version,
+            'last_pushed_at'   => now(),
+        ]);
+
+        $logMsg = "Update report from [{$client->name}]: v{$version} {$status}";
+        if ($message) {
+            $logMsg .= " — {$message}";
+        }
+        Log::info($logMsg);
+
+        return response()->json(['accepted' => true, 'message' => "Status updated: {$status}"]);
+    }
+
     // =========================================================================
     // Private helpers
     // =========================================================================
