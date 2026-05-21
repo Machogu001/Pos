@@ -1072,11 +1072,64 @@
                     ' &mdash; v' + escHtml(c.last_version || '?') + ' &mdash; ' + status +
                     '</div>' +
                     '<div class="tw-flex tw-items-center tw-gap-1 tw-shrink-0">' +
+                    '<button class="tw-text-xs tw-font-medium tw-text-amber-600 hover:tw-underline tw-client-rotate-secret" data-id="' + c.id + '" data-name="' + escHtml(c.name) + '">Rotate Secret</button>' +
                     '<button class="tw-text-xs tw-font-medium tw-text-indigo-600 hover:tw-underline tw-client-push" data-id="' + c.id + '" data-name="' + escHtml(c.name) + '">Push</button>' +
                     '<button class="tw-text-xs tw-font-medium tw-text-red-500 hover:tw-underline tw-client-delete" data-id="' + c.id + '">Remove</button>' +
                     '</div>' +
                     '</div>';
             }).join('');
+
+            clientsList.querySelectorAll('.tw-client-rotate-secret').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var rotateSecret = function () {
+                        btn.disabled = true;
+                        var id = btn.dataset.id;
+                        var url = '{{ route("superadmin.update.clients.rotate-secret", ["id" => "__ID__"]) }}'.replace('__ID__', id);
+                        fetch(url, {
+                            method: 'POST',
+                            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+                        })
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) {
+                            if (data.success && data.webhook_secret) {
+                                if (clientSecretValue) clientSecretValue.textContent = 'UPDATE_WEBHOOK_SECRET=' + data.webhook_secret;
+                                clientSecretBox && (clientSecretBox.style.display = '');
+                                showToast('success', data.message || 'Webhook secret rotated.');
+                            } else {
+                                showToast('error', data.message || 'Failed to rotate webhook secret.');
+                            }
+                            renderClients();
+                        })
+                        .catch(function () {
+                            showToast('error', 'Failed to rotate webhook secret.');
+                        })
+                        .finally(function () {
+                            btn.disabled = false;
+                        });
+                    };
+
+                    if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                        Swal.fire({
+                            title: 'Rotate webhook secret for ' + btn.dataset.name + '?',
+                            text: 'The old secret will stop working immediately on push.',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonText: 'Yes, rotate',
+                            cancelButtonText: 'Cancel',
+                            confirmButtonColor: '#d97706',
+                            cancelButtonColor: '#6b7280',
+                            reverseButtons: true,
+                        }).then(function (result) {
+                            if (!result.isConfirmed) return;
+                            rotateSecret();
+                        });
+                        return;
+                    }
+
+                    if (!confirm('Rotate webhook secret for ' + btn.dataset.name + '?')) return;
+                    rotateSecret();
+                });
+            });
 
             clientsList.querySelectorAll('.tw-client-push').forEach(function (btn) {
                 btn.addEventListener('click', function () {

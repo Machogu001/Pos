@@ -545,6 +545,26 @@ class UpdateController extends BaseController
         return response()->json(['success' => true]);
     }
 
+    /** Rotate and return a client's webhook secret (shown once). */
+    public function rotateClientSecret(int $id): JsonResponse
+    {
+        if (! $this->canManageUpdates()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $client = UpdateClient::findOrFail($id);
+        $secret = bin2hex(random_bytes(32));
+
+        $client->update(['webhook_secret' => $secret]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Webhook secret rotated. Update the client .env value and clear cache.',
+            'client' => $client->only(['id', 'name', 'url']),
+            'webhook_secret' => $secret,
+        ]);
+    }
+
     /** Build a release package from the current codebase — streams live output as SSE. */
     public function buildPackage(Request $request): StreamedResponse
     {
