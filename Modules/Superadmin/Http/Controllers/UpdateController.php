@@ -863,12 +863,16 @@ class UpdateController extends BaseController
     {
         $secret = trim((string) env('UPDATE_WEBHOOK_SECRET', ''));
         $clientAuthToken = trim((string) env('UPDATE_AUTH_TOKEN', ''));
+        if ($clientAuthToken === '') {
+            // Backward compatibility: some clients still store the shared token in UPDATE_DOWNLOAD_TOKEN.
+            $clientAuthToken = trim((string) env('UPDATE_DOWNLOAD_TOKEN', ''));
+        }
         $bearer = $request->bearerToken();
         $tokenValid = $clientAuthToken !== '' && $bearer !== null && hash_equals($clientAuthToken, $bearer);
 
         if ($secret === '' && ! $tokenValid) {
             return response()->json([
-                'error' => 'Webhook auth not configured. Set UPDATE_WEBHOOK_SECRET or UPDATE_AUTH_TOKEN on this server.',
+                'error' => 'Webhook auth not configured. Set UPDATE_WEBHOOK_SECRET or UPDATE_AUTH_TOKEN (or UPDATE_DOWNLOAD_TOKEN) on this server.',
             ], 503);
         }
 
@@ -1087,6 +1091,11 @@ class UpdateController extends BaseController
             $msg = $ok
                 ? 'Trigger accepted.'
                 : ('HTTP ' . $response->status() . ($errorDetail !== '' ? ': ' . $errorDetail : ''));
+
+            if (! $ok && $response->status() === 503 && str_contains(strtolower($errorDetail), 'webhook not configured')) {
+                $msg .= ' Configure client .env with UPDATE_WEBHOOK_SECRET=' . $client->webhook_secret
+                    . ' and run php artisan optimize:clear on the client server.';
+            }
 
             return [$ok, $msg];
         } catch (\Throwable $e) {

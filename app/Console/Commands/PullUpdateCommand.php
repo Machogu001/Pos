@@ -37,10 +37,10 @@ class PullUpdateCommand extends Command
     public function handle(): int
     {
         $serverUrl = rtrim(env('UPDATE_SERVER_URL', ''), '/');
-        $authToken = env('UPDATE_AUTH_TOKEN', '');
+        $authToken = $this->resolveAuthToken();
 
         if (empty($serverUrl) || empty($authToken)) {
-            $this->error('UPDATE_SERVER_URL and UPDATE_AUTH_TOKEN must be set in .env');
+            $this->error('UPDATE_SERVER_URL and UPDATE_AUTH_TOKEN (or UPDATE_DOWNLOAD_TOKEN) must be set in .env');
             return self::FAILURE;
         }
 
@@ -191,6 +191,20 @@ class PullUpdateCommand extends Command
             $this->warn("    Could not report status to central: " . $e->getMessage());
             // Don't fail the overall command — the update was applied successfully even if the callback fails
         }
+    }
+
+    /**
+     * Resolve the token used by clients to authenticate to the central update server.
+     * Prefers UPDATE_AUTH_TOKEN and falls back to UPDATE_DOWNLOAD_TOKEN for legacy setups.
+     */
+    private function resolveAuthToken(): string
+    {
+        $token = trim((string) env('UPDATE_AUTH_TOKEN', ''));
+        if ($token !== '') {
+            return $token;
+        }
+
+        return trim((string) env('UPDATE_DOWNLOAD_TOKEN', ''));
     }
 
     /**
