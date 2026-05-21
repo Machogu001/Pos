@@ -56,9 +56,12 @@ class UpdateController extends BaseController
         // Only trust remote_available_version when an update_check_url is configured;
         // otherwise the value may be stale from a prior environment.
         $checkUrl    = config('author.update_check_url', '');
-        $remoteVersion = ($checkUrl !== '')
-            ? (System::getProperty('remote_available_version') ?? '')
-            : '';
+        $remoteVersion = '';
+        if ($checkUrl !== '') {
+            // Prefer live source check so clients can detect updates even before push is triggered.
+            $remoteVersion = $this->fetchLiveRemoteVersion($checkUrl)
+                ?: (System::getProperty('remote_available_version') ?? '');
+        }
 
         // Local pending: code files are ahead of the DB (e.g. after git pull but before deploy)
         $localPending = $installedVersion === ''
@@ -86,6 +89,28 @@ class UpdateController extends BaseController
             'push_version'      => $pushPendingVersion !== '' ? $pushPendingVersion : null,
             'push_received_at'  => is_array($pushPending) ? ($pushPending['received_at'] ?? null) : null,
         ]);
+    }
+
+    /** Fetch latest source version from UPDATE_CHECK_URL, then cache it in System properties. */
+    private function fetchLiveRemoteVersion(string $checkUrl): ?string
+    {
+        try {
+            $response = Http::timeout(5)->get($checkUrl);
+            if (! $response->successful()) {
+                return null;
+            }
+
+            $version = (string) ($response->json('version') ?? '');
+            if (! preg_match('/^\d+(\.\d+)*$/', $version)) {
+                return null;
+            }
+
+            System::updateOrCreate(['key' => 'remote_available_version'], ['value' => $version]);
+            return $version;
+        } catch (\Throwable $e) {
+            Log::warning('Live remote version check failed: ' . $e->getMessage());
+            return null;
+        }
     }
 
     /**

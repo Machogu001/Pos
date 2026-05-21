@@ -298,6 +298,7 @@
     var currentDownloadToken = '';
     var isDownloadTokenVisible = false;
     var lastPushNotificationVersion = null;
+    var lastRemoteNotificationVersion = null;
     var isSuperadmin = @json($isSuperadmin);
     var isRemoteOnly  = @json($remotePending && !$localPending);  // remote update available but code not yet pulled
 
@@ -1419,6 +1420,15 @@
                     lastPushNotificationVersion = data.push_version;
                 }
                 return;
+            }
+
+            if (data && data.remote_pending && data.remote_version) {
+                if (lastRemoteNotificationVersion !== data.remote_version) {
+                    showToast('warning', 'Update available on source (v' + data.remote_version + ')', 'A newer version is available at the source server. Open System Updates to pull/deploy.');
+                    lastRemoteNotificationVersion = data.remote_version;
+                }
+            } else {
+                lastRemoteNotificationVersion = null;
             }
 
             if (data && !data.push_pending) {
