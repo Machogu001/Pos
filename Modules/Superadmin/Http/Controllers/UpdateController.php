@@ -7,6 +7,7 @@ use Composer\Semver\Comparator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Modules\Superadmin\Entities\UpdateClient;
@@ -48,6 +49,9 @@ class UpdateController extends BaseController
     {
         $codeVersion      = config('author.app_version', '0');
         $installedVersion = System::getProperty('app_version') ?? '';
+        $pushPending      = Cache::get('pending_pull_update');
+        $pushPendingVersion = is_array($pushPending) ? (string) ($pushPending['version'] ?? '') : '';
+        $hasPushPending   = $pushPendingVersion !== '';
 
         // Only trust remote_available_version when an update_check_url is configured;
         // otherwise the value may be stale from a prior environment.
@@ -64,18 +68,23 @@ class UpdateController extends BaseController
         $remotePending = $remoteVersion !== ''
             && Comparator::greaterThan($remoteVersion, $installedVersion);
 
-        $pending = $localPending || $remotePending;
+        $pending = $localPending || $remotePending || $hasPushPending;
 
         // Surface the most relevant "new" version to the UI
-        $displayVersion = ($remotePending && ! $localPending) ? $remoteVersion : $codeVersion;
+        $displayVersion = $hasPushPending
+            ? $pushPendingVersion
+            : (($remotePending && ! $localPending) ? $remoteVersion : $codeVersion);
 
         return response()->json([
             'pending'           => $pending,
             'local_pending'     => $localPending,
             'remote_pending'    => $remotePending,
+            'push_pending'      => $hasPushPending,
             'new_version'       => $displayVersion,
             'installed_version' => $installedVersion ?: 'unknown',
             'remote_version'    => $remoteVersion ?: null,
+            'push_version'      => $pushPendingVersion !== '' ? $pushPendingVersion : null,
+            'push_received_at'  => is_array($pushPending) ? ($pushPending['received_at'] ?? null) : null,
         ]);
     }
 
@@ -1022,7 +1031,7 @@ class UpdateController extends BaseController
         $version = $data['version'] ?? 'unknown';
 
         // Cache the pending update so the UI can surface a notification.
-        \Illuminate\Support\Facades\Cache::put('pending_pull_update', [
+        Cache::put('pending_pull_update', [
             'version'     => $version,
             'received_at' => now()->toIso8601String(),
         ], now()->addHours(6));

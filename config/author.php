@@ -16,7 +16,7 @@ return [
     'vendor' => 'Ultimate BreMac Systems Ltd',
     'vendor_url' => 'http://bremac.co.ke',
     'email' => 'info@bremac.co.ke',
-    'app_version' => function_exists('pos_release_version') ? pos_release_version() : '13.0',
+    'app_version' => function_exists('pos_release_version') ? pos_release_version() : '13.1',
     'released_at'  => function_exists('pos_release_date') ? pos_release_date() : '2026-05-21',
     'update_check_url' => env('UPDATE_CHECK_URL', ''),
     'lic1' => 'aHR0cHM6Ly9sLnVsdGltYXRlZm9zdGVycy5jb20vYXBpL3R5cGVfMQ==',

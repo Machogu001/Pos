@@ -297,6 +297,7 @@
     var copyTokenBtn         = document.getElementById('copy-download-token-btn');
     var currentDownloadToken = '';
     var isDownloadTokenVisible = false;
+    var lastPushNotificationVersion = null;
     var isSuperadmin = @json($isSuperadmin);
     var isRemoteOnly  = @json($remotePending && !$localPending);  // remote update available but code not yet pulled
 
@@ -431,6 +432,8 @@
     var deploySource   = null;   // active EventSource
     var clientSource   = null;   // active client progress EventSource
     var deployDone     = false;  // guard against onerror firing after normal close
+    var watchedClientId = null;
+    var lastClientHeartbeatLogAt = 0;
 
     function setProgress(pct, label) {
         if (progressBar) progressBar.style.width = pct + '%';
@@ -454,10 +457,14 @@
 
     function stopClientStream() {
         if (clientSource) { clientSource.close(); clientSource = null; }
+        watchedClientId = null;
+        lastClientHeartbeatLogAt = 0;
     }
 
     function startClientProgressStream(clientId, clientName) {
         stopClientStream();
+        watchedClientId = String(clientId);
+        lastClientHeartbeatLogAt = 0;
 
         if (checkResult) checkResult.style.display = 'none';
         if (preRunEl) preRunEl.style.display = 'none';
@@ -479,9 +486,11 @@
 
         clientSource.addEventListener('heartbeat', function (e) {
             var d = JSON.parse(e.data);
-            if (logEl) {
+            var nowTs = Date.now();
+            if (logEl && (nowTs - lastClientHeartbeatLogAt) >= 8000) {
                 logEl.textContent += '• ' + (d.message || 'Waiting...') + '\n';
                 logWrap.scrollTop = logWrap.scrollHeight;
+                lastClientHeartbeatLogAt = nowTs;
             }
         });
 
@@ -1177,6 +1186,21 @@
         .then(function (r) { return r.json(); })
         .then(function (data) {
             var clients = data.clients || [];
+
+            // If we are watching one client live and it has finished, stop waiting immediately.
+            if (watchedClientId !== null) {
+                var watched = clients.find(function (c) { return String(c.id) === watchedClientId; });
+                if (watched && (watched.last_push_status === 'success' || watched.last_push_status === 'failed')) {
+                    stopClientStream();
+                    showRunResult(
+                        watched.last_push_status === 'success',
+                        watched.last_push_status === 'success'
+                            ? (watched.name + ' finished deployment successfully.')
+                            : (watched.name + ' deployment failed. Check client logs.')
+                    );
+                }
+            }
+
             if (clients.length === 0) {
                 clientsList.innerHTML = '<p class="tw-text-gray-400 tw-italic">No clients registered yet.</p>';
                 return;
@@ -1384,15 +1408,25 @@
         return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    // ── Background poll every 10 min ──────────────────────────
+    // ── Background poll every 30s for pushed update notifications ─────────
     setInterval(function () {
         fetch('{{ route("superadmin.update.status") }}', { headers: { 'Accept': 'application/json' } })
         .then(function (r) { return r.json(); })
         .then(function (data) {
-            // banner removed; update badge refreshes on next page load
+            if (data && data.push_pending && data.push_version) {
+                if (lastPushNotificationVersion !== data.push_version) {
+                    showToast('warning', 'Update received from source (v' + data.push_version + ')', 'Client will pull/deploy in the background. Open System Updates to monitor progress.');
+                    lastPushNotificationVersion = data.push_version;
+                }
+                return;
+            }
+
+            if (data && !data.push_pending) {
+                lastPushNotificationVersion = null;
+            }
         })
         .catch(function () {});
-    }, 10 * 60 * 1000);
+    }, 30 * 1000);
 })();
 </script>
 @endpush
