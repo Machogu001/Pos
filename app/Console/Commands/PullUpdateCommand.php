@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\System;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use ZipArchive;
 
@@ -41,6 +42,7 @@ class PullUpdateCommand extends Command
 
         if (empty($serverUrl) || empty($authToken)) {
             $this->error('UPDATE_SERVER_URL and UPDATE_AUTH_TOKEN (or UPDATE_DOWNLOAD_TOKEN) must be set in .env');
+            Cache::forget('pending_pull_update');
             return self::FAILURE;
         }
 
@@ -52,12 +54,14 @@ class PullUpdateCommand extends Command
         } catch (\Throwable $e) {
             $this->error('Cannot reach update server: ' . $e->getMessage());
             $this->reportStatusToCentral($serverUrl, $authToken, 'unknown', 'failed', 'Cannot reach update server: ' . $e->getMessage());
+            Cache::forget('pending_pull_update');
             return self::FAILURE;
         }
 
         if (! $infoRes->successful()) {
             $this->error('Update server returned HTTP ' . $infoRes->status());
             $this->reportStatusToCentral($serverUrl, $authToken, 'unknown', 'failed', 'Release info HTTP ' . $infoRes->status());
+            Cache::forget('pending_pull_update');
             return self::FAILURE;
         }
 
@@ -69,6 +73,7 @@ class PullUpdateCommand extends Command
         if (empty($remoteVersion) || empty($downloadUrl)) {
             $this->error('Invalid release-info response.');
             $this->reportStatusToCentral($serverUrl, $authToken, 'unknown', 'failed', 'Invalid release-info response');
+            Cache::forget('pending_pull_update');
             return self::FAILURE;
         }
 
@@ -78,6 +83,7 @@ class PullUpdateCommand extends Command
             && version_compare($remoteVersion, $installedVersion, '<=')
         ) {
             $this->info("Already on v{$installedVersion} — nothing to do. Use --force to re-download.");
+            Cache::forget('pending_pull_update');
             return self::SUCCESS;
         }
 
@@ -89,6 +95,7 @@ class PullUpdateCommand extends Command
             $this->error("Release directory is not writable: {$releaseDir}");
             $this->error('I tried to create and repair permissions automatically, but the current user still cannot write there.');
             $this->reportStatusToCentral($serverUrl, $authToken, $remoteVersion, 'failed', 'Release directory not writable: ' . $releaseDir);
+            Cache::forget('pending_pull_update');
             return self::FAILURE;
         }
 
@@ -98,6 +105,7 @@ class PullUpdateCommand extends Command
             @unlink($zipPath);
             $this->error('Download failed: ' . $e->getMessage());
             $this->reportStatusToCentral($serverUrl, $authToken, $remoteVersion, 'failed', 'Download failed: ' . $e->getMessage());
+            Cache::forget('pending_pull_update');
             return self::FAILURE;
         }
 
@@ -105,6 +113,7 @@ class PullUpdateCommand extends Command
             @unlink($zipPath);
             $this->error('Download returned HTTP ' . $dlRes->status());
             $this->reportStatusToCentral($serverUrl, $authToken, $remoteVersion, 'failed', 'Download HTTP ' . $dlRes->status());
+            Cache::forget('pending_pull_update');
             return self::FAILURE;
         }
 
@@ -116,6 +125,7 @@ class PullUpdateCommand extends Command
                 @unlink($zipPath);
                 $this->error("Checksum mismatch! Expected {$sha256}, got {$actual}");
                 $this->reportStatusToCentral($serverUrl, $authToken, $remoteVersion, 'failed', 'Checksum mismatch');
+                Cache::forget('pending_pull_update');
                 return self::FAILURE;
             }
             $this->line('    Checksum OK ✓');
@@ -127,6 +137,7 @@ class PullUpdateCommand extends Command
         if (! $this->ensureWritableDirectory($extractDir)) {
             $this->error("Extract directory is not writable: {$extractDir}");
             $this->reportStatusToCentral($serverUrl, $authToken, $remoteVersion, 'failed', 'Extract directory not writable: ' . $extractDir);
+            Cache::forget('pending_pull_update');
             return self::FAILURE;
         }
 
@@ -135,6 +146,7 @@ class PullUpdateCommand extends Command
             @unlink($zipPath);
             $this->error('Failed to open zip archive.');
             $this->reportStatusToCentral($serverUrl, $authToken, $remoteVersion, 'failed', 'Failed to open zip archive');
+            Cache::forget('pending_pull_update');
             return self::FAILURE;
         }
         $zip->extractTo($extractDir);
@@ -154,11 +166,13 @@ class PullUpdateCommand extends Command
         if ($exitCode !== 0) {
             $this->error('pos:deploy finished with errors.');
             $this->reportStatusToCentral($serverUrl, $authToken, $remoteVersion, 'failed', 'pos:deploy failed');
+            Cache::forget('pending_pull_update');
             return self::FAILURE;
         }
 
         $this->info("==> pos:pull-update complete. Now on v{$remoteVersion}.");
         $this->reportStatusToCentral($serverUrl, $authToken, $remoteVersion, 'success', 'Update applied successfully');
+        Cache::forget('pending_pull_update');
         return self::SUCCESS;
     }
 

@@ -1107,6 +1107,39 @@ class UpdateController extends BaseController
             $client = UpdateClient::where('url', $clientUrl)->first();
         }
 
+        // Fallback matching by normalized URL (ignores scheme, trailing slash, and optional /public suffix).
+        if (! $client && $clientUrl !== '') {
+            $incomingKey = $this->normalizeClientUrlKey($clientUrl);
+            if ($incomingKey !== '') {
+                $allClients = UpdateClient::get(['id', 'name', 'url']);
+                foreach ($allClients as $candidate) {
+                    if ($this->normalizeClientUrlKey((string) $candidate->url) === $incomingKey) {
+                        $client = $candidate;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Fallback matching by host when URL keys are close but not identical.
+        if (! $client && $clientUrl !== '') {
+            $incomingHost = strtolower((string) parse_url($clientUrl, PHP_URL_HOST));
+            if ($incomingHost !== '') {
+                $allClients = UpdateClient::get(['id', 'name', 'url']);
+                $hostMatches = [];
+                foreach ($allClients as $candidate) {
+                    $candidateHost = strtolower((string) parse_url((string) $candidate->url, PHP_URL_HOST));
+                    if ($candidateHost === $incomingHost) {
+                        $hostMatches[] = $candidate;
+                    }
+                }
+
+                if (count($hostMatches) === 1) {
+                    $client = $hostMatches[0];
+                }
+            }
+        }
+
         // Fallback matching by host when URL is unavailable/mismatched.
         if (! $client) {
             $allClients = UpdateClient::get(['id', 'name', 'url']);
@@ -1144,6 +1177,31 @@ class UpdateController extends BaseController
         Log::info($logMsg);
 
         return response()->json(['accepted' => true, 'message' => "Status updated: {$status}"]);
+    }
+
+    /** Normalize client URLs for robust callback matching. */
+    private function normalizeClientUrlKey(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
+
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        if ($host === '') {
+            return '';
+        }
+
+        $path = (string) parse_url($url, PHP_URL_PATH);
+        $path = '/' . trim($path, '/');
+        if ($path === '/') {
+            $path = '';
+        }
+
+        // Optional deployment suffix frequently differs between app.url and registry URLs.
+        $path = preg_replace('#/public$#i', '', $path) ?? $path;
+
+        return rtrim($host . $path, '/');
     }
 
     // =========================================================================
