@@ -861,16 +861,26 @@ class UpdateController extends BaseController
      */
     public function triggerWebhook(Request $request): JsonResponse
     {
-        $secret = env('UPDATE_WEBHOOK_SECRET', '');
-        if (empty($secret)) {
-            return response()->json(['error' => 'Webhook not configured on this server.'], 503);
+        $secret = trim((string) env('UPDATE_WEBHOOK_SECRET', ''));
+        $clientAuthToken = trim((string) env('UPDATE_AUTH_TOKEN', ''));
+        $bearer = $request->bearerToken();
+        $tokenValid = $clientAuthToken !== '' && $bearer !== null && hash_equals($clientAuthToken, $bearer);
+
+        if ($secret === '' && ! $tokenValid) {
+            return response()->json([
+                'error' => 'Webhook auth not configured. Set UPDATE_WEBHOOK_SECRET or UPDATE_AUTH_TOKEN on this server.',
+            ], 503);
         }
 
         $rawBody  = $request->getContent();
         $sigHeader = $request->header('X-Update-Signature', '');
-        $expected  = 'sha256=' . hash_hmac('sha256', $rawBody, $secret);
+        $signatureValid = false;
+        if ($secret !== '') {
+            $expected  = 'sha256=' . hash_hmac('sha256', $rawBody, $secret);
+            $signatureValid = hash_equals($expected, $sigHeader);
+        }
 
-        if (! hash_equals($expected, $sigHeader)) {
+        if (! $signatureValid && ! $tokenValid) {
             Log::warning('Update webhook: invalid signature from ' . $request->ip());
             return response()->json(['error' => 'Invalid signature.'], 401);
         }
@@ -1039,6 +1049,7 @@ class UpdateController extends BaseController
         try {
             $manifest = $this->loadManifest();
             $version  = $manifest ? $manifest['version'] : config('author.app_version', '0');
+            $downloadToken = $this->getActiveDownloadToken();
 
             $payload = json_encode([
                 'version'      => $version,
@@ -1048,11 +1059,18 @@ class UpdateController extends BaseController
 
             $signature = 'sha256=' . hash_hmac('sha256', $payload, $client->webhook_secret);
 
-            $response = Http::withHeaders([
+            $headers = [
                 'X-Update-Signature' => $signature,
                 'Content-Type'       => 'application/json',
                 'Accept'             => 'application/json',
-            ])->timeout(15)->post($client->url . '/api/update/trigger', json_decode($payload, true));
+            ];
+            if (! empty($downloadToken)) {
+                $headers['Authorization'] = 'Bearer ' . $downloadToken;
+            }
+
+            $response = Http::withHeaders($headers)
+                ->timeout(15)
+                ->post($client->url . '/api/update/trigger', json_decode($payload, true));
 
             $ok = $response->successful();
             $errorDetail = '';

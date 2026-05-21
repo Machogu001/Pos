@@ -37,7 +37,7 @@
 {{-- ─── Apply Update Modal (always rendered for superadmins) ───────────── --}}
 @if($isSuperadmin)
 <div id="update-modal"
-     style="display:none;position:fixed;inset:0;z-index:10000;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(2px);">
+    style="display:none;position:fixed;inset:0;z-index:1050;align-items:center;justify-content:center;background:rgba(15,23,42,0.08);backdrop-filter:none;">
     <div class="tw-bg-white tw-rounded-xl tw-shadow-2xl tw-w-full tw-mx-4 tw-flex tw-flex-col"
          style="max-height:92vh;height:92vh;width:100%;max-width:60rem;margin-left:1rem;margin-right:1rem;display:flex;flex-direction:column;background:#fff;border-radius:0.75rem;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);">
         {{-- Modal header --}}
