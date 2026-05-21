@@ -796,7 +796,15 @@ class UpdateController extends BaseController
                 ['label' => 'Running pos:setup\u2026',           'pct' => 66, 'run' => function () { Artisan::call('pos:setup', ['--force' => true]); return Artisan::output(); }],
                 ['label' => 'Applying migrations\u2026',         'pct' => 72, 'run' => function () { Artisan::call('migrate', ['--force' => true]); return Artisan::output(); }],
                 ['label' => 'Migrating modules\u2026',           'pct' => 77, 'run' => function () { Artisan::call('module:migrate', ['--force' => true]); return Artisan::output(); }],
-                ['label' => 'Publishing module assets\u2026',    'pct' => 81, 'run' => function () { Artisan::call('module:publish'); return Artisan::output(); }],
+                ['label' => 'Publishing module assets\u2026',    'pct' => 81, 'run' => function () {
+                    try {
+                        Artisan::call('module:publish');
+                        return Artisan::output();
+                    } catch (\Throwable $e) {
+                        Log::warning('module:publish skipped during update: ' . $e->getMessage());
+                        return 'module:publish skipped: ' . $e->getMessage();
+                    }
+                }],
                 ['label' => 'Seeding permissions\u2026',         'pct' => 85, 'run' => function () { Artisan::call('db:seed', ['--class' => 'PermissionsTableSeeder', '--force' => true]); return Artisan::output(); }],
                 ['label' => 'Installing Passport keys\u2026',    'pct' => 88, 'run' => function () { Artisan::call('passport:install', ['--force' => true]); return Artisan::output(); }],
                 ['label' => 'Resetting permission cache\u2026',  'pct' => 91, 'run' => function () { Artisan::call('permission:cache-reset'); return Artisan::output(); }],

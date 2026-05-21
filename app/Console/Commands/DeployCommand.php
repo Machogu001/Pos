@@ -88,7 +88,14 @@ class DeployCommand extends Command
 
         // Step 4: Publish module assets
         $this->step('module:publish', function () {
-            Artisan::call('module:publish');
+            try {
+                Artisan::call('module:publish');
+                $this->line('    module:publish ✓');
+            } catch (\Throwable $e) {
+                // Some nwidart/laravel-modules versions are not compatible with newer
+                // Laravel console internals. Do not fail deployment for asset publishing.
+                $this->warn('    module:publish skipped (' . $e->getMessage() . ')');
+            }
         });
 
         if ($isFresh) {
