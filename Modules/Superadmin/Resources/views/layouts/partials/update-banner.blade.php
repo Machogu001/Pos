@@ -931,7 +931,7 @@
                         return;
                     }
                     if (tokenValueEl) tokenValueEl.value = data.token || '';
-                    if (tokenStatusEl) tokenStatusEl.textContent = 'Managed token active. Copy and paste this into each client .env as UPDATE_AUTH_TOKEN.';
+                    if (tokenStatusEl) tokenStatusEl.textContent = data.message || 'Managed token active. Copy and paste this into each client .env as UPDATE_AUTH_TOKEN.';
                     showToast('success', data.message || 'Token regenerated.');
                 })
                 .catch(function () {

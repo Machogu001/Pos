@@ -389,6 +389,16 @@ class UpdateController extends BaseController
         $dbToken  = (string) (System::getProperty('update_download_token') ?? '');
         $envToken = (string) env('UPDATE_DOWNLOAD_TOKEN', '');
 
+        if ($envToken !== '') {
+            return response()->json([
+                'success'    => true,
+                'configured' => true,
+                'source'     => 'env',
+                'preview'    => substr($envToken, 0, 8) . '...' . substr($envToken, -6),
+                'message'    => 'Source token is pinned from .env and will not rotate from this panel.',
+            ]);
+        }
+
         if ($dbToken !== '') {
             return response()->json([
                 'success'    => true,
@@ -396,16 +406,6 @@ class UpdateController extends BaseController
                 'source'     => 'database',
                 'preview'    => substr($dbToken, 0, 8) . '...' . substr($dbToken, -6),
                 'message'    => 'Managed token is active.',
-            ]);
-        }
-
-        if ($envToken !== '') {
-            return response()->json([
-                'success'    => true,
-                'configured' => true,
-                'source'     => 'env',
-                'preview'    => substr($envToken, 0, 8) . '...' . substr($envToken, -6),
-                'message'    => 'Token currently comes from .env. Regenerate to switch to managed token.',
             ]);
         }
 
@@ -423,6 +423,16 @@ class UpdateController extends BaseController
     {
         if (! $this->canManageUpdates()) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $envToken = trim((string) env('UPDATE_DOWNLOAD_TOKEN', ''));
+        if ($envToken !== '') {
+            return response()->json([
+                'success' => true,
+                'token'   => $envToken,
+                'pinned'  => true,
+                'message' => 'Token is pinned from .env. Update UPDATE_DOWNLOAD_TOKEN to change it.',
+            ]);
         }
 
         $token = bin2hex(random_bytes(32)); // 64-char hex token
@@ -1011,12 +1021,17 @@ class UpdateController extends BaseController
     /** Returns active download token; DB-managed token overrides .env token. */
     private function getActiveDownloadToken(): string
     {
+        $envToken = trim((string) env('UPDATE_DOWNLOAD_TOKEN', ''));
+        if ($envToken !== '') {
+            return $envToken;
+        }
+
         $managed = (string) (System::getProperty('update_download_token') ?? '');
         if ($managed !== '') {
             return $managed;
         }
 
-        return (string) env('UPDATE_DOWNLOAD_TOKEN', '');
+        return '';
     }
 
     /** Load the release manifest written by pos:package-release. */
