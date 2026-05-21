@@ -394,6 +394,7 @@ class UpdateController extends BaseController
                 'success'    => true,
                 'configured' => true,
                 'source'     => 'env',
+                'token'      => $envToken,
                 'preview'    => substr($envToken, 0, 8) . '...' . substr($envToken, -6),
                 'message'    => 'Source token is pinned from .env and will not rotate from this panel.',
             ]);
@@ -404,6 +405,7 @@ class UpdateController extends BaseController
                 'success'    => true,
                 'configured' => true,
                 'source'     => 'database',
+                'token'      => $dbToken,
                 'preview'    => substr($dbToken, 0, 8) . '...' . substr($dbToken, -6),
                 'message'    => 'Managed token is active.',
             ]);
@@ -413,6 +415,7 @@ class UpdateController extends BaseController
             'success'    => true,
             'configured' => false,
             'source'     => null,
+            'token'      => null,
             'preview'    => null,
             'message'    => 'No token configured yet.',
         ]);
@@ -575,6 +578,23 @@ class UpdateController extends BaseController
         ]);
     }
 
+    /** Return a client's current webhook secret for copy/display. */
+    public function clientToken(int $id): JsonResponse
+    {
+        if (! $this->canManageUpdates()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $client = UpdateClient::findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'client' => $client->only(['id', 'name', 'url']),
+            'webhook_secret' => (string) $client->webhook_secret,
+            'message' => 'Client webhook token loaded.',
+        ]);
+    }
+
     /** Build a release package from the current codebase — streams live output as SSE. */
     public function buildPackage(Request $request): StreamedResponse
     {
@@ -651,6 +671,85 @@ class UpdateController extends BaseController
         [$ok, $msg] = $this->dispatchPush($client);
 
         return response()->json(['success' => $ok, 'message' => $msg, 'client_id' => $id]);
+    }
+
+    /** Stream live status for one client after push trigger (SSE). */
+    public function clientProgress(Request $request, int $id): StreamedResponse
+    {
+        if (! $this->canManageUpdates()) {
+            abort(403);
+        }
+
+        $request->session()->save();
+
+        return response()->stream(function () use ($id) {
+            while (@ob_end_flush()) {}
+
+            $emit = function (string $event, array $payload): void {
+                echo "event: {$event}\n";
+                echo 'data: ' . json_encode($payload) . "\n\n";
+                @ob_flush();
+                flush();
+            };
+
+            $client = UpdateClient::find($id);
+            if (! $client) {
+                $emit('done', ['success' => false, 'status' => 'failed', 'message' => 'Client not found.']);
+                return;
+            }
+
+            $emit('progress', ['status' => (string) ($client->last_push_status ?? 'pending'), 'message' => "Watching {$client->name} for deploy callback…"]);
+
+            $lastStatus = null;
+            $startedAt = time();
+            $timeoutSeconds = 300;
+
+            while ((time() - $startedAt) < $timeoutSeconds) {
+                $client->refresh();
+
+                $status = (string) ($client->last_push_status ?? 'pending');
+                $pushedAt = $client->last_pushed_at ? $client->last_pushed_at->toDateTimeString() : null;
+
+                if ($status !== $lastStatus) {
+                    $emit('progress', [
+                        'status' => $status,
+                        'message' => 'Client status: ' . $status . ($pushedAt ? (' (updated ' . $pushedAt . ')') : ''),
+                    ]);
+                    $lastStatus = $status;
+                } else {
+                    $emit('heartbeat', ['status' => $status, 'message' => 'Waiting for client deploy callback…']);
+                }
+
+                if (in_array($status, ['success', 'failed'], true)) {
+                    $emit('done', [
+                        'success' => $status === 'success',
+                        'status' => $status,
+                        'message' => $status === 'success'
+                            ? "{$client->name} finished deployment successfully."
+                            : "{$client->name} deployment failed. Check client logs.",
+                    ]);
+                    return;
+                }
+
+                sleep(2);
+            }
+
+            $client->refresh();
+            $status = (string) ($client->last_push_status ?? 'pending');
+
+            $emit('done', [
+                'success' => $status === 'success',
+                'status' => $status,
+                'message' => $status === 'pending'
+                    ? 'Timed out waiting for callback. Client may still be deploying in background.'
+                    : "Finished with status: {$status}",
+            ]);
+        }, 200, [
+            'Content-Type'      => 'text/event-stream',
+            'Cache-Control'     => 'no-cache, no-store',
+            'X-Accel-Buffering' => 'no',
+            'Connection'        => 'keep-alive',
+        ]);
     }
 
     /** Push update trigger to ALL active clients — streams results as SSE. */
@@ -930,12 +1029,22 @@ class UpdateController extends BaseController
 
         Log::info("Update webhook received: v{$version} push from central ({$request->ip()}).");
 
-        // Kick off pos:pull-update in the background (fire-and-forget).
-        $artisan = PHP_BINARY . ' ' . escapeshellarg(base_path('artisan'));
-        $log     = escapeshellarg(storage_path('logs/pull-update-' . date('YmdHis') . '.log'));
-        @exec("{$artisan} pos:pull-update --force >> {$log} 2>&1 &");
+        // Kick off pos:pull-update in the background; return 500 when it cannot be launched.
+        [$started, $launchMessage] = $this->startBackgroundPullUpdate();
+        if (! $started) {
+            Log::error('Update webhook received but pull-update could not be started: ' . $launchMessage);
+            return response()->json([
+                'accepted' => false,
+                'error' => 'Webhook received, but client deploy process could not be started.',
+                'message' => $launchMessage,
+            ], 500);
+        }
 
-        return response()->json(['accepted' => true, 'version' => $version]);
+        return response()->json([
+            'accepted' => true,
+            'version' => $version,
+            'message' => $launchMessage,
+        ]);
     }
 
     /**
@@ -1016,6 +1125,62 @@ class UpdateController extends BaseController
         }
         $bearer = $request->bearerToken();
         return $bearer !== null && hash_equals($serverToken, $bearer);
+    }
+
+    /** Launch pos:pull-update --force in the background on the client instance. */
+    private function startBackgroundPullUpdate(): array
+    {
+        $phpBin = $this->resolvePhpBinary();
+        $artisan = escapeshellarg(base_path('artisan'));
+        $logPath = storage_path('logs/pull-update-' . date('YmdHis') . '.log');
+        $logArg = escapeshellarg($logPath);
+        $cmd = escapeshellarg($phpBin) . " {$artisan} pos:pull-update --force >> {$logArg} 2>&1";
+
+        // Prefer shell_exec to capture PID for observability.
+        if ($this->isShellFunctionAvailable('shell_exec')) {
+            $pid = trim((string) @shell_exec("{$cmd} & echo $!"));
+            if ($pid !== '' && ctype_digit($pid)) {
+                return [true, "pull-update started (PID {$pid}); log: {$logPath}"];
+            }
+        }
+
+        // Fallback to exec when shell_exec is unavailable.
+        if ($this->isShellFunctionAvailable('exec')) {
+            @exec("{$cmd} &", $output, $exitCode);
+            if ((int) $exitCode === 0) {
+                return [true, "pull-update started; log: {$logPath}"];
+            }
+
+            return [false, 'Background process launch failed (exec exit code ' . (int) $exitCode . ').'];
+        }
+
+        return [false, 'Background process launch is unavailable (exec/shell_exec disabled in PHP).'];
+    }
+
+    /** Pick an executable PHP binary path for background command launch. */
+    private function resolvePhpBinary(): string
+    {
+        $phpBin = PHP_BINARY;
+        if (! empty($phpBin) && is_file($phpBin) && is_executable($phpBin)) {
+            return $phpBin;
+        }
+
+        $fallback = trim((string) @shell_exec('command -v php8.4 2>/dev/null'))
+            ?: trim((string) @shell_exec('command -v php 2>/dev/null'))
+            ?: '/usr/bin/php';
+
+        return $fallback;
+    }
+
+    /** Whether a shell function is callable under current PHP disable_functions policy. */
+    private function isShellFunctionAvailable(string $functionName): bool
+    {
+        if (! function_exists($functionName)) {
+            return false;
+        }
+
+        $disabled = array_map('trim', explode(',', (string) ini_get('disable_functions')));
+        return ! in_array($functionName, $disabled, true);
     }
 
     /** Returns active download token; DB-managed token overrides .env token. */

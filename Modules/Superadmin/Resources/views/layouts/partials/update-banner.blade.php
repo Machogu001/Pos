@@ -131,6 +131,10 @@
                         <input id="download-token-value" type="text" readonly
                                placeholder="Generate a token to reveal it once"
                                style="flex:1;min-width:10rem;font-size:0.75rem;border:1px solid #d1d5db;border-radius:0.375rem;padding:0.35rem 0.5rem;background:#f9fafb;color:#111827;">
+                        <button type="button" id="show-download-token-btn"
+                                style="font-size:0.75rem;font-weight:600;background:#6b7280;color:#fff;border:none;border-radius:0.375rem;padding:0.35rem 0.625rem;cursor:pointer;">
+                            Show
+                        </button>
                         <button type="button" id="copy-download-token-btn"
                                 style="font-size:0.75rem;font-weight:600;background:#2563eb;color:#fff;border:none;border-radius:0.375rem;padding:0.35rem 0.625rem;cursor:pointer;">
                             Copy
@@ -288,8 +292,11 @@
     var refreshPackagesBtn   = document.getElementById('refresh-packages-btn');
     var tokenStatusEl        = document.getElementById('download-token-status');
     var tokenValueEl         = document.getElementById('download-token-value');
+    var showTokenBtn         = document.getElementById('show-download-token-btn');
     var regenTokenBtn        = document.getElementById('regen-download-token-btn');
     var copyTokenBtn         = document.getElementById('copy-download-token-btn');
+    var currentDownloadToken = '';
+    var isDownloadTokenVisible = false;
     var isSuperadmin = @json($isSuperadmin);
     var isRemoteOnly  = @json($remotePending && !$localPending);  // remote update available but code not yet pulled
 
@@ -302,6 +309,36 @@
         var swalType = (type === 'warn') ? 'warning' : type;
         if (typeof window.showToast === 'function') {
             window.showToast(swalType, msg);
+        }
+    }
+
+    function tokenPreview(token) {
+        if (!token) return 'Token configured';
+        if (token.length <= 14) return token;
+        return token.substring(0, 8) + '...' + token.substring(token.length - 6);
+    }
+
+    function setDownloadTokenVisibility(visible) {
+        isDownloadTokenVisible = !!visible;
+
+        if (showTokenBtn) {
+            showTokenBtn.textContent = isDownloadTokenVisible ? 'Hide' : 'Show';
+        }
+
+        if (!tokenValueEl) return;
+
+        if (!currentDownloadToken) {
+            tokenValueEl.value = '';
+            tokenValueEl.placeholder = 'No token configured';
+            return;
+        }
+
+        if (isDownloadTokenVisible) {
+            tokenValueEl.value = currentDownloadToken;
+            tokenValueEl.placeholder = 'Current token loaded';
+        } else {
+            tokenValueEl.value = '';
+            tokenValueEl.placeholder = 'Current token: ' + tokenPreview(currentDownloadToken);
         }
     }
 
@@ -392,6 +429,7 @@
     var stepLabel      = document.getElementById('update-step-label');
     var pctLabel       = document.getElementById('update-pct-label');
     var deploySource   = null;   // active EventSource
+    var clientSource   = null;   // active client progress EventSource
     var deployDone     = false;  // guard against onerror firing after normal close
 
     function setProgress(pct, label) {
@@ -412,6 +450,55 @@
 
     function stopDeployStream() {
         if (deploySource) { deploySource.close(); deploySource = null; }
+    }
+
+    function stopClientStream() {
+        if (clientSource) { clientSource.close(); clientSource = null; }
+    }
+
+    function startClientProgressStream(clientId, clientName) {
+        stopClientStream();
+
+        if (checkResult) checkResult.style.display = 'none';
+        if (preRunEl) preRunEl.style.display = 'none';
+        if (logWrap) logWrap.style.display = '';
+        if (resultEl) resultEl.style.display = 'none';
+        if (logEl) logEl.textContent += '\nWatching ' + clientName + ' deployment progress...\n';
+
+        var url = '{{ route("superadmin.update.clients.progress", ["id" => "__ID__"]) }}'.replace('__ID__', clientId);
+        clientSource = new EventSource(url);
+
+        clientSource.addEventListener('progress', function (e) {
+            var d = JSON.parse(e.data);
+            if (logEl) {
+                logEl.textContent += '• ' + (d.message || ('Status: ' + (d.status || 'pending'))) + '\n';
+                logWrap.scrollTop = logWrap.scrollHeight;
+            }
+            renderClients();
+        });
+
+        clientSource.addEventListener('heartbeat', function (e) {
+            var d = JSON.parse(e.data);
+            if (logEl) {
+                logEl.textContent += '• ' + (d.message || 'Waiting...') + '\n';
+                logWrap.scrollTop = logWrap.scrollHeight;
+            }
+        });
+
+        clientSource.addEventListener('done', function (e) {
+            var d = JSON.parse(e.data);
+            stopClientStream();
+            renderClients();
+            showRunResult(!!d.success, d.message || ('Finished with status: ' + (d.status || 'unknown')));
+        });
+
+        clientSource.onerror = function () {
+            stopClientStream();
+            if (logEl) {
+                logEl.textContent += '• Live client status stream disconnected.\n';
+                logWrap.scrollTop = logWrap.scrollHeight;
+            }
+        };
     }
 
     // ── Run update (modal "Run Update Now" button) ────────────
@@ -501,6 +588,7 @@
 
     function resetModal() {
         stopDeployStream();
+        stopClientStream();
         deployDone = false;
         if (pullBtn)     { pullBtn.disabled = false; }
         if (pullBtnText) pullBtnText.textContent = 'Pull & Deploy';
@@ -802,10 +890,19 @@
     var clientSecretBox    = document.getElementById('client-secret-box');
     var clientSecretValue  = document.getElementById('client-secret-value');
     var closeSecretBox     = document.getElementById('close-secret-box');
+    var clientPushInFlight = {};
 
     if (addClientBtn)       addClientBtn.addEventListener('click', function () { addClientForm && (addClientForm.style.display = 'flex'); });
     if (cancelAddClientBtn) cancelAddClientBtn.addEventListener('click', function () { addClientForm && (addClientForm.style.display = 'none'); });
     if (closeSecretBox)     closeSecretBox.addEventListener('click', function () { clientSecretBox && (clientSecretBox.style.display = 'none'); });
+
+    function setClientPushInFlight(clientId, inFlight) {
+        if (inFlight) {
+            clientPushInFlight[String(clientId)] = true;
+        } else {
+            delete clientPushInFlight[String(clientId)];
+        }
+    }
 
     if (saveClientBtn) {
         saveClientBtn.addEventListener('click', function () {
@@ -930,7 +1027,8 @@
                         showToast('error', data.message || 'Token generation failed.');
                         return;
                     }
-                    if (tokenValueEl) tokenValueEl.value = data.token || '';
+                    currentDownloadToken = data.token || '';
+                    setDownloadTokenVisibility(true);
                     if (tokenStatusEl) tokenStatusEl.textContent = data.message || 'Managed token active. Copy and paste this into each client .env as UPDATE_AUTH_TOKEN.';
                     showToast('success', data.message || 'Token regenerated.');
                 })
@@ -986,9 +1084,31 @@
                 showToast('warn', 'No token to copy', 'Generate a token first.');
                 return;
             }
+
+            var originalLabel = copyTokenBtn.textContent;
             navigator.clipboard.writeText(token)
-                .then(function () { showToast('success', 'Token copied'); })
+                .then(function () {
+                    showToast('success', 'Token copied');
+                    copyTokenBtn.textContent = 'Copied';
+                    copyTokenBtn.disabled = true;
+                    setTimeout(function () {
+                        copyTokenBtn.textContent = originalLabel;
+                        copyTokenBtn.disabled = false;
+                    }, 1500);
+                })
                 .catch(function () { showToast('error', 'Copy failed', 'Please copy manually.'); });
+        });
+    }
+
+    if (showTokenBtn) {
+        showTokenBtn.addEventListener('click', function () {
+            if (!tokenValueEl) return;
+            if (!currentDownloadToken) {
+                showToast('warn', 'No token to show', 'Generate or configure a token first.');
+                return;
+            }
+            setDownloadTokenVisibility(!isDownloadTokenVisible);
+            showToast('success', isDownloadTokenVisible ? 'Current token revealed.' : 'Current token hidden.');
         });
     }
 
@@ -1005,13 +1125,13 @@
             if (!tokenValueEl) return;
 
             if (!data.configured) {
-                tokenValueEl.value = '';
-                tokenValueEl.placeholder = 'No token configured';
+                currentDownloadToken = '';
+                setDownloadTokenVisibility(false);
                 return;
             }
 
-            tokenValueEl.value = '';
-            tokenValueEl.placeholder = (data.preview ? ('Current token: ' + data.preview) : 'Token configured');
+            currentDownloadToken = data.token || '';
+            setDownloadTokenVisibility(false);
         })
         .catch(function () {
             if (tokenStatusEl) tokenStatusEl.textContent = 'Could not load token status.';
@@ -1062,22 +1182,61 @@
                 return;
             }
             clientsList.innerHTML = clients.map(function (c) {
-                var status = c.last_push_status
-                    ? '<span class="tw-font-semibold ' + (c.last_push_status === 'success' ? 'tw-text-green-600' : c.last_push_status === 'failed' ? 'tw-text-red-600' : 'tw-text-amber-600') + '">' + c.last_push_status + '</span>'
-                    : '<span class="tw-text-gray-400">never pushed</span>';
-                return '<div class="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-py-1 tw-border-b tw-border-gray-100">' +
-                    '<div class="tw-min-w-0">' +
+                var isPushing = !!clientPushInFlight[String(c.id)];
+                var status = isPushing
+                    ? '<span class="tw-client-status tw-font-semibold tw-text-sky-600">pushing...</span>'
+                    : (c.last_push_status
+                        ? '<span class="tw-client-status tw-font-semibold ' + (c.last_push_status === 'success' ? 'tw-text-green-600' : c.last_push_status === 'failed' ? 'tw-text-red-600' : 'tw-text-amber-600') + '">' + c.last_push_status + '</span>'
+                        : '<span class="tw-client-status tw-text-gray-400">never pushed</span>');
+                return '<div class="tw-py-2 tw-border-b tw-border-gray-100">' +
+                    '<div class="tw-min-w-0 tw-break-words tw-leading-5">' +
                     '<span class="tw-font-medium">' + escHtml(c.name) + '</span> ' +
-                    '<span class="tw-text-gray-400">' + escHtml(c.url) + '</span>' +
-                    ' &mdash; v' + escHtml(c.last_version || '?') + ' &mdash; ' + status +
+                    '<span class="tw-text-gray-500">' + escHtml(c.url) + '</span>' +
+                    '<div class="tw-text-xs tw-text-gray-600 tw-mt-0.5">v' + escHtml(c.last_version || '?') + ' &mdash; ' + status + '</div>' +
                     '</div>' +
-                    '<div class="tw-flex tw-items-center tw-gap-1 tw-shrink-0">' +
+                    '<div class="tw-flex tw-flex-wrap tw-items-center tw-gap-2 tw-mt-2">' +
+                    '<button class="tw-text-xs tw-font-medium tw-text-slate-600 hover:tw-underline tw-client-show-token" data-id="' + c.id + '" data-name="' + escHtml(c.name) + '">Show Token</button>' +
                     '<button class="tw-text-xs tw-font-medium tw-text-amber-600 hover:tw-underline tw-client-rotate-secret" data-id="' + c.id + '" data-name="' + escHtml(c.name) + '">Rotate Secret</button>' +
-                    '<button class="tw-text-xs tw-font-medium tw-text-indigo-600 hover:tw-underline tw-client-push" data-id="' + c.id + '" data-name="' + escHtml(c.name) + '">Push</button>' +
+                    '<button class="tw-text-xs tw-font-medium tw-text-indigo-600 hover:tw-underline tw-client-push" ' + (isPushing ? 'disabled ' : '') + 'data-id="' + c.id + '" data-name="' + escHtml(c.name) + '">' + (isPushing ? 'Pushing...' : 'Push') + '</button>' +
                     '<button class="tw-text-xs tw-font-medium tw-text-red-500 hover:tw-underline tw-client-delete" data-id="' + c.id + '">Remove</button>' +
                     '</div>' +
                     '</div>';
             }).join('');
+
+            clientsList.querySelectorAll('.tw-client-show-token').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    if (btn.textContent === 'Hide Token') {
+                        if (clientSecretValue) clientSecretValue.textContent = '';
+                        clientSecretBox && (clientSecretBox.style.display = 'none');
+                        btn.textContent = 'Show Token';
+                        showToast('success', (btn.dataset.name ? btn.dataset.name + ': ' : '') + 'token hidden.');
+                        return;
+                    }
+
+                    btn.disabled = true;
+                    var id = btn.dataset.id;
+                    var url = '{{ route("superadmin.update.clients.token", ["id" => "__ID__"]) }}'.replace('__ID__', id);
+
+                    fetch(url, { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data.success && data.webhook_secret) {
+                            if (clientSecretValue) clientSecretValue.textContent = 'UPDATE_WEBHOOK_SECRET=' + data.webhook_secret;
+                            clientSecretBox && (clientSecretBox.style.display = '');
+                            btn.textContent = 'Hide Token';
+                            showToast('success', (data.client && data.client.name ? data.client.name + ': ' : '') + 'token loaded.');
+                        } else {
+                            showToast('error', data.message || 'Could not load client token.');
+                        }
+                    })
+                    .catch(function () {
+                        showToast('error', 'Could not load client token.');
+                    })
+                    .finally(function () {
+                        btn.disabled = false;
+                    });
+                });
+            });
 
             clientsList.querySelectorAll('.tw-client-rotate-secret').forEach(function (btn) {
                 btn.addEventListener('click', function () {
@@ -1134,13 +1293,32 @@
             clientsList.querySelectorAll('.tw-client-push').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     var pushClient = function () {
-                        btn.disabled = true;
                         var id = btn.dataset.id;
+                        setClientPushInFlight(id, true);
+                        renderClients();
+
+                        if (logWrap) logWrap.style.display = '';
+                        if (logEl) {
+                            logEl.textContent = 'Sending trigger to ' + (btn.dataset.name || 'client') + '...\n';
+                            logWrap.scrollTop = logWrap.scrollHeight;
+                        }
+
                         var url = '{{ route("superadmin.update.clients.push", ["id" => "__ID__"]) }}'.replace('__ID__', id);
                         fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } })
                         .then(function (r) { return r.json(); })
-                        .then(function (data) { showToast(data.success ? 'success' : 'error', data.message || (data.success ? 'Pushed' : 'Failed')); renderClients(); })
-                        .catch(function () { btn.disabled = false; });
+                        .then(function (data) {
+                            showToast(data.success ? 'success' : 'error', data.message || (data.success ? 'Pushed' : 'Failed'));
+                            setClientPushInFlight(id, false);
+                            renderClients();
+                            if (data.success) {
+                                startClientProgressStream(id, btn.dataset.name || ('Client #' + id));
+                            }
+                        })
+                        .catch(function () {
+                            setClientPushInFlight(id, false);
+                            renderClients();
+                            showToast('error', 'Push failed', 'Request could not be completed.');
+                        });
                     };
 
                     if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
@@ -1194,6 +1372,13 @@
         })
         .catch(function () { if (clientsList) clientsList.innerHTML = '<p class="tw-text-red-400">Could not load clients.</p>'; });
     }
+
+    // Keep client statuses fresh while the modal is open so pending can move to success/failed.
+    setInterval(function () {
+        if (!modal || modal.style.display !== 'flex') return;
+        if (!clientsList) return;
+        renderClients();
+    }, 5000);
 
     function escHtml(str) {
         return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');

@@ -28,8 +28,10 @@ Route::middleware('web', 'auth', 'language', 'AdminSidebarMenu')->prefix('supera
     Route::get('/update/clients',           [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'clients'])->name('superadmin.update.clients');
     Route::post('/update/clients',          [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'storeClient'])->name('superadmin.update.clients.store');
     Route::delete('/update/clients/{id}',   [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'destroyClient'])->name('superadmin.update.clients.destroy');
+    Route::get('/update/clients/{id}/token', [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'clientToken'])->name('superadmin.update.clients.token');
     Route::post('/update/clients/{id}/rotate-secret', [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'rotateClientSecret'])->name('superadmin.update.clients.rotate-secret');
     Route::post('/update/clients/{id}/push',[\Modules\Superadmin\Http\Controllers\UpdateController::class, 'pushToClient'])->name('superadmin.update.clients.push');
+    Route::get('/update/clients/{id}/progress', [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'clientProgress'])->name('superadmin.update.clients.progress');
     Route::get('/update/download-token',    [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'downloadTokenStatus'])->name('superadmin.update.download-token.status');
     Route::post('/update/download-token/regenerate', [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'regenerateDownloadToken'])->name('superadmin.update.download-token.regenerate');
     Route::get('/update/packages',          [\Modules\Superadmin\Http\Controllers\UpdateController::class, 'packages'])->name('superadmin.update.packages');
