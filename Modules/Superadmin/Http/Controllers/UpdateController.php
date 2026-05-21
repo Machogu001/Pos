@@ -1055,13 +1055,22 @@ class UpdateController extends BaseController
             ])->timeout(15)->post($client->url . '/api/update/trigger', json_decode($payload, true));
 
             $ok = $response->successful();
+            $errorDetail = '';
+            if (! $ok) {
+                $errorDetail = (string) ($response->json('error') ?? $response->json('message') ?? '');
+                $errorDetail = trim($errorDetail);
+            }
             $client->update([
                 'last_version'     => $ok ? $version : $client->last_version,
                 'last_push_status' => $ok ? 'pending' : 'failed',
                 'last_pushed_at'   => now(),
             ]);
 
-            return [$ok, $ok ? 'Trigger accepted.' : ('HTTP ' . $response->status())];
+            $msg = $ok
+                ? 'Trigger accepted.'
+                : ('HTTP ' . $response->status() . ($errorDetail !== '' ? ': ' . $errorDetail : ''));
+
+            return [$ok, $msg];
         } catch (\Throwable $e) {
             $client->update(['last_push_status' => 'failed', 'last_pushed_at' => now()]);
             Log::error("Push to [{$client->name}] failed: " . $e->getMessage());
