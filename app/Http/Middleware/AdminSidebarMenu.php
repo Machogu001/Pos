@@ -62,10 +62,19 @@ class AdminSidebarMenu
         }
 
         Menu::create('admin-sidebar-menu', function ($menu) {
-            $enabled_modules = !empty(session('business.enabled_modules')) ? session('business.enabled_modules') : [];
+            $business = optional(auth()->user())->business;
+            $sessionModules = is_array(session('business.enabled_modules')) ? session('business.enabled_modules') : [];
+            $businessModules = is_array(optional($business)->enabled_modules) ? $business->enabled_modules : [];
+            $enabled_modules = array_values(array_unique(array_merge($sessionModules, $businessModules)));
 
-            $common_settings = !empty(session('business.common_settings')) ? session('business.common_settings') : [];
-            $pos_settings = !empty(session('business.pos_settings')) ? json_decode(session('business.pos_settings'), true) : [];
+            $common_settings = !empty(session('business.common_settings'))
+                ? session('business.common_settings')
+                : (optional($business)->common_settings ?? []);
+
+            $sessionPosSettings = session('business.pos_settings');
+            $pos_settings = !empty($sessionPosSettings)
+                ? json_decode($sessionPosSettings, true)
+                : (is_array(optional($business)->pos_settings) ? $business->pos_settings : []);
 
             $is_admin = auth()->user()->hasRole('Admin#' . session('business.id')) ? true : false;
             $module_util = new ModuleUtil();
@@ -397,16 +406,16 @@ class AdminSidebarMenu
                                 ['icon' => '', 'active' => request()->segment(1) == 'sells' && request()->segment(2) == null]
                             );
                         }
-                        if (in_array('add_sale', $enabled_modules) && auth()->user()->can('direct_sell.access')) {
+                        if (in_array('add_sale', $enabled_modules) && ($is_admin || auth()->user()->can('direct_sell.access'))) {
                             $sub->url(
                                 action([\App\Http\Controllers\SellController::class, 'create']),
                                 __('sale.add_sale'),
                                 ['icon' => '', 'active' => request()->segment(1) == 'sells' && request()->segment(2) == 'create' && empty(request()->get('status'))]
                             );
                         }
-                        if (auth()->user()->can('sell.create')) {
+                        if ($is_admin || auth()->user()->can('sell.create')) {
                             if (in_array('pos_sale', $enabled_modules)) {
-                                if (auth()->user()->can('sell.view')) {
+                                if ($is_admin || auth()->user()->can('sell.view')) {
                                     $sub->url(
                                         action([\App\Http\Controllers\SellPosController::class, 'index']),
                                         __('sale.list_pos'),
@@ -422,7 +431,7 @@ class AdminSidebarMenu
                             }
                         }
 
-                        if (in_array('add_sale', $enabled_modules) && auth()->user()->can('direct_sell.access')) {
+                        if (in_array('add_sale', $enabled_modules) && ($is_admin || auth()->user()->can('direct_sell.access'))) {
                             $sub->url(
                                 action([\App\Http\Controllers\SellController::class, 'create'], ['status' => 'draft']),
                                 __('lang_v1.add_draft'),
@@ -436,7 +445,7 @@ class AdminSidebarMenu
                                 ['icon' => '', 'active' => request()->segment(1) == 'sells' && request()->segment(2) == 'drafts']
                             );
                         }
-                        if (in_array('add_sale', $enabled_modules) && auth()->user()->can('direct_sell.access')) {
+                        if (in_array('add_sale', $enabled_modules) && ($is_admin || auth()->user()->can('direct_sell.access'))) {
                             $sub->url(
                                 action([\App\Http\Controllers\SellController::class, 'create'], ['status' => 'quotation']),
                                 __('lang_v1.add_quotation'),
@@ -451,7 +460,7 @@ class AdminSidebarMenu
                             );
                         }
 
-                        if (auth()->user()->can('access_sell_return') || auth()->user()->can('access_own_sell_return')) {
+                        if ($is_admin || auth()->user()->can('access_sell_return') || auth()->user()->can('access_own_sell_return')) {
                             $sub->url(
                                 action([\App\Http\Controllers\SellReturnController::class, 'index']),
                                 __('lang_v1.list_sell_return'),
@@ -467,14 +476,14 @@ class AdminSidebarMenu
                             );
                         }
 
-                        if (auth()->user()->can('discount.access')) {
+                        if ($is_admin || auth()->user()->can('discount.access')) {
                             $sub->url(
                                 action([\App\Http\Controllers\DiscountController::class, 'index']),
                                 __('lang_v1.discounts'),
                                 ['icon' => '', 'active' => request()->segment(1) == 'discount']
                             );
                         }
-                        if (in_array('subscription', $enabled_modules) && auth()->user()->can('direct_sell.access')) {
+                        if (in_array('subscription', $enabled_modules) && ($is_admin || auth()->user()->can('direct_sell.access'))) {
                             $sub->url(
                                 action([\App\Http\Controllers\SellPosController::class, 'listSubscriptions']),
                                 __('lang_v1.subscriptions'),
@@ -482,7 +491,7 @@ class AdminSidebarMenu
                             );
                         }
 
-                        if (auth()->user()->can('sell.create')) {
+                        if ($is_admin || auth()->user()->can('sell.create')) {
                             $sub->url(
                                 action([\App\Http\Controllers\ImportSalesController::class, 'index']),
                                 __('lang_v1.import_sales'),
