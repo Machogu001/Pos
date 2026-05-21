@@ -68,12 +68,22 @@ class PackageReleaseCommand extends Command
         $count = 0;
 
         $it = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($base, \RecursiveDirectoryIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::SELF_FIRST
+            new \RecursiveDirectoryIterator(
+                $base,
+                \RecursiveDirectoryIterator::SKIP_DOTS
+            ),
+            \RecursiveIteratorIterator::SELF_FIRST,
+            \RecursiveIteratorIterator::CATCH_GET_CHILD
         );
 
         foreach ($it as $item) {
-            $rel = ltrim(substr($item->getPathname(), strlen($base)), '/');
+            try {
+                $path = $item->getPathname();
+            } catch (\Throwable $e) {
+                continue;
+            }
+
+            $rel = ltrim(substr($path, strlen($base)), '/');
 
             if ($this->isExcluded($rel)) {
                 continue;
@@ -81,8 +91,15 @@ class PackageReleaseCommand extends Command
 
             if ($item->isDir()) {
                 $zip->addEmptyDir($rel);
-            } else {
-                $zip->addFile($item->getPathname(), $rel);
+                continue;
+            }
+
+            if (! is_readable($path)) {
+                $this->warn("Skipping unreadable file: {$rel}");
+                continue;
+            }
+
+            if ($zip->addFile($path, $rel)) {
                 $count++;
             }
         }

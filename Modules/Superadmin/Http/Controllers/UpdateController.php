@@ -355,6 +355,142 @@ class UpdateController extends BaseController
         return response()->download($zipPath, $manifest['filename'], ['Content-Type' => 'application/zip']);
     }
 
+    /** List stored release zip packages (superadmin only). */
+    public function packages(): JsonResponse
+    {
+        if (! $this->canManageUpdates()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $manifest = $this->loadManifest();
+        $current  = is_array($manifest) ? ($manifest['filename'] ?? null) : null;
+
+        $packages = $this->listReleasePackages();
+        $rows = array_map(function (array $pkg) use ($current) {
+            return [
+                'filename'    => $pkg['filename'],
+                'version'     => $pkg['version'],
+                'size_kb'     => $pkg['size_kb'],
+                'modified_at' => $pkg['modified_at'],
+                'is_current'  => $current !== null && $current === $pkg['filename'],
+            ];
+        }, $packages);
+
+        return response()->json(['success' => true, 'packages' => $rows]);
+    }
+
+    /** Return current client download auth token status (superadmin only). */
+    public function downloadTokenStatus(): JsonResponse
+    {
+        if (! $this->canManageUpdates()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $dbToken  = (string) (System::getProperty('update_download_token') ?? '');
+        $envToken = (string) env('UPDATE_DOWNLOAD_TOKEN', '');
+
+        if ($dbToken !== '') {
+            return response()->json([
+                'success'    => true,
+                'configured' => true,
+                'source'     => 'database',
+                'preview'    => substr($dbToken, 0, 8) . '...' . substr($dbToken, -6),
+                'message'    => 'Managed token is active.',
+            ]);
+        }
+
+        if ($envToken !== '') {
+            return response()->json([
+                'success'    => true,
+                'configured' => true,
+                'source'     => 'env',
+                'preview'    => substr($envToken, 0, 8) . '...' . substr($envToken, -6),
+                'message'    => 'Token currently comes from .env. Regenerate to switch to managed token.',
+            ]);
+        }
+
+        return response()->json([
+            'success'    => true,
+            'configured' => false,
+            'source'     => null,
+            'preview'    => null,
+            'message'    => 'No token configured yet.',
+        ]);
+    }
+
+    /** Generate or rotate the central download auth token (superadmin only). */
+    public function regenerateDownloadToken(): JsonResponse
+    {
+        if (! $this->canManageUpdates()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $token = bin2hex(random_bytes(32)); // 64-char hex token
+        System::updateOrCreate(['key' => 'update_download_token'], ['value' => $token]);
+
+        return response()->json([
+            'success' => true,
+            'token'   => $token,
+            'message' => 'Download token regenerated. Update clients with the new UPDATE_AUTH_TOKEN value.',
+        ]);
+    }
+
+    /** Delete one stored release zip package (superadmin only). */
+    public function destroyPackage(Request $request): JsonResponse
+    {
+        if (! $this->canManageUpdates()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $validated = $request->validate([
+            'filename' => ['required', 'string', 'regex:/^v[0-9A-Za-z._-]+\\.zip$/'],
+        ]);
+
+        $filename = $validated['filename'];
+        $dir = storage_path('app/releases');
+        $path = $dir . '/' . $filename;
+
+        if (! is_file($path)) {
+            return response()->json(['success' => false, 'message' => 'Package not found.'], 404);
+        }
+
+        // Guard against unexpected paths even though filename is validated.
+        $realDir = realpath($dir);
+        $realPath = realpath($path);
+        if ($realDir === false || $realPath === false || strpos($realPath, $realDir . DIRECTORY_SEPARATOR) !== 0) {
+            return response()->json(['success' => false, 'message' => 'Invalid package path.'], 400);
+        }
+
+        @unlink($realPath);
+
+        $manifest = $this->loadManifest();
+        $current = is_array($manifest) ? ($manifest['filename'] ?? null) : null;
+
+        if ($current === $filename) {
+            $remaining = $this->listReleasePackages();
+            $manifestPath = $dir . '/manifest.json';
+
+            if (empty($remaining)) {
+                @unlink($manifestPath);
+            } else {
+                $next = $remaining[0];
+                $nextPath = $dir . '/' . $next['filename'];
+
+                $newManifest = [
+                    'version' => $next['version'],
+                    'filename' => $next['filename'],
+                    'sha256' => hash_file('sha256', $nextPath),
+                    'size_kb' => $next['size_kb'],
+                    'packaged_at' => date('c', filemtime($nextPath) ?: time()),
+                ];
+
+                file_put_contents($manifestPath, json_encode($newManifest, JSON_PRETTY_PRINT));
+            }
+        }
+
+        return response()->json(['success' => true, 'message' => 'Package deleted successfully.']);
+    }
+
     // =========================================================================
     // CENTRAL SERVER — client registry
     // =========================================================================
@@ -757,12 +893,23 @@ class UpdateController extends BaseController
     /** Verify the static bearer token used for release downloads. */
     private function authorizeDownloadToken(Request $request): bool
     {
-        $serverToken = env('UPDATE_DOWNLOAD_TOKEN', '');
+        $serverToken = $this->getActiveDownloadToken();
         if (empty($serverToken)) {
             return false;
         }
         $bearer = $request->bearerToken();
         return $bearer !== null && hash_equals($serverToken, $bearer);
+    }
+
+    /** Returns active download token; DB-managed token overrides .env token. */
+    private function getActiveDownloadToken(): string
+    {
+        $managed = (string) (System::getProperty('update_download_token') ?? '');
+        if ($managed !== '') {
+            return $managed;
+        }
+
+        return (string) env('UPDATE_DOWNLOAD_TOKEN', '');
     }
 
     /** Load the release manifest written by pos:package-release. */
@@ -774,6 +921,43 @@ class UpdateController extends BaseController
         }
         $data = json_decode(file_get_contents($path), true);
         return is_array($data) ? $data : null;
+    }
+
+    /** Enumerate release zip files sorted by highest semantic version first. */
+    private function listReleasePackages(): array
+    {
+        $dir = storage_path('app/releases');
+        if (! is_dir($dir)) {
+            return [];
+        }
+
+        $files = glob($dir . '/v*.zip') ?: [];
+        $packages = [];
+
+        foreach ($files as $file) {
+            if (! is_file($file)) {
+                continue;
+            }
+
+            $filename = basename($file);
+            $version = preg_replace('/^v(.+)\\.zip$/', '$1', $filename);
+            if (! is_string($version) || $version === $filename || $version === '') {
+                continue;
+            }
+
+            $packages[] = [
+                'filename' => $filename,
+                'version' => $version,
+                'size_kb' => (int) round(filesize($file) / 1024),
+                'modified_at' => date('c', filemtime($file) ?: time()),
+            ];
+        }
+
+        usort($packages, function (array $a, array $b): int {
+            return version_compare($b['version'], $a['version']);
+        });
+
+        return $packages;
     }
 
     /** Send an HMAC-signed update push to one client and update its DB record. */

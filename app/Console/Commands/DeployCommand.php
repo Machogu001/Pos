@@ -166,6 +166,30 @@ class DeployCommand extends Command
             }
         });
 
+        // On the central update server, auto-package the just-deployed code so
+        // release manifest/version stay in sync without manual packaging.
+        $this->step('auto-package release (central server)', function () {
+            try {
+                // Clients point to a remote update server; central server typically does not.
+                $updateServerUrl = trim((string) env('UPDATE_SERVER_URL', ''));
+                if ($updateServerUrl !== '') {
+                    $this->line('    skipped (client server)');
+                    return;
+                }
+
+                $version = function_exists('pos_release_version') ? pos_release_version() : config('author.app_version', '0');
+
+                Artisan::call('pos:package-release', [
+                    '--pkg-version' => $version,
+                    '--force' => true,
+                ]);
+
+                $this->line('    packaged release v' . $version . ' and refreshed manifest.json');
+            } catch (\Throwable $e) {
+                $this->warn('    auto-package skipped (' . $e->getMessage() . ')');
+            }
+        });
+
         $this->info('');
         $this->info('==> pos:deploy complete.');
 

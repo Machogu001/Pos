@@ -63,11 +63,6 @@ if (! function_exists('pos_release_manifest')) {
 if (! function_exists('pos_release_version')) {
     function pos_release_version(): string
     {
-        $manifest = pos_release_manifest();
-        if (! empty($manifest['version'])) {
-            return (string) $manifest['version'];
-        }
-
         $envVersion = trim((string) env('APP_VERSION', ''));
         if ($envVersion !== '') {
             return ltrim($envVersion, 'vV');

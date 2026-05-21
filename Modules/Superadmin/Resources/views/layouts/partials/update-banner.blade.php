@@ -30,8 +30,8 @@
     // Client-server: show "Pull & Deploy" when this instance points at a central server.
     $hasUpdateServer = $isSuperadmin && ! empty(env('UPDATE_SERVER_URL'));
 
-    // Central-server: show client registry when a download token is configured.
-    $hasClientRegistry = $isSuperadmin && ! empty(env('UPDATE_DOWNLOAD_TOKEN'));
+    // Central-server: show registry/tools when this instance is not configured as a client.
+    $hasClientRegistry = $isSuperadmin && ! $hasUpdateServer;
 @endphp
 
 {{-- ─── Apply Update Modal (always rendered for superadmins) ───────────── --}}
@@ -96,6 +96,49 @@
                         </button>
                         @endif
                     </div>
+                </div>
+
+                <div id="release-packages-wrap" style="padding-top:0.75rem;border-top:1px solid #f3f4f6;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+                        <span style="font-size:0.6875rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Stored Release Packages</span>
+                        <button type="button" id="refresh-packages-btn"
+                                style="font-size:0.75rem;font-weight:500;color:#2563eb;background:none;border:none;cursor:pointer;">
+                            Refresh
+                        </button>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;align-items:center;">
+                        <select id="release-package-select"
+                                style="flex:1;min-width:10rem;font-size:0.75rem;border:1px solid #d1d5db;border-radius:0.375rem;padding:0.35rem 0.5rem;">
+                            <option value="">Loading packages...</option>
+                        </select>
+                        <button type="button" id="delete-package-btn"
+                                style="display:inline-flex;align-items:center;gap:0.25rem;font-size:0.75rem;font-weight:600;background:#dc2626;color:#fff;border:none;border-radius:0.375rem;padding:0.35rem 0.625rem;cursor:pointer;">
+                            Delete Selected
+                        </button>
+                    </div>
+                </div>
+
+                <div id="download-token-wrap" style="padding-top:0.75rem;border-top:1px solid #f3f4f6;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+                        <span style="font-size:0.6875rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Client Pull Auth Token</span>
+                        <button type="button" id="regen-download-token-btn"
+                                style="font-size:0.75rem;font-weight:600;color:#fff;background:#b45309;border:none;border-radius:0.375rem;padding:0.35rem 0.625rem;cursor:pointer;">
+                            Generate / Regenerate
+                        </button>
+                    </div>
+                    <p id="download-token-status" style="font-size:0.75rem;color:#6b7280;margin:0 0 0.5rem 0;">Checking token status...</p>
+                    <div style="display:flex;gap:0.5rem;align-items:center;">
+                        <input id="download-token-value" type="text" readonly
+                               placeholder="Generate a token to reveal it once"
+                               style="flex:1;min-width:10rem;font-size:0.75rem;border:1px solid #d1d5db;border-radius:0.375rem;padding:0.35rem 0.5rem;background:#f9fafb;color:#111827;">
+                        <button type="button" id="copy-download-token-btn"
+                                style="font-size:0.75rem;font-weight:600;background:#2563eb;color:#fff;border:none;border-radius:0.375rem;padding:0.35rem 0.625rem;cursor:pointer;">
+                            Copy
+                        </button>
+                    </div>
+                    <p style="font-size:0.75rem;color:#4b5563;margin:0.5rem 0 0 0;">
+                        Set this value on each client server as <strong>UPDATE_AUTH_TOKEN</strong>.
+                    </p>
                 </div>
 
                 @if($hasClientRegistry)
@@ -240,6 +283,13 @@
     var buildPkgBtn  = document.getElementById('build-package-btn');
     var buildPkgText = document.getElementById('build-pkg-text');
     var buildPkgSpin = document.getElementById('build-pkg-spinner');
+    var releasePackageSelect = document.getElementById('release-package-select');
+    var deletePackageBtn     = document.getElementById('delete-package-btn');
+    var refreshPackagesBtn   = document.getElementById('refresh-packages-btn');
+    var tokenStatusEl        = document.getElementById('download-token-status');
+    var tokenValueEl         = document.getElementById('download-token-value');
+    var regenTokenBtn        = document.getElementById('regen-download-token-btn');
+    var copyTokenBtn         = document.getElementById('copy-download-token-btn');
     var isSuperadmin = @json($isSuperadmin);
     var isRemoteOnly  = @json($remotePending && !$localPending);  // remote update available but code not yet pulled
 
@@ -276,6 +326,8 @@
         resetModal();
         modal.style.display = 'flex';
         if (clientsList) renderClients(); // reload client list each open (central server only)
+        if (releasePackageSelect) renderPackages();
+        if (tokenStatusEl) fetchDownloadTokenStatus();
     }
     // Expose globally so dashboard card and other pages can open this modal directly
     window.openUpdateModal = openModal;
@@ -526,26 +578,9 @@
 
     // ── Build release package + push to all clients ─────────────
     if (buildPkgBtn) {
-        buildPkgBtn.addEventListener('click', function () {
-            Swal.fire({
-                title: 'Build &amp; Push v{{ config("author.app_version") }}?',
-                text: 'Package the current codebase and push it to all registered client servers.',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Yes, build &amp; push',
-                cancelButtonText: 'Cancel',
-                confirmButtonColor: '#16a34a',
-                cancelButtonColor: '#6b7280',
-                reverseButtons: true,
-                didOpen: function () {
-                    var c = document.querySelector('.swal2-container');
-                    if (c) c.style.zIndex = '20000';
-                },
-            }).then(function (result) {
-                if (! result.isConfirmed) return;
-
-                buildPkgBtn.disabled = true;
-                if (buildPkgText) buildPkgText.textContent = 'Building…';
+        function startBuildAndPushAllClients() {
+            buildPkgBtn.disabled = true;
+            if (buildPkgText) buildPkgText.textContent = 'Building…';
             if (buildPkgSpin) buildPkgSpin.style.display = '';
             if (checkResult) checkResult.style.display = 'none';
             if (preRunEl)    preRunEl.style.display = 'none';
@@ -574,6 +609,7 @@
                     logEl.textContent += 'Package v' + d.version + ' ready (' + d.size_kb + ' KB).\nPushing to clients…\n';
                     logWrap.scrollTop = logWrap.scrollHeight;
                 }
+                if (typeof renderPackages === 'function') renderPackages();
                 if (buildPkgText) buildPkgText.textContent = 'Pushing…';
 
                 // Phase 2: push to all clients via SSE
@@ -618,7 +654,47 @@
                 showRunResult(false, 'Build stream lost. Check server logs.');
                 resetBuildBtn();
             };
-            }); // end Swal.then
+        }
+
+        buildPkgBtn.addEventListener('click', function () {
+            if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                Swal.fire({
+                    title: 'Build &amp; Push v{{ config("author.app_version") }}?',
+                    text: 'Package the current codebase and push it to all registered client servers.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, build &amp; push',
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: '#16a34a',
+                    cancelButtonColor: '#6b7280',
+                    reverseButtons: true,
+                    didOpen: function () {
+                        var c = document.querySelector('.swal2-container');
+                        if (c) c.style.zIndex = '20000';
+                    },
+                }).then(function (result) {
+                    if (!result.isConfirmed) return;
+                    startBuildAndPushAllClients();
+                });
+                return;
+            }
+
+            if (typeof swal === 'function') {
+                swal({
+                    title: 'Build & Push v{{ config("author.app_version") }}?',
+                    text: 'Package the current codebase and push it to all registered client servers.',
+                    icon: 'warning',
+                    buttons: true,
+                    dangerMode: false,
+                }).then(function (confirmed) {
+                    if (!confirmed) return;
+                    startBuildAndPushAllClients();
+                });
+                return;
+            }
+
+            if (!window.confirm('Build and push v{{ config("author.app_version") }} to all registered client servers?')) return;
+            startBuildAndPushAllClients();
         });
     }
 
@@ -631,51 +707,87 @@
     // ── Push to all clients (central server) ────────────────────
     if (pushAllBtn) {
         pushAllBtn.addEventListener('click', function () {
-            if (! confirm('Send the update trigger to all active clients?')) return;
-            pushAllBtn.disabled = true;
-            if (cancelBtn)  cancelBtn.disabled = true;
-            if (closeModal) closeModal.disabled = true;
-            if (checkResult) checkResult.style.display = 'none';
-            if (preRunEl)   preRunEl.style.display = 'none';
-            if (logWrap)    logWrap.style.display = '';
-            if (logEl)      logEl.textContent = 'Pushing to clients…\n';
-            deployDone = false;
-            stopDeployStream();
-
-            deploySource = new EventSource('{{ route("superadmin.update.push-all") }}');
-
-            deploySource.addEventListener('clientStart', function (e) {
-                var d = JSON.parse(e.data);
-                if (logEl) { logEl.textContent += 'Pushing to ' + d.name + '…\n'; logWrap.scrollTop = logWrap.scrollHeight; }
-            });
-
-            deploySource.addEventListener('clientResult', function (e) {
-                var d = JSON.parse(e.data);
-                if (logEl) {
-                    logEl.textContent += '  ' + (d.success ? '✓' : '✗') + ' ' + d.name + ': ' + d.message + '\n';
-                    logWrap.scrollTop = logWrap.scrollHeight;
-                }
-                renderClients(); // refresh the clients list
-            });
-
-            deploySource.addEventListener('done', function (e) {
-                deployDone = true;
+            var startPushAll = function () {
+                pushAllBtn.disabled = true;
+                if (cancelBtn)  cancelBtn.disabled = true;
+                if (closeModal) closeModal.disabled = true;
+                if (checkResult) checkResult.style.display = 'none';
+                if (preRunEl)   preRunEl.style.display = 'none';
+                if (logWrap)    logWrap.style.display = '';
+                if (logEl)      logEl.textContent = 'Pushing to clients…\n';
+                deployDone = false;
                 stopDeployStream();
-                var d = JSON.parse(e.data);
-                if (d.success) {
-                    showRunResult(true, 'Pushed to ' + d.succeeded + '/' + d.total + ' clients. They will apply the update in the background.');
-                } else {
-                    showRunResult(false, (d.failed || 0) + ' client(s) failed. Check the log above.');
-                }
-                resetButtons();
-            });
 
-            deploySource.onerror = function () {
-                if (deployDone) return;
-                stopDeployStream();
-                showRunResult(false, 'Push stream lost. Check server logs.');
-                resetButtons();
+                deploySource = new EventSource('{{ route("superadmin.update.push-all") }}');
+
+                deploySource.addEventListener('clientStart', function (e) {
+                    var d = JSON.parse(e.data);
+                    if (logEl) { logEl.textContent += 'Pushing to ' + d.name + '…\n'; logWrap.scrollTop = logWrap.scrollHeight; }
+                });
+
+                deploySource.addEventListener('clientResult', function (e) {
+                    var d = JSON.parse(e.data);
+                    if (logEl) {
+                        logEl.textContent += '  ' + (d.success ? '✓' : '✗') + ' ' + d.name + ': ' + d.message + '\n';
+                        logWrap.scrollTop = logWrap.scrollHeight;
+                    }
+                    renderClients(); // refresh the clients list
+                });
+
+                deploySource.addEventListener('done', function (e) {
+                    deployDone = true;
+                    stopDeployStream();
+                    var d = JSON.parse(e.data);
+                    if (d.success) {
+                        showRunResult(true, 'Pushed to ' + d.succeeded + '/' + d.total + ' clients. They will apply the update in the background.');
+                    } else {
+                        showRunResult(false, (d.failed || 0) + ' client(s) failed. Check the log above.');
+                    }
+                    resetButtons();
+                });
+
+                deploySource.onerror = function () {
+                    if (deployDone) return;
+                    stopDeployStream();
+                    showRunResult(false, 'Push stream lost. Check server logs.');
+                    resetButtons();
+                };
             };
+
+            if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                Swal.fire({
+                    title: 'Send the update trigger to all active clients?',
+                    text: 'Every active client server will be notified to pull the latest update.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, send trigger',
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: '#4f46e5',
+                    cancelButtonColor: '#6b7280',
+                    reverseButtons: true,
+                }).then(function (result) {
+                    if (!result.isConfirmed) return;
+                    startPushAll();
+                });
+                return;
+            }
+
+            if (typeof swal === 'function') {
+                swal({
+                    title: 'Send the update trigger to all active clients?',
+                    text: 'Every active client server will be notified to pull the latest update.',
+                    icon: 'warning',
+                    buttons: true,
+                    dangerMode: true,
+                }).then(function (confirmed) {
+                    if (!confirmed) return;
+                    startPushAll();
+                });
+                return;
+            }
+
+            if (!confirm('Send the update trigger to all active clients?')) return;
+            startPushAll();
         });
     }
 
@@ -725,6 +837,184 @@
         });
     }
 
+    if (refreshPackagesBtn) {
+        refreshPackagesBtn.addEventListener('click', function () {
+            renderPackages();
+        });
+    }
+
+    if (deletePackageBtn) {
+        deletePackageBtn.addEventListener('click', function () {
+            if (!releasePackageSelect) return;
+            var filename = releasePackageSelect.value;
+            if (!filename) {
+                alert('Select a package to delete.');
+                return;
+            }
+            if (!confirm('Delete stored release package ' + filename + '?')) return;
+
+            deletePackageBtn.disabled = true;
+            fetch('{{ route("superadmin.update.packages.destroy") }}', {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ filename: filename }),
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                showToast(data.success ? 'success' : 'error', data.message || (data.success ? 'Package deleted.' : 'Delete failed.'));
+                renderPackages();
+            })
+            .catch(function () {
+                showToast('error', 'Delete failed', 'Request could not be completed.');
+            })
+            .finally(function () {
+                deletePackageBtn.disabled = false;
+            });
+        });
+    }
+
+    if (regenTokenBtn) {
+        regenTokenBtn.addEventListener('click', function () {
+            var proceed = function () {
+                regenTokenBtn.disabled = true;
+                fetch('{{ route("superadmin.update.download-token.regenerate") }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    },
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (!data.success) {
+                        showToast('error', data.message || 'Token generation failed.');
+                        return;
+                    }
+                    if (tokenValueEl) tokenValueEl.value = data.token || '';
+                    if (tokenStatusEl) tokenStatusEl.textContent = 'Managed token active. Copy and paste this into each client .env as UPDATE_AUTH_TOKEN.';
+                    showToast('success', data.message || 'Token regenerated.');
+                })
+                .catch(function () {
+                    showToast('error', 'Token generation failed', 'Request could not be completed.');
+                })
+                .finally(function () {
+                    regenTokenBtn.disabled = false;
+                });
+            };
+
+            if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                Swal.fire({
+                    title: 'Regenerate download token?',
+                    text: 'Existing client UPDATE_AUTH_TOKEN values will stop working until updated.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, regenerate',
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: '#b45309',
+                    cancelButtonColor: '#6b7280',
+                    reverseButtons: true,
+                }).then(function (result) {
+                    if (!result.isConfirmed) return;
+                    proceed();
+                });
+                return;
+            }
+
+            if (typeof swal === 'function') {
+                swal({
+                    title: 'Regenerate download token?',
+                    text: 'Existing client UPDATE_AUTH_TOKEN values will stop working until updated.',
+                    icon: 'warning',
+                    buttons: true,
+                    dangerMode: true,
+                }).then(function (confirmed) {
+                    if (!confirmed) return;
+                    proceed();
+                });
+                return;
+            }
+
+            if (!confirm('Generate a new client download token? Existing client UPDATE_AUTH_TOKEN values will stop working until updated.')) return;
+            proceed();
+        });
+    }
+
+    if (copyTokenBtn) {
+        copyTokenBtn.addEventListener('click', function () {
+            var token = tokenValueEl ? tokenValueEl.value.trim() : '';
+            if (!token) {
+                showToast('warn', 'No token to copy', 'Generate a token first.');
+                return;
+            }
+            navigator.clipboard.writeText(token)
+                .then(function () { showToast('success', 'Token copied'); })
+                .catch(function () { showToast('error', 'Copy failed', 'Please copy manually.'); });
+        });
+    }
+
+    function fetchDownloadTokenStatus() {
+        fetch('{{ route("superadmin.update.download-token.status") }}', { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.success) {
+                if (tokenStatusEl) tokenStatusEl.textContent = 'Could not load token status.';
+                return;
+            }
+
+            if (tokenStatusEl) tokenStatusEl.textContent = data.message || 'Token status loaded.';
+            if (!tokenValueEl) return;
+
+            if (!data.configured) {
+                tokenValueEl.value = '';
+                tokenValueEl.placeholder = 'No token configured';
+                return;
+            }
+
+            tokenValueEl.value = '';
+            tokenValueEl.placeholder = (data.preview ? ('Current token: ' + data.preview) : 'Token configured');
+        })
+        .catch(function () {
+            if (tokenStatusEl) tokenStatusEl.textContent = 'Could not load token status.';
+        });
+    }
+
+    function renderPackages() {
+        if (!releasePackageSelect) return;
+
+        releasePackageSelect.innerHTML = '<option value="">Loading packages...</option>';
+
+        fetch('{{ route("superadmin.update.packages") }}', { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            var packages = data.packages || [];
+            if (!data.success) {
+                releasePackageSelect.innerHTML = '<option value="">Could not load packages</option>';
+                return;
+            }
+            if (packages.length === 0) {
+                releasePackageSelect.innerHTML = '<option value="">No stored packages</option>';
+                return;
+            }
+
+            releasePackageSelect.innerHTML = packages.map(function (p) {
+                var label = p.filename + ' (' + p.size_kb + ' KB' + (p.is_current ? ', active' : '') + ')';
+                return '<option value="' + escHtml(p.filename) + '">' + escHtml(label) + '</option>';
+            }).join('');
+
+            var current = packages.find(function (p) { return !!p.is_current; });
+            if (current) {
+                releasePackageSelect.value = current.filename;
+            }
+        })
+        .catch(function () {
+            releasePackageSelect.innerHTML = '<option value="">Could not load packages</option>';
+        });
+    }
+
     function renderClients() {
         if (! clientsList) return;
         fetch('{{ route("superadmin.update.clients") }}', { headers: { 'Accept': 'application/json' } })
@@ -754,14 +1044,50 @@
 
             clientsList.querySelectorAll('.tw-client-push').forEach(function (btn) {
                 btn.addEventListener('click', function () {
+                    var pushClient = function () {
+                        btn.disabled = true;
+                        var id = btn.dataset.id;
+                        var url = '{{ route("superadmin.update.clients.push", ["id" => "__ID__"]) }}'.replace('__ID__', id);
+                        fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } })
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) { showToast(data.success ? 'success' : 'error', data.message || (data.success ? 'Pushed' : 'Failed')); renderClients(); })
+                        .catch(function () { btn.disabled = false; });
+                    };
+
+                    if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                        Swal.fire({
+                            title: 'Push update trigger to ' + btn.dataset.name + '?',
+                            text: 'This will notify the client server to pull the latest update.',
+                            icon: 'question',
+                            showCancelButton: true,
+                            confirmButtonText: 'Yes, push',
+                            cancelButtonText: 'Cancel',
+                            confirmButtonColor: '#4f46e5',
+                            cancelButtonColor: '#6b7280',
+                            reverseButtons: true,
+                        }).then(function (result) {
+                            if (!result.isConfirmed) return;
+                            pushClient();
+                        });
+                        return;
+                    }
+
+                    if (typeof swal === 'function') {
+                        swal({
+                            title: 'Push update trigger to ' + btn.dataset.name + '?',
+                            text: 'This will notify the client server to pull the latest update.',
+                            icon: 'warning',
+                            buttons: true,
+                            dangerMode: false,
+                        }).then(function (confirmed) {
+                            if (!confirmed) return;
+                            pushClient();
+                        });
+                        return;
+                    }
+
                     if (! confirm('Push update trigger to ' + btn.dataset.name + '?')) return;
-                    btn.disabled = true;
-                    var id = btn.dataset.id;
-                    var url = '{{ route("superadmin.update.clients.push", ["id" => "__ID__"]) }}'.replace('__ID__', id);
-                    fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } })
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) { showToast(data.success ? 'success' : 'error', data.message || (data.success ? 'Pushed' : 'Failed')); renderClients(); })
-                    .catch(function () { btn.disabled = false; });
+                    pushClient();
                 });
             });
 
