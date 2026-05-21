@@ -289,11 +289,31 @@ $(document).ready(function() {
     }
 
     //Register report
+    var register_report_hidden_columns = [11, 12, 13, 14, 15, 16, 17];
+    var register_report_hidden_column_names = [
+        'total_custom_pay_1',
+        'total_custom_pay_2',
+        'total_custom_pay_3',
+        'total_custom_pay_4',
+        'total_custom_pay_5',
+        'total_custom_pay_6',
+        'total_custom_pay_7',
+    ];
+
+    try {
+        var register_report_state_key = 'DataTables_register_report_table_' + window.location.pathname;
+        localStorage.removeItem(register_report_state_key);
+        sessionStorage.removeItem(register_report_state_key);
+    } catch (e) {
+        // Ignore storage access errors (private mode / blocked storage).
+    }
+
     register_report_table = $('#register_report_table').DataTable({
         processing: true,
         serverSide: true,
         scrollX:        true,
         fixedHeader:false,
+        stateSave: false,
         ajax: '/reports/register-report',
         columns: [
             { data: 'id', name: 'cash_registers.id' },
@@ -307,17 +327,84 @@ $(document).ready(function() {
             { data: 'total_bank_transfer_payment', name: 'total_bank_transfer_payment', searchable: false },
             { data: 'total_mpesa_payment', name: 'total_mpesa_payment', searchable: false },
             { data: 'total_advance_payment', name: 'total_advance_payment', searchable: false },
-            { data: 'total_custom_pay_1', name: 'total_custom_pay_1', searchable: false },
-            { data: 'total_custom_pay_2', name: 'total_custom_pay_2', searchable: false },
-            { data: 'total_custom_pay_3', name: 'total_custom_pay_3', searchable: false },
-            { data: 'total_custom_pay_4', name: 'total_custom_pay_4', searchable: false },
-            { data: 'total_custom_pay_5', name: 'total_custom_pay_5', searchable: false },
-            { data: 'total_custom_pay_6', name: 'total_custom_pay_6', searchable: false },
-            { data: 'total_custom_pay_7', name: 'total_custom_pay_7', searchable: false },
+            { data: 'total_custom_pay_1', name: 'total_custom_pay_1', searchable: false, visible: false },
+            { data: 'total_custom_pay_2', name: 'total_custom_pay_2', searchable: false, visible: false },
+            { data: 'total_custom_pay_3', name: 'total_custom_pay_3', searchable: false, visible: false },
+            { data: 'total_custom_pay_4', name: 'total_custom_pay_4', searchable: false, visible: false },
+            { data: 'total_custom_pay_5', name: 'total_custom_pay_5', searchable: false, visible: false },
+            { data: 'total_custom_pay_6', name: 'total_custom_pay_6', searchable: false, visible: false },
+            { data: 'total_custom_pay_7', name: 'total_custom_pay_7', searchable: false, visible: false },
             { data: 'total_other_payment', name: 'total_other_payment', searchable: false },
             { data: 'total', name: 'total', orderable: false, searchable: false },
             { data: 'action', name: 'action', orderable: false, searchable: false },
         ],
+        columnDefs: [
+            {
+                targets: register_report_hidden_columns,
+                visible: false,
+            },
+        ],
+        dom: "<'row'<'col-sm-4'l><'col-sm-4 text-center'B><'col-sm-4'f>>" +
+             "<'row'<'col-sm-12'tr>>" +
+             "<'row'<'col-sm-5'i><'col-sm-7'p>>",
+        buttons: [
+            {
+                extend: 'csv',
+                text: '<i class="fa fa-file-csv" aria-hidden="true"></i> ' + LANG.export_to_csv,
+                className: 'tw-dw-btn-xs tw-dw-btn tw-dw-btn-outline tw-my-2',
+                exportOptions: {
+                    columns: ':visible',
+                },
+                footer: true,
+            },
+            {
+                extend: 'excel',
+                text: '<i class="fa fa-file-excel" aria-hidden="true"></i> ' + LANG.export_to_excel,
+                className: 'tw-dw-btn-xs tw-dw-btn tw-dw-btn-outline tw-my-2',
+                exportOptions: {
+                    columns: ':visible',
+                },
+                footer: true,
+            },
+            {
+                extend: 'print',
+                text: '<i class="fa fa-print" aria-hidden="true"></i> ' + LANG.print,
+                className: 'tw-dw-btn-xs tw-dw-btn tw-dw-btn-outline tw-my-2',
+                exportOptions: {
+                    columns: ':visible',
+                    stripHtml: true,
+                },
+                footer: true,
+            },
+            {
+                extend: 'pdf',
+                text: '<i class="fa fa-file-pdf" aria-hidden="true"></i> ' + LANG.export_to_pdf,
+                className: 'tw-dw-btn-xs tw-dw-btn tw-dw-btn-outline tw-my-2',
+                exportOptions: {
+                    columns: ':visible',
+                },
+                footer: true,
+            },
+            {
+                extend: 'colvis',
+                text: '<i class="fa fa-columns" aria-hidden="true"></i> ' + LANG.col_vis,
+                className: 'tw-dw-btn-xs tw-dw-btn tw-dw-btn-outline tw-my-2',
+            },
+        ],
+        initComplete: function () {
+            // Enforce hidden-by-default columns even if the browser retained prior visibility state.
+            var api = this.api();
+            register_report_hidden_column_names.forEach(function (column_name) {
+                api.column(column_name + ':name').visible(false, false);
+            });
+            api.columns.adjust().draw(false);
+        },
+        drawCallback: function () {
+            var api = this.api();
+            register_report_hidden_column_names.forEach(function (column_name) {
+                api.column(column_name + ':name').visible(false, false);
+            });
+        },
         "footerCallback": function ( row, data, start, end, display ) {
             var total_card_payment = 0;
             var total_cheque_payment = 0;

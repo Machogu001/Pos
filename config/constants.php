@@ -47,7 +47,7 @@ return [
     'currency_exchange_rate' => 1,
     'orders_refresh_interval' => 600, //Auto refresh interval on Kitchen and Orders page in seconds,
 
-    'default_date_format' => 'm/d/Y', //Default date format to be used if session is not set. All valid formats can be found on https://www.php.net/manual/en/function.date.php
+    'default_date_format' => 'd/m/Y', //Default date format to be used if session is not set. All valid formats can be found on https://www.php.net/manual/en/function.date.php
 
     'new_notification_count_interval' => 60, //Interval to check for new notifications in seconds;Default is 60sec
 

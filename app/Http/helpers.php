@@ -80,7 +80,7 @@ if (! function_exists('pos_release_version')) {
             return ltrim($tag, "vV");
         }
 
-        return '12.9';
+        return '13.0';
     }
 }
 

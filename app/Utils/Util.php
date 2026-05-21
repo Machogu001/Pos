@@ -231,18 +231,41 @@ class Util
      */
     public function uf_date($date, $time = false)
     {
-        $date_format = session('business.date_format');
-        $mysql_format = 'Y-m-d';
-        if ($time) {
-            if (session('business.time_format') == 12) {
-                $date_format = $date_format.' h:i A';
-            } else {
-                $date_format = $date_format.' H:i';
-            }
-            $mysql_format = 'Y-m-d H:i:s';
+        if (empty($date)) {
+            return null;
         }
 
-        return ! empty($date_format) ? \Carbon::createFromFormat($date_format, $date)->format($mysql_format) : null;
+        $date = trim($date);
+        $date_format = session('business.date_format');
+        $mysql_format = 'Y-m-d';
+        $candidate_formats = [$date_format, 'Y-m-d', 'd/m/Y', 'm/d/Y'];
+
+        if ($time) {
+            $mysql_format = 'Y-m-d H:i:s';
+            $candidate_formats = [
+                $date_format . ' H:i:s',
+                $date_format . ' H:i',
+                $date_format . ' h:i A',
+                'Y-m-d H:i:s',
+                'Y-m-d H:i',
+                'd/m/Y H:i:s',
+                'd/m/Y H:i',
+                'd/m/Y h:i A',
+                'm/d/Y H:i:s',
+                'm/d/Y H:i',
+                'm/d/Y h:i A',
+            ];
+        }
+
+        foreach ($candidate_formats as $format) {
+            try {
+                return \Carbon::createFromFormat($format, $date)->format($mysql_format);
+            } catch (\Throwable $e) {
+                // Try next format.
+            }
+        }
+
+        return \Carbon::createFromTimestamp(strtotime($date))->format($mysql_format);
     }
 
     /**
@@ -253,12 +276,22 @@ class Util
      */
     public function uf_time($time)
     {
-        $time_format = 'H:i';
-        if (session('business.time_format') == 12) {
-            $time_format = 'h:i A';
+        if (empty($time)) {
+            return null;
         }
 
-        return ! empty($time_format) ? \Carbon::createFromFormat($time_format, $time)->format('H:i') : null;
+        $time = trim($time);
+        $candidate_formats = ['H:i:s', 'H:i', 'h:i A'];
+
+        foreach ($candidate_formats as $format) {
+            try {
+                return \Carbon::createFromFormat($format, $time)->format('H:i:s');
+            } catch (\Throwable $e) {
+                // Try next format.
+            }
+        }
+
+        return \Carbon::createFromTimestamp(strtotime($time))->format('H:i:s');
     }
 
     /**
@@ -269,12 +302,7 @@ class Util
      */
     public function format_time($time)
     {
-        $time_format = 'H:i';
-        if (session('business.time_format') == 12) {
-            $time_format = 'h:i A';
-        }
-
-        return ! empty($time) ? \Carbon::createFromFormat('H:i:s', $time)->format($time_format) : null;
+        return ! empty($time) ? \Carbon::createFromFormat('H:i:s', $time)->format('H:i:s') : null;
     }
 
     /**
@@ -288,12 +316,7 @@ class Util
     {
         $format = ! empty($business_details) ? $business_details->date_format : session('business.date_format');
         if (! empty($show_time)) {
-            $time_format = ! empty($business_details) ? $business_details->time_format : session('business.time_format');
-            if ($time_format == 12) {
-                $format .= ' h:i A';
-            } else {
-                $format .= ' H:i';
-            }
+            $format .= ' H:i:s';
         }
 
         return ! empty($date) ? \Carbon::createFromTimestamp(strtotime($date))->format($format) : null;

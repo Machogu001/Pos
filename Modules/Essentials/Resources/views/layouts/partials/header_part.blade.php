@@ -2,16 +2,15 @@
 @php
     $clock_out_tooltip = __('essentials::lang.clock_out');
     if (!empty($clock_in)) {
-        $__time_format = session('business.time_format') == 24 ? 'H:i' : 'h:i A';
-        $__dt_format = session('business.date_format') . ' ' . $__time_format;
+		$__dt_format = session('business.date_format') . ' H:i:s';
         $__clocked_in_formatted = \Carbon\Carbon::createFromTimestamp(strtotime($clock_in->clock_in_time))->format($__dt_format);
         $clock_out_tooltip .= ' &mdash; <small><b>' . __('essentials::lang.clocked_in_at') . ':</b> ' . $__clocked_in_formatted . '</small>';
         if (!empty($clock_in->shift_name)) {
             $clock_out_tooltip .= ' <small><b>' . __('essentials::lang.shift') . ':</b> ' . ucfirst($clock_in->shift_name) . '</small>';
         }
         if (!empty($clock_in->start_time) && !empty($clock_in->end_time)) {
-            $__start = \Carbon\Carbon::createFromTimestamp(strtotime($clock_in->start_time))->format($__time_format);
-            $__end = \Carbon\Carbon::createFromTimestamp(strtotime($clock_in->end_time))->format($__time_format);
+			$__start = \Carbon\Carbon::createFromTimestamp(strtotime($clock_in->start_time))->format('H:i:s');
+			$__end = \Carbon\Carbon::createFromTimestamp(strtotime($clock_in->end_time))->format('H:i:s');
             $clock_out_tooltip .= ' <small><b>' . __('restaurant.start_time') . ':</b> ' . $__start . ' &bull; <b>' . __('restaurant.end_time') . ':</b> ' . $__end . '</small>';
         }
     }

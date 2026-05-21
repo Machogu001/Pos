@@ -722,21 +722,44 @@ $(document).ready(function() {
 
     // Update last updated time
     function updateLastUpdatedTime() {
-        const timeString = lastUpdated.toLocaleTimeString();
-        $('#last-updated-time').text(timeString);
+        $('#last-updated-time').text(formatDateTime(lastUpdated));
     }
 
-    // Format date to locale string
-    function formatDateTime(dateString) {
-        if (!dateString) return '';
+    function pad2(value) {
+        return value.toString().padStart(2, '0');
+    }
+
+    // Format date to DD/MM/YYYY HH:MM:SS
+    function formatDateTime(input) {
+        if (!input) return '';
+
         try {
+            if (input instanceof Date) {
+                return pad2(input.getDate()) + '/' + pad2(input.getMonth() + 1) + '/' + input.getFullYear() +
+                    ' ' + pad2(input.getHours()) + ':' + pad2(input.getMinutes()) + ':' + pad2(input.getSeconds());
+            }
+
+            var dateString = String(input).trim();
+            if (/^\d{2}\/\d{2}\/\d{4}\s\d{2}:\d{2}:\d{2}$/.test(dateString)) {
+                return dateString;
+            }
+
+            // Support mysql style datetime: YYYY-MM-DD HH:mm or YYYY-MM-DD HH:mm:ss
+            var mysqlMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+            if (mysqlMatch) {
+                return mysqlMatch[3] + '/' + mysqlMatch[2] + '/' + mysqlMatch[1] + ' ' +
+                    mysqlMatch[4] + ':' + mysqlMatch[5] + ':' + (mysqlMatch[6] || '00');
+            }
+
             var date = new Date(dateString);
             if (isNaN(date.getTime())) {
                 return dateString;
             }
-            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            return pad2(date.getDate()) + '/' + pad2(date.getMonth() + 1) + '/' + date.getFullYear() +
+                ' ' + pad2(date.getHours()) + ':' + pad2(date.getMinutes()) + ':' + pad2(date.getSeconds());
         } catch (e) {
-            return dateString;
+            return input;
         }
     }
 

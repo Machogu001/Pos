@@ -1187,13 +1187,13 @@ class ReportController extends Controller
                 })
                 ->editColumn('closed_at', function ($row) {
                     if ($row->status == 'close') {
-                        return $this->productUtil->format_date($row->closed_at, true);
+                        return ! empty($row->closed_at) ? \Carbon\Carbon::parse($row->closed_at)->format('d/m/Y H:i:s') : '';
                     } else {
                         return '';
                     }
                 })
                 ->editColumn('created_at', function ($row) {
-                    return $this->productUtil->format_date($row->created_at, true);
+                    return ! empty($row->created_at) ? \Carbon\Carbon::parse($row->created_at)->format('d/m/Y H:i:s') : '';
                 })
                 ->addColumn('total', function ($row) {
                     $total = $row->total_card_payment + $row->total_cheque_payment + $row->total_cash_payment + $row->total_bank_transfer_payment + $row->total_mpesa_payment + $row->total_other_payment + $row->total_advance_payment + $row->total_custom_pay_1 + $row->total_custom_pay_2 + $row->total_custom_pay_3 + $row->total_custom_pay_4 + $row->total_custom_pay_5 + $row->total_custom_pay_6 + $row->total_custom_pay_7;
@@ -1578,7 +1578,7 @@ class ReportController extends Controller
 
             if (! empty($purchase_line)) {
                 if (! empty($purchase_line->exp_date)) {
-                    $purchase_line->exp_date = date('m/d/Y', strtotime($purchase_line->exp_date));
+                    $purchase_line->exp_date = $this->productUtil->format_date($purchase_line->exp_date);
                 }
             }
 

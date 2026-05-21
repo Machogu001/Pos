@@ -163,6 +163,17 @@
       @endif
       <tr>
         <td>
+          @lang('payment.mpesa'):
+        </td>
+        <td>
+          <span class="display_currency" data-currency_symbol="true">{{ $register_details->total_mpesa }}</span>
+        </td>
+        <td>
+          <span class="display_currency" data-currency_symbol="true">{{ $register_details->total_mpesa_expense }}</span>
+        </td>
+      </tr>
+      <tr>
+        <td>
           @lang('cash_register.other_payments'):
         </td>
         <td>

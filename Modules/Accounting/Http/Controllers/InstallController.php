@@ -54,7 +54,7 @@ class InstallController extends Controller
             abort(404);
         }
 
-        $action_url = action('\Modules\Accounting\Http\Controllers\InstallController@install');
+        $action_url = url('accounting/install');
 
         return view('install.install-module')
             ->with(compact('action_url'));

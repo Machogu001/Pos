@@ -159,10 +159,10 @@ class StocktakeController extends Controller
                     return '<a href="' . route('stocktakes.show', $row->id) . '">' . $row->reference_no . '</a>';
                 })
                 ->editColumn('transaction_date', function ($row) {
-                    return !empty($row->started_at) ? \Carbon\Carbon::parse($row->started_at)->format('Y-m-d H:i') : '-';
+                    return !empty($row->started_at) ? \Carbon\Carbon::parse($row->started_at)->format('d/m/Y H:i:s') : '-';
                 })
                 ->editColumn('completed_at', function ($row) {
-                    return !empty($row->completed_at) ? \Carbon\Carbon::parse($row->completed_at)->format('Y-m-d H:i') : '-';
+                    return !empty($row->completed_at) ? \Carbon\Carbon::parse($row->completed_at)->format('d/m/Y H:i:s') : '-';
                 })
                 ->addColumn('adjustment_ref', function ($row) {
                     if ($row->status === 'completed' && $row->adjustment_transaction_id) {
@@ -1460,8 +1460,8 @@ class StocktakeController extends Controller
             return [
                 'reference_no' => $stocktake->reference_no,
                 'location' => $stocktake->location->name,
-                'started_at' => ! empty($stocktake->transaction_date) ? \Carbon\Carbon::parse($stocktake->transaction_date)->format('Y-m-d H:i') : '-',
-                'completed_at' => ! empty($stocktake->completed_at) ? \Carbon\Carbon::parse($stocktake->completed_at)->format('Y-m-d H:i') : '-',
+                'started_at' => ! empty($stocktake->transaction_date) ? \Carbon\Carbon::parse($stocktake->transaction_date)->format('d/m/Y H:i:s') : '-',
+                'completed_at' => ! empty($stocktake->completed_at) ? \Carbon\Carbon::parse($stocktake->completed_at)->format('d/m/Y H:i:s') : '-',
                 'status' => ucfirst(str_replace('_', ' ', $stocktake->status)),
                 'created_by' => $stocktake->createdBy?->user_full_name ?? $stocktake->createdBy?->username ?? 'System',
                 'product_name' => $item->product->name ?? '-',

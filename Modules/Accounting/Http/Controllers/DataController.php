@@ -65,7 +65,7 @@ class DataController extends Controller
                     function ($sub) {
                         // Alphabetical order
                         $sub->url(
-                            action([\Modules\Accounting\Http\Controllers\DashboardController::class, 'index']),
+                            url('accounting/dashboard'),
                             __('home.dashboard'),
                             ['icon' => '', 'active' => request()->segment(1) == 'accounting' && request()->segment(2) == 'dashboard']
                         );

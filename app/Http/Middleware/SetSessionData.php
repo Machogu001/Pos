@@ -78,6 +78,8 @@ class SetSessionData
             ];
 
             $request->session()->put('business', $business);
+            $request->session()->put('business.date_format', config('constants.default_date_format'));
+            $request->session()->put('business.date_format', config('constants.default_date_format'));
             $request->session()->put('currency', $currency_data);
 
             //set current financial year to session

@@ -320,22 +320,22 @@ class Stocktake extends Model
 
     public function getFormattedTransactionDateAttribute(): ?string
     {
-        return optional($this->transaction_date)->format(config('constants.default_date_format', 'm/d/Y H:i'));
+        return optional($this->transaction_date)->format('d/m/Y H:i:s');
     }
 
     public function getFormattedCompletedAtAttribute(): ?string
     {
-        return optional($this->completed_at)->format(config('constants.default_date_format', 'm/d/Y H:i'));
+        return optional($this->completed_at)->format('d/m/Y H:i:s');
     }
 
     public function getFormattedStartedAtAttribute(): ?string
     {
-        return optional($this->started_at)->format(config('constants.default_date_format', 'm/d/Y H:i'));
+        return optional($this->started_at)->format('d/m/Y H:i:s');
     }
 
     public function getFormattedCancelledAtAttribute(): ?string
     {
-        return optional($this->cancelled_at)->format(config('constants.default_date_format', 'm/d/Y H:i'));
+        return optional($this->cancelled_at)->format('d/m/Y H:i:s');
     }
 
     public function getIsCompletedAttribute(): bool

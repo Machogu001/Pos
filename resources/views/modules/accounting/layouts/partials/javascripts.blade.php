@@ -38,11 +38,7 @@ $moment_date_format = str_replace('d', 'DD', $business_date_format);
 $moment_date_format = str_replace('m', 'MM', $moment_date_format);
 $moment_date_format = str_replace('Y', 'YYYY', $moment_date_format);
 
-$business_time_format = session('business.time_format');
-$moment_time_format = 'HH:mm';
-if ($business_time_format == 12) {
-    $moment_time_format = 'hh:mm A';
-}
+$moment_time_format = 'HH:mm:ss';
 
 $common_settings = !empty(session('business.common_settings')) ? session('business.common_settings') : [];
 
