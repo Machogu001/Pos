@@ -432,6 +432,8 @@
     var pctLabel       = document.getElementById('update-pct-label');
     var deploySource   = null;   // active EventSource
     var clientSource   = null;   // active client progress EventSource
+    var bulkWatchTimer = null;   // interval timer for multi-client callback tracking
+    var bulkWatchState = null;   // state for multi-client callback tracking
     var deployDone     = false;  // guard against onerror firing after normal close
     var watchedClientId = null;
     var lastClientHeartbeatLogAt = 0;
@@ -460,6 +462,102 @@
         if (clientSource) { clientSource.close(); clientSource = null; }
         watchedClientId = null;
         lastClientHeartbeatLogAt = 0;
+    }
+
+    function stopBulkClientWatch() {
+        if (bulkWatchTimer) {
+            clearInterval(bulkWatchTimer);
+            bulkWatchTimer = null;
+        }
+        bulkWatchState = null;
+    }
+
+    function startBulkClientWatch(clientTargets) {
+        stopBulkClientWatch();
+        stopClientStream();
+
+        var ids = Object.keys(clientTargets || {});
+        if (ids.length === 0) {
+            return;
+        }
+
+        bulkWatchState = {
+            ids: ids,
+            names: clientTargets,
+            lastStatus: {},
+            finalStatus: {},
+            startedAt: Date.now()
+        };
+
+        if (logWrap) logWrap.style.display = '';
+        if (logEl) {
+            logEl.textContent += 'Watching deploy callbacks for ' + ids.length + ' client(s)...\n';
+            logWrap.scrollTop = logWrap.scrollHeight;
+        }
+
+        var timeoutMs = 5 * 60 * 1000;
+        var tick = function () {
+            if (!bulkWatchState) return;
+
+            fetch('{{ route("superadmin.update.clients") }}', { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!bulkWatchState) return;
+                var clients = data.clients || [];
+
+                bulkWatchState.ids.forEach(function (id) {
+                    if (bulkWatchState.finalStatus[id]) return;
+
+                    var c = clients.find(function (row) { return String(row.id) === String(id); });
+                    if (!c) return;
+
+                    var status = c.last_push_status || 'pending';
+                    if (bulkWatchState.lastStatus[id] !== status) {
+                        bulkWatchState.lastStatus[id] = status;
+                        if (logEl) {
+                            logEl.textContent += '• ' + (bulkWatchState.names[id] || ('Client #' + id)) + ': ' + status + '\n';
+                            logWrap.scrollTop = logWrap.scrollHeight;
+                        }
+                    }
+
+                    if (status === 'success' || status === 'failed') {
+                        bulkWatchState.finalStatus[id] = status;
+                    }
+                });
+
+                if (typeof renderClients === 'function') renderClients();
+
+                var doneCount = Object.keys(bulkWatchState.finalStatus).length;
+                if (doneCount >= bulkWatchState.ids.length) {
+                    var failed = Object.keys(bulkWatchState.finalStatus).filter(function (id) {
+                        return bulkWatchState.finalStatus[id] === 'failed';
+                    }).length;
+                    var success = bulkWatchState.ids.length - failed;
+
+                    stopBulkClientWatch();
+                    showRunResult(
+                        failed === 0,
+                        failed === 0
+                            ? ('All clients completed deployment successfully (' + success + '/' + (success + failed) + ').')
+                            : ('Deployment callbacks finished: ' + success + ' success, ' + failed + ' failed.')
+                    );
+                }
+
+                if (bulkWatchState && (Date.now() - bulkWatchState.startedAt) > timeoutMs) {
+                    stopBulkClientWatch();
+                    showRunResult(false, 'Timed out waiting for client deploy callbacks. Some clients may still be running in background.');
+                }
+            })
+            .catch(function () {
+                if (bulkWatchState && (Date.now() - bulkWatchState.startedAt) > timeoutMs) {
+                    stopBulkClientWatch();
+                    showRunResult(false, 'Timed out while checking client statuses.');
+                }
+            });
+        };
+
+        tick();
+        bulkWatchTimer = setInterval(tick, 3000);
     }
 
     function startClientProgressStream(clientId, clientName) {
@@ -599,6 +697,7 @@
     function resetModal() {
         stopDeployStream();
         stopClientStream();
+        stopBulkClientWatch();
         deployDone = false;
         if (pullBtn)     { pullBtn.disabled = false; }
         if (pullBtnText) pullBtnText.textContent = 'Pull & Deploy';
@@ -709,6 +808,7 @@
                 }
                 if (typeof renderPackages === 'function') renderPackages();
                 if (buildPkgText) buildPkgText.textContent = 'Pushing…';
+                var pushedClients = {};
 
                 // Phase 2: push to all clients via SSE
                 deployDone = false;
@@ -724,6 +824,9 @@
                         logEl.textContent += '  ' + (d.success ? '✓' : '✗') + ' ' + d.name + ': ' + d.message + '\n';
                         logWrap.scrollTop = logWrap.scrollHeight;
                     }
+                    if (d.success) {
+                        pushedClients[String(d.client_id)] = d.name || ('Client #' + d.client_id);
+                    }
                     if (typeof renderClients === 'function') renderClients();
                 });
                 deploySource.addEventListener('done', function (e) {
@@ -735,7 +838,8 @@
                     } else if (d.total === 0) {
                         showRunResult(true, 'Package built successfully. ' + (d.message || 'No active clients registered.'));
                     } else {
-                        showRunResult(true, 'Package built and pushed to ' + d.succeeded + '/' + d.total + ' client(s). They will self-update in the background.');
+                        showRunResult(true, 'Package built and pushed to ' + d.succeeded + '/' + d.total + ' client(s). Tracking deploy callbacks...');
+                        startBulkClientWatch(pushedClients);
                     }
                     resetBuildBtn();
                 });
@@ -813,6 +917,7 @@
                 if (preRunEl)   preRunEl.style.display = 'none';
                 if (logWrap)    logWrap.style.display = '';
                 if (logEl)      logEl.textContent = 'Pushing to clients…\n';
+                var pushedClients = {};
                 deployDone = false;
                 stopDeployStream();
 
@@ -829,6 +934,9 @@
                         logEl.textContent += '  ' + (d.success ? '✓' : '✗') + ' ' + d.name + ': ' + d.message + '\n';
                         logWrap.scrollTop = logWrap.scrollHeight;
                     }
+                    if (d.success) {
+                        pushedClients[String(d.client_id)] = d.name || ('Client #' + d.client_id);
+                    }
                     renderClients(); // refresh the clients list
                 });
 
@@ -837,7 +945,8 @@
                     stopDeployStream();
                     var d = JSON.parse(e.data);
                     if (d.success) {
-                        showRunResult(true, 'Pushed to ' + d.succeeded + '/' + d.total + ' clients. They will apply the update in the background.');
+                        showRunResult(true, 'Pushed to ' + d.succeeded + '/' + d.total + ' clients. Tracking deploy callbacks...');
+                        startBulkClientWatch(pushedClients);
                     } else {
                         showRunResult(false, (d.failed || 0) + ' client(s) failed. Check the log above.');
                     }

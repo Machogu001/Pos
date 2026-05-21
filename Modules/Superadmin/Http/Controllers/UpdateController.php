@@ -1222,12 +1222,43 @@ class UpdateController extends BaseController
     /** Launch pos:pull-update --force in the background on the client instance. */
     private function startBackgroundPullUpdate(): array
     {
+        $artisanPath = base_path('artisan');
+        $permContext = $this->grantTemporaryArtisanExecute($artisanPath);
+
         $phpBin = $this->resolvePhpBinary();
-        $artisan = escapeshellarg(base_path('artisan'));
+        $artisan = escapeshellarg($artisanPath);
         $logPath = storage_path('logs/pull-update-' . date('YmdHis') . '.log');
         $logArg = escapeshellarg($logPath);
-        $cmd = escapeshellarg($phpBin) . " {$artisan} pos:pull-update --force >> {$logArg} 2>&1";
+        $commands = [
+            // Preferred: resolved binary + artisan path.
+            escapeshellarg($phpBin) . " {$artisan} pos:pull-update --force >> {$logArg} 2>&1",
+            // Fallback: env-resolved php in PATH.
+            '/usr/bin/env php ' . $artisan . " pos:pull-update --force >> {$logArg} 2>&1",
+            // Last-resort for hosts where shebang execution is expected.
+            $artisan . " pos:pull-update --force >> {$logArg} 2>&1",
+        ];
 
+        $lastError = '';
+
+        try {
+            foreach ($commands as $cmd) {
+                [$started, $msg] = $this->launchBackgroundCommand($cmd, $logPath);
+                if ($started) {
+                    return [true, $msg];
+                }
+
+                $lastError = $msg;
+            }
+
+            return [false, $lastError !== '' ? $lastError : 'Unable to launch pull-update command.'];
+        } finally {
+            $this->restoreTemporaryArtisanExecute($permContext);
+        }
+    }
+
+    /** Try to launch a command in background and capture PID when possible. */
+    private function launchBackgroundCommand(string $cmd, string $logPath): array
+    {
         // Prefer shell_exec to capture PID for observability.
         if ($this->isShellFunctionAvailable('shell_exec')) {
             $pid = trim((string) @shell_exec("{$cmd} & echo $!"));
@@ -1247,6 +1278,56 @@ class UpdateController extends BaseController
         }
 
         return [false, 'Background process launch is unavailable (exec/shell_exec disabled in PHP).'];
+    }
+
+    /**
+     * Temporarily add execute bits on artisan only (non-recursive), preserving existing rw permissions.
+     */
+    private function grantTemporaryArtisanExecute(string $artisanPath): array
+    {
+        $context = ['changed' => false, 'path' => null, 'mode' => null];
+
+        $real = realpath($artisanPath);
+        $base = realpath(base_path());
+        if ($real === false || $base === false) {
+            return $context;
+        }
+
+        // Scope strictly to the project root artisan file.
+        if ($real !== $base . DIRECTORY_SEPARATOR . 'artisan') {
+            return $context;
+        }
+
+        if (! is_file($real) || is_executable($real)) {
+            return $context;
+        }
+
+        $currentPerms = @fileperms($real);
+        if ($currentPerms === false) {
+            return $context;
+        }
+
+        $mode = $currentPerms & 0777;
+        $newMode = $mode | 0111;
+
+        // Preserve existing mode; only add execute bits for owner/group/others.
+        if (@chmod($real, $newMode)) {
+            $context = ['changed' => true, 'path' => $real, 'mode' => $mode];
+        }
+
+        return $context;
+    }
+
+    /** Restore artisan mode if it was temporarily modified for launch. */
+    private function restoreTemporaryArtisanExecute(array $context): void
+    {
+        if (empty($context['changed']) || empty($context['path']) || ! isset($context['mode'])) {
+            return;
+        }
+
+        $path = (string) $context['path'];
+        $mode = (int) $context['mode'];
+        @chmod($path, $mode);
     }
 
     /** Pick an executable PHP binary path for background command launch. */
