@@ -1102,7 +1102,10 @@ class UpdateController extends BaseController
         Log::info("Update webhook received: v{$version} push from central ({$request->ip()}).");
 
         // Preflight on client before deployment to reduce stale-cache/service issues on repeated pushes.
-        [$preflightOk, $preflightOutput] = $this->prepareCurrentServerForUpdateFlow();
+        // Important: do not restart/reload web server inside the webhook request path.
+        // Doing so can interrupt the HTTP response and surface as 502 on the source server
+        // even when the update trigger is actually accepted.
+        [$preflightOk, $preflightOutput] = $this->prepareCurrentServerForUpdateFlow(false);
         if (! $preflightOk) {
             Log::error('Update webhook preflight failed: ' . $preflightOutput);
             return response()->json([
@@ -1475,7 +1478,7 @@ class UpdateController extends BaseController
      * Ensure fresh runtime state before/after update operations.
      * Runs optimize:clear and attempts to reload a detected web server process.
      */
-    private function prepareCurrentServerForUpdateFlow(): array
+    private function prepareCurrentServerForUpdateFlow(bool $reloadWebServer = true): array
     {
         $output = '';
 
@@ -1490,9 +1493,11 @@ class UpdateController extends BaseController
             return [false, 'php artisan optimize:clear failed: ' . $e->getMessage()];
         }
 
-        $reloadOutput = $this->reloadWebServerBestEffort();
-        if ($reloadOutput !== '') {
-            $output .= "\n" . $reloadOutput;
+        if ($reloadWebServer) {
+            $reloadOutput = $this->reloadWebServerBestEffort();
+            if ($reloadOutput !== '') {
+                $output .= "\n" . $reloadOutput;
+            }
         }
 
         return [true, trim($output)];
