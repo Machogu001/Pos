@@ -924,10 +924,20 @@
                 if (logWrap)    logWrap.style.display = '';
                 if (logEl)      logEl.textContent = 'Pushing to clients…\n';
                 var pushedClients = {};
+                var pushResultsReceived = 0;
+                var watchStarted = false;
                 deployDone = false;
                 stopDeployStream();
 
                 deploySource = new EventSource('{{ route("superadmin.update.push-all") }}');
+
+                deploySource.addEventListener('progress', function (e) {
+                    var d = JSON.parse(e.data);
+                    if (logEl && d.message) {
+                        logEl.textContent += d.message + '\n';
+                        logWrap.scrollTop = logWrap.scrollHeight;
+                    }
+                });
 
                 deploySource.addEventListener('clientStart', function (e) {
                     var d = JSON.parse(e.data);
@@ -940,6 +950,7 @@
                         logEl.textContent += '  ' + (d.success ? '✓' : '✗') + ' ' + d.name + ': ' + d.message + '\n';
                         logWrap.scrollTop = logWrap.scrollHeight;
                     }
+                    pushResultsReceived++;
                     if (d.success) {
                         pushedClients[String(d.client_id)] = d.name || ('Client #' + d.client_id);
                     }
@@ -950,17 +961,41 @@
                     deployDone = true;
                     stopDeployStream();
                     var d = JSON.parse(e.data);
-                    if (d.success) {
-                        showRunResult(true, 'Pushed to ' + d.succeeded + '/' + d.total + ' clients. Tracking deploy callbacks...');
-                        startBulkClientWatch(pushedClients);
+                    var succeeded = Number(d.succeeded || 0);
+                    var failed = Number(d.failed || 0);
+
+                    if (d.total === 0) {
+                        showRunResult(true, d.message || 'No active clients registered.');
+                    } else if (succeeded > 0) {
+                        showRunResult(true, 'Pushed to ' + succeeded + '/' + d.total + ' clients. Tracking deploy callbacks...');
+                        if (!watchStarted) {
+                            watchStarted = true;
+                            startBulkClientWatch(pushedClients);
+                        }
+                    } else if (d.success) {
+                        showRunResult(true, 'Pushed to ' + succeeded + '/' + d.total + ' clients.');
                     } else {
-                        showRunResult(false, (d.failed || 0) + ' client(s) failed. Check the log above.');
+                        showRunResult(false, failed + ' client(s) failed. Check the log above.');
                     }
                     resetButtons();
                 });
 
                 deploySource.onerror = function () {
                     if (deployDone) return;
+
+                    // Some browsers fire onerror when the server intentionally closes the stream.
+                    if (deploySource && deploySource.readyState === EventSource.CLOSED && pushResultsReceived > 0) {
+                        deployDone = true;
+                        stopDeployStream();
+                        showRunResult(true, 'Push request sent. Stream closed after dispatch. Tracking deploy callbacks...');
+                        if (!watchStarted) {
+                            watchStarted = true;
+                            startBulkClientWatch(pushedClients);
+                        }
+                        resetButtons();
+                        return;
+                    }
+
                     stopDeployStream();
                     showRunResult(false, 'Push stream lost. Check server logs.');
                     resetButtons();
