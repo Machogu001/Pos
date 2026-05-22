@@ -701,7 +701,9 @@ class UpdateController extends BaseController
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
         }
 
-        [$prepared, $prepMessage] = $this->prepareCurrentServerForUpdateFlow();
+        // Skip web-server reload here: reloading Apache/Nginx mid-request kills the browser
+        // connection before the JSON response can be sent, which surfaces as a 502 on the client.
+        [$prepared, $prepMessage] = $this->prepareCurrentServerForUpdateFlow(false);
         if (! $prepared) {
             return response()->json([
                 'success' => false,
@@ -825,7 +827,8 @@ class UpdateController extends BaseController
                 return;
             }
 
-            [$prepared, $prepMessage] = $this->prepareCurrentServerForUpdateFlow();
+            // Skip web-server reload: reloading inside an SSE stream tears down the connection.
+            [$prepared, $prepMessage] = $this->prepareCurrentServerForUpdateFlow(false);
             if (! $prepared) {
                 $emit('done', [
                     'success' => false,
@@ -1101,19 +1104,9 @@ class UpdateController extends BaseController
 
         Log::info("Update webhook received: v{$version} push from central ({$request->ip()}).");
 
-        // Preflight on client before deployment to reduce stale-cache/service issues on repeated pushes.
-        // Important: do not restart/reload web server inside the webhook request path.
-        // Doing so can interrupt the HTTP response and surface as 502 on the source server
-        // even when the update trigger is actually accepted.
-        [$preflightOk, $preflightOutput] = $this->prepareCurrentServerForUpdateFlow(false);
-        if (! $preflightOk) {
-            Log::error('Update webhook preflight failed: ' . $preflightOutput);
-            return response()->json([
-                'accepted' => false,
-                'error' => 'Webhook received, but preflight failed on client server.',
-                'message' => $preflightOutput,
-            ], 500);
-        }
+        // pos:pull-update → pos:deploy will run optimize:clear/config:cache as part of deployment,
+        // so no need for a synchronous preflight here. Keeping this path lean ensures the 200
+        // response is returned to the source server before the 15 s HTTP timeout is reached.
 
         // Kick off pos:pull-update in the background.
         // Fallback to an after-response in-process launch when shell background execution is restricted.
@@ -1136,7 +1129,7 @@ class UpdateController extends BaseController
         return response()->json([
             'accepted' => true,
             'version' => $version,
-            'message' => trim($preflightOutput . "\n" . $launchMessage),
+            'message' => trim($launchMessage),
         ]);
     }
 
