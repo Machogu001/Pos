@@ -654,6 +654,24 @@
         });
     }
 
+    function captureSingleClientBaseline(clientId, onReady) {
+        fetch('{{ route("superadmin.update.clients") }}', { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            var row = (data.clients || []).find(function (c) { return String(c.id) === String(clientId); });
+            if (!row) {
+                onReady('');
+                return;
+            }
+
+            var marker = String(row.last_push_status || '') + '|' + String(row.last_pushed_at || '');
+            onReady(marker);
+        })
+        .catch(function () {
+            onReady('');
+        });
+    }
+
     function findBulkWatchTargetsFromServer(onReady) {
         fetch('{{ route("superadmin.update.clients") }}', { headers: { 'Accept': 'application/json' } })
         .then(function (r) { return r.json(); })
@@ -1766,7 +1784,6 @@
                 btn.addEventListener('click', function () {
                     var pushClient = function () {
                         var id = btn.dataset.id;
-                        primeClientRunBaseline(id);
                         setClientPushInFlight(id, true);
                         setClientLiveStage(id, 'pushing');
                         renderClients();
@@ -1777,29 +1794,40 @@
                             logWrap.scrollTop = logWrap.scrollHeight;
                         }
 
-                        var url = '{{ route("superadmin.update.clients.push", ["id" => "__ID__"]) }}'.replace('__ID__', id);
-                        fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } })
-                        .then(function (r) { return r.json(); })
-                        .then(function (data) {
-                            showToast(data.success ? 'success' : 'error', data.message || (data.success ? 'Pushed' : 'Failed'));
-                            setClientPushInFlight(id, false);
-                            if (data.success) {
-                                setClientLiveStage(id, 'deploying');
-                            } else {
+                        var sendPush = function () {
+                            var url = '{{ route("superadmin.update.clients.push", ["id" => "__ID__"]) }}'.replace('__ID__', id);
+                            fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } })
+                            .then(function (r) { return r.json(); })
+                            .then(function (data) {
+                                showToast(data.success ? 'success' : 'error', data.message || (data.success ? 'Pushed' : 'Failed'));
+                                setClientPushInFlight(id, false);
+                                if (data.success) {
+                                    setClientLiveStage(id, 'deploying');
+                                } else {
+                                    setClientLiveStage(id, null);
+                                    clearClientRunBaseline(id);
+                                }
+                                renderClients();
+                                if (data.success) {
+                                    startClientProgressStream(id, btn.dataset.name || ('Client #' + id));
+                                }
+                            })
+                            .catch(function () {
+                                setClientPushInFlight(id, false);
                                 setClientLiveStage(id, null);
                                 clearClientRunBaseline(id);
+                                renderClients();
+                                showToast('error', 'Push failed', 'Request could not be completed.');
+                            });
+                        };
+
+                        captureSingleClientBaseline(id, function (marker) {
+                            if (marker) {
+                                setClientRunBaseline(id, marker);
+                            } else {
+                                primeClientRunBaseline(id);
                             }
-                            renderClients();
-                            if (data.success) {
-                                startClientProgressStream(id, btn.dataset.name || ('Client #' + id));
-                            }
-                        })
-                        .catch(function () {
-                            setClientPushInFlight(id, false);
-                            setClientLiveStage(id, null);
-                            clearClientRunBaseline(id);
-                            renderClients();
-                            showToast('error', 'Push failed', 'Request could not be completed.');
+                            sendPush();
                         });
                     };
 
