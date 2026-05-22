@@ -535,7 +535,7 @@ class UpdateController extends BaseController
             }
         }
 
-        return response()->json(['success' => true, 'message' => 'Package deleted successfully.']);
+        return response()->json(['success' => true, 'message' => 'Package deleted successfully']);
     }
 
     // =========================================================================
