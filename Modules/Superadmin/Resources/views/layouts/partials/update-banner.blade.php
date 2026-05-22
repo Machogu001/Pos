@@ -550,12 +550,13 @@
                     var baselineMarker = baseline ? baseline.marker : '';
                     var currentMarker = status + '|' + pushedAt;
                     var freshForThisRun = !baselineMarker || currentMarker !== baselineMarker;
+                    var staleFinal = (status === 'success' || status === 'failed') && !freshForThisRun;
 
                     if (status === 'pending' || freshForThisRun) {
                         bulkWatchState.activityDetected[id] = true;
                     }
 
-                    if (bulkWatchState.lastStatus[id] !== status) {
+                    if (bulkWatchState.lastStatus[id] !== status && !staleFinal) {
                         bulkWatchState.lastStatus[id] = status;
                         if (logEl) {
                             logEl.textContent += '• ' + (bulkWatchState.names[id] || ('Client #' + id)) + ': ' + status + '\n';
@@ -569,8 +570,9 @@
                         clearClientRunBaseline(id);
                     } else if ((status === 'success' || status === 'failed') && !freshForThisRun && !bulkWatchState.staleLogged[id]) {
                         bulkWatchState.staleLogged[id] = true;
+                        bulkWatchState.lastStatus[id] = status;
                         if (logEl) {
-                            logEl.textContent += '• ' + (bulkWatchState.names[id] || ('Client #' + id)) + ': waiting for current-run callback (ignoring stale status).\n';
+                            logEl.textContent += '• ' + (bulkWatchState.names[id] || ('Client #' + id)) + ': waiting for current-run callback (last push status is stale).\n';
                             logWrap.scrollTop = logWrap.scrollHeight;
                         }
                     }
