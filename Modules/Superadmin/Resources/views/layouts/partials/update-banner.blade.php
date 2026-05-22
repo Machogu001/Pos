@@ -493,6 +493,14 @@
             clearInterval(bulkWatchTimer);
             bulkWatchTimer = null;
         }
+        if (bulkWatchState) {
+            // Clear live stage for every watched client so cards show the DB status, not a
+            // stale "deploying..." that was set at watch-start and never cleaned up.
+            (bulkWatchState.ids || []).forEach(function (id) {
+                setClientLiveStage(id, null);
+                clearClientRunBaseline(id);
+            });
+        }
         bulkWatchState = null;
     }
 
@@ -1672,7 +1680,9 @@
                 if (freshFinal) {
                     setClientLiveStage(key, null);
                     clearClientRunBaseline(key);
-                } else if (watchedByBulk && !clientLiveStage[key]) {
+                } else if (watchedByBulk && !clientLiveStage[key] && !(bulkWatchState.finalStatus && bulkWatchState.finalStatus[key])) {
+                    // Only (re-)set deploying for clients not yet finalized; prevents overwriting
+                    // a just-cleared live stage before stopBulkClientWatch() has run.
                     setClientLiveStage(key, 'deploying');
                 }
             });
