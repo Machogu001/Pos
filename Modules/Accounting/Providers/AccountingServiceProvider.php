@@ -4,6 +4,7 @@ namespace Modules\Accounting\Providers;
 
 use App\Utils\ModuleUtil;
 use Illuminate\Database\Eloquent\Factory;
+use Illuminate\Routing\Router;
 
 use Illuminate\Support\Facades\View;
 
@@ -25,6 +26,11 @@ class AccountingServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        $this->app->make(Router::class)->aliasMiddleware(
+            'accounting.enabled',
+            \Modules\Accounting\Http\Middleware\EnsureAccountingModuleEnabled::class
+        );
+
         $this->loadRoutesFrom(__DIR__ . '/../Routes/web.php');
         $this->registerTranslations();
         $this->registerConfig();

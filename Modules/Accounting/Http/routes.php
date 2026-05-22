@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::group(['middleware' => ['web', 'authh', 'auth', 'SetSessionData', 'language', 'timezone', 'AdminSidebarMenu', 'CheckUserLogin'], 'prefix' => 'accounting', 'namespace' => 'Modules\Accounting\Http\Controllers'], function () {
+Route::group(['middleware' => ['web', 'authh', 'auth', 'SetSessionData', 'language', 'timezone', 'AdminSidebarMenu', 'CheckUserLogin', 'accounting.enabled'], 'prefix' => 'accounting', 'namespace' => 'Modules\Accounting\Http\Controllers'], function () {
 
     Route::get('/install', 'InstallController@index');
     Route::post('/install', 'InstallController@install');
@@ -111,7 +111,7 @@ Route::group(['middleware' => ['web', 'authh', 'auth', 'SetSessionData', 'langua
 });
 
 
-Route::group(['middleware' => ['web', 'authh', 'auth', 'SetSessionData', 'language', 'timezone', 'AdminSidebarMenu', 'CheckUserLogin'], 'prefix' => 'report', 'namespace' => 'Modules\Accounting\Http\Controllers'], function () {
+Route::group(['middleware' => ['web', 'authh', 'auth', 'SetSessionData', 'language', 'timezone', 'AdminSidebarMenu', 'CheckUserLogin', 'accounting.enabled'], 'prefix' => 'report', 'namespace' => 'Modules\Accounting\Http\Controllers'], function () {
     Route::get('accounting', 'ReportController@index');
 
     //Business Overview
