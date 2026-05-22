@@ -809,10 +809,20 @@
                 if (typeof renderPackages === 'function') renderPackages();
                 if (buildPkgText) buildPkgText.textContent = 'Pushing…';
                 var pushedClients = {};
+                var pushResultsReceived = 0;
+                var watchStarted = false;
 
                 // Phase 2: push to all clients via SSE
                 deployDone = false;
                 deploySource = new EventSource('{{ route("superadmin.update.push-all") }}');
+
+                deploySource.addEventListener('progress', function (e) {
+                    var d = JSON.parse(e.data);
+                    if (logEl && d.message) {
+                        logEl.textContent += d.message + '\n';
+                        logWrap.scrollTop = logWrap.scrollHeight;
+                    }
+                });
 
                 deploySource.addEventListener('clientStart', function (e) {
                     var d = JSON.parse(e.data);
@@ -824,6 +834,7 @@
                         logEl.textContent += '  ' + (d.success ? '✓' : '✗') + ' ' + d.name + ': ' + d.message + '\n';
                         logWrap.scrollTop = logWrap.scrollHeight;
                     }
+                    pushResultsReceived++;
                     if (d.success) {
                         pushedClients[String(d.client_id)] = d.name || ('Client #' + d.client_id);
                     }
@@ -840,17 +851,37 @@
                         showRunResult(true, 'Package built successfully. ' + (d.message || 'No active clients registered.'));
                     } else if (succeeded > 0 && failed > 0) {
                         showRunResult(true, 'Package built and pushed to ' + succeeded + '/' + d.total + ' client(s). Some clients failed; check log above.');
-                        startBulkClientWatch(pushedClients);
+                        if (!watchStarted) {
+                            watchStarted = true;
+                            startBulkClientWatch(pushedClients);
+                        }
                     } else if (! d.success) {
                         showRunResult(false, 'Package built, but ' + failed + ' client(s) failed. Check log above.');
                     } else {
                         showRunResult(true, 'Package built and pushed to ' + succeeded + '/' + d.total + ' client(s). Tracking deploy callbacks...');
-                        startBulkClientWatch(pushedClients);
+                        if (!watchStarted) {
+                            watchStarted = true;
+                            startBulkClientWatch(pushedClients);
+                        }
                     }
                     resetBuildBtn();
                 });
                 deploySource.onerror = function () {
                     if (deployDone) return;
+
+                    // Browsers can fire onerror when server intentionally closes SSE after done-like dispatch.
+                    if (deploySource && deploySource.readyState === EventSource.CLOSED && pushResultsReceived > 0) {
+                        deployDone = true;
+                        stopDeployStream();
+                        showRunResult(true, 'Package built and push dispatch completed. Tracking deploy callbacks...');
+                        if (!watchStarted) {
+                            watchStarted = true;
+                            startBulkClientWatch(pushedClients);
+                        }
+                        resetBuildBtn();
+                        return;
+                    }
+
                     stopDeployStream();
                     showRunResult(false, 'Package built — push stream lost. Check server logs.');
                     resetBuildBtn();
