@@ -560,6 +560,27 @@
         bulkWatchTimer = setInterval(tick, 3000);
     }
 
+    function findBulkWatchTargetsFromServer(onReady) {
+        fetch('{{ route("superadmin.update.clients") }}', { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            var clients = data.clients || [];
+            var targets = {};
+
+            clients.forEach(function (c) {
+                var status = c.last_push_status || '';
+                if (status === 'pending' || status === 'success' || status === 'failed') {
+                    targets[String(c.id)] = c.name || ('Client #' + c.id);
+                }
+            });
+
+            onReady(targets);
+        })
+        .catch(function () {
+            onReady({});
+        });
+    }
+
     function startClientProgressStream(clientId, clientName) {
         stopClientStream();
         watchedClientId = String(clientId);
@@ -883,7 +904,17 @@
                     }
 
                     stopDeployStream();
-                    showRunResult(false, 'Package built — push stream lost. Check server logs.');
+                    if (typeof renderClients === 'function') renderClients();
+                    if (!watchStarted) {
+                        watchStarted = true;
+                        findBulkWatchTargetsFromServer(function (derivedTargets) {
+                            var targets = Object.keys(pushedClients).length > 0 ? pushedClients : derivedTargets;
+                            if (Object.keys(targets).length > 0) {
+                                startBulkClientWatch(targets);
+                            }
+                        });
+                    }
+                    showRunResult(true, 'Package built and push request sent. Live stream was interrupted; tracking client statuses below.');
                     resetBuildBtn();
                 };
             });
@@ -1028,7 +1059,16 @@
                     }
 
                     stopDeployStream();
-                    showRunResult(false, 'Push stream lost. Check server logs.');
+                    if (!watchStarted) {
+                        watchStarted = true;
+                        findBulkWatchTargetsFromServer(function (derivedTargets) {
+                            var targets = Object.keys(pushedClients).length > 0 ? pushedClients : derivedTargets;
+                            if (Object.keys(targets).length > 0) {
+                                startBulkClientWatch(targets);
+                            }
+                        });
+                    }
+                    showRunResult(true, 'Push request sent. Live stream was interrupted; tracking client statuses below.');
                     resetButtons();
                 };
             };
