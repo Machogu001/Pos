@@ -512,6 +512,8 @@
             lastStatus: {},
             finalStatus: {},
             staleLogged: {},
+            activityDetected: {},
+            noActivityDeadlineAt: Date.now() + (30 * 1000),
             startedAt: Date.now()
         };
 
@@ -548,6 +550,10 @@
                     var currentMarker = status + '|' + pushedAt;
                     var freshForThisRun = !baselineMarker || currentMarker !== baselineMarker;
 
+                    if (status === 'pending' || freshForThisRun) {
+                        bulkWatchState.activityDetected[id] = true;
+                    }
+
                     if (bulkWatchState.lastStatus[id] !== status) {
                         bulkWatchState.lastStatus[id] = status;
                         if (logEl) {
@@ -571,6 +577,22 @@
 
                 if (typeof renderClients === 'function') renderClients();
 
+                var nowTs = Date.now();
+                if (nowTs > bulkWatchState.noActivityDeadlineAt) {
+                    bulkWatchState.ids.forEach(function (id) {
+                        if (bulkWatchState.finalStatus[id]) return;
+                        if (bulkWatchState.activityDetected[id]) return;
+
+                        bulkWatchState.finalStatus[id] = 'failed';
+                        setClientLiveStage(id, null);
+                        clearClientRunBaseline(id);
+                        if (logEl) {
+                            logEl.textContent += '• ' + (bulkWatchState.names[id] || ('Client #' + id)) + ': no fresh push activity detected for this run.
+
+                            logWrap.scrollTop = logWrap.scrollHeight;
+                        }
+                    });
+                }
                 var doneCount = Object.keys(bulkWatchState.finalStatus).length;
                 if (doneCount >= bulkWatchState.ids.length) {
                     var failed = Object.keys(bulkWatchState.finalStatus).filter(function (id) {
