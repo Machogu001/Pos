@@ -1060,16 +1060,18 @@ class UpdateController extends BaseController
      */
     public function triggerWebhook(Request $request): JsonResponse
     {
-        $secret = trim((string) env('UPDATE_WEBHOOK_SECRET', ''));
-        $clientAuthToken = trim((string) env('UPDATE_AUTH_TOKEN', ''));
+        $secret = $this->readRuntimeEnvValue('UPDATE_WEBHOOK_SECRET');
+        $clientAuthToken = $this->readRuntimeEnvValue('UPDATE_AUTH_TOKEN');
         if ($clientAuthToken === '') {
             // Backward compatibility: some clients still store the shared token in UPDATE_DOWNLOAD_TOKEN.
-            $clientAuthToken = trim((string) env('UPDATE_DOWNLOAD_TOKEN', ''));
+            $clientAuthToken = $this->readRuntimeEnvValue('UPDATE_DOWNLOAD_TOKEN');
         }
         $bearer = $request->bearerToken();
+        $hasSecret = $secret !== '';
+        $hasClientToken = $clientAuthToken !== '';
         $tokenValid = $clientAuthToken !== '' && $bearer !== null && hash_equals($clientAuthToken, $bearer);
 
-        if ($secret === '' && ! $tokenValid) {
+        if (! $hasSecret && ! $hasClientToken) {
             return response()->json([
                 'error' => 'Webhook auth not configured. Set UPDATE_WEBHOOK_SECRET or UPDATE_AUTH_TOKEN (or UPDATE_DOWNLOAD_TOKEN) on this server.',
             ], 503);
@@ -1078,7 +1080,7 @@ class UpdateController extends BaseController
         $rawBody  = $request->getContent();
         $sigHeader = $request->header('X-Update-Signature', '');
         $signatureValid = false;
-        if ($secret !== '') {
+        if ($hasSecret) {
             $expected  = 'sha256=' . hash_hmac('sha256', $rawBody, $secret);
             $signatureValid = hash_equals($expected, $sigHeader);
         }
@@ -1475,7 +1477,7 @@ class UpdateController extends BaseController
     /** Returns active download token; DB-managed token overrides .env token. */
     private function getActiveDownloadToken(): string
     {
-        $envToken = trim((string) env('UPDATE_DOWNLOAD_TOKEN', ''));
+        $envToken = $this->readRuntimeEnvValue('UPDATE_DOWNLOAD_TOKEN');
         if ($envToken !== '') {
             return $envToken;
         }
@@ -1483,6 +1485,34 @@ class UpdateController extends BaseController
         $managed = (string) (System::getProperty('update_download_token') ?? '');
         if ($managed !== '') {
             return $managed;
+        }
+
+        return '';
+    }
+
+    /**
+     * Read runtime env values safely across config-cached and server-var setups.
+     */
+    private function readRuntimeEnvValue(string $key): string
+    {
+        $value = env($key);
+        if (is_string($value) && trim($value) !== '') {
+            return trim($value);
+        }
+
+        $fromGetEnv = getenv($key);
+        if (is_string($fromGetEnv) && trim($fromGetEnv) !== '') {
+            return trim($fromGetEnv);
+        }
+
+        $fromServer = $_SERVER[$key] ?? '';
+        if (is_string($fromServer) && trim($fromServer) !== '') {
+            return trim($fromServer);
+        }
+
+        $fromEnvSuperglobal = $_ENV[$key] ?? '';
+        if (is_string($fromEnvSuperglobal) && trim($fromEnvSuperglobal) !== '') {
+            return trim($fromEnvSuperglobal);
         }
 
         return '';
