@@ -600,50 +600,48 @@
 					</small>
 				</p>
 			@endif
-			@if(!empty($receipt_details->payments))
-				@foreach($receipt_details->payments as $payment)
-					<div class="flex-box">
-						<p class="width-50 text-left">{{$payment['method']}} ({{$payment['date']}}) </p>
-						<p class="width-50 text-right">{{$payment['amount']}}</p>
-					</div>
-				@endforeach
-			@endif
-            <!-- Total Paid-->
-				@if(!empty($receipt_details->total_paid))
-					<div class="flex-box">
-						<p class="width-50 text-left">
-							{!! $receipt_details->total_paid_label !!}
-						</p>
-						<p class="width-50 text-right">
-							{{$receipt_details->total_paid}}
-						</p>
-					</div>
-				@endif
-
-				<!-- Total Due-->
-				@if(!empty($receipt_details->total_due) && !empty($receipt_details->total_due_label))
-					<div class="flex-box">
-						<p class="width-50 text-left">
-							{!! $receipt_details->total_due_label !!}
-						</p>
-						<p class="width-50 text-right">
-							{{$receipt_details->total_due}}
-						</p>
-					</div>
-				@endif
-
-				@if(!empty($receipt_details->all_due))
-					<div class="flex-box">
-						<p class="width-50 text-left">
-							{!! $receipt_details->all_bal_label !!}
-						</p>
-						<p class="width-50 text-right">
-							{{$receipt_details->all_due}}
-						</p>
-					</div>
-				@endif
 			@endif
             <div class="border-bottom width-100">&nbsp;</div>
+
+			@if(!empty($receipt_details->payments))
+				@include('sale_pos.receipts.partial.payment_cards')
+			@endif
+
+			<!-- Total Paid-->
+			@if(!empty($receipt_details->total_paid))
+				<div class="flex-box">
+					<p class="width-50 text-left">
+						{!! $receipt_details->total_paid_label !!}
+					</p>
+					<p class="width-50 text-right">
+						{{$receipt_details->total_paid}}
+					</p>
+				</div>
+			@endif
+
+			<!-- Total Due-->
+			@if(!empty($receipt_details->total_due) && !empty($receipt_details->total_due_label))
+				<div class="flex-box">
+					<p class="width-50 text-left">
+						{!! $receipt_details->total_due_label !!}
+					</p>
+					<p class="width-50 text-right">
+						{{$receipt_details->total_due}}
+					</p>
+				</div>
+			@endif
+
+			@if(!empty($receipt_details->all_due))
+				<div class="flex-box">
+					<p class="width-50 text-left">
+						{!! $receipt_details->all_bal_label !!}
+					</p>
+					<p class="width-50 text-right">
+						{{$receipt_details->all_due}}
+					</p>
+				</div>
+			@endif
+
             @if(empty($receipt_details->hide_price) && !empty($receipt_details->tax_summary_label) )
 	            <!-- tax -->
 	            @if(!empty($receipt_details->taxes))
@@ -694,33 +692,41 @@
 }
 body {
 	color: #000000;
+	margin: 0;
+	padding: 8px;
+	font-family: Arial, Helvetica, sans-serif;
+	background: #ffffff;
+	line-height: 1.35;
 }
 @media print {
 	* {
     	font-size: 12px;
-    	font-family: 'Times New Roman';
-    	word-break: break-all;
+	    font-family: Arial, Helvetica, sans-serif;
+	    word-break: break-word;
 	}
 	.f-8 {
 		font-size: 8px !important;
 	}
 
 .headings{
-	font-size: 16px;
-	font-weight: 700;
-	text-transform: uppercase;
+	font-size: 18px;
+	font-weight: 800;
+	letter-spacing: 0.06em;
+	line-height: 1.15;
 }
 
 .sub-headings{
-	font-size: 15px;
-	font-weight: 700;
+	font-size: 13px;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
 }
 
 .border-top{
     border-top: 1px solid #242424;
 }
 .border-bottom{
-	border-bottom: 1px solid #242424;
+	border-bottom: 1px dashed #242424;
 }
 
 .border-bottom-dotted{
@@ -764,7 +770,8 @@ th.price {
 
 .ticket {
     width: 100%;
-    max-width: 100%;
+	max-width: 320px;
+	margin: 0 auto;
 }
 
 img {
@@ -802,28 +809,58 @@ img {
 .text-box {
 	width: 100%;
 	height: auto;
+	padding-bottom: 4px;
 }
 .m-0 {
 	margin:0;
 }
 .textbox-info {
 	clear: both;
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 2px 0;
+	border-bottom: 1px dotted #c7c7c7;
 }
 .textbox-info p {
-	margin-bottom: 0px
+	margin-bottom: 0;
+}
+.f-left {
+	width: 44%;
+	text-align: left;
+	padding-right: 6px;
+}
+.f-right {
+	width: 56%;
+	text-align: right;
+	font-weight: 600;
 }
 .flex-box {
 	display: flex;
 	width: 100%;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 1px 0;
 }
 .flex-box p {
 	width: 50%;
-	margin-bottom: 0px;
-	white-space: nowrap;
+	margin-bottom: 0;
+	white-space: normal;
+}
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+th, td {
+	padding: 2px 0;
 }
 
 .table-f-12 th, .table-f-12 td {
-	font-size: 12px;
+	font-size: 11px;
 	word-break: break-word;
 }
 

@@ -249,6 +249,8 @@ return [
     'confirm_delete' => 'Are you sure you want to delete this stocktake?',
     'clear_all_confirm' => 'Clear All Products?',
     'clear_all_warning' => 'This will remove all products from the stocktake. This action cannot be undone.',
+    'applaying' => 'Menerapkan...',
+    'applying' => 'Menerapkan...',
     'complete_warning' => 'Once completed, inventory levels will be permanently adjusted',
     'delete_stocktake' => 'Delete Stocktake?',
     'fix_negative_stock' => 'Fix Negative Stock?',

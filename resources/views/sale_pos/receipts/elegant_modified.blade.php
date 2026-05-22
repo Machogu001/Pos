@@ -252,18 +252,8 @@
 
 <div class="row invoice-info color-555" style="page-break-inside: avoid !important">
 	<div class="col-md-6 invoice-col width-50">
-		<table class="table table-condensed">
-			@if(!empty($receipt_details->payments))
-				@foreach($receipt_details->payments as $payment)
-					<tr>
-						<td>{{$payment['method']}}</td>
-						<td>{{$payment['amount']}}</td>
-						<td>{{$payment['date']}}</td>
-					</tr>
-				@endforeach
-			@endif
-		</table>
-		<b class="pull-left">Authorized Signatory</b>
+		@include('sale_pos.receipts.partial.payment_cards')
+		<b class="pull-left">@lang('lang_v1.authorized_signatory')</b>
 	</div>
 
 	<div class="col-md-6 invoice-col width-50">

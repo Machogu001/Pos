@@ -411,7 +411,7 @@
 					</td>
 					@endif
 					<td style="background-color: #357ca5 !important; color: white !important;" class="text-right">
-						Taxable Value <span class="small color-white"> ({{$receipt_details->currency['symbol']}})</span>
+						@lang('lang_v1.taxable_value') <span class="small color-white"> ({{$receipt_details->currency['symbol']}})</span>
 					</td>
 
 					@if(!empty($receipt_details->table_tax_headings))
@@ -700,17 +700,7 @@
 
 <div class="row invoice-info " style="page-break-inside: avoid !important">
 	<div class="col-md-6 invoice-col width-50">
-		<table class="table table-slim">
-			@if(!empty($receipt_details->payments))
-				@foreach($receipt_details->payments as $payment)
-					<tr>
-						<td>{{$payment['method']}}</td>
-						<td>{{$payment['amount']}}</td>
-						<td>{{$payment['date']}}</td>
-					</tr>
-				@endforeach
-			@endif
-		</table>
+		@include('sale_pos.receipts.partial.payment_cards')
 		<b class="pull-left">@lang('lang_v1.authorized_signatory')</b>
 	</div>
 

@@ -41,7 +41,7 @@
 				@if(!empty($receipt_details->is_subscription_invoice))
 						@php
 						// Prefer admin dashboard values first (set via AdminSetting), then invoice/business values, then sensible defaults.
-						$company_name = $receipt_details->admin_company_name ?? $receipt_details->display_name ?? $receipt_details->business_name ?? 'BREMAC CONSULTANT LTD';
+						$company_name = $receipt_details->admin_company_name ?? $receipt_details->display_name ?? $receipt_details->business_name ?? config('app.name');
 						$company_phone = $receipt_details->admin_contact_phone ?? $receipt_details->contact ?? $receipt_details->business_phone ?? $receipt_details->mobile ?? '';
 						$company_email = $receipt_details->admin_contact_email ?? $receipt_details->business_email ?? $receipt_details->email ?? '';
 						// Company PIN could be stored in admin invoice_pin, company_pin or tax_info1/tax_info2 depending on layout
@@ -660,7 +660,7 @@
 					<table class="table-no-side-cell-border table-no-top-cell-border width-100 table-slim">
 						<tbody>
 							<tr>
-								<td style="width:50%">{!! $receipt_details->subtotal_label ?? 'Subtotal:' !!}</td>
+								<td style="width:50%">{!! $receipt_details->subtotal_label ?? __('receipt.subtotal') !!}</td>
 								<td class="text-right">{{ $receipt_details->subtotal_exc_tax ?? $receipt_details->subscription_amount_exc }}</td>
 							</tr>
 
@@ -701,17 +701,7 @@
 
 <div class="row invoice-info " style="page-break-inside: avoid !important">
 	<div class="col-md-12 invoice-col">
-		<table class="table table-slim">
-			@if(!empty($receipt_details->payments))
-				@foreach($receipt_details->payments as $payment)
-					<tr>
-						<td>{{$payment['method']}}</td>
-						<td>{{$payment['amount']}}</td>
-						<td>{{$payment['date']}}</td>
-					</tr>
-				@endforeach
-			@endif
-		</table>
+		@include('sale_pos.receipts.partial.payment_cards')
 		<b class="pull-left">{{__('lang_v1.authorized_signatory')}}</b>
 	</div>
 </div>

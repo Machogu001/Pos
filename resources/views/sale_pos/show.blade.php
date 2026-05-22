@@ -1,4 +1,27 @@
-<div class="modal-dialog modal-xl no-print" role="document">
+<style>
+  .sell-details-compact {
+    font-size: 13px;
+  }
+  .sell-details-compact .table > thead > tr > th,
+  .sell-details-compact .table > tbody > tr > th,
+  .sell-details-compact .table > tfoot > tr > th,
+  .sell-details-compact .table > thead > tr > td,
+  .sell-details-compact .table > tbody > tr > td,
+  .sell-details-compact .table > tfoot > tr > td {
+    padding: 6px;
+    font-size: 12px;
+  }
+  .sell-details-compact h4 {
+    font-size: 17px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+  }
+  .sell-details-compact .modal-title {
+    font-size: 18px;
+  }
+</style>
+
+<div class="modal-dialog modal-xl no-print sell-details-compact" role="document">
   <div class="modal-content">
     <div class="modal-header">
     <button type="button" class="close no-print" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
@@ -218,7 +241,7 @@
       </div>
       <div class="col-md-6 col-sm-12 col-xs-12">
         <div class="table-responsive">
-          <table class="table bg-gray">
+          <table class="table table-sm bg-gray">
             <tr class="bg-green">
               <th>#</th>
               <th>{{ __('messages.date') }}</th>
@@ -234,6 +257,15 @@
                 } else {
                   $total_paid += $payment_line->amount;
                 }
+
+                $payment_method = strtolower($payment_line->method ?? '');
+                $is_mpesa_payment = strpos($payment_method, 'mpesa') !== false;
+                $mpesa_transaction_code = $payment_line->transaction_no ?? null;
+
+                if (empty($mpesa_transaction_code) && !empty($payment_line->method) && stripos($payment_line->method, 'MPESA:') !== false) {
+                  $parts = explode(', MPESA:', $payment_line->method, 2);
+                  $mpesa_transaction_code = $parts[1] ?? null;
+                }
               @endphp
               <tr>
                 <td>{{ $loop->iteration }}</td>
@@ -242,6 +274,9 @@
                 <td><span class="display_currency" data-currency_symbol="true">{{ $payment_line->amount }}</span></td>
                 <td>
                   {{ $payment_types[$payment_line->method] ?? $payment_line->method }}
+                  @if($is_mpesa_payment && !empty($mpesa_transaction_code))
+                    <br><small><strong>Transaction code:</strong> {{ $mpesa_transaction_code }}</small>
+                  @endif
                   @if($payment_line->is_return == 1)
                     <br/>
                     ( {{ __('lang_v1.change_return') }} )

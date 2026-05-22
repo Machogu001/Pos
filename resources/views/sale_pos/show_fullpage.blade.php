@@ -2,6 +2,25 @@
 @section('title', __('sale.sell_details'))
 
 @section('content')
+<style>
+    .sell-fullpage-compact .box-body {
+        font-size: 13px;
+    }
+    .sell-fullpage-compact h4 {
+        font-size: 17px;
+        margin-top: 8px;
+        margin-bottom: 8px;
+    }
+    .sell-fullpage-compact .table > thead > tr > th,
+    .sell-fullpage-compact .table > tbody > tr > th,
+    .sell-fullpage-compact .table > tfoot > tr > th,
+    .sell-fullpage-compact .table > thead > tr > td,
+    .sell-fullpage-compact .table > tbody > tr > td,
+    .sell-fullpage-compact .table > tfoot > tr > td {
+        padding: 6px;
+        font-size: 12px;
+    }
+</style>
 <section class="content-header">
     <div class="tw-mb-5 tw-rounded-xl tw-bg-gradient-to-r tw-from-purple-700 tw-to-purple-900 tw-text-white tw-p-6 tw-shadow-lg">
         <div class="tw-flex tw-items-center tw-justify-between">
@@ -38,7 +57,7 @@
     </div>
 </section>
 
-<section class="content">
+<section class="content sell-fullpage-compact">
     <div class="row">
         <div class="col-md-12">
             <div class="box box-solid">
@@ -380,7 +399,7 @@
                             </div>
                             <div class="col-md-6 col-sm-12">
                                 <div class="table-responsive">
-                                    <table class="table bg-gray">
+                                    <table class="table table-sm bg-gray">
                                         <thead>
                                             <tr class="bg-green">
                                                 <th>#</th>
@@ -396,6 +415,16 @@
                                                 $total_paid = 0;
                                             @endphp
                                             @foreach($sell->payment_lines as $payment_line)
+                                                @php
+                                                    $payment_method = strtolower($payment_line->method ?? '');
+                                                    $is_mpesa_payment = strpos($payment_method, 'mpesa') !== false;
+                                                    $mpesa_transaction_code = $payment_line->transaction_no ?? null;
+
+                                                    if (empty($mpesa_transaction_code) && !empty($payment_line->method) && stripos($payment_line->method, 'MPESA:') !== false) {
+                                                        $parts = explode(', MPESA:', $payment_line->method, 2);
+                                                        $mpesa_transaction_code = $parts[1] ?? null;
+                                                    }
+                                                @endphp
                                                 <tr>
                                                     <td>{{ $loop->iteration }}</td>
                                                     <td>{{ @format_date($payment_line->paid_on) }}</td>
@@ -403,6 +432,9 @@
                                                     <td><span class="display_currency" data-currency_symbol="true">{{ $payment_line->amount }}</span></td>
                                                     <td>
                                                         {{ $payment_types[$payment_line->method] ?? $payment_line->method }}
+                                                        @if($is_mpesa_payment && !empty($mpesa_transaction_code))
+                                                            <br><small><strong>Transaction code:</strong> {{ $mpesa_transaction_code }}</small>
+                                                        @endif
                                                     </td>
                                                     <td>@if(!empty($payment_line->note))
                                                         {{ ucfirst($payment_line->note) }}

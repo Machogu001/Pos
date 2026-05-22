@@ -362,8 +362,8 @@ function showFloatingAlert(message, type = 'success', duration = 5000) {
                                 </div>
                                 
                                 
-                                <button type="submit" class="btn btn-primary w-100" id="mpesa_submit_btn">
-                                    @lang('payment.pay_via_mpesa')
+                                <button type="submit" class="btn w-100" id="mpesa_submit_btn" style="background:#0f9d58;border-color:#0f9d58;color:#fff;">
+                                    <img src="{{ asset('img/mpesa-logo.svg') }}" alt="M-Pesa" style="height:18px;width:auto;vertical-align:middle;margin-right:8px;">@lang('payment.mpesa')
                                 </button>
                             </form>
                         </div>
@@ -777,7 +777,7 @@ $(document).ready(function () {
         if (disable) {
             $mpesaSubmitBtn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ' + (text || "{{ __('payment.processing') }}"));
         } else {
-            $mpesaSubmitBtn.html('<i class="fas fa-mobile-alt me-2"></i>' + (text || "{{ __('payment.pay_via_mpesa') }}"));
+            $mpesaSubmitBtn.html('<img src="{{ asset('img/mpesa-logo.svg') }}" alt="M-Pesa" style="height:18px;width:auto;vertical-align:middle;margin-right:8px;">' + (text || "{{ __('payment.mpesa') }}"));
         }
     }
 

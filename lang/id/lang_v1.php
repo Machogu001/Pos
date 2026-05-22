@@ -1360,4 +1360,5 @@ return [
     'in_stock' => 'tersedia',
     'cogs' => 'COGS:',
     'cogs_help_text' => 'Biaya Barang Terjual = Persediaan awal (stok pembukaan) + pembelian − persediaan akhir (stok penutupan)',
+    'taxable_value' => 'Taxable value',
 ];

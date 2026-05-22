@@ -385,11 +385,11 @@
                         <div class="tw-flex tw-flex-wrap tw-gap-2">
                             <button id="stkPushBtn" type="button"
                                 class="tw-inline-flex tw-items-center tw-gap-2 tw-rounded-lg tw-bg-emerald-600 hover:tw-bg-emerald-700 tw-text-white tw-text-sm tw-font-semibold tw-px-5 tw-py-2.5 tw-transition-colors tw-shadow-sm">
-                                <i class="fas fa-mobile-alt"></i>
+                                <img src="{{ asset('img/mpesa-logo.svg') }}" alt="M-Pesa" class="tw-h-4 tw-w-auto">
                                 @if($userSubscription && $userSubscription->status === 'pending')
                                     {{ __('payment.complete_payment') }}
                                 @else
-                                    {{ __('payment.pay_via_mpesa') }}
+                                    {{ __('payment.mpesa') }}
                                 @endif
                             </button>
                             <button id="createSubscriptionBtn" type="button"

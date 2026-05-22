@@ -1357,4 +1357,5 @@ return [
     'in_stock' => 'auf Lager',
     'cogs' => 'COGS:',
     'cogs_help_text' => 'Kosten der verkauften Waren = Anfangsbestand (Eröffnungsbestand) + Einkäufe − Endbestand (Schlussbestand)',
+    'taxable_value' => 'Taxable value',
 ];

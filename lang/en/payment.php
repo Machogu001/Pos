@@ -4,7 +4,11 @@ return [
     // Registration and general payment
     'register' => 'Register',
     'register_and_get_started_in_minutes' => 'Register and get started in minutes',
-    'pay_via_mpesa' => 'Pay via M-Pesa',
+    'pay_via_mpesa' => 'M-Pesa',
+    'paid_via' => 'Paid via',
+    'transaction_code' => 'Transaction Code',
+    'amount_paid' => 'Amount Paid',
+    'paid_on' => 'Paid On',
     'mpesa' => 'M-Pesa',
     'payment_phone' => 'M-Pesa Phone Number',
     'pay_now' => 'Pay Now',

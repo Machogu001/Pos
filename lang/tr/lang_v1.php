@@ -1362,4 +1362,5 @@ return [
     'in_stock' => 'stokta var',
     'cogs' => 'COGS:',
     'cogs_help_text' => 'Satılan Malın Maliyeti = Başlangıç envanteri (açılış stoku) + alımlar − bitiş envanteri (kapanış stoku)',
+    'taxable_value' => 'Taxable value',
 ];

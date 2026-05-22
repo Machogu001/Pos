@@ -1357,5 +1357,6 @@ return [
     'in_stock' => 'en stock',
     'cogs' => 'COGS:',
     'cogs_help_text' => 'Costo de los bienes vendidos = Inventario inicial (stock de apertura) + compras − inventario final (stock de cierre)',
+    'taxable_value' => 'Taxable value',
 ];
 
