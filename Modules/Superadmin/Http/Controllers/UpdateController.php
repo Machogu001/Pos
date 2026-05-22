@@ -1101,6 +1101,17 @@ class UpdateController extends BaseController
 
         Log::info("Update webhook received: v{$version} push from central ({$request->ip()}).");
 
+        // Preflight on client before deployment to reduce stale-cache/service issues on repeated pushes.
+        [$preflightOk, $preflightOutput] = $this->prepareCurrentServerForUpdateFlow();
+        if (! $preflightOk) {
+            Log::error('Update webhook preflight failed: ' . $preflightOutput);
+            return response()->json([
+                'accepted' => false,
+                'error' => 'Webhook received, but preflight failed on client server.',
+                'message' => $preflightOutput,
+            ], 500);
+        }
+
         // Kick off pos:pull-update in the background; return 500 when it cannot be launched.
         [$started, $launchMessage] = $this->startBackgroundPullUpdate();
         if (! $started) {
@@ -1115,7 +1126,7 @@ class UpdateController extends BaseController
         return response()->json([
             'accepted' => true,
             'version' => $version,
-            'message' => $launchMessage,
+            'message' => trim($preflightOutput . "\n" . $launchMessage),
         ]);
     }
 
@@ -1458,8 +1469,9 @@ class UpdateController extends BaseController
         }
 
         $commands = [
-            'systemctl reload apache2',
+            // Restart apache2 first to fully refresh FPM/proxy state on hosts using Apache.
             'systemctl restart apache2',
+            'systemctl reload apache2',
             'service apache2 reload',
             'service apache2 restart',
             'systemctl reload nginx',

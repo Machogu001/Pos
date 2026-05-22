@@ -833,12 +833,18 @@
                     deployDone = true;
                     stopDeployStream();
                     var d = JSON.parse(e.data);
-                    if (! d.success) {
-                        showRunResult(false, 'Package built, but ' + (d.failed || 0) + ' client(s) failed. Check log above.');
-                    } else if (d.total === 0) {
+                    var succeeded = Number(d.succeeded || 0);
+                    var failed = Number(d.failed || 0);
+
+                    if (d.total === 0) {
                         showRunResult(true, 'Package built successfully. ' + (d.message || 'No active clients registered.'));
+                    } else if (succeeded > 0 && failed > 0) {
+                        showRunResult(true, 'Package built and pushed to ' + succeeded + '/' + d.total + ' client(s). Some clients failed; check log above.');
+                        startBulkClientWatch(pushedClients);
+                    } else if (! d.success) {
+                        showRunResult(false, 'Package built, but ' + failed + ' client(s) failed. Check log above.');
                     } else {
-                        showRunResult(true, 'Package built and pushed to ' + d.succeeded + '/' + d.total + ' client(s). Tracking deploy callbacks...');
+                        showRunResult(true, 'Package built and pushed to ' + succeeded + '/' + d.total + ' client(s). Tracking deploy callbacks...');
                         startBulkClientWatch(pushedClients);
                     }
                     resetBuildBtn();
