@@ -3,6 +3,7 @@
 namespace Modules\Hrm\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Routing\Router;
 
 class HrmServiceProvider extends ServiceProvider
 {
@@ -11,6 +12,11 @@ class HrmServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        $this->app->make(Router::class)->aliasMiddleware(
+            'hrm.enabled',
+            \Modules\Hrm\Http\Middleware\EnsureHrmModuleEnabled::class
+        );
+
         // Load routes for the module (if present)
         $routes = __DIR__ . '/../Routes/web.php';
         if (file_exists($routes)) {
