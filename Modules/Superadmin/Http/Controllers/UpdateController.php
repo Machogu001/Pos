@@ -1369,16 +1369,44 @@ class UpdateController extends BaseController
     /** Pick an executable PHP binary path for background command launch. */
     private function resolvePhpBinary(): string
     {
-        $phpBin = PHP_BINARY;
-        if (! empty($phpBin) && is_file($phpBin) && is_executable($phpBin)) {
-            return $phpBin;
+        $candidates = [];
+
+        // In FPM web requests PHP_BINARY may point to php-fpm; keep it only if it is CLI.
+        if (! empty(PHP_BINARY)) {
+            $candidates[] = PHP_BINARY;
         }
 
-        $fallback = trim((string) @shell_exec('command -v php8.4 2>/dev/null'))
-            ?: trim((string) @shell_exec('command -v php 2>/dev/null'))
-            ?: '/usr/bin/php';
+        // Common explicit CLI locations.
+        $candidates = array_merge($candidates, [
+            '/usr/bin/php',
+            '/usr/local/bin/php',
+            '/bin/php',
+        ]);
 
-        return $fallback;
+        // PATH-discovered CLI binaries (versioned and generic).
+        foreach (['php8.4', 'php8.3', 'php8.2', 'php8.1', 'php8.0', 'php'] as $cmd) {
+            $resolved = trim((string) @shell_exec('command -v ' . escapeshellarg($cmd) . ' 2>/dev/null'));
+            if ($resolved !== '') {
+                $candidates[] = $resolved;
+            }
+        }
+
+        foreach (array_unique($candidates) as $candidate) {
+            if (empty($candidate) || ! is_file($candidate) || ! is_executable($candidate)) {
+                continue;
+            }
+
+            $base = strtolower((string) basename($candidate));
+            // Reject FPM/CGI binaries; update commands must run under PHP CLI.
+            if (strpos($base, 'php-fpm') !== false || strpos($base, 'php-cgi') !== false) {
+                continue;
+            }
+
+            return $candidate;
+        }
+
+        // Last resort: generic CLI path expected on most Linux systems.
+        return '/usr/bin/php';
     }
 
     /** Whether a shell function is callable under current PHP disable_functions policy. */

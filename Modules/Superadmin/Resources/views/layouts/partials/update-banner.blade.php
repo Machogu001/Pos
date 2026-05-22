@@ -1064,7 +1064,7 @@
             if (!releasePackageSelect) return;
             var filename = releasePackageSelect.value;
             if (!filename) {
-                alert('Select a package to delete.');
+                showToast('warn', 'Select a package to delete');
                 return;
             }
 
