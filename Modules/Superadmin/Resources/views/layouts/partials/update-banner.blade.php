@@ -729,12 +729,17 @@
         clientSource.addEventListener('done', function (e) {
             var d = JSON.parse(e.data);
             stopClientStream();
+            setClientLiveStage(clientId, null);
+            clearClientRunBaseline(clientId);
             renderClients();
             showRunResult(!!d.success, d.message || ('Finished with status: ' + (d.status || 'unknown')));
         });
 
         clientSource.onerror = function () {
             stopClientStream();
+            setClientLiveStage(clientId, null);
+            clearClientRunBaseline(clientId);
+            renderClients();
             if (logEl) {
                 logEl.textContent += '• Live client status stream disconnected.\n';
                 logWrap.scrollTop = logWrap.scrollHeight;
