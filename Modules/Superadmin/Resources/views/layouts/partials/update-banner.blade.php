@@ -496,7 +496,7 @@
         bulkWatchState = null;
     }
 
-    function startBulkClientWatch(clientTargets) {
+    function startBulkClientWatch(clientTargets, clientBaseline) {
         stopBulkClientWatch();
         stopClientStream();
 
@@ -508,8 +508,10 @@
         bulkWatchState = {
             ids: ids,
             names: clientTargets,
+            baseline: clientBaseline || {},
             lastStatus: {},
             finalStatus: {},
+            staleLogged: {},
             startedAt: Date.now()
         };
 
@@ -536,6 +538,12 @@
                     if (!c) return;
 
                     var status = c.last_push_status || 'pending';
+                    var pushedAt = c.last_pushed_at || '';
+                    var baseline = bulkWatchState.baseline[id] || null;
+                    var baselineMarker = baseline ? baseline.marker : '';
+                    var currentMarker = status + '|' + pushedAt;
+                    var freshForThisRun = !baselineMarker || currentMarker !== baselineMarker;
+
                     if (bulkWatchState.lastStatus[id] !== status) {
                         bulkWatchState.lastStatus[id] = status;
                         if (logEl) {
@@ -544,8 +552,14 @@
                         }
                     }
 
-                    if (status === 'success' || status === 'failed') {
+                    if ((status === 'success' || status === 'failed') && freshForThisRun) {
                         bulkWatchState.finalStatus[id] = status;
+                    } else if ((status === 'success' || status === 'failed') && !freshForThisRun && !bulkWatchState.staleLogged[id]) {
+                        bulkWatchState.staleLogged[id] = true;
+                        if (logEl) {
+                            logEl.textContent += '• ' + (bulkWatchState.names[id] || ('Client #' + id)) + ': waiting for current-run callback (ignoring stale status).\n';
+                            logWrap.scrollTop = logWrap.scrollHeight;
+                        }
                     }
                 });
 
@@ -557,9 +571,10 @@
                         return bulkWatchState.finalStatus[id] === 'failed';
                     }).length;
                     var success = bulkWatchState.ids.length - failed;
+                    var elapsedSeconds = Math.max(1, Math.round((Date.now() - bulkWatchState.startedAt) / 1000));
 
                     stopBulkClientWatch();
-                    appendStep('Client callbacks completed: ' + success + ' success, ' + failed + ' failed.', 100, 'Callbacks complete');
+                    appendStep('Client callbacks completed in ' + elapsedSeconds + 's: ' + success + ' success, ' + failed + ' failed.', 100, 'Callbacks complete');
                     showRunResult(
                         failed === 0,
                         failed === 0
@@ -585,6 +600,28 @@
 
         tick();
         bulkWatchTimer = setInterval(tick, 3000);
+    }
+
+    function captureClientBaseline(onReady) {
+        fetch('{{ route("superadmin.update.clients") }}', { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            var baseline = {};
+            (data.clients || []).forEach(function (c) {
+                var id = String(c.id);
+                var status = c.last_push_status || '';
+                var pushedAt = c.last_pushed_at || '';
+                baseline[id] = {
+                    status: status,
+                    pushedAt: pushedAt,
+                    marker: status + '|' + pushedAt,
+                };
+            });
+            onReady(baseline);
+        })
+        .catch(function () {
+            onReady({});
+        });
     }
 
     function findBulkWatchTargetsFromServer(onReady) {
@@ -833,6 +870,7 @@
             if (logEl)       logEl.textContent = '';
             beginStepProgress('Preparing build...');
             appendStep('Build package started on central server.', 10, 'Building package...');
+            captureClientBaseline(function (clientBaseline) {
 
             // Phase 1: stream build progress via SSE
             deployDone = false;
@@ -906,7 +944,7 @@
                         showRunResult(true, 'Package built and pushed to ' + succeeded + '/' + d.total + ' client(s). Some clients failed; check log above.');
                         if (!watchStarted) {
                             watchStarted = true;
-                            startBulkClientWatch(pushedClients);
+                            startBulkClientWatch(pushedClients, clientBaseline);
                         }
                     } else if (! d.success) {
                         showRunResult(false, 'Package built, but ' + failed + ' client(s) failed. Check log above.');
@@ -914,7 +952,7 @@
                         showRunResult(true, 'Package built and pushed to ' + succeeded + '/' + d.total + ' client(s). Tracking deploy callbacks...');
                         if (!watchStarted) {
                             watchStarted = true;
-                            startBulkClientWatch(pushedClients);
+                            startBulkClientWatch(pushedClients, clientBaseline);
                         }
                     }
                     resetBuildBtn();
@@ -930,7 +968,7 @@
                         showRunResult(true, 'Package built and push dispatch completed. Tracking deploy callbacks...');
                         if (!watchStarted) {
                             watchStarted = true;
-                            startBulkClientWatch(pushedClients);
+                            startBulkClientWatch(pushedClients, clientBaseline);
                         }
                         resetBuildBtn();
                         return;
@@ -943,7 +981,7 @@
                         findBulkWatchTargetsFromServer(function (derivedTargets) {
                             var targets = Object.keys(pushedClients).length > 0 ? pushedClients : derivedTargets;
                             if (Object.keys(targets).length > 0) {
-                                startBulkClientWatch(targets);
+                                startBulkClientWatch(targets, clientBaseline);
                             }
                         });
                     }
@@ -958,6 +996,7 @@
                 showRunResult(false, 'Build stream lost. Check server logs.');
                 resetBuildBtn();
             };
+            });
         }
 
         buildPkgBtn.addEventListener('click', function () {
@@ -1021,6 +1060,7 @@
                 if (logEl)      logEl.textContent = 'Pushing to clients…\n';
                 beginStepProgress('Preparing push...');
                 appendStep('Push trigger process started on central server.', 15, 'Starting push...');
+                captureClientBaseline(function (clientBaseline) {
                 var pushedClients = {};
                 var pushResultsReceived = 0;
                 var watchStarted = false;
@@ -1069,7 +1109,7 @@
                         showRunResult(true, 'Pushed to ' + succeeded + '/' + d.total + ' clients. Tracking deploy callbacks...');
                         if (!watchStarted) {
                             watchStarted = true;
-                            startBulkClientWatch(pushedClients);
+                            startBulkClientWatch(pushedClients, clientBaseline);
                         }
                     } else if (d.success) {
                         showRunResult(true, 'Pushed to ' + succeeded + '/' + d.total + ' clients.');
@@ -1090,7 +1130,7 @@
                         showRunResult(true, 'Push request sent. Stream closed after dispatch. Tracking deploy callbacks...');
                         if (!watchStarted) {
                             watchStarted = true;
-                            startBulkClientWatch(pushedClients);
+                            startBulkClientWatch(pushedClients, clientBaseline);
                         }
                         resetButtons();
                         return;
@@ -1102,7 +1142,7 @@
                         findBulkWatchTargetsFromServer(function (derivedTargets) {
                             var targets = Object.keys(pushedClients).length > 0 ? pushedClients : derivedTargets;
                             if (Object.keys(targets).length > 0) {
-                                startBulkClientWatch(targets);
+                                startBulkClientWatch(targets, clientBaseline);
                             }
                         });
                     }
@@ -1110,6 +1150,7 @@
                     showRunResult(true, 'Push request sent. Live stream was interrupted; tracking client statuses below.');
                     resetButtons();
                 };
+                });
             };
 
             if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
