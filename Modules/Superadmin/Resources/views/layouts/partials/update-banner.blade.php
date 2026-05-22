@@ -1313,7 +1313,10 @@
         }
         if (status) {
             var klass = status === 'success' ? 'tw-text-green-600' : (status === 'failed' ? 'tw-text-red-600' : 'tw-text-amber-600');
-            return '<span class="tw-client-status tw-font-semibold ' + klass + '">' + status + '</span>';
+            var label = status === 'success'
+                ? 'last push: success'
+                : (status === 'failed' ? 'last push: failed' : 'last push: ' + status);
+            return '<span class="tw-client-status tw-font-semibold ' + klass + '">' + label + '</span>';
         }
 
         return '<span class="tw-client-status tw-text-gray-400">never pushed</span>';
