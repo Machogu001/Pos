@@ -701,8 +701,21 @@ class UpdateController extends BaseController
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
         }
 
+        [$prepared, $prepMessage] = $this->prepareCurrentServerForUpdateFlow();
+        if (! $prepared) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Source pre-push preparation failed: ' . $prepMessage,
+                'client_id' => $id,
+            ], 500);
+        }
+
         $client = UpdateClient::findOrFail($id);
         [$ok, $msg] = $this->dispatchPush($client);
+
+        if ($prepMessage !== '') {
+            $msg .= "\nSource prep:\n" . $prepMessage;
+        }
 
         return response()->json(['success' => $ok, 'message' => $msg, 'client_id' => $id]);
     }
@@ -810,6 +823,21 @@ class UpdateController extends BaseController
             if ($clients->isEmpty()) {
                 $emit('done', ['success' => true, 'succeeded' => 0, 'failed' => 0, 'total' => 0, 'message' => 'No active clients registered.']);
                 return;
+            }
+
+            [$prepared, $prepMessage] = $this->prepareCurrentServerForUpdateFlow();
+            if (! $prepared) {
+                $emit('done', [
+                    'success' => false,
+                    'succeeded' => 0,
+                    'failed' => $clients->count(),
+                    'total' => $clients->count(),
+                    'message' => 'Source pre-push preparation failed: ' . $prepMessage,
+                ]);
+                return;
+            }
+            if ($prepMessage !== '') {
+                $emit('progress', ['message' => "Source prep complete:\n" . $prepMessage]);
             }
 
             $succeeded = 0;
@@ -979,7 +1007,15 @@ class UpdateController extends BaseController
                     }
                     return $out;
                 }],
-                ['label' => 'Finalising\u2026', 'pct' => 97, 'run' => function () use ($remoteVersion) {
+                ['label' => 'Clearing caches & reloading web services\u2026', 'pct' => 97, 'run' => function () {
+                    [$prepared, $message] = $this->prepareCurrentServerForUpdateFlow();
+                    if (! $prepared) {
+                        throw new \RuntimeException($message);
+                    }
+
+                    return $message;
+                }],
+                ['label' => 'Finalising\u2026', 'pct' => 98, 'run' => function () use ($remoteVersion) {
                     $authorConfig = @include config_path('author.php');
                     $version = (is_array($authorConfig) && isset($authorConfig['app_version']))
                         ? $authorConfig['app_version'] : $remoteVersion;
@@ -1352,6 +1388,88 @@ class UpdateController extends BaseController
 
         $disabled = array_map('trim', explode(',', (string) ini_get('disable_functions')));
         return ! in_array($functionName, $disabled, true);
+    }
+
+    /**
+     * Ensure fresh runtime state before/after update operations.
+     * Runs optimize:clear and attempts to reload a detected web server process.
+     */
+    private function prepareCurrentServerForUpdateFlow(): array
+    {
+        $output = '';
+
+        try {
+            Artisan::call('optimize:clear');
+            $artisanOutput = trim((string) Artisan::output());
+            $output .= $artisanOutput !== ''
+                ? "php artisan optimize:clear\n" . $artisanOutput
+                : 'php artisan optimize:clear';
+        } catch (\Throwable $e) {
+            Log::error('Update preflight optimize:clear failed: ' . $e->getMessage());
+            return [false, 'php artisan optimize:clear failed: ' . $e->getMessage()];
+        }
+
+        $reloadOutput = $this->reloadWebServerBestEffort();
+        if ($reloadOutput !== '') {
+            $output .= "\n" . $reloadOutput;
+        }
+
+        return [true, trim($output)];
+    }
+
+    /**
+     * Best-effort service reload for Apache/Nginx/PHP-FPM without interactive sudo.
+     * Uses plain systemctl/service first, then `sudo -n` commands that fail fast when password is required.
+     */
+    private function reloadWebServerBestEffort(): string
+    {
+        if (! $this->isShellFunctionAvailable('exec')) {
+            return 'Web service reload skipped: exec() is disabled in PHP.';
+        }
+
+        $commands = [
+            'systemctl reload apache2',
+            'systemctl restart apache2',
+            'service apache2 reload',
+            'service apache2 restart',
+            'systemctl reload nginx',
+            'systemctl restart nginx',
+            'service nginx reload',
+            'service nginx restart',
+            'systemctl reload httpd',
+            'systemctl restart httpd',
+            'service httpd reload',
+            'service httpd restart',
+            'systemctl reload php8.4-fpm',
+            'systemctl reload php8.3-fpm',
+            'systemctl reload php8.2-fpm',
+            'systemctl reload php8.1-fpm',
+            'systemctl reload php-fpm',
+        ];
+
+        $attemptLogs = [];
+        foreach (['', 'sudo -n '] as $prefix) {
+            foreach ($commands as $command) {
+                $fullCommand = $prefix . $command . ' 2>&1';
+                $lines = [];
+                $code = 0;
+                @exec($fullCommand, $lines, $code);
+
+                $raw = trim(implode("\n", $lines));
+                if ($code === 0) {
+                    $suffix = $raw !== '' ? ("\n" . $raw) : '';
+                    return 'Web service reload command succeeded: ' . ($prefix . $command) . $suffix;
+                }
+
+                $attemptLogs[] = ($prefix . $command)
+                    . ' [exit ' . $code . ']'
+                    . ($raw !== '' ? (': ' . $raw) : '');
+            }
+        }
+
+        return 'Web service reload could not be executed automatically. '
+            . 'If this server requires sudo password, add a limited NOPASSWD sudoers rule for apache/nginx reload commands. '
+            . 'Attempts: ' . implode(' | ', $attemptLogs);
     }
 
     /** Returns active download token; DB-managed token overrides .env token. */

@@ -73,6 +73,33 @@
 	  -webkit-transform: rotate(315deg);
 	  transform: rotate(315deg);
 	}
+
+	/*
+	 * Print fix: prevent a blank leading page when printing receipts/reports.
+	 * The app shell uses full-height flex containers (h-screen/h-full + overflow hidden),
+	 * which can force the printable section onto the next page.
+	 */
+	@media print {
+		.tw-h-screen,
+		.tw-h-full,
+		#scrollable-container {
+			height: auto !important;
+			min-height: 0 !important;
+			max-height: none !important;
+		}
+
+		.tw-overflow-hidden,
+		.tw-overflow-y-auto,
+		#scrollable-container {
+			overflow: visible !important;
+		}
+
+		#receipt_section.print_section {
+			display: block !important;
+			page-break-before: auto !important;
+			break-before: auto !important;
+		}
+	}
 </style>
 @if(!empty($__system_settings['additional_css']))
     {!! $__system_settings['additional_css'] !!}

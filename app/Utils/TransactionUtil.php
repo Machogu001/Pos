@@ -1745,6 +1745,7 @@ class TransactionUtil extends Util
                                 ['method' => $method.($value['is_return'] == 1 ? ' ('.$il->change_return_label.')(-)' : ''),
                                     'amount' => $this->num_f($value['amount'], $show_currency, $business_details),
                                     'date' => $this->format_date($value['paid_on'], false, $business_details),
+                                    'date_time' => $this->format_date($value['paid_on'], true, $business_details),
                                 ];
                             if ($value['is_return'] == 1) {
                             }
@@ -1753,18 +1754,21 @@ class TransactionUtil extends Util
                                 ['method' => $method.(! empty($value['card_transaction_number']) ? (', Transaction Number:'.$value['card_transaction_number']) : ''),
                                     'amount' => $this->num_f($value['amount'], $show_currency, $business_details),
                                     'date' => $this->format_date($value['paid_on'], false, $business_details),
+                                    'date_time' => $this->format_date($value['paid_on'], true, $business_details),
                                 ];
                         } elseif ($value['method'] == 'cheque') {
                             $output['payments'][] =
                                 ['method' => $method.(! empty($value['cheque_number']) ? (', Cheque Number:'.$value['cheque_number']) : ''),
                                     'amount' => $this->num_f($value['amount'], $show_currency, $business_details),
                                     'date' => $this->format_date($value['paid_on'], false, $business_details),
+                                    'date_time' => $this->format_date($value['paid_on'], true, $business_details),
                                 ];
                         } elseif ($value['method'] == 'bank_transfer') {
                             $output['payments'][] =
                                 ['method' => $method.(! empty($value['bank_account_number']) ? (', Account Number:'.$value['bank_account_number']) : ''),
                                     'amount' => $this->num_f($value['amount'], $show_currency, $business_details),
                                     'date' => $this->format_date($value['paid_on'], false, $business_details),
+                                    'date_time' => $this->format_date($value['paid_on'], true, $business_details),
                                 ];
                         } elseif ($value['method'] == 'mpesa') {
                             // Show MPESA receipt number if available; prefer mpesa_receipt_number over checkout_request_id
@@ -1806,18 +1810,21 @@ class TransactionUtil extends Util
                                     ['method' => $method.$mpesa_display,
                                         'amount' => $this->num_f($value['amount'], $show_currency, $business_details),
                                         'date' => $this->format_date($value['paid_on'], false, $business_details),
+                                        'date_time' => $this->format_date($value['paid_on'], true, $business_details),
                                     ];
                         } elseif ($value['method'] == 'advance') {
                             $output['payments'][] =
                                 ['method' => $method,
                                     'amount' => $this->num_f($value['amount'], $show_currency, $business_details),
                                     'date' => $this->format_date($value['paid_on'], false, $business_details),
+                                    'date_time' => $this->format_date($value['paid_on'], true, $business_details),
                                 ];
                         } elseif ($value['method'] == 'other') {
                             $output['payments'][] =
                                 ['method' => $method,
                                     'amount' => $this->num_f($value['amount'], $show_currency, $business_details),
                                     'date' => $this->format_date($value['paid_on'], false, $business_details),
+                                    'date_time' => $this->format_date($value['paid_on'], true, $business_details),
                                 ];
                         }
 
@@ -1827,6 +1834,7 @@ class TransactionUtil extends Util
                                     ['method' => $method.(! empty($value['transaction_no']) ? (', '.trans('lang_v1.transaction_no').':'.$value['transaction_no']) : ''),
                                         'amount' => $this->num_f($value['amount'], $show_currency, $business_details),
                                         'date' => $this->format_date($value['paid_on'], false, $business_details),
+                                        'date_time' => $this->format_date($value['paid_on'], true, $business_details),
                                     ];
                             }
                         }
