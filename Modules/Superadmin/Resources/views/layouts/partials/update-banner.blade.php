@@ -554,6 +554,8 @@
 
                     if ((status === 'success' || status === 'failed') && freshForThisRun) {
                         bulkWatchState.finalStatus[id] = status;
+                        setClientLiveStage(id, null);
+                        clearClientRunBaseline(id);
                     } else if ((status === 'success' || status === 'failed') && !freshForThisRun && !bulkWatchState.staleLogged[id]) {
                         bulkWatchState.staleLogged[id] = true;
                         if (logEl) {
@@ -616,6 +618,7 @@
                     pushedAt: pushedAt,
                     marker: status + '|' + pushedAt,
                 };
+                setClientRunBaseline(id, baseline[id].marker);
             });
             onReady(baseline);
         })
@@ -916,7 +919,15 @@
 
                 deploySource.addEventListener('clientStart', function (e) {
                     var d = JSON.parse(e.data);
+                    setClientPushInFlight(d.client_id, true);
+                    setClientLiveStage(d.client_id, 'pushing');
+                    if (clientBaseline && clientBaseline[String(d.client_id)]) {
+                        setClientRunBaseline(d.client_id, clientBaseline[String(d.client_id)].marker || '');
+                    } else {
+                        primeClientRunBaseline(d.client_id);
+                    }
                     if (logEl) { logEl.textContent += 'Pushing to ' + d.name + '…\n'; logWrap.scrollTop = logWrap.scrollHeight; }
+                    if (typeof renderClients === 'function') renderClients();
                 });
                 deploySource.addEventListener('clientResult', function (e) {
                     var d = JSON.parse(e.data);
@@ -925,8 +936,13 @@
                         logWrap.scrollTop = logWrap.scrollHeight;
                     }
                     pushResultsReceived++;
+                    setClientPushInFlight(d.client_id, false);
                     if (d.success) {
                         pushedClients[String(d.client_id)] = d.name || ('Client #' + d.client_id);
+                        setClientLiveStage(d.client_id, 'deploying');
+                    } else {
+                        setClientLiveStage(d.client_id, null);
+                        clearClientRunBaseline(d.client_id);
                     }
                     if (typeof renderClients === 'function') renderClients();
                 });
@@ -1079,7 +1095,15 @@
 
                 deploySource.addEventListener('clientStart', function (e) {
                     var d = JSON.parse(e.data);
+                    setClientPushInFlight(d.client_id, true);
+                    setClientLiveStage(d.client_id, 'pushing');
+                    if (clientBaseline && clientBaseline[String(d.client_id)]) {
+                        setClientRunBaseline(d.client_id, clientBaseline[String(d.client_id)].marker || '');
+                    } else {
+                        primeClientRunBaseline(d.client_id);
+                    }
                     if (logEl) { logEl.textContent += 'Pushing to ' + d.name + '…\n'; logWrap.scrollTop = logWrap.scrollHeight; }
+                    if (typeof renderClients === 'function') renderClients();
                 });
 
                 deploySource.addEventListener('clientResult', function (e) {
@@ -1089,8 +1113,13 @@
                         logWrap.scrollTop = logWrap.scrollHeight;
                     }
                     pushResultsReceived++;
+                    setClientPushInFlight(d.client_id, false);
                     if (d.success) {
                         pushedClients[String(d.client_id)] = d.name || ('Client #' + d.client_id);
+                        setClientLiveStage(d.client_id, 'deploying');
+                    } else {
+                        setClientLiveStage(d.client_id, null);
+                        clearClientRunBaseline(d.client_id);
                     }
                     renderClients(); // refresh the clients list
                 });
@@ -1202,6 +1231,9 @@
     var clientSecretValue  = document.getElementById('client-secret-value');
     var closeSecretBox     = document.getElementById('close-secret-box');
     var clientPushInFlight = {};
+    var clientLiveStage    = {};
+    var clientRunBaseline  = {};
+    var lastClientSnapshot = {};
 
     if (addClientBtn)       addClientBtn.addEventListener('click', function () { addClientForm && (addClientForm.style.display = 'flex'); });
     if (cancelAddClientBtn) cancelAddClientBtn.addEventListener('click', function () { addClientForm && (addClientForm.style.display = 'none'); });
@@ -1213,6 +1245,53 @@
         } else {
             delete clientPushInFlight[String(clientId)];
         }
+    }
+
+    function setClientLiveStage(clientId, stage) {
+        var key = String(clientId);
+        if (!stage) {
+            delete clientLiveStage[key];
+            return;
+        }
+        clientLiveStage[key] = String(stage);
+    }
+
+    function setClientRunBaseline(clientId, marker) {
+        clientRunBaseline[String(clientId)] = { marker: String(marker || '') };
+    }
+
+    function clearClientRunBaseline(clientId) {
+        delete clientRunBaseline[String(clientId)];
+    }
+
+    function primeClientRunBaseline(clientId) {
+        var key = String(clientId);
+        if (clientRunBaseline[key]) return;
+        var snap = lastClientSnapshot[key];
+        if (!snap) return;
+        setClientRunBaseline(key, String(snap.status || '') + '|' + String(snap.pushedAt || ''));
+    }
+
+    function statusBadgeForClient(c) {
+        var key = String(c.id);
+        var liveStage = clientLiveStage[key] || '';
+        if (liveStage === 'pushing') {
+            return '<span class="tw-client-status tw-font-semibold tw-text-sky-600">pushing...</span>';
+        }
+        if (liveStage === 'deploying') {
+            return '<span class="tw-client-status tw-font-semibold tw-text-amber-600">deploying...</span>';
+        }
+
+        var status = c.last_push_status || '';
+        if (status === 'pending') {
+            return '<span class="tw-client-status tw-font-semibold tw-text-amber-600">deploying...</span>';
+        }
+        if (status) {
+            var klass = status === 'success' ? 'tw-text-green-600' : (status === 'failed' ? 'tw-text-red-600' : 'tw-text-amber-600');
+            return '<span class="tw-client-status tw-font-semibold ' + klass + '">' + status + '</span>';
+        }
+
+        return '<span class="tw-client-status tw-text-gray-400">never pushed</span>';
     }
 
     if (saveClientBtn) {
@@ -1494,6 +1573,8 @@
                 var watched = clients.find(function (c) { return String(c.id) === watchedClientId; });
                 if (watched && (watched.last_push_status === 'success' || watched.last_push_status === 'failed')) {
                     stopClientStream();
+                    setClientLiveStage(watched.id, null);
+                    clearClientRunBaseline(watched.id);
                     showRunResult(
                         watched.last_push_status === 'success',
                         watched.last_push_status === 'success'
@@ -1507,13 +1588,31 @@
                 clientsList.innerHTML = '<p class="tw-text-gray-400 tw-italic">No clients registered yet.</p>';
                 return;
             }
+            clients.forEach(function (c) {
+                var key = String(c.id);
+                lastClientSnapshot[key] = {
+                    status: c.last_push_status || '',
+                    pushedAt: c.last_pushed_at || '',
+                };
+
+                var baseline = clientRunBaseline[key];
+                if (!baseline) return;
+
+                var status = c.last_push_status || '';
+                var marker = status + '|' + (c.last_pushed_at || '');
+                var freshFinal = (status === 'success' || status === 'failed') && marker !== String(baseline.marker || '');
+                if (freshFinal) {
+                    setClientLiveStage(key, null);
+                    clearClientRunBaseline(key);
+                }
+            });
+
             clientsList.innerHTML = clients.map(function (c) {
-                var isPushing = !!clientPushInFlight[String(c.id)];
-                var status = isPushing
-                    ? '<span class="tw-client-status tw-font-semibold tw-text-sky-600">pushing...</span>'
-                    : (c.last_push_status
-                        ? '<span class="tw-client-status tw-font-semibold ' + (c.last_push_status === 'success' ? 'tw-text-green-600' : c.last_push_status === 'failed' ? 'tw-text-red-600' : 'tw-text-amber-600') + '">' + c.last_push_status + '</span>'
-                        : '<span class="tw-client-status tw-text-gray-400">never pushed</span>');
+                var key = String(c.id);
+                var isPushing = !!clientPushInFlight[key];
+                var isDeploying = clientLiveStage[key] === 'deploying';
+                var isBusy = isPushing || isDeploying;
+                var status = statusBadgeForClient(c);
                 return '<div class="tw-py-2 tw-border-b tw-border-gray-100">' +
                     '<div class="tw-min-w-0 tw-break-words tw-leading-5">' +
                     '<span class="tw-font-medium">' + escHtml(c.name) + '</span> ' +
@@ -1523,7 +1622,7 @@
                     '<div class="tw-flex tw-flex-wrap tw-items-center tw-gap-2 tw-mt-2">' +
                     '<button class="tw-text-xs tw-font-medium tw-text-slate-600 hover:tw-underline tw-client-show-token" data-id="' + c.id + '" data-name="' + escHtml(c.name) + '">Show Token</button>' +
                     '<button class="tw-text-xs tw-font-medium tw-text-amber-600 hover:tw-underline tw-client-rotate-secret" data-id="' + c.id + '" data-name="' + escHtml(c.name) + '">Rotate Secret</button>' +
-                    '<button class="tw-text-xs tw-font-medium tw-text-indigo-600 hover:tw-underline tw-client-push" ' + (isPushing ? 'disabled ' : '') + 'data-id="' + c.id + '" data-name="' + escHtml(c.name) + '">' + (isPushing ? 'Pushing...' : 'Push') + '</button>' +
+                    '<button class="tw-text-xs tw-font-medium tw-text-indigo-600 hover:tw-underline tw-client-push" ' + (isBusy ? 'disabled ' : '') + 'data-id="' + c.id + '" data-name="' + escHtml(c.name) + '">' + (isPushing ? 'Pushing...' : (isDeploying ? 'Deploying...' : 'Push')) + '</button>' +
                     '<button class="tw-text-xs tw-font-medium tw-text-red-500 hover:tw-underline tw-client-delete" data-id="' + c.id + '">Remove</button>' +
                     '</div>' +
                     '</div>';
@@ -1620,7 +1719,9 @@
                 btn.addEventListener('click', function () {
                     var pushClient = function () {
                         var id = btn.dataset.id;
+                        primeClientRunBaseline(id);
                         setClientPushInFlight(id, true);
+                        setClientLiveStage(id, 'pushing');
                         renderClients();
 
                         if (logWrap) logWrap.style.display = '';
@@ -1635,6 +1736,12 @@
                         .then(function (data) {
                             showToast(data.success ? 'success' : 'error', data.message || (data.success ? 'Pushed' : 'Failed'));
                             setClientPushInFlight(id, false);
+                            if (data.success) {
+                                setClientLiveStage(id, 'deploying');
+                            } else {
+                                setClientLiveStage(id, null);
+                                clearClientRunBaseline(id);
+                            }
                             renderClients();
                             if (data.success) {
                                 startClientProgressStream(id, btn.dataset.name || ('Client #' + id));
@@ -1642,6 +1749,8 @@
                         })
                         .catch(function () {
                             setClientPushInFlight(id, false);
+                            setClientLiveStage(id, null);
+                            clearClientRunBaseline(id);
                             renderClients();
                             showToast('error', 'Push failed', 'Request could not be completed.');
                         });
