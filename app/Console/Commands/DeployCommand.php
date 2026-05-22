@@ -125,6 +125,9 @@ class DeployCommand extends Command
 
         // Step 8: Cache config/routes — graceful fallback if config has Closures
         $this->step('cache (config/routes)', function () {
+            // Start from a clean state to keep module-discovered routes intact.
+            Artisan::call('optimize:clear');
+
             // config:cache — throws LogicException if any config file contains a Closure
             try {
                 Artisan::call('config:cache');
@@ -140,15 +143,9 @@ class DeployCommand extends Command
                 $this->line('    config:clear  ✓ (applied as fallback)');
             }
 
-            // route:cache — safe on nearly all installations
-            try {
-                Artisan::call('route:cache');
-                $this->line('    route:cache   ✓');
-            } catch (\Throwable $e) {
-                Artisan::call('route:clear');
-                $this->warn('    route:cache skipped (' . $e->getMessage() . ')');
-                $this->line('    route:clear   ✓ (applied as fallback)');
-            }
+            // Do NOT route:cache here; module routes are dynamic and can be dropped.
+            Artisan::call('route:clear');
+            $this->line('    route:clear   ✓ (module-safe)');
 
             // view:cache — compile Blade templates up front (best-effort)
             try {
