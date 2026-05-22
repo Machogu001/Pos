@@ -515,6 +515,10 @@
             startedAt: Date.now()
         };
 
+        bulkWatchState.ids.forEach(function (id) {
+            setClientLiveStage(id, 'deploying');
+        });
+
         if (logWrap) logWrap.style.display = '';
         if (logEl) {
             appendStep('Watching deploy callbacks for ' + ids.length + ' client(s).', 85, 'Waiting for client callbacks...');
@@ -1596,6 +1600,11 @@
                 };
 
                 var baseline = clientRunBaseline[key];
+                var watchedByBulk = !!(bulkWatchState && bulkWatchState.ids && bulkWatchState.ids.indexOf(key) !== -1);
+                if (watchedByBulk && !baseline) {
+                    setClientRunBaseline(key, (c.last_push_status || '') + '|' + (c.last_pushed_at || ''));
+                    baseline = clientRunBaseline[key];
+                }
                 if (!baseline) return;
 
                 var status = c.last_push_status || '';
@@ -1604,6 +1613,8 @@
                 if (freshFinal) {
                     setClientLiveStage(key, null);
                     clearClientRunBaseline(key);
+                } else if (watchedByBulk && !clientLiveStage[key]) {
+                    setClientLiveStage(key, 'deploying');
                 }
             });
 
