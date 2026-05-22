@@ -587,8 +587,7 @@
                         setClientLiveStage(id, null);
                         clearClientRunBaseline(id);
                         if (logEl) {
-                            logEl.textContent += '• ' + (bulkWatchState.names[id] || ('Client #' + id)) + ': no fresh push activity detected for this run.
-
+                            logEl.textContent += '• ' + (bulkWatchState.names[id] || ('Client #' + id)) + ': no fresh push activity detected for this run.\n';
                             logWrap.scrollTop = logWrap.scrollHeight;
                         }
                     });
