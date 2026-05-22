@@ -513,7 +513,8 @@
             finalStatus: {},
             staleLogged: {},
             activityDetected: {},
-            noActivityDeadlineAt: Date.now() + (30 * 1000),
+            noActivityWarned: {},
+            noActivityDeadlineAt: Date.now() + (90 * 1000),
             startedAt: Date.now()
         };
 
@@ -582,12 +583,11 @@
                     bulkWatchState.ids.forEach(function (id) {
                         if (bulkWatchState.finalStatus[id]) return;
                         if (bulkWatchState.activityDetected[id]) return;
+                        if (bulkWatchState.noActivityWarned[id]) return;
 
-                        bulkWatchState.finalStatus[id] = 'failed';
-                        setClientLiveStage(id, null);
-                        clearClientRunBaseline(id);
+                        bulkWatchState.noActivityWarned[id] = true;
                         if (logEl) {
-                            logEl.textContent += '• ' + (bulkWatchState.names[id] || ('Client #' + id)) + ': no fresh push activity detected for this run.\n';
+                            logEl.textContent += '• ' + (bulkWatchState.names[id] || ('Client #' + id)) + ': no fresh callback activity yet for this run; still waiting.\n';
                             logWrap.scrollTop = logWrap.scrollHeight;
                         }
                     });
@@ -1005,7 +1005,7 @@
                     if (deploySource && deploySource.readyState === EventSource.CLOSED && pushResultsReceived > 0) {
                         deployDone = true;
                         stopDeployStream();
-                        appendStep('Push stream closed after dispatch; continuing with callback tracking.', 75, 'Tracking callbacks...');
+                        appendStep('Push dispatch completed; continuing with callback tracking.', 75, 'Tracking callbacks...');
                         showRunResult(true, 'Package built and push dispatch completed. Tracking deploy callbacks...');
                         if (!watchStarted) {
                             watchStarted = true;
@@ -1026,8 +1026,8 @@
                             }
                         });
                     }
-                    appendStep('Live stream interrupted; continuing with server-side status tracking.', 75, 'Tracking callbacks...');
-                    showRunResult(true, 'Package built and push request sent. Live stream was interrupted; tracking client statuses below.');
+                    appendStep('Push dispatch completed; monitoring client callbacks from server status.', 75, 'Tracking callbacks...');
+                    showRunResult(true, 'Package built and push request sent. Waiting for client deployment callbacks...');
                     resetBuildBtn();
                 };
             });
@@ -1180,7 +1180,7 @@
                     if (deploySource && deploySource.readyState === EventSource.CLOSED && pushResultsReceived > 0) {
                         deployDone = true;
                         stopDeployStream();
-                        appendStep('Push stream closed after dispatch; continuing with callback tracking.', 75, 'Tracking callbacks...');
+                        appendStep('Push dispatch completed; continuing with callback tracking.', 75, 'Tracking callbacks...');
                         showRunResult(true, 'Push request sent. Stream closed after dispatch. Tracking deploy callbacks...');
                         if (!watchStarted) {
                             watchStarted = true;
@@ -1200,8 +1200,8 @@
                             }
                         });
                     }
-                    appendStep('Live stream interrupted; continuing with server-side status tracking.', 75, 'Tracking callbacks...');
-                    showRunResult(true, 'Push request sent. Live stream was interrupted; tracking client statuses below.');
+                    appendStep('Push dispatch completed; monitoring client callbacks from server status.', 75, 'Tracking callbacks...');
+                    showRunResult(true, 'Push request sent. Waiting for client deployment callbacks...');
                     resetButtons();
                 };
                 });
