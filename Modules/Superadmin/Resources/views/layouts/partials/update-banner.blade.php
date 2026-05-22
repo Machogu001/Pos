@@ -437,6 +437,7 @@
     var deployDone     = false;  // guard against onerror firing after normal close
     var watchedClientId = null;
     var lastClientHeartbeatLogAt = 0;
+    var runStepNo = 0;
 
     function setProgress(pct, label) {
         if (progressBar) progressBar.style.width = pct + '%';
@@ -451,6 +452,29 @@
         } else {
             if (progressBar) progressBar.classList.replace('tw-bg-amber-500', 'tw-bg-red-500');
             setProgress(progressBar ? parseInt(progressBar.style.width) || 0 : 0, 'Failed — see log below');
+        }
+    }
+
+    function beginStepProgress(initialLabel) {
+        runStepNo = 0;
+        if (progressWrap) progressWrap.style.display = '';
+        if (progressBar) {
+            progressBar.classList.remove('tw-bg-green-500', 'tw-bg-red-500');
+            if (!progressBar.classList.contains('tw-bg-amber-500')) {
+                progressBar.classList.add('tw-bg-amber-500');
+            }
+        }
+        setProgress(0, initialLabel || 'Starting...');
+    }
+
+    function appendStep(message, pct, label) {
+        runStepNo++;
+        if (logEl) {
+            logEl.textContent += 'Step ' + runStepNo + ': ' + message + '\n';
+            logWrap.scrollTop = logWrap.scrollHeight;
+        }
+        if (typeof pct === 'number') {
+            setProgress(pct, label || message);
         }
     }
 
@@ -491,7 +515,7 @@
 
         if (logWrap) logWrap.style.display = '';
         if (logEl) {
-            logEl.textContent += 'Watching deploy callbacks for ' + ids.length + ' client(s)...\n';
+            appendStep('Watching deploy callbacks for ' + ids.length + ' client(s).', 85, 'Waiting for client callbacks...');
             logWrap.scrollTop = logWrap.scrollHeight;
         }
 
@@ -535,6 +559,7 @@
                     var success = bulkWatchState.ids.length - failed;
 
                     stopBulkClientWatch();
+                    appendStep('Client callbacks completed: ' + success + ' success, ' + failed + ' failed.', 100, 'Callbacks complete');
                     showRunResult(
                         failed === 0,
                         failed === 0
@@ -545,12 +570,14 @@
 
                 if (bulkWatchState && (Date.now() - bulkWatchState.startedAt) > timeoutMs) {
                     stopBulkClientWatch();
+                    appendStep('Callback watch timed out. Some clients may still finish in background.', 95, 'Callback watch timed out');
                     showRunResult(false, 'Timed out waiting for client deploy callbacks. Some clients may still be running in background.');
                 }
             })
             .catch(function () {
                 if (bulkWatchState && (Date.now() - bulkWatchState.startedAt) > timeoutMs) {
                     stopBulkClientWatch();
+                    appendStep('Status polling timed out while checking client callbacks.', 95, 'Status polling timed out');
                     showRunResult(false, 'Timed out while checking client statuses.');
                 }
             });
@@ -804,6 +831,8 @@
             if (preRunEl)    preRunEl.style.display = 'none';
             if (logWrap)     logWrap.style.display = '';
             if (logEl)       logEl.textContent = '';
+            beginStepProgress('Preparing build...');
+            appendStep('Build package started on central server.', 10, 'Building package...');
 
             // Phase 1: stream build progress via SSE
             deployDone = false;
@@ -823,12 +852,14 @@
                     resetBuildBtn();
                     return;
                 }
+                appendStep('Package built: v' + d.version + ' (' + d.size_kb + ' KB).', 35, 'Package built');
                 if (logEl) {
                     logEl.textContent += 'Package v' + d.version + ' ready (' + d.size_kb + ' KB).\nPushing to clients…\n';
                     logWrap.scrollTop = logWrap.scrollHeight;
                 }
                 if (typeof renderPackages === 'function') renderPackages();
                 if (buildPkgText) buildPkgText.textContent = 'Pushing…';
+                appendStep('Dispatching push triggers to active clients.', 50, 'Dispatching push triggers...');
                 var pushedClients = {};
                 var pushResultsReceived = 0;
                 var watchStarted = false;
@@ -867,6 +898,7 @@
                     var d = JSON.parse(e.data);
                     var succeeded = Number(d.succeeded || 0);
                     var failed = Number(d.failed || 0);
+                    appendStep('Push dispatch finished: ' + succeeded + '/' + d.total + ' accepted, ' + failed + ' failed.', 70, 'Push dispatch complete');
 
                     if (d.total === 0) {
                         showRunResult(true, 'Package built successfully. ' + (d.message || 'No active clients registered.'));
@@ -894,6 +926,7 @@
                     if (deploySource && deploySource.readyState === EventSource.CLOSED && pushResultsReceived > 0) {
                         deployDone = true;
                         stopDeployStream();
+                        appendStep('Push stream closed after dispatch; continuing with callback tracking.', 75, 'Tracking callbacks...');
                         showRunResult(true, 'Package built and push dispatch completed. Tracking deploy callbacks...');
                         if (!watchStarted) {
                             watchStarted = true;
@@ -914,6 +947,7 @@
                             }
                         });
                     }
+                    appendStep('Live stream interrupted; continuing with server-side status tracking.', 75, 'Tracking callbacks...');
                     showRunResult(true, 'Package built and push request sent. Live stream was interrupted; tracking client statuses below.');
                     resetBuildBtn();
                 };
@@ -985,6 +1019,8 @@
                 if (preRunEl)   preRunEl.style.display = 'none';
                 if (logWrap)    logWrap.style.display = '';
                 if (logEl)      logEl.textContent = 'Pushing to clients…\n';
+                beginStepProgress('Preparing push...');
+                appendStep('Push trigger process started on central server.', 15, 'Starting push...');
                 var pushedClients = {};
                 var pushResultsReceived = 0;
                 var watchStarted = false;
@@ -1025,6 +1061,7 @@
                     var d = JSON.parse(e.data);
                     var succeeded = Number(d.succeeded || 0);
                     var failed = Number(d.failed || 0);
+                    appendStep('Push dispatch finished: ' + succeeded + '/' + d.total + ' accepted, ' + failed + ' failed.', 70, 'Push dispatch complete');
 
                     if (d.total === 0) {
                         showRunResult(true, d.message || 'No active clients registered.');
@@ -1049,6 +1086,7 @@
                     if (deploySource && deploySource.readyState === EventSource.CLOSED && pushResultsReceived > 0) {
                         deployDone = true;
                         stopDeployStream();
+                        appendStep('Push stream closed after dispatch; continuing with callback tracking.', 75, 'Tracking callbacks...');
                         showRunResult(true, 'Push request sent. Stream closed after dispatch. Tracking deploy callbacks...');
                         if (!watchStarted) {
                             watchStarted = true;
@@ -1068,6 +1106,7 @@
                             }
                         });
                     }
+                    appendStep('Live stream interrupted; continuing with server-side status tracking.', 75, 'Tracking callbacks...');
                     showRunResult(true, 'Push request sent. Live stream was interrupted; tracking client statuses below.');
                     resetButtons();
                 };
