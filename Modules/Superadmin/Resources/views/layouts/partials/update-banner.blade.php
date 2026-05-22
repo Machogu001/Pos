@@ -1797,8 +1797,34 @@
                         var sendPush = function () {
                             var url = '{{ route("superadmin.update.clients.push", ["id" => "__ID__"]) }}'.replace('__ID__', id);
                             fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } })
-                            .then(function (r) { return r.json(); })
+                            .then(function (r) {
+                                return r.text().then(function (text) {
+                                    var data = {};
+                                    try {
+                                        data = text ? JSON.parse(text) : {};
+                                    } catch (e) {
+                                        data = { raw: text };
+                                    }
+
+                                    if (!r.ok) {
+                                        var msg = (data && (data.message || data.error))
+                                            ? (data.message || data.error)
+                                            : ((data && data.raw) ? String(data.raw).slice(0, 220) : ('HTTP ' + r.status));
+                                        throw new Error(msg);
+                                    }
+
+                                    return data;
+                                });
+                            })
                             .then(function (data) {
+                                if (logEl) {
+                                    var line = data.success
+                                        ? ('Trigger accepted for ' + (btn.dataset.name || ('Client #' + id)) + '. Waiting for deploy callback...')
+                                        : ('Trigger rejected for ' + (btn.dataset.name || ('Client #' + id)) + ': ' + (data.message || 'unknown error'));
+                                    logEl.textContent += line + '\n';
+                                    logWrap.scrollTop = logWrap.scrollHeight;
+                                }
+
                                 showToast(data.success ? 'success' : 'error', data.message || (data.success ? 'Pushed' : 'Failed'));
                                 setClientPushInFlight(id, false);
                                 if (data.success) {
@@ -1813,11 +1839,17 @@
                                 }
                             })
                             .catch(function () {
+                                var err = arguments.length > 0 ? arguments[0] : null;
+                                var detail = (err && err.message) ? err.message : 'Request could not be completed.';
                                 setClientPushInFlight(id, false);
                                 setClientLiveStage(id, null);
                                 clearClientRunBaseline(id);
                                 renderClients();
-                                showToast('error', 'Push failed', 'Request could not be completed.');
+                                if (logEl) {
+                                    logEl.textContent += 'Trigger failed for ' + (btn.dataset.name || ('Client #' + id)) + ': ' + detail + '\n';
+                                    logWrap.scrollTop = logWrap.scrollHeight;
+                                }
+                                showToast('error', 'Push failed', detail);
                             });
                         };
 
