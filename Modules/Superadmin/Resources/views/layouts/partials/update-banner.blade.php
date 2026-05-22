@@ -1602,6 +1602,16 @@
             if (watchedClientId !== null) {
                 var watched = clients.find(function (c) { return String(c.id) === watchedClientId; });
                 if (watched && (watched.last_push_status === 'success' || watched.last_push_status === 'failed')) {
+                    var watchedKey = String(watched.id);
+                    var baseline = clientRunBaseline[watchedKey] || null;
+                    var baselineMarker = baseline ? String(baseline.marker || '') : '';
+                    var currentMarker = String(watched.last_push_status || '') + '|' + String(watched.last_pushed_at || '');
+                    var freshForThisRun = !baselineMarker || currentMarker !== baselineMarker;
+                    if (!freshForThisRun) {
+                        setClientLiveStage(watched.id, 'deploying');
+                        return;
+                    }
+
                     stopClientStream();
                     setClientLiveStage(watched.id, null);
                     clearClientRunBaseline(watched.id);
