@@ -1112,15 +1112,22 @@ class UpdateController extends BaseController
             ], 500);
         }
 
-        // Kick off pos:pull-update in the background; return 500 when it cannot be launched.
+        // Kick off pos:pull-update in the background.
+        // Fallback to an after-response in-process launch when shell background execution is restricted.
         [$started, $launchMessage] = $this->startBackgroundPullUpdate();
         if (! $started) {
-            Log::error('Update webhook received but pull-update could not be started: ' . $launchMessage);
-            return response()->json([
-                'accepted' => false,
-                'error' => 'Webhook received, but client deploy process could not be started.',
-                'message' => $launchMessage,
-            ], 500);
+            [$fallbackStarted, $fallbackMessage] = $this->schedulePullUpdateAfterResponse();
+            if (! $fallbackStarted) {
+                Log::error('Update webhook received but pull-update could not be started: ' . $launchMessage . ' | fallback: ' . $fallbackMessage);
+                return response()->json([
+                    'accepted' => false,
+                    'error' => 'Webhook received, but client deploy process could not be started.',
+                    'message' => trim($launchMessage . "\nFallback: " . $fallbackMessage),
+                ], 500);
+            }
+
+            $launchMessage = trim($launchMessage . "\n" . $fallbackMessage);
+            Log::warning('Update webhook: background launch unavailable; using after-response fallback. ' . $fallbackMessage);
         }
 
         return response()->json([
@@ -1301,6 +1308,39 @@ class UpdateController extends BaseController
         } finally {
             $this->restoreTemporaryArtisanExecute($permContext);
         }
+    }
+
+    /**
+     * Fallback launcher when background shell execution is unavailable.
+     * Schedules pos:pull-update --force to run after response termination.
+     */
+    private function schedulePullUpdateAfterResponse(): array
+    {
+        if (! function_exists('register_shutdown_function')) {
+            return [false, 'register_shutdown_function is unavailable.'];
+        }
+
+        register_shutdown_function(function (): void {
+            try {
+                @ignore_user_abort(true);
+
+                if (function_exists('fastcgi_finish_request')) {
+                    @fastcgi_finish_request();
+                }
+
+                Artisan::call('pos:pull-update', ['--force' => true]);
+                $output = trim((string) Artisan::output());
+                if ($output !== '') {
+                    Log::info('After-response pull-update output: ' . $output);
+                } else {
+                    Log::info('After-response pull-update executed.');
+                }
+            } catch (\Throwable $e) {
+                Log::error('After-response pull-update failed: ' . $e->getMessage());
+            }
+        });
+
+        return [true, 'Fallback armed: pull-update will run after webhook response ends.'];
     }
 
     /** Try to launch a command in background and capture PID when possible. */
