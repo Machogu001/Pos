@@ -820,9 +820,17 @@ class BusinessController extends Controller
                 ! empty($request->input('common_settings')) ? $request->input('common_settings') : []
             );
 
-            //Enabled modules
-            $enabled_modules = $request->input('enabled_modules');
-            $business_details['enabled_modules'] = ! empty($enabled_modules) ? $enabled_modules : null;
+            // Enabled modules: only update when module section is present in request.
+            // This prevents accidental wipes when large settings forms are truncated.
+            if ($request->has('modules_section_present')) {
+                $enabled_modules = $request->input('enabled_modules', []);
+                if (is_string($enabled_modules)) {
+                    $decoded_modules = json_decode($enabled_modules, true);
+                    $enabled_modules = is_array($decoded_modules) ? $decoded_modules : [];
+                }
+
+                $business_details['enabled_modules'] = array_values(array_unique((array) $enabled_modules));
+            }
             $business->fill($business_details);
             $business->save();
 

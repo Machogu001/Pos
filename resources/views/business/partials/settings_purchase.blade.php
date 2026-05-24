@@ -53,6 +53,24 @@
     <div class="col-sm-6">
         <div class="form-group">
             <div class="checkbox">
+                @php
+                    $allow_purchase_tax_override = array_key_exists('allow_purchase_tax_override', (array) $common_settings)
+                        ? !empty($common_settings['allow_purchase_tax_override'])
+                        : empty($common_settings['lock_purchase_tax_override']);
+                @endphp
+                {!! Form::hidden('common_settings[allow_purchase_tax_override]', 0) !!}
+                <label>
+                    {!! Form::checkbox('common_settings[allow_purchase_tax_override]', 1, $allow_purchase_tax_override, [ 'class' => 'input-icheck', 'id' => 'allow_purchase_tax_override']); !!}
+                    {{ __('lang_v1.allow_purchase_tax_override') }}
+                </label>
+                @show_tooltip(__('lang_v1.allow_purchase_tax_override_tooltip'))
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6">
+        <div class="form-group">
+            <div class="checkbox">
                 <label>
                 {!! Form::checkbox('enable_purchase_status', 1, $business->enable_purchase_status , [ 'class' => 'input-icheck', 'id' => 'enable_purchase_status']); !!} {{ __( 'lang_v1.enable_purchase_status' ) }}
                 </label>

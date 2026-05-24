@@ -3,6 +3,14 @@
     if( session()->get('business.enable_inline_tax') == 0){
         $hide_tax = 'hide';
     }
+    $can_edit_purchase_price_setting = isset($enable_product_editing)
+        ? (int) $enable_product_editing === 1
+        : (int) session('business.enable_editing_product_from_purchase') === 1;
+    $can_edit_purchase_price = $can_edit_purchase_price_setting
+        && (auth()->user()->can('purchase.create') || auth()->user()->can('purchase.update'));
+    $lock_tax_override = isset($lock_purchase_tax_override)
+        ? (bool) $lock_purchase_tax_override
+        : !empty(session('business.common_settings.lock_purchase_tax_override'));
     $currency_precision = session('business.currency_precision', 2);
     $quantity_precision = session('business.quantity_precision', 2);
 @endphp
@@ -21,7 +29,7 @@
                 <th class="{{$hide_tax}}">@lang( 'purchase.product_tax' )</th>
                 <th class="{{$hide_tax}}">@lang( 'purchase.net_cost' )</th>
                 <th>@lang( 'purchase.line_total' )</th>
-                <th class="@if(!session('business.enable_editing_product_from_purchase') || !empty($is_purchase_order)) hide @endif">
+                <th class="@if(!$can_edit_purchase_price || !empty($is_purchase_order)) hide @endif">
                     @lang( 'lang_v1.profit_margin' )
                 </th>
                 @if(empty($is_purchase_order))
@@ -141,13 +149,16 @@
 
             <td class="{{$hide_tax}}">
                 <div class="input-group">
-                    <select name="purchases[{{ $loop->index }}][purchase_line_tax_id]" class="form-control input-sm purchase_line_tax_id" placeholder="'Please Select'">
+                    <select name="purchases[{{ $loop->index }}][purchase_line_tax_id]" class="form-control input-sm purchase_line_tax_id @if($lock_tax_override) tax_locked @endif" placeholder="'Please Select'" @if($lock_tax_override) disabled @endif>
                         <option value="" data-tax_amount="0" @if( empty( $purchase_line->tax_id ) )
                         selected @endif >@lang('lang_v1.none')</option>
                         @foreach($taxes as $tax)
                             <option value="{{ $tax->id }}" data-tax_amount="{{ $tax->amount }}" @if( $purchase_line->tax_id == $tax->id) selected @endif >{{ $tax->name }}</option>
                         @endforeach
                     </select>
+                    @if($lock_tax_override)
+                        <input type="hidden" name="purchases[{{ $loop->index }}][purchase_line_tax_id]" class="purchase_line_tax_id_hidden" value="{{ $purchase_line->tax_id }}">
+                    @endif
                     <span class="input-group-addon purchase_product_unit_tax_text">
                         {{number_format($purchase_line->item_tax/$purchase->exchange_rate, $currency_precision, $currency_details->decimal_separator, $currency_details->thousand_separator)}}
                     </span>
@@ -155,7 +166,7 @@
                 </div>
             </td>
             <td class="{{$hide_tax}}">
-                {!! Form::text('purchases[' . $loop->index . '][purchase_price_inc_tax]', number_format($purchase_line->purchase_price_inc_tax/$purchase->exchange_rate, $currency_precision, $currency_details->decimal_separator, $currency_details->thousand_separator), ['class' => 'form-control input-sm purchase_unit_cost_after_tax input_number', 'required']); !!}
+                {!! Form::text('purchases[' . $loop->index . '][purchase_price_inc_tax]', number_format($purchase_line->purchase_price_inc_tax/$purchase->exchange_rate, $currency_precision, $currency_details->decimal_separator, $currency_details->thousand_separator), ['class' => 'form-control input-sm purchase_unit_cost_after_tax input_number', 'required', 'readonly' => $lock_tax_override]); !!}
             </td>
             <td>
                 <span class="row_subtotal_after_tax">
@@ -164,7 +175,7 @@
                 <input type="hidden" class="row_subtotal_after_tax_hidden" value="{{number_format($purchase_line->purchase_price_inc_tax * $purchase_line->quantity/$purchase->exchange_rate, $currency_precision, $currency_details->decimal_separator, $currency_details->thousand_separator)}}">
             </td>
 
-            <td class="@if(!session('business.enable_editing_product_from_purchase') || !empty($is_purchase_order)) hide @endif">
+            <td class="@if(!$can_edit_purchase_price || !empty($is_purchase_order)) hide @endif">
                 @php
                     $pp = $purchase_line->purchase_price_inc_tax;
                     $sp = $purchase_line->variations->sell_price_inc_tax;
@@ -184,7 +195,7 @@
             </td>
             @if(empty($is_purchase_order))
             <td>
-                @if(session('business.enable_editing_product_from_purchase'))
+                @if($can_edit_purchase_price)
                     {!! Form::text('purchases[' . $loop->index . '][default_sell_price]', number_format($sp, $currency_precision, $currency_details->decimal_separator, $currency_details->thousand_separator), ['class' => 'form-control input-sm input_number default_sell_price', 'required']); !!}
                 @else
                     {{number_format($sp, $currency_precision, $currency_details->decimal_separator, $currency_details->thousand_separator)}}

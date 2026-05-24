@@ -1,5 +1,6 @@
 <div class="pos-tab-content">
 	<div class="row">
+		<input type="hidden" name="modules_section_present" value="1">
   @if(!empty($modules))
     @php
         // Ensure HRM appears in the modules list and enabled_modules variable exists

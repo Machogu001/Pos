@@ -641,9 +641,73 @@ class ModulesController extends Controller
             @chmod($path, $isDirectory ? 0775 : 0664);
         }
 
-        if (! is_writable($path)) {
+        if (! $isDirectory && ! is_writable($path) && $this->shouldAttemptTargetedPermissionFix($path)) {
+            $this->attemptWritableFileReplacement($path);
+        }
+
+        if (! is_writable($path) && $this->shouldLogPermissionWarning($path, $isDirectory)) {
             Log::warning('Automatic module permission repair could not make path writable: '.$path);
         }
+    }
+
+    private function attemptWritableFileReplacement(string $path): void
+    {
+        if (! File::exists($path) || File::isDirectory($path)) {
+            return;
+        }
+
+        $directory = dirname($path);
+
+        if (! is_writable($directory)) {
+            return;
+        }
+
+        $content = @file_get_contents($path);
+        if ($content === false) {
+            return;
+        }
+
+        $tempPath = $directory.DIRECTORY_SEPARATOR.'.permfix_'.Str::random(8).'_'.basename($path);
+
+        try {
+            if (@file_put_contents($tempPath, $content, LOCK_EX) === false) {
+                return;
+            }
+
+            @chmod($tempPath, 0664);
+
+            if (! @rename($tempPath, $path)) {
+                @unlink($tempPath);
+                return;
+            }
+
+            @chmod($path, 0664);
+            clearstatcache(true, $path);
+        } catch (\Throwable $e) {
+            if (File::exists($tempPath)) {
+                @unlink($tempPath);
+            }
+
+            Log::warning('Automatic module permission repair replacement fallback failed for '.$path.': '.$e->getMessage());
+        }
+    }
+
+    private function shouldAttemptTargetedPermissionFix(string $path): bool
+    {
+        $normalizedPath = str_replace('\\', '/', $path);
+
+        $targetPaths = [
+            str_replace('\\', '/', base_path('bootstrap/cache/inventory_management_module.php')),
+            str_replace('\\', '/', base_path('Modules/Superadmin/Resources/views/layouts/partials/update-banner.blade.php')),
+            str_replace('\\', '/', base_path('modules_statuses.json')),
+        ];
+
+        return in_array($normalizedPath, $targetPaths, true);
+    }
+
+    private function shouldLogPermissionWarning(string $path, bool $isDirectory): bool
+    {
+        return $this->shouldAttemptTargetedPermissionFix($path);
     }
 
     private function __available_modules()

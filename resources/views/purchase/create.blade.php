@@ -19,8 +19,14 @@
 	<input type="hidden" id="p_symbol" value="{{$currency_details->symbol}}">
 	<input type="hidden" id="p_thousand" value="{{$currency_details->thousand_separator}}">
 	<input type="hidden" id="p_decimal" value="{{$currency_details->decimal_separator}}">
+	<input type="hidden" id="lock_purchase_tax_override" value="{{ !empty($lock_purchase_tax_override) ? 1 : 0 }}">
 
 	@include('layouts.partials.error')
+	@if(!empty($lock_purchase_tax_override))
+		<div class="alert alert-info" style="margin-bottom: 12px;">
+			<strong>Tax Locked (System Calculated)</strong>
+		</div>
+	@endif
 
 	{!! Form::open(['url' => action([\App\Http\Controllers\PurchaseController::class, 'store']), 'method' => 'post', 'id' => 'add_purchase_form', 'files' => true ]) !!}
 	@component('components.widget', ['class' => 'box-primary'])
@@ -247,6 +253,11 @@
 			if( session()->get('business.enable_inline_tax') == 0){
 				$hide_tax = 'hide';
 			}
+			$can_edit_purchase_price_setting = isset($enable_product_editing)
+				? (int) $enable_product_editing === 1
+				: (int) session('business.enable_editing_product_from_purchase') === 1;
+			$can_edit_purchase_price = $can_edit_purchase_price_setting
+				&& (auth()->user()->can('purchase.create') || auth()->user()->can('purchase.update'));
 		@endphp
 		<div class="row">
 			<div class="col-sm-12">
@@ -264,7 +275,7 @@
 								<th class="{{$hide_tax}}">@lang( 'purchase.product_tax' )</th>
 								<th class="{{$hide_tax}}">@lang( 'purchase.net_cost' )</th>
 								<th>@lang( 'purchase.line_total' )</th>
-								<th class="@if(!session('business.enable_editing_product_from_purchase')) hide @endif">
+								<th class="@if(!$can_edit_purchase_price) hide @endif">
 									@lang( 'lang_v1.profit_margin' )
 								</th>
 								<th>

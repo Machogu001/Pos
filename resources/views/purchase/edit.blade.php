@@ -19,8 +19,15 @@
   <input type="hidden" id="p_symbol" value="{{$currency_details->symbol}}">
   <input type="hidden" id="p_thousand" value="{{$currency_details->thousand_separator}}">
   <input type="hidden" id="p_decimal" value="{{$currency_details->decimal_separator}}">
+  <input type="hidden" id="lock_purchase_tax_override" value="{{ !empty($lock_purchase_tax_override) ? 1 : 0 }}">
 
   @include('layouts.partials.error')
+
+  @if(!empty($lock_purchase_tax_override))
+    <div class="alert alert-info" style="margin-bottom: 12px;">
+      <strong>Tax Locked (System Calculated)</strong>
+    </div>
+  @endif
 
   {!! Form::open(['url' =>  action([\App\Http\Controllers\PurchaseController::class, 'update'] , [$purchase->id] ), 'method' => 'PUT', 'id' => 'add_purchase_form', 'files' => true ]) !!}
 

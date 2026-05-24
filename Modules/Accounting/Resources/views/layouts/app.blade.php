@@ -120,6 +120,37 @@ $whitelist = ['127.0.0.1', '::1'];
         {!! $__additional_html !!}
     @endif
 
+    <script>
+        (function () {
+            var ignoredPhrases = [
+                'A listener indicated an asynchronous response by returning true',
+                'message channel closed before a response was received'
+            ];
+
+            function isKnownExtensionMessage(value) {
+                var text = String(value || '');
+                return ignoredPhrases.some(function (phrase) {
+                    return text.indexOf(phrase) !== -1;
+                });
+            }
+
+            window.addEventListener('error', function (event) {
+                if (isKnownExtensionMessage(event && event.message)) {
+                    event.preventDefault();
+                }
+            });
+
+            window.addEventListener('unhandledrejection', function (event) {
+                var reason = event ? event.reason : '';
+                var message = reason && reason.message ? reason.message : reason;
+
+                if (isKnownExtensionMessage(message)) {
+                    event.preventDefault();
+                }
+            });
+        })();
+    </script>
+
     @include('accounting::layouts.partials.javascripts')
 
     <div class="modal fade view_modal" tabindex="-1" role="dialog" aria-labelledby="gridSystemModalLabel"></div>

@@ -1,4 +1,14 @@
 @foreach( $variations as $variation)
+    @php
+        $can_edit_purchase_price_setting = isset($enable_product_editing)
+            ? (int) $enable_product_editing === 1
+            : (int) session('business.enable_editing_product_from_purchase') === 1;
+        $can_edit_purchase_price = $can_edit_purchase_price_setting
+            && (auth()->user()->can('purchase.create') || auth()->user()->can('purchase.update'));
+        $lock_tax_override = isset($lock_purchase_tax_override)
+            ? (bool) $lock_purchase_tax_override
+            : !empty(session('business.common_settings.lock_purchase_tax_override'));
+    @endphp
     <tr @if(!empty($purchase_order_line)) data-purchase_order_id="{{$purchase_order_line->transaction_id}}" @endif @if(!empty($purchase_requisition_line)) data-purchase_requisition_id="{{$purchase_requisition_line->transaction_id}}" @endif>
         <td><span class="sr_number"></span></td>
         <td>
@@ -133,13 +143,16 @@
         </td>
         <td class="{{$hide_tax}}">
             <div class="input-group">
-                <select name="purchases[{{ $row_count }}][purchase_line_tax_id]" class="form-control select2 input-sm purchase_line_tax_id" placeholder="'Please Select'">
+                <select name="purchases[{{ $row_count }}][purchase_line_tax_id]" class="form-control select2 input-sm purchase_line_tax_id @if($lock_tax_override) tax_locked @endif" placeholder="'Please Select'" @if($lock_tax_override) disabled @endif>
                     <option value="" data-tax_amount="0" @if( $hide_tax == 'hide' )
                     selected @endif >@lang('lang_v1.none')</option>
                     @foreach($taxes as $tax)
                         <option value="{{ $tax->id }}" data-tax_amount="{{ $tax->amount }}" @if( $tax_id == $tax->id && $hide_tax != 'hide') selected @endif >{{ $tax->name }}</option>
                     @endforeach
                 </select>
+                @if($lock_tax_override)
+                    <input type="hidden" name="purchases[{{ $row_count }}][purchase_line_tax_id]" class="purchase_line_tax_id_hidden" value="{{ $tax_id }}">
+                @endif
                 {!! Form::hidden('purchases[' . $row_count . '][item_tax]', 0, ['class' => 'purchase_product_unit_tax']); !!}
                 <span class="input-group-addon purchase_product_unit_tax_text">
                     0.00</span>
@@ -155,18 +168,18 @@
                 $dpp_inc_tax = !empty($purchase_order_line) ? number_format($purchase_order_line->purchase_price_inc_tax/$purchase_order->exchange_rate, $currency_precision, $currency_details->decimal_separator, $currency_details->thousand_separator) : $dpp_inc_tax;
 
             @endphp
-            {!! Form::text('purchases[' . $row_count . '][purchase_price_inc_tax]', $dpp_inc_tax, ['class' => 'form-control input-sm purchase_unit_cost_after_tax input_number', 'required']); !!}
+            {!! Form::text('purchases[' . $row_count . '][purchase_price_inc_tax]', $dpp_inc_tax, ['class' => 'form-control input-sm purchase_unit_cost_after_tax input_number', 'required', 'readonly' => $lock_tax_override]); !!}
         </td>
         <td>
             <span class="row_subtotal_after_tax display_currency">0</span>
             <input type="hidden" class="row_subtotal_after_tax_hidden" value=0>
         </td>
-        <td class="@if(!session('business.enable_editing_product_from_purchase') || !empty($is_purchase_order)) hide @endif">
+        <td class="@if(!$can_edit_purchase_price || !empty($is_purchase_order)) hide @endif">
             {!! Form::text('purchases[' . $row_count . '][profit_percent]', number_format($variation->profit_percent, $currency_precision, $currency_details->decimal_separator, $currency_details->thousand_separator), ['class' => 'form-control input-sm input_number profit_percent', 'required']); !!}
         </td>
         @if(empty($is_purchase_order))
         <td>
-            @if(session('business.enable_editing_product_from_purchase'))
+            @if($can_edit_purchase_price)
                 {!! Form::text('purchases[' . $row_count . '][default_sell_price]', number_format($variation->sell_price_inc_tax, $currency_precision, $currency_details->decimal_separator, $currency_details->thousand_separator), ['class' => 'form-control input-sm input_number default_sell_price', 'required']); !!}
             @else
                 {{ number_format($variation->sell_price_inc_tax, $currency_precision, $currency_details->decimal_separator, $currency_details->thousand_separator)}}

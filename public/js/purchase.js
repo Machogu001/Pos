@@ -1,4 +1,22 @@
 $(document).ready(function() {
+    var lock_purchase_tax_override = parseInt($('#lock_purchase_tax_override').val() || '0', 10) === 1;
+
+    function sync_locked_tax_hidden(row) {
+        if (!row || !row.length) {
+            return;
+        }
+
+        var taxSelect = row.find('select.purchase_line_tax_id');
+        var hiddenTax = row.find('input.purchase_line_tax_id_hidden');
+        if (taxSelect.length && hiddenTax.length) {
+            hiddenTax.val(taxSelect.val() || '');
+        }
+    }
+
+    if (lock_purchase_tax_override) {
+        $('#purchase_entry_table').find('select.purchase_line_tax_id').prop('disabled', true);
+        $('#purchase_entry_table').find('input.purchase_unit_cost_after_tax').prop('readonly', true);
+    }
     if ($('input#iraqi_selling_price_adjustment').length > 0) {
         iraqi_selling_price_adjustment = true;
     } else {
@@ -426,6 +444,10 @@ $(document).ready(function() {
     });
 
     $(document).on('change', 'select.purchase_line_tax_id', function() {
+        if (lock_purchase_tax_override) {
+            return;
+        }
+
         var row = $(this).closest('tr');
         var purchase_before_tax = __read_number(row.find('.purchase_unit_cost'), true);
         var quantity = __read_number(row.find('input.purchase_quantity'), true);
@@ -459,6 +481,10 @@ $(document).ready(function() {
     });
 
     $(document).on('change', '.purchase_unit_cost_after_tax', function() {
+        if (lock_purchase_tax_override) {
+            return;
+        }
+
         var row = $(this).closest('tr');
         var purchase_after_tax = __read_number($(this), true);
         var quantity = __read_number(row.find('input.purchase_quantity'), true);
@@ -506,6 +532,10 @@ $(document).ready(function() {
 
         update_table_total();
         update_grand_total();
+    });
+
+    $(document).on('change', 'select.purchase_line_tax_id', function() {
+        sync_locked_tax_hidden($(this).closest('tr'));
     });
 
     $('#tax_id, #discount_type, #discount_amount, input#shipping_charges, \

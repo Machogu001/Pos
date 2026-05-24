@@ -2,6 +2,7 @@
 
 namespace Modules\Accounting\Http\Controllers;
 
+use App\Support\AccountingModuleGate;
 use App\Utils\ModuleUtil;
 use Illuminate\Routing\Controller;
 use Menu;
@@ -52,13 +53,17 @@ class DataController extends Controller
         $module_util = new ModuleUtil();
         $module_names = get_module_names();
         $is_accounting_enabled = (bool)$module_util->hasThePermissionInSubscription($business_id, $module_names->accounting);
-        $enabled_modules = !empty(session('business.enabled_modules')) ? session('business.enabled_modules') : [];
+        $enabled_modules = AccountingModuleGate::normalizeEnabledModules(session('business.enabled_modules', []));
+        $is_accounting_checked_for_business = AccountingModuleGate::isEnabledForBusiness(
+            (int) $business_id,
+            $enabled_modules
+        );
 
         $is_admin = (new \App\Utils\Util())->is_admin(auth()->user(), $business_id);
         $user_can_access_accounting = $is_admin || auth()->user()->can('superadmin') ||
             auth()->user()->getAllPermissions()->pluck('name')->filter(fn($p) => str_starts_with($p, 'accounting.'))->isNotEmpty();
 
-        if ($is_accounting_enabled && $user_can_access_accounting) {
+        if ($is_accounting_enabled && $is_accounting_checked_for_business && $user_can_access_accounting) {
             Menu::modify('admin-sidebar-menu', function ($menu) use ($enabled_modules) {
                 $menu->dropdown(
                     __('accounting::lang.accounting'),

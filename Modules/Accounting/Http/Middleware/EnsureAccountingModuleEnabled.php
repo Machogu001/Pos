@@ -2,6 +2,7 @@
 
 namespace Modules\Accounting\Http\Middleware;
 
+use App\Support\AccountingModuleGate;
 use Closure;
 use Illuminate\Http\Request;
 
@@ -14,30 +15,22 @@ class EnsureAccountingModuleEnabled
             return $next($request);
         }
 
-        $enabled = session('business.enabled_modules', []);
-
-        if (is_string($enabled)) {
-            $decoded = json_decode($enabled, true);
-            $enabled = is_array($decoded) ? $decoded : [];
-        }
-
-        if (! is_array($enabled)) {
-            $enabled = [];
-        }
-
-        $isEnabled = in_array('accounting_module', $enabled, true) || in_array('accounting', $enabled, true);
+        $isEnabled = AccountingModuleGate::isEnabledForBusiness(
+            (int) $request->session()->get('user.business_id'),
+            $request->session()->get('business.enabled_modules', [])
+        );
 
         if (! $isEnabled) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Accounting module not enabled for this business.',
+                    'message' => __('accounting::general.accounting_module_not_enabled_for_business'),
                 ], 403);
             }
 
             return redirect()->to('/home')->with('status', [
                 'success' => 0,
-                'msg' => 'Accounting module not enabled for this business.',
+                'msg' => __('accounting::general.accounting_module_not_enabled_for_business'),
             ]);
         }
 

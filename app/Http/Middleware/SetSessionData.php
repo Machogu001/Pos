@@ -18,7 +18,10 @@ class SetSessionData
      */
     public function handle($request, Closure $next)
     {
-        if (! $request->session()->has('user')) {
+        if (! $request->session()->has('user') ||
+            ! $request->session()->has('business') ||
+            ! $request->session()->has('currency') ||
+            ! $request->session()->has('financial_year')) {
             $business_util = new BusinessUtil;
 
             $user = Auth::user();
@@ -78,7 +81,6 @@ class SetSessionData
             ];
 
             $request->session()->put('business', $business);
-            $request->session()->put('business.date_format', config('constants.default_date_format'));
             $request->session()->put('business.date_format', config('constants.default_date_format'));
             $request->session()->put('currency', $currency_data);
 

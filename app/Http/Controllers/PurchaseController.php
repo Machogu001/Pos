@@ -267,6 +267,8 @@ class PurchaseController extends Controller
             $types['both'] = __('lang_v1.both_supplier_customer');
         }
         $customer_groups = CustomerGroup::forDropdown($business_id);
+        $enable_product_editing = (int) Business::where('id', $business_id)
+            ->value('enable_editing_product_from_purchase');
 
         $business_details = $this->businessUtil->getDetails($business_id);
         $shortcuts = json_decode($business_details->keyboard_shortcuts, true);
@@ -277,10 +279,11 @@ class PurchaseController extends Controller
         //Accounts
         $accounts = $this->moduleUtil->accountsDropdown($business_id, true);
 
-        $common_settings = ! empty(session('business.common_settings')) ? session('business.common_settings') : [];
+        $common_settings = $this->getBusinessCommonSettings($business_id);
+        $lock_purchase_tax_override = $this->isPurchaseTaxOverrideLocked($common_settings);
 
         return view('purchase.create')
-            ->with(compact('taxes', 'orderStatuses', 'business_locations', 'currency_details', 'default_purchase_status', 'customer_groups', 'types', 'shortcuts', 'payment_line', 'payment_types', 'accounts', 'bl_attributes', 'common_settings'));
+            ->with(compact('taxes', 'orderStatuses', 'business_locations', 'currency_details', 'default_purchase_status', 'customer_groups', 'types', 'shortcuts', 'payment_line', 'payment_types', 'accounts', 'bl_attributes', 'common_settings', 'enable_product_editing', 'lock_purchase_tax_override'));
     }
 
     /**
@@ -323,7 +326,8 @@ class PurchaseController extends Controller
             ]);
 
             $user_id = $request->session()->get('user.id');
-            $enable_product_editing = $request->session()->get('business.enable_editing_product_from_purchase');
+            $enable_product_editing = (int) Business::where('id', $business_id)
+                ->value('enable_editing_product_from_purchase');
 
             //Update business exchange rate.
             Business::update_business($business_id, ['p_exchange_rate' => ($transaction_data['exchange_rate'])]);
@@ -399,8 +403,10 @@ class PurchaseController extends Controller
 
             $purchase_lines = [];
             $purchases = $request->input('purchases');
+            $common_settings = $this->getBusinessCommonSettings($business_id);
+            $lock_tax_override = $this->isPurchaseTaxOverrideLocked($common_settings);
 
-            $this->productUtil->createOrUpdatePurchaseLines($transaction, $purchases, $currency_details, $enable_product_editing);
+            $this->productUtil->createOrUpdatePurchaseLines($transaction, $purchases, $currency_details, $enable_product_editing, null, $lock_tax_override);
 
             //Add Purchase payments
             $this->transactionUtil->createOrUpdatePaymentLines($transaction, $request->input('payment'));
@@ -599,11 +605,13 @@ class PurchaseController extends Controller
             $types['both'] = __('lang_v1.both_supplier_customer');
         }
         $customer_groups = CustomerGroup::forDropdown($business_id);
+        $enable_product_editing = (int) $business->enable_editing_product_from_purchase;
 
         $business_details = $this->businessUtil->getDetails($business_id);
         $shortcuts = json_decode($business_details->keyboard_shortcuts, true);
 
-        $common_settings = ! empty(session('business.common_settings')) ? session('business.common_settings') : [];
+        $common_settings = $this->getBusinessCommonSettings($business_id);
+        $lock_purchase_tax_override = $this->isPurchaseTaxOverrideLocked($common_settings);
 
         $purchase_orders = null;
         if (! empty($common_settings['enable_purchase_order'])) {
@@ -633,7 +641,9 @@ class PurchaseController extends Controller
                 'types',
                 'shortcuts',
                 'purchase_orders',
-                'common_settings'
+                'common_settings',
+                'enable_product_editing',
+                'lock_purchase_tax_override'
             ));
     }
 
@@ -661,7 +671,8 @@ class PurchaseController extends Controller
             $transaction = Transaction::findOrFail($id);
             $before_status = $transaction->status;
             $business_id = request()->session()->get('user.business_id');
-            $enable_product_editing = $request->session()->get('business.enable_editing_product_from_purchase');
+            $enable_product_editing = (int) Business::where('id', $business_id)
+                ->value('enable_editing_product_from_purchase');
 
             $transaction_before = $transaction->replicate();
 
@@ -737,8 +748,10 @@ class PurchaseController extends Controller
             $transaction->payment_status = $payment_status;
 
             $purchases = $request->input('purchases');
+            $common_settings = $this->getBusinessCommonSettings($business_id);
+            $lock_tax_override = $this->isPurchaseTaxOverrideLocked($common_settings);
 
-            $delete_purchase_lines = $this->productUtil->createOrUpdatePurchaseLines($transaction, $purchases, $currency_details, $enable_product_editing, $before_status);
+            $delete_purchase_lines = $this->productUtil->createOrUpdatePurchaseLines($transaction, $purchases, $currency_details, $enable_product_editing, $before_status, $lock_tax_override);
 
             //Update mapping of purchase & Sell.
             $this->transactionUtil->adjustMappingPurchaseSellAfterEditingPurchase($before_status, $transaction, $delete_purchase_lines);
@@ -1044,8 +1057,12 @@ class PurchaseController extends Controller
             if ($request->session()->get('business.enable_inline_tax') == 1) {
                 $hide_tax = '';
             }
+            $enable_product_editing = (int) Business::where('id', $business_id)
+                ->value('enable_editing_product_from_purchase');
 
             $currency_details = $this->transactionUtil->purchaseCurrencyDetails($business_id);
+            $common_settings = $this->getBusinessCommonSettings($business_id);
+            $lock_purchase_tax_override = $this->isPurchaseTaxOverrideLocked($common_settings);
 
             if (! empty($product_id)) {
                 $row_count = $request->input('row_count');
@@ -1063,7 +1080,6 @@ class PurchaseController extends Controller
                         ->value('unit_id');
 
                     if (empty($default_purchase_unit_id)) {
-                        $common_settings = session()->get('business.common_settings', []);
                         $default_purchase_unit_id = ! empty($common_settings['default_purchase_unit_id']) ? (int) $common_settings['default_purchase_unit_id'] : null;
                     }
 
@@ -1101,7 +1117,9 @@ class PurchaseController extends Controller
                         'hide_tax',
                         'sub_units',
                         'is_purchase_order',
-                        'last_purchase_line'
+                        'last_purchase_line',
+                        'enable_product_editing',
+                        'lock_purchase_tax_override'
                     ));
             }
         }
@@ -1127,6 +1145,28 @@ class PurchaseController extends Controller
                             ->first();
 
         return $purchase_line;
+    }
+
+    private function getBusinessCommonSettings($business_id)
+    {
+        $common_settings = Business::where('id', $business_id)->value('common_settings');
+
+        if (is_string($common_settings)) {
+            $decoded = json_decode($common_settings, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return is_array($common_settings) ? $common_settings : [];
+    }
+
+    private function isPurchaseTaxOverrideLocked(array $common_settings)
+    {
+        if (array_key_exists('allow_purchase_tax_override', $common_settings)) {
+            return empty($common_settings['allow_purchase_tax_override']);
+        }
+
+        return ! empty($common_settings['lock_purchase_tax_override']);
     }
 
     public function importPurchaseProducts(Request $request)

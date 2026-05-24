@@ -95,8 +95,7 @@
                 // Listen for global beforeinstallprompt (may be fired by other partials too)
                 window.addEventListener('beforeinstallprompt', function (e) {
                     try {
-                        console.debug('beforeinstallprompt event caught (header script)');
-                        e.preventDefault();
+                        // Keep the event for user-triggered install flow without suppressing native behavior.
                         window.__bremac_deferredPrompt = e;
                         window.__bremac_pwa_status = window.__bremac_pwa_status || {};
                         window.__bremac_pwa_status.beforeInstallPromptFired = true;
@@ -149,7 +148,6 @@
                         }
                         var status = window.__bremac_pwa_status || {};
                         var canShow = (status.manifestOk && status.swRegistered) && !headerInstallShouldHide();
-                        console.debug('header CTA fallback check', { status: status, canShow: canShow });
                         if (canShow) {
                             // Show header CTA
                             headerInstallBtn.style.display = '';

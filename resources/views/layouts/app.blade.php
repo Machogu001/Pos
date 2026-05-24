@@ -25,6 +25,52 @@
     <!-- Viewport: default to desktop view on phones/tablets unless user opts into mobile view -->
     <meta id="meta-viewport" name="viewport" content="width=1024">
     <script>
+        (function () {
+            var ignoredPhrases = [
+                'A listener indicated an asynchronous response by returning true',
+                'message channel closed before a response was received'
+            ];
+
+            function isKnownExtensionMessage(value) {
+                var text = String(value || '');
+                return ignoredPhrases.some(function (phrase) {
+                    return text.indexOf(phrase) !== -1;
+                });
+            }
+
+            function swallowKnownNoise(event, message) {
+                if (!isKnownExtensionMessage(message)) {
+                    return;
+                }
+
+                try { event.preventDefault(); } catch (e) {}
+                try { event.stopImmediatePropagation(); } catch (e) {}
+                try { event.stopPropagation(); } catch (e) {}
+            }
+
+            window.addEventListener('error', function (event) {
+                if (isKnownExtensionMessage(event && event.message)) {
+                    swallowKnownNoise(event, event && event.message);
+                }
+            }, true);
+
+            window.addEventListener('unhandledrejection', function (event) {
+                var reason = event ? event.reason : '';
+                var message = reason && reason.message ? reason.message : reason;
+
+                if (!isKnownExtensionMessage(message)) {
+                    try {
+                        message = (reason && reason.stack) ? reason.stack : String(reason || '');
+                    } catch (e) {
+                        message = String(message || '');
+                    }
+                }
+
+                swallowKnownNoise(event, message);
+            }, true);
+        })();
+    </script>
+    <script>
         (function(){
             try {
                 var pref = localStorage.getItem('preferred_view') || 'desktop';
@@ -272,8 +318,8 @@
                 window.addEventListener('load', function() {
                     // Append asset version to bust caches and force browser to fetch latest SW
                     navigator.serviceWorker.register('{{ url("service-worker.js") }}?v={{ $asset_v }}')
-                        .then(function(reg) { console.log('Service Worker registered:', reg); })
-                        .catch(function(err) { console.log('SW registration failed:', err); });
+                        .then(function() {})
+                        .catch(function() {});
                 });
             }
         </script>

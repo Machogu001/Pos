@@ -165,8 +165,7 @@
     } catch (e) { /* noop */ }
 
     window.addEventListener('beforeinstallprompt', (e) => {
-        // Prevent Chrome 67 and earlier from automatically showing the prompt
-        e.preventDefault();
+        // Store the event for user-triggered install flow.
         deferredPrompt = e;
         // show the modal/prompt to the user
         iosInstructions.style.display = 'none';

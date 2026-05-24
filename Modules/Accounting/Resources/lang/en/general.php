@@ -83,4 +83,5 @@ return [
     'fill_all_required_fields' => 'Fill all required (*) form field then go to next step',
     'preview' => 'Preview|Previews',
     'review' => 'Review|Reviews',
+    'accounting_module_not_enabled_for_business' => 'Accounting module not enabled for this business.',
 ];

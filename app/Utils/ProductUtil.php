@@ -1541,11 +1541,14 @@ class ProductUtil extends Util
             $variation_data['sell_price_inc_tax'] = $variation_details->sell_price_inc_tax;
         }
 
-        if (($variation_details->default_purchase_price != $variation_data['pp_without_discount']) ||
+        // Prefer unit cost before tax when provided, otherwise fall back to unit cost before discount.
+        $current_purchase_price = $variation_data['purchase_price'] ?? $variation_data['pp_without_discount'];
+
+        if (($variation_details->default_purchase_price != $current_purchase_price) ||
             ($variation_details->sell_price_inc_tax != $variation_data['sell_price_inc_tax'])
             ) {
             //Set default purchase price exc. tax
-            $variation_details->default_purchase_price = $variation_data['pp_without_discount'];
+            $variation_details->default_purchase_price = $current_purchase_price;
 
             //Set default purchase price inc. tax
             $variation_details->dpp_inc_tax = $this->calc_percentage($variation_details->default_purchase_price, $tax_rate, $variation_details->default_purchase_price);
@@ -1836,9 +1839,10 @@ class ProductUtil extends Util
      * @param  array  $currency_details
      * @param  bool  $enable_product_editing
      * @param  string  $before_status = null
+    * @param  bool  $lock_tax_override
      * @return array
      */
-    public function createOrUpdatePurchaseLines($transaction, $input_data, $currency_details, $enable_product_editing, $before_status = null)
+    public function createOrUpdatePurchaseLines($transaction, $input_data, $currency_details, $enable_product_editing, $before_status = null, $lock_tax_override = false)
     {
         $updated_purchase_lines = [];
         $updated_purchase_line_ids = [0];
@@ -1888,6 +1892,18 @@ class ProductUtil extends Util
             $purchase_line->purchase_price_inc_tax = ($this->num_uf($data['purchase_price_inc_tax'], $currency_details) * $exchange_rate) / $multiplier;
             $purchase_line->item_tax = ($this->num_uf($data['item_tax'], $currency_details) * $exchange_rate) / $multiplier;
             $purchase_line->tax_id = $data['purchase_line_tax_id'];
+
+            if ($lock_tax_override && $transaction->type == 'purchase') {
+                $tax_id = Product::where('id', $data['product_id'])->value('tax');
+                $tax_rate = 0;
+                if (! empty($tax_id)) {
+                    $tax_rate = (float) TaxRate::where('id', $tax_id)->value('amount');
+                }
+
+                $purchase_line->tax_id = $tax_id;
+                $purchase_line->item_tax = $this->calc_percentage($purchase_line->purchase_price, $tax_rate);
+                $purchase_line->purchase_price_inc_tax = $purchase_line->purchase_price + $purchase_line->item_tax;
+            }
             $purchase_line->lot_number = ! empty($data['lot_number']) ? $data['lot_number'] : null;
             $purchase_line->mfg_date = ! empty($data['mfg_date']) ? $this->uf_date($data['mfg_date']) : null;
             $purchase_line->exp_date = ! empty($data['exp_date']) ? $this->uf_date($data['exp_date']) : null;
@@ -1907,8 +1923,8 @@ class ProductUtil extends Util
                     $variation_data['sell_price_inc_tax'] = ($this->num_uf($data['default_sell_price'], $currency_details)) / $multiplier;
                 }
                 $variation_data['pp_without_discount'] = ($this->num_uf($data['pp_without_discount'], $currency_details) * $exchange_rate) / $multiplier;
-                $variation_data['variation_id'] = $purchase_line->variation_id;
                 $variation_data['purchase_price'] = $purchase_line->purchase_price;
+                $variation_data['variation_id'] = $purchase_line->variation_id;
 
                 $this->updateProductFromPurchase($variation_data);
             }

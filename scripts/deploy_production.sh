@@ -37,8 +37,10 @@ php artisan admin:enforce-superuser-policy --force
 echo "[5/9] Clearing old caches"
 php artisan optimize:clear
 
-echo "[6/9] Rebuilding production caches (config, routes, views)"
-php artisan optimize
+echo "[6/9] Rebuilding production caches (module-safe)"
+# Do not use `optimize`/`route:cache` here: dynamic module routes can be dropped.
+php artisan config:cache || php artisan config:clear
+php artisan route:clear
 php artisan view:cache || true
 
 echo "[7/9] Verifying critical Accounting routes"

@@ -9,6 +9,9 @@ Route::group(['middleware' => ['web', 'authh', 'auth', 'SetSessionData', 'langua
     Route::get('/install/uninstall', 'InstallController@uninstall');
     Route::get('/install/update', 'InstallController@update');
 
+    // Default landing route for Accounting module.
+    Route::redirect('/', 'accounting/chart_of_account');
+
     /** Dashboard Routes */
     Route::prefix('dashboard')->group(function () {
         Route::get('/', 'DashboardController@index');

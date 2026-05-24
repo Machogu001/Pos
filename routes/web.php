@@ -68,6 +68,7 @@ use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\SubscriptionInvoiceController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\PaymentAccountController;
+use App\Http\Controllers\AccountingDashboardStubController;
 /*|--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
@@ -677,6 +678,9 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
 
     // Crm module stub routes
     Route::get('crm/dashboard', [\Modules\Crm\Http\Controllers\DashboardController::class, 'index'])->name('crm.dashboard');
+
+    // Accounting module stub route (keeps dashboard reachable if module routes are not bootstrapped yet)
+    Route::get('accounting/dashboard', AccountingDashboardStubController::class)->name('accounting.dashboard.stub');
 
     // Repair module stub routes
     Route::get('repair', [\Modules\Repair\Http\Controllers\RepairController::class, 'index']);

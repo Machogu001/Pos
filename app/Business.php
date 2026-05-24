@@ -45,6 +45,18 @@ class Business extends Model
     {
         $commonSettings = is_array($commonSettings) ? $commonSettings : [];
 
+        // Keep purchase tax override flags in sync.
+        // New semantics: allow_purchase_tax_override=1 means editable tax fields.
+        if (array_key_exists('allow_purchase_tax_override', $commonSettings)) {
+            $allowPurchaseTaxOverride = ! empty($commonSettings['allow_purchase_tax_override']) ? 1 : 0;
+            $commonSettings['allow_purchase_tax_override'] = $allowPurchaseTaxOverride;
+            $commonSettings['lock_purchase_tax_override'] = $allowPurchaseTaxOverride ? 0 : 1;
+        } elseif (array_key_exists('lock_purchase_tax_override', $commonSettings)) {
+            $lockPurchaseTaxOverride = ! empty($commonSettings['lock_purchase_tax_override']) ? 1 : 0;
+            $commonSettings['lock_purchase_tax_override'] = $lockPurchaseTaxOverride;
+            $commonSettings['allow_purchase_tax_override'] = $lockPurchaseTaxOverride ? 0 : 1;
+        }
+
         $defaultMappings = config('constants.default_account_mappings', []);
         $typeMappings = ! empty($commonSettings['default_account_mappings']) && is_array($commonSettings['default_account_mappings'])
             ? $commonSettings['default_account_mappings']
