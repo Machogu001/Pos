@@ -67,6 +67,10 @@ class ModuleUtil extends Util
         $data = [];
         if (! empty($installed_modules)) {
             foreach ($installed_modules as $module) {
+                if (! $this->shouldIncludeModuleForFunction($module['name'], $function_name)) {
+                    continue;
+                }
+
                 $class = 'Modules\\'.$module['name'].'\Http\Controllers\DataController';
 
                 if (class_exists($class)) {
@@ -87,6 +91,47 @@ class ModuleUtil extends Util
         }
 
         return $data;
+    }
+
+    /**
+     * Map module names to enabled_modules toggle keys.
+     */
+    protected function moduleToggleMap()
+    {
+        return [
+            'AiAssistance' => 'ai_assistance',
+            'AssetManagement' => 'asset_management',
+            'Cms' => 'cms',
+            'Connector' => 'api_connector',
+            'Crm' => 'crm',
+            'Essentials' => 'essentials',
+            'Hms' => 'hms',
+            'Manufacturing' => 'manufacturing',
+            'ProductCatalogue' => 'catalogue_qr',
+            'Project' => 'project',
+            'Repair' => 'repair',
+            'Spreadsheet' => 'spreadsheet',
+            'Woocommerce' => 'woocommerce',
+            'Hrm' => 'hrm',
+        ];
+    }
+
+    /**
+     * Decide if a module should contribute data for a given callback.
+     */
+    protected function shouldIncludeModuleForFunction($module_name, $function_name)
+    {
+        // Only gate menu injection by enabled_modules. Keep other callbacks untouched.
+        if ($function_name !== 'modifyAdminMenu') {
+            return true;
+        }
+
+        $module_toggle_map = $this->moduleToggleMap();
+        if (! isset($module_toggle_map[$module_name])) {
+            return true;
+        }
+
+        return $this->isModuleEnabled($module_toggle_map[$module_name]);
     }
 
     /**
@@ -497,13 +542,34 @@ class ModuleUtil extends Util
     public function availableModules()
     {
         return [
-            'purchases' => ['name' => __('purchase.purchases')],
-            'add_sale' => ['name' => __('sale.add_sale')],
-            'pos_sale' => ['name' => __('sale.pos_sale')],
-            'stock_transfers' => ['name' => __('lang_v1.stock_transfers')],
-            'stock_adjustment' => ['name' => __('stock_adjustment.stock_adjustment')],
-            'expenses' => ['name' => __('expense.expenses')],
-            'account' => ['name' => __('lang_v1.account')],
+            'purchases' => [
+                'name' => __('purchase.purchases'),
+                'tooltip' => 'Enable or disable access to purchases features and menus.',
+            ],
+            'add_sale' => [
+                'name' => __('sale.add_sale'),
+                'tooltip' => 'Enable or disable the Add Sale screen and related actions.',
+            ],
+            'pos_sale' => [
+                'name' => __('sale.pos_sale'),
+                'tooltip' => 'Enable or disable POS sales screens and POS-specific workflows.',
+            ],
+            'stock_transfers' => [
+                'name' => __('lang_v1.stock_transfers'),
+                'tooltip' => 'Enable or disable stock transfer workflows between locations.',
+            ],
+            'stock_adjustment' => [
+                'name' => __('stock_adjustment.stock_adjustment'),
+                'tooltip' => 'Enable or disable stock adjustment features.',
+            ],
+            'expenses' => [
+                'name' => __('expense.expenses'),
+                'tooltip' => 'Enable or disable expense management features.',
+            ],
+            'account' => [
+                'name' => __('lang_v1.account'),
+                'tooltip' => 'Enable or disable accounting and account-related menus.',
+            ],
             'tables' => ['name' => __('restaurant.tables'),
                 'tooltip' => __('restaurant.tooltip_tables'),
             ],
@@ -514,16 +580,78 @@ class ModuleUtil extends Util
                 'name' => __('restaurant.service_staff'),
                 'tooltip' => __('restaurant.tooltip_service_staff'),
             ],
-            'booking' => ['name' => __('lang_v1.enable_booking')],
+            'booking' => [
+                'name' => __('lang_v1.enable_booking'),
+                'tooltip' => 'Enable or disable booking and reservation features.',
+            ],
             'kitchen' => [
                 'name' => __('restaurant.kitchen_for_restaurant'),
+                'tooltip' => 'Enable or disable kitchen screens and kitchen order workflows.',
             ],
-            'subscription' => ['name' => __('lang_v1.enable_subscription')],
+            'subscription' => [
+                'name' => __('lang_v1.enable_subscription'),
+                'tooltip' => 'Enable or disable subscription features for this business.',
+            ],
             'types_of_service' => ['name' => __('lang_v1.types_of_service'),
                 'tooltip' => __('lang_v1.types_of_service_help_long'),
             ],
+            'ai_assistance' => [
+                'name' => __('ui.ai_assistance'),
+                'tooltip' => __('ui.tooltip_ai_assistance_module'),
+            ],
+            'asset_management' => [
+                'name' => __('ui.asset_management'),
+                'tooltip' => __('ui.tooltip_asset_management_module'),
+            ],
+            'cms' => [
+                'name' => __('ui.cms'),
+                'tooltip' => __('ui.tooltip_cms_module'),
+            ],
+            'api_connector' => [
+                'name' => __('ui.api_connector'),
+                'tooltip' => __('ui.tooltip_api_connector_module'),
+            ],
+            'crm' => [
+                'name' => __('ui.crm'),
+                'tooltip' => __('ui.tooltip_crm_module'),
+            ],
+            'essentials' => [
+                'name' => __('ui.essentials'),
+                'tooltip' => __('ui.tooltip_essentials_module'),
+            ],
+            'hms' => [
+                'name' => __('ui.hms'),
+                'tooltip' => __('ui.tooltip_hms_module'),
+            ],
+            'manufacturing' => [
+                'name' => __('ui.manufacturing'),
+                'tooltip' => __('ui.tooltip_manufacturing_module'),
+            ],
+            'catalogue_qr' => [
+                'name' => __('ui.catalogue_qr'),
+                'tooltip' => __('ui.tooltip_catalogue_qr_module'),
+            ],
+            'project' => [
+                'name' => __('ui.project'),
+                'tooltip' => __('ui.tooltip_project_module'),
+            ],
+            'repair' => [
+                'name' => __('ui.repair'),
+                'tooltip' => __('ui.tooltip_repair_module'),
+            ],
+            'spreadsheet' => [
+                'name' => __('ui.spreadsheet'),
+                'tooltip' => __('ui.tooltip_spreadsheet_module'),
+            ],
+            'woocommerce' => [
+                'name' => __('ui.woocommerce'),
+                'tooltip' => __('ui.tooltip_woocommerce_module'),
+            ],
             // HRM module toggle: allows hiding HRM menu when disabled
-            'hrm' => ['name' => 'HRM'],
+            'hrm' => [
+                'name' => __('ui.hrm'),
+                'tooltip' => __('ui.tooltip_hrm_module'),
+            ],
         ];
     }
 

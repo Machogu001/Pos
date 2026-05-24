@@ -1199,31 +1199,58 @@ if (in_array('stock_adjustment', $enabled_modules) &&
         //Add menus from modules
         $moduleUtil = new ModuleUtil;
 
+        $business = optional(auth()->user())->business;
+        $sessionModules = is_array(session('business.enabled_modules')) ? session('business.enabled_modules') : [];
+        $businessModules = is_array(optional($business)->enabled_modules) ? $business->enabled_modules : [];
+        $enabled_modules = array_values(array_unique(array_merge($sessionModules, $businessModules)));
+
+        $modules_apps_toggles = [
+            'ai_assistance',
+            'asset_management',
+            'cms',
+            'api_connector',
+            'crm',
+            'essentials',
+            'hms',
+            'manufacturing',
+            'catalogue_qr',
+            'project',
+            'repair',
+            'spreadsheet',
+            'woocommerce',
+            'hrm',
+        ];
+        $modules_apps_title = __('ui.modules_apps_menu');
+
+        $has_enabled_modules_app = ! empty(array_intersect($modules_apps_toggles, $enabled_modules));
+
         // Register parent "Modules & Apps" dropdown so module DataControllers can attach subitems via whereTitle().
-        Menu::modify('admin-sidebar-menu', function ($menu) {
-            $menu->dropdown(
-                'Modules & Apps',
-                function ($sub) {
-                    // subitems added dynamically by each module's DataController::modifyAdminMenu()
-                },
-                [
-                    'icon' => '<svg aria-hidden="true" class="tw-size-5 tw-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M14 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M4 14m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M14 14m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/></svg>',
-                    'id' => 'modules-and-apps-dropdown',
-                ]
-            )->order(87);
+        if ($has_enabled_modules_app) {
+            Menu::modify('admin-sidebar-menu', function ($menu) use ($modules_apps_title) {
+                $menu->dropdown(
+                    $modules_apps_title,
+                    function ($sub) {
+                        // subitems added dynamically by each module's DataController::modifyAdminMenu()
+                    },
+                    [
+                        'icon' => '<svg aria-hidden="true" class="tw-size-5 tw-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M14 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M4 14m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M14 14m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/></svg>',
+                        'id' => 'modules-and-apps-dropdown',
+                    ]
+                )->order(87);
+            });
+
+            $moduleUtil->getModuleData('modifyAdminMenu');
+        }
+
+        // Hide the "Modules & Apps" parent if no module added subitems.
+        Menu::modify('admin-sidebar-menu', function ($menu) use ($modules_apps_title) {
+            $item = $menu->whereTitle($modules_apps_title);
+            if ($item && method_exists($item, 'hasChilds') && ! $item->hasChilds()) {
+                $item->hideWhen(function () {
+                    return true;
+                });
+            }
         });
-
-        $moduleUtil->getModuleData('modifyAdminMenu');
-
-        // // Remove the "Modules & Apps" parent if no module added any subitems (keeps menu clean on fresh installs)
-        // Menu::modify('admin-sidebar-menu', function ($menu) {
-        //     $item = $menu->whereTitle('Modules & Apps');
-        //     if ($item && ! $item->hasChilds()) {
-        //         $menu->items = array_values(array_filter($menu->items, function ($i) use ($item) {
-        //             return $i !== $item;
-        //         }));
-        //     }
-        // });
         return $next($request);
     }
 }

@@ -203,7 +203,7 @@ class InstallController extends Controller
                     'ENVATO_PURCHASE_CODE' => 'required',
                     'DB_DATABASE' => 'required',
                     'DB_USERNAME' => 'required',
-                    'DB_PASSWORD' => 'required',
+                    'DB_PASSWORD' => 'nullable',
                     'DB_HOST' => 'required',
                     'DB_PORT' => 'required',
                 ],
@@ -287,6 +287,11 @@ class InstallController extends Controller
             return view('install.envText')
                 ->with(compact('envContent', 'envPath'));
         } catch (\Exception $e) {
+            \Log::error('InstallController::postDetails failed', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             $this->deleteEnv();
 
             return redirect()->back()
@@ -313,33 +318,40 @@ class InstallController extends Controller
         }
 
         // Run all directory/symlink/key setup tasks first
-        Artisan::call('pos:setup', ['--force' => true]);
+        $this->runArtisanStep('pos:setup', ['--force' => true]);
 
-        DB::statement('SET default_storage_engine=INNODB;');
+        try {
+            DB::statement('SET default_storage_engine=INNODB;');
+        } catch (\Throwable $e) {
+            // Non-fatal outside MySQL/MariaDB.
+            \Log::warning('InstallController: unable to set default_storage_engine', [
+                'message' => $e->getMessage(),
+            ]);
+        }
 
-        // Run all migrations (core + all module migrations registered via loadMigrationsFrom)
-        Artisan::call('migrate:fresh', ['--force' => true]);
+        // Run core migrations in a non-destructive way for fresh or partial installs.
+        $this->runArtisanStep('migrate', ['--force' => true]);
 
         // Explicitly run any module migrations not auto-discovered (belt-and-suspenders)
-        Artisan::call('module:migrate', ['--force' => true]);
+        $this->runArtisanStep('module:migrate', ['--force' => true]);
 
         // Publish module assets (JS/CSS/views) to public/
-        Artisan::call('module:publish');
+        $this->runArtisanStep('module:publish', [], false);
 
         // Seed core data: barcodes, permissions, currencies, admin_settings, superadmin
-        Artisan::call('db:seed', ['--force' => true]);
+        $this->runArtisanStep('db:seed', ['--force' => true]);
 
         // Create Passport OAuth clients in DB (pos:setup already created the keys)
-        Artisan::call('passport:install', ['--force' => true]);
+        $this->runArtisanStep('passport:install', ['--force' => true]);
 
         // Reset Spatie permission cache to ensure fresh permissions are loaded
-        Artisan::call('permission:cache-reset');
+        $this->runArtisanStep('permission:cache-reset', [], false);
 
         // Rebuild bootstrap/cache/packages.php + services.php so all providers
         // (including laravel/sentinel) are correctly registered before optimize.
-        Artisan::call('package:discover', ['--ansi' => false]);
+        $this->runArtisanStep('package:discover', ['--ansi' => false]);
 
-        Artisan::call('optimize');
+        $this->runArtisanStep('optimize', [], false);
     }
 
     public function installAlternate(Request $request)
@@ -360,6 +372,11 @@ class InstallController extends Controller
 
             return redirect()->route('install.success');
         } catch (\Exception $e) {
+            \Log::error('InstallController::installAlternate failed', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             $this->deleteEnv();
 
             return redirect()->back()
@@ -431,7 +448,6 @@ class InstallController extends Controller
         $version = null;
 
         try {
-            DB::beginTransaction();
 
             ini_set('max_execution_time', 0);
             ini_set('memory_limit', '512M');
@@ -448,28 +464,35 @@ class InstallController extends Controller
                     ini_set('max_execution_time', 0);
                     ini_set('memory_limit', '512M');
                     $this->installSettings();
-                    DB::statement('SET default_storage_engine=INNODB;');
+                    try {
+                        DB::statement('SET default_storage_engine=INNODB;');
+                    } catch (\Throwable $e) {
+                        // Non-fatal outside MySQL/MariaDB.
+                        \Log::warning('InstallController: unable to set default_storage_engine during update', [
+                            'message' => $e->getMessage(),
+                        ]);
+                    }
 
                     // Run core migrations + any module migrations not yet applied
-                    Artisan::call('migrate', ['--force' => true]);
-                    Artisan::call('module:migrate', ['--force' => true]);
+                    $this->runArtisanStep('migrate', ['--force' => true]);
+                    $this->runArtisanStep('module:migrate', ['--force' => true]);
 
                     // Publish updated module assets
-                    Artisan::call('module:publish');
+                    $this->runArtisanStep('module:publish', [], false);
 
                     // Ensure OAuth clients exist
-                    Artisan::call('passport:install', ['--force' => true]);
+                    $this->runArtisanStep('passport:install', ['--force' => true]);
 
                     // Re-seed permissions so new permissions from code are available
-                    Artisan::call('db:seed', ['--class' => 'PermissionsTableSeeder', '--force' => true]);
+                    $this->runArtisanStep('db:seed', ['--class' => 'PermissionsTableSeeder', '--force' => true]);
 
                     // Reset Spatie permission cache so new permissions are immediately active
-                    Artisan::call('permission:cache-reset');
+                    $this->runArtisanStep('permission:cache-reset', [], false);
 
                     // Rebuild package manifest before optimize to prevent stale provider errors
-                    Artisan::call('package:discover', ['--ansi' => false]);
+                    $this->runArtisanStep('package:discover', ['--ansi' => false]);
 
-                    Artisan::call('optimize');
+                    $this->runArtisanStep('optimize', [], false);
 
                     $installUtil->setSystemInfo('db_version', $this->appVersion);
                 } else {
@@ -479,16 +502,42 @@ class InstallController extends Controller
                 abort(404);
             }
 
-            @DB::commit();
-
             $output = ['success' => 1,
                 'msg' => 'Updated Succesfully to version '.$this->appVersion.' !!',
             ];
 
             return redirect('login')->with('status', $output);
         } catch (\Exception $e) {
-            DB::rollBack();
+            \Log::error('InstallController::update failed', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             exit($e->getMessage());
         }
+    }
+
+    /**
+     * Run an artisan command and fail fast on non-zero exit for critical steps.
+     */
+    private function runArtisanStep(string $command, array $parameters = [], bool $critical = true): int
+    {
+        $exitCode = Artisan::call($command, $parameters);
+
+        if ($exitCode !== 0) {
+            $output = trim(Artisan::output());
+            $message = $output !== '' ? $output : "Command {$command} failed with exit code {$exitCode}.";
+
+            if ($critical) {
+                throw new \RuntimeException($message);
+            }
+
+            \Log::warning('Non-critical install command failed', [
+                'command' => $command,
+                'exit_code' => $exitCode,
+                'output' => $output,
+            ]);
+        }
+
+        return $exitCode;
     }
 }
