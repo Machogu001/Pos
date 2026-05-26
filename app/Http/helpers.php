@@ -75,7 +75,7 @@ if (! function_exists('pos_release_version')) {
             return ltrim($tag, "vV");
         }
 
-        return '13.2';
+        return '13.3';
     }
 }
 
