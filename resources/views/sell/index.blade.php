@@ -128,6 +128,55 @@
 @stop
 
 @section('javascript')
+    <style>
+        /* Ensure List POS headers show clear sort affordance even with scroll table CSS variants. */
+        #sell_table_wrapper table.dataTable thead th.sorting,
+        #sell_table_wrapper table.dataTable thead th.sorting_asc,
+        #sell_table_wrapper table.dataTable thead th.sorting_desc {
+            cursor: pointer !important;
+            position: relative;
+            padding-right: 20px !important;
+        }
+
+        #sell_table_wrapper table.dataTable thead th.sorting::before,
+        #sell_table_wrapper table.dataTable thead th.sorting::after,
+        #sell_table_wrapper table.dataTable thead th.sorting_asc::before,
+        #sell_table_wrapper table.dataTable thead th.sorting_asc::after,
+        #sell_table_wrapper table.dataTable thead th.sorting_desc::before,
+        #sell_table_wrapper table.dataTable thead th.sorting_desc::after {
+            content: none !important;
+        }
+
+        #sell_table_wrapper table.dataTable thead th.sorting::after {
+            content: '↕' !important;
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: .55;
+            font-size: 12px;
+        }
+
+        #sell_table_wrapper table.dataTable thead th.sorting_asc::after {
+            content: '↑' !important;
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: .9;
+            font-size: 12px;
+        }
+
+        #sell_table_wrapper table.dataTable thead th.sorting_desc::after {
+            content: '↓' !important;
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: .9;
+            font-size: 12px;
+        }
+    </style>
     <script type="text/javascript">
         $(document).ready(function() {
             //Date range as a button
@@ -147,6 +196,7 @@
             sell_table = $('#sell_table').DataTable({
                 processing: true,
                 serverSide: true,
+                ordering: true,
                 fixedHeader:false,
                 aaSorting: [
                     [1, 'desc']
@@ -225,7 +275,8 @@
                     },
                     {
                         data: 'payment_methods',
-                        orderable: false,
+                        name: 'payment_methods_sort',
+                        orderable: true,
                         "searchable": false
                     },
                     {
@@ -243,7 +294,8 @@
                     },
                     {
                         data: 'return_due',
-                        orderable: false,
+                        name: 'return_due_sort',
+                        orderable: true,
                         "searchable": false
                     },
                     {

@@ -54,6 +54,13 @@
                         d.only_subscriptions = 1;
                     }
 
+                    if (d.order && d.order.length && d.columns) {
+                        var order_col_index = d.order[0].column;
+                        var order_column = d.columns[order_col_index] || {};
+                        d.sort_by = order_column.name || order_column.data || '';
+                        d.sort_dir = d.order[0].dir === 'asc' ? 'asc' : 'desc';
+                    }
+
                     // Keep payload compact for server-side processing.
                     // The endpoint does not require per-column metadata for this page.
                     delete d.columns;
@@ -114,7 +121,7 @@
                 },
                 {
                     data: 'payment_methods',
-                    orderable: false,
+                    name: 'payment_methods_sort',
                     "searchable": false
                 },
                 {

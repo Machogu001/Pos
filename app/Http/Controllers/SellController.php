@@ -348,6 +348,14 @@ class SellController extends Controller
             }
             $sales_order_statuses = Transaction::sales_order_statuses();
             $datatable = Datatables::of($sells)
+                ->orderColumn('payment_methods', function ($query, $order) {
+                    $direction = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                    $query->orderByRaw("(SELECT GROUP_CONCAT(DISTINCT TP3.method ORDER BY TP3.method SEPARATOR ',') FROM transaction_payments AS TP3 WHERE TP3.transaction_id = transactions.id AND TP3.method IS NOT NULL AND TP3.method != '') {$direction}");
+                })
+                ->orderColumn('return_due', function ($query, $order) {
+                    $direction = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                    $query->orderByRaw("(COALESCE(SR.final_total, 0) - COALESCE((SELECT SUM(TP2.amount) FROM transaction_payments AS TP2 WHERE TP2.transaction_id = SR.id), 0)) {$direction}");
+                })
                 ->addColumn(
                     'action',
                     function ($row) use ($only_shipments, $is_admin, $sale_type) {

@@ -1107,6 +1107,11 @@ class SellUtil
                 'bl.name as business_location',
                 DB::raw('0 as return_exists'),
                 DB::raw('0 as return_paid'),
+                DB::raw('(SELECT GROUP_CONCAT(DISTINCT TP.method ORDER BY TP.method SEPARATOR ",")
+                    FROM transaction_payments AS TP
+                    WHERE TP.transaction_id = transactions.id
+                    AND TP.method IS NOT NULL
+                    AND TP.method != "") as payment_methods_sort'),
                 DB::raw('0 as amount_return'),
                 DB::raw('NULL as return_transaction_id'),
                 'tos.name as types_of_service_name',
@@ -1129,6 +1134,7 @@ class SellUtil
     {
         $business_id = request()->session()->get('user.business_id');
         $sale_type = !empty(request()->input('sale_type')) ? request()->input('sale_type') : 'sell';
+        $payment_types = $this->transactionUtil->payment_types(null, true, $business_id);
 
         $query = $this->getListSells($business_id, $sale_type)
             ->with(['journal_entry.chart_of_account']);
@@ -1183,8 +1189,34 @@ class SellUtil
             $start = 0;
         }
 
+        $sort_by = request()->input('sort_by');
+        $sort_dir = strtolower((string) request()->input('sort_dir')) === 'asc' ? 'asc' : 'desc';
+        $sortable_columns = [
+            'transaction_date' => 'transactions.transaction_date',
+            'invoice_no' => 'transactions.invoice_no',
+            'contact_name' => 'contacts.name',
+            'bl.name' => 'bl.name',
+            'payment_status' => 'transactions.payment_status',
+            'payment_methods_sort' => 'payment_methods_sort',
+            'final_total' => 'transactions.final_total',
+            'total_paid' => 'total_paid',
+            'total_remaining' => DB::raw('(transactions.final_total - IF(transactions.payment_status = "paid", transactions.final_total, 0))'),
+            'total_items' => 'total_items',
+            'tos.name' => 'tos.name',
+        ];
+
+        if (!empty($sort_by) && isset($sortable_columns[$sort_by])) {
+            $order_column = $sortable_columns[$sort_by];
+            if ($order_column instanceof \Illuminate\Database\Query\Expression) {
+                $query->orderByRaw($order_column->getValue(DB::connection()->getQueryGrammar()) . ' ' . $sort_dir);
+            } else {
+                $query->orderBy($order_column, $sort_dir);
+            }
+        } else {
+            $query->orderByDesc('transactions.transaction_date');
+        }
+
         $rows = $query
-            ->orderByDesc('transactions.transaction_date')
             ->skip($start)
             ->take($length)
             ->get();
@@ -1212,6 +1244,15 @@ class SellUtil
             $total_paid = (float) $row->total_paid;
             $total_remaining = $final_total - $total_paid;
 
+            $payment_method = '';
+            if (!empty($row->payment_methods_sort)) {
+                $codes = array_filter(array_unique(explode(',', (string) $row->payment_methods_sort)));
+                $labels = array_map(function ($code) use ($payment_types) {
+                    return $payment_types[$code] ?? $code;
+                }, $codes);
+                $payment_method = implode(', ', $labels);
+            }
+
             return [
                 'checkbox' => '<input type="checkbox" class="select-row"/>',
                 'mapping' => $mapping,
@@ -1223,7 +1264,9 @@ class SellUtil
                     : ($row->name ?? ''),
                 'business_location' => $row->business_location,
                 'payment_status' => $payment_status,
-                'payment_methods' => '',
+                'payment_methods' => !empty($payment_method)
+                    ? '<span class="payment-method" data-orig-value="' . e($payment_method) . '" data-status-name="' . e($payment_method) . '">' . e($payment_method) . '</span>'
+                    : '',
                 'final_total' => '<span class="final-total" data-orig-value="' . $final_total . '">' . $this->transactionUtil->num_f($final_total, true) . '</span>',
                 'total_paid' => '<span class="total-paid" data-orig-value="' . $total_paid . '">' . $this->transactionUtil->num_f($total_paid, true) . '</span>',
                 'total_remaining' => '<span class="payment_due" data-orig-value="' . $total_remaining . '">' . $this->transactionUtil->num_f($total_remaining, true) . '</span>',

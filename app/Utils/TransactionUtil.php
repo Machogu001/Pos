@@ -5852,6 +5852,11 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
                     DB::raw('COUNT(SR.id) as return_exists'),
                     DB::raw('(SELECT SUM(TP2.amount) FROM transaction_payments AS TP2 WHERE
                         TP2.transaction_id=SR.id ) as return_paid'),
+                    DB::raw('(SELECT GROUP_CONCAT(DISTINCT TP3.method ORDER BY TP3.method SEPARATOR ",")
+                        FROM transaction_payments AS TP3
+                        WHERE TP3.transaction_id = transactions.id
+                        AND TP3.method IS NOT NULL
+                        AND TP3.method != "") as payment_methods_sort'),
                     DB::raw('COALESCE(SR.final_total, 0) as amount_return'),
                     'SR.id as return_transaction_id',
                     'tos.name as types_of_service_name',
