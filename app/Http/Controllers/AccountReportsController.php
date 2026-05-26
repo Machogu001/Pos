@@ -1074,6 +1074,14 @@ class AccountReportsController extends Controller
             'end_date' => 'nullable|date',
         ]);
 
+        // Guard against inverted date ranges for deterministic filtering.
+        if (! empty($validated['start_date']) && ! empty($validated['end_date']) && $validated['start_date'] > $validated['end_date']) {
+            return response()->json([
+                'success' => false,
+                'msg' => __('messages.custom_error_message', ['msg' => __('account.start_date_cannot_be_after_end_date')]),
+            ]);
+        }
+
         $file = $request->file('statement');
         $handle = fopen($file->getRealPath(), 'r');
         if (! $handle) {
@@ -1108,14 +1116,18 @@ class AccountReportsController extends Controller
 
             return response()->json([
                 'success' => false,
-                'msg' => __('messages.custom_error_message', ['msg' => 'CSV must include Date and Amount columns.']),
+                'msg' => __('messages.custom_error_message', ['msg' => __('account.csv_must_include_date_and_amount_columns')]),
             ]);
         }
 
         $statement_lines = [];
+        $invalid_lines = [];
         $total_statement_amount = 0;
+        $line_number = 1; // header row is line 1
 
         while (($row = fgetcsv($handle, 0, ',')) !== false) {
+            $line_number++;
+
             if (count(array_filter($row, function ($v) { return $v !== null && $v !== ''; })) === 0) {
                 continue;
             }
@@ -1124,24 +1136,47 @@ class AccountReportsController extends Controller
             $raw_amount = $row[$amount_index] ?? '';
 
             if ($raw_date === '' || $raw_amount === '') {
+                $invalid_lines[] = [
+                    'line' => $line_number,
+                    'date' => $raw_date,
+                    'amount' => $raw_amount,
+                    'description' => $description_index !== false ? ($row[$description_index] ?? '') : '',
+                    'reference' => $reference_index !== false ? ($row[$reference_index] ?? '') : '',
+                    'reason' => __('account.missing_date_or_amount'),
+                ];
                 continue;
             }
 
-            try {
-                $date = \Carbon\Carbon::parse($raw_date)->format('Y-m-d');
-            } catch (\Exception $e) {
+            $date = $this->parseBankStatementDate($raw_date);
+            if ($date === null) {
+                $invalid_lines[] = [
+                    'line' => $line_number,
+                    'date' => $raw_date,
+                    'amount' => $raw_amount,
+                    'description' => $description_index !== false ? ($row[$description_index] ?? '') : '',
+                    'reference' => $reference_index !== false ? ($row[$reference_index] ?? '') : '',
+                    'reason' => __('account.invalid_date_format'),
+                ];
                 continue;
             }
 
-            $amount_sanitized = preg_replace('/[^0-9\-\.]/', '', (string) $raw_amount);
-            if ($amount_sanitized === '' || ! is_numeric($amount_sanitized)) {
+            $amount = $this->parseBankStatementAmount($raw_amount);
+            if ($amount === null) {
+                $invalid_lines[] = [
+                    'line' => $line_number,
+                    'date' => $raw_date,
+                    'amount' => $raw_amount,
+                    'description' => $description_index !== false ? ($row[$description_index] ?? '') : '',
+                    'reference' => $reference_index !== false ? ($row[$reference_index] ?? '') : '',
+                    'reason' => __('account.invalid_amount_format'),
+                ];
                 continue;
             }
 
-            $amount = (float) $amount_sanitized;
             $total_statement_amount += $amount;
 
             $statement_lines[] = [
+                'line' => $line_number,
                 'date' => $date,
                 'amount' => $amount,
                 'description' => $description_index !== false ? ($row[$description_index] ?? '') : '',
@@ -1155,8 +1190,33 @@ class AccountReportsController extends Controller
         $ambiguous = [];
         $unmatched = [];
         $total_matched_amount = 0;
+        $used_payment_ids = [];
 
         $account_id = $validated['account_id'] ?? null;
+        $start_date_filter = $validated['start_date'] ?? null;
+        $end_date_filter = $validated['end_date'] ?? null;
+        $amount_tolerance = 0.01;
+
+        $run_id = DB::table('bank_reconciliation_runs')->insertGetId([
+            'business_id' => $business_id,
+            'user_id' => auth()->id(),
+            'account_id' => ! empty($account_id) && $account_id !== 'none' ? (int) $account_id : null,
+            'start_date' => $start_date_filter,
+            'end_date' => $end_date_filter,
+            'statement_filename' => $file->getClientOriginalName(),
+            'total_statement_lines' => 0,
+            'total_statement_amount' => 0,
+            'matched_count' => 0,
+            'ambiguous_count' => 0,
+            'unmatched_count' => 0,
+            'invalid_count' => 0,
+            'total_matched_amount' => 0,
+            'status' => 'processing',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $line_payload = [];
 
         foreach ($statement_lines as $line) {
             $date = $line['date'];
@@ -1165,13 +1225,19 @@ class AccountReportsController extends Controller
             $reference = $line['reference'];
 
             // Build a base query scoped to this business
-            $baseQuery = function () use ($business_id, $account_id, $validated) {
+            $baseQuery = function () use ($business_id, $account_id, $start_date_filter, $end_date_filter, $used_payment_ids) {
                 $q = TransactionPayment::where('business_id', $business_id);
                 if (! empty($account_id) && $account_id !== 'none') {
                     $q->where('account_id', $account_id);
                 }
-                if (! empty($validated['start_date']) && ! empty($validated['end_date'])) {
-                    $q->whereBetween(DB::raw('date(paid_on)'), [$validated['start_date'], $validated['end_date']]);
+                if (! empty($start_date_filter)) {
+                    $q->whereDate('paid_on', '>=', $start_date_filter);
+                }
+                if (! empty($end_date_filter)) {
+                    $q->whereDate('paid_on', '<=', $end_date_filter);
+                }
+                if (! empty($used_payment_ids)) {
+                    $q->whereNotIn('id', $used_payment_ids);
                 }
                 return $q;
             };
@@ -1184,7 +1250,7 @@ class AccountReportsController extends Controller
             $candidates = collect();
             if ($reference !== '') {
                 $candidates = $baseQuery()
-                    ->where('amount', $amount)
+                    ->whereBetween('amount', [$amount - $amount_tolerance, $amount + $amount_tolerance])
                     ->whereBetween(DB::raw('date(paid_on)'), [$start, $end])
                     ->where('payment_ref_no', $reference)
                     ->with(['transaction'])
@@ -1194,7 +1260,7 @@ class AccountReportsController extends Controller
             // 2. Fall back to amount + date window
             if ($candidates->isEmpty()) {
                 $candidates = $baseQuery()
-                    ->where('amount', $amount)
+                    ->whereBetween('amount', [$amount - $amount_tolerance, $amount + $amount_tolerance])
                     ->whereBetween(DB::raw('date(paid_on)'), [$start, $end])
                     ->with(['transaction'])
                     ->get();
@@ -1214,35 +1280,393 @@ class AccountReportsController extends Controller
             };
 
             if ($candidates->count() === 1) {
+                $matched_payment = $candidates->first();
                 $matched[] = [
                     'statement' => $line,
-                    'payment'   => $formatPayment($candidates->first()),
+                    'payment'   => $formatPayment($matched_payment),
                 ];
+
+                $used_payment_ids[] = $matched_payment->id;
                 $total_matched_amount += $amount;
+
+                $line_payload[] = [
+                    'run_id' => $run_id,
+                    'line_no' => $line['line'],
+                    'statement_date' => $line['date'],
+                    'statement_amount' => $line['amount'],
+                    'description' => $line['description'],
+                    'reference' => $line['reference'],
+                    'status' => 'matched',
+                    'matched_transaction_payment_id' => $matched_payment->id,
+                    'candidate_payment_ids' => null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
             } elseif ($candidates->count() > 1) {
+                $candidate_ids = $candidates->pluck('id')->values()->all();
                 $ambiguous[] = [
                     'statement'  => $line,
                     'candidates' => $candidates->take(5)->map($formatPayment)->values(),
                 ];
+
+                $line_payload[] = [
+                    'run_id' => $run_id,
+                    'line_no' => $line['line'],
+                    'statement_date' => $line['date'],
+                    'statement_amount' => $line['amount'],
+                    'description' => $line['description'],
+                    'reference' => $line['reference'],
+                    'status' => 'ambiguous',
+                    'matched_transaction_payment_id' => null,
+                    'candidate_payment_ids' => json_encode($candidate_ids),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
             } else {
                 $unmatched[] = $line;
+
+                $line_payload[] = [
+                    'run_id' => $run_id,
+                    'line_no' => $line['line'],
+                    'statement_date' => $line['date'],
+                    'statement_amount' => $line['amount'],
+                    'description' => $line['description'],
+                    'reference' => $line['reference'],
+                    'status' => 'unmatched',
+                    'matched_transaction_payment_id' => null,
+                    'candidate_payment_ids' => null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
             }
         }
 
-        return response()->json([
-            'success' => true,
-            'summary' => [
+        foreach ($invalid_lines as $line) {
+            $line_payload[] = [
+                'run_id' => $run_id,
+                'line_no' => $line['line'],
+                'statement_date' => $this->parseBankStatementDate($line['date']) ?: null,
+                'statement_amount' => is_numeric($line['amount']) ? (float) $line['amount'] : null,
+                'description' => $line['description'],
+                'reference' => $line['reference'],
+                'status' => 'invalid',
+                'matched_transaction_payment_id' => null,
+                'candidate_payment_ids' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        if (! empty($line_payload)) {
+            DB::table('bank_reconciliation_lines')->insert($line_payload);
+        }
+
+        DB::table('bank_reconciliation_runs')
+            ->where('id', $run_id)
+            ->update([
                 'total_statement_lines' => count($statement_lines),
                 'total_statement_amount' => $total_statement_amount,
                 'matched_count' => count($matched),
                 'ambiguous_count' => count($ambiguous),
                 'unmatched_count' => count($unmatched),
+                'invalid_count' => count($invalid_lines),
+                'total_matched_amount' => $total_matched_amount,
+                'status' => 'completed',
+                'completed_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'summary' => [
+                'run_id' => $run_id,
+                'status' => 'completed',
+                'total_statement_lines' => count($statement_lines),
+                'total_statement_amount' => $total_statement_amount,
+                'matched_count' => count($matched),
+                'ambiguous_count' => count($ambiguous),
+                'unmatched_count' => count($unmatched),
+                'invalid_count' => count($invalid_lines),
                 'total_matched_amount' => $total_matched_amount,
             ],
             'matched' => $matched,
             'ambiguous' => $ambiguous,
             'unmatched' => $unmatched,
+            'invalid' => $invalid_lines,
         ]);
+    }
+
+    /**
+     * Parse date formats commonly used in bank statements into Y-m-d.
+     */
+    private function parseBankStatementDate($rawDate)
+    {
+        $value = trim((string) $rawDate);
+        if ($value === '') {
+            return null;
+        }
+
+        $formats = ['Y-m-d', 'd/m/Y', 'm/d/Y', 'd-m-Y', 'm-d-Y', 'd.m.Y'];
+
+        foreach ($formats as $format) {
+            try {
+                $dt = \Carbon\Carbon::createFromFormat($format, $value);
+                if ($dt && $dt->format($format) === $value) {
+                    return $dt->format('Y-m-d');
+                }
+            } catch (\Exception $e) {
+                // Try next format.
+            }
+        }
+
+        try {
+            return \Carbon\Carbon::parse($value)->format('Y-m-d');
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Parse international numeric formats into decimal amount.
+     */
+    private function parseBankStatementAmount($rawAmount)
+    {
+        $value = trim((string) $rawAmount);
+        if ($value === '') {
+            return null;
+        }
+
+        $negative = false;
+        if (strpos($value, '(') !== false && strpos($value, ')') !== false) {
+            $negative = true;
+            $value = str_replace(['(', ')'], '', $value);
+        }
+
+        $value = preg_replace('/[^0-9,\.\-]/', '', $value);
+
+        if ($value === '' || $value === '-' || $value === ',' || $value === '.') {
+            return null;
+        }
+
+        $lastComma = strrpos($value, ',');
+        $lastDot = strrpos($value, '.');
+
+        if ($lastComma !== false && $lastDot !== false) {
+            if ($lastComma > $lastDot) {
+                $value = str_replace('.', '', $value);
+                $value = str_replace(',', '.', $value);
+            } else {
+                $value = str_replace(',', '', $value);
+            }
+        } elseif ($lastComma !== false && $lastDot === false) {
+            $value = str_replace('.', '', $value);
+            $value = str_replace(',', '.', $value);
+        } else {
+            $value = str_replace(',', '', $value);
+        }
+
+        if (! is_numeric($value)) {
+            return null;
+        }
+
+        $amount = (float) $value;
+        if ($negative && $amount > 0) {
+            $amount = -1 * $amount;
+        }
+
+        return round($amount, 4);
+    }
+
+    /**
+     * Finalize a completed bank reconciliation run.
+     */
+    public function finalizeBankReconciliation($id)
+    {
+        if (! auth()->user()->can('account.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $run = $this->getBankReconciliationRunOrFail($id);
+
+        if (($run->status ?? 'completed') === 'finalized') {
+            return response()->json([
+                'success' => true,
+                'msg' => __('account.reconciliation_run_already_finalized'),
+                'run_id' => (int) $run->id,
+                'status' => 'finalized',
+            ]);
+        }
+
+        if (($run->status ?? 'completed') === 'processing') {
+            return response()->json([
+                'success' => false,
+                'msg' => __('account.reconciliation_run_still_processing'),
+            ]);
+        }
+
+        DB::table('bank_reconciliation_runs')
+            ->where('id', $run->id)
+            ->update([
+                'status' => 'finalized',
+                'finalized_at' => now(),
+                'finalized_by' => auth()->id(),
+                'updated_at' => now(),
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'msg' => __('account.reconciliation_finalized_successfully'),
+            'run_id' => (int) $run->id,
+            'status' => 'finalized',
+        ]);
+    }
+
+    /**
+     * Export an auditor-ready package for a finalized bank reconciliation run.
+     */
+    public function exportBankReconciliationPackage($id)
+    {
+        if (! auth()->user()->can('account.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $run = $this->getBankReconciliationRunOrFail($id);
+
+        if (($run->status ?? 'completed') !== 'finalized') {
+            return redirect()->back()->with('status', [
+                'success' => 0,
+                'msg' => __('account.finalize_before_exporting_audit_package'),
+            ]);
+        }
+
+        $lines = DB::table('bank_reconciliation_lines as l')
+            ->leftJoin('transaction_payments as tp', 'tp.id', '=', 'l.matched_transaction_payment_id')
+            ->leftJoin('transactions as t', 't.id', '=', 'tp.transaction_id')
+            ->where('l.run_id', $run->id)
+            ->select(
+                'l.line_no',
+                'l.statement_date',
+                'l.statement_amount',
+                'l.description',
+                'l.reference',
+                'l.status',
+                'tp.id as payment_id',
+                'tp.paid_on',
+                'tp.amount as payment_amount',
+                'tp.payment_ref_no',
+                'tp.method as payment_method',
+                't.invoice_no',
+                't.ref_no',
+                't.type as transaction_type'
+            )
+            ->orderBy('l.id')
+            ->get();
+
+        $tmpDir = storage_path('app/temp');
+        if (! is_dir($tmpDir)) {
+            mkdir($tmpDir, 0755, true);
+        }
+
+        $timestamp = now()->format('Ymd_His');
+        $baseName = 'bank_reconciliation_run_' . $run->id . '_' . $timestamp;
+        $summaryCsvPath = $tmpDir . '/' . $baseName . '_summary.csv';
+        $linesCsvPath = $tmpDir . '/' . $baseName . '_lines.csv';
+        $zipPath = $tmpDir . '/' . $baseName . '.zip';
+
+        $summaryHandle = fopen($summaryCsvPath, 'w');
+        fputcsv($summaryHandle, [
+            'Run ID', 'Business ID', 'User ID', 'Account ID', 'Status', 'Statement File',
+            'Start Date', 'End Date', 'Total Lines', 'Matched', 'Ambiguous', 'Unmatched',
+            'Invalid', 'Statement Amount', 'Matched Amount', 'Completed At', 'Finalized At', 'Finalized By'
+        ]);
+        fputcsv($summaryHandle, [
+            $run->id,
+            $run->business_id,
+            $run->user_id,
+            $run->account_id,
+            $run->status,
+            $run->statement_filename,
+            $run->start_date,
+            $run->end_date,
+            $run->total_statement_lines,
+            $run->matched_count,
+            $run->ambiguous_count,
+            $run->unmatched_count,
+            $run->invalid_count,
+            $run->total_statement_amount,
+            $run->total_matched_amount,
+            $run->completed_at,
+            $run->finalized_at,
+            $run->finalized_by,
+        ]);
+        fclose($summaryHandle);
+
+        $linesHandle = fopen($linesCsvPath, 'w');
+        fputcsv($linesHandle, [
+            'Line No', 'Statement Date', 'Statement Amount', 'Description', 'Reference', 'Status',
+            'Matched Payment ID', 'Payment Date', 'Payment Amount', 'Payment Ref', 'Payment Method',
+            'Invoice No', 'Transaction Ref', 'Transaction Type'
+        ]);
+
+        foreach ($lines as $line) {
+            fputcsv($linesHandle, [
+                $line->line_no,
+                $line->statement_date,
+                $line->statement_amount,
+                $line->description,
+                $line->reference,
+                $line->status,
+                $line->payment_id,
+                $line->paid_on,
+                $line->payment_amount,
+                $line->payment_ref_no,
+                $line->payment_method,
+                $line->invoice_no,
+                $line->ref_no,
+                $line->transaction_type,
+            ]);
+        }
+
+        fclose($linesHandle);
+
+        $zip = new \ZipArchive();
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            @unlink($summaryCsvPath);
+            @unlink($linesCsvPath);
+
+            return redirect()->back()->with('status', [
+                'success' => 0,
+                'msg' => __('account.unable_to_create_audit_package_archive'),
+            ]);
+        }
+
+        $zip->addFile($summaryCsvPath, basename($summaryCsvPath));
+        $zip->addFile($linesCsvPath, basename($linesCsvPath));
+        $zip->close();
+
+        @unlink($summaryCsvPath);
+        @unlink($linesCsvPath);
+
+        return response()->download($zipPath, $baseName . '.zip')->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Fetch reconciliation run scoped to authenticated user's business.
+     */
+    private function getBankReconciliationRunOrFail($id)
+    {
+        $business_id = session()->get('user.business_id');
+
+        $run = DB::table('bank_reconciliation_runs')
+            ->where('id', $id)
+            ->where('business_id', $business_id)
+            ->first();
+
+        if (empty($run)) {
+            abort(404, __('account.reconciliation_run_not_found'));
+        }
+
+        return $run;
     }
 
     /**

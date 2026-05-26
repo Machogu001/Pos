@@ -68,6 +68,51 @@ use App\Events\SellCreatedOrModified;
 class SellPosController extends Controller
 {
     /**
+     * Resolve permissions with a DB fallback when permission cache is stale.
+     */
+    protected function userHasAnyPermission($user, array $permissionNames): bool
+    {
+        foreach ($permissionNames as $permission) {
+            if ($user->can($permission)) {
+                return true;
+            }
+        }
+
+        $table_names = config('permission.table_names', []);
+        $permissions_table = $table_names['permissions'] ?? 'permissions';
+        $model_has_permissions_table = $table_names['model_has_permissions'] ?? 'model_has_permissions';
+        $model_has_roles_table = $table_names['model_has_roles'] ?? 'model_has_roles';
+        $role_has_permissions_table = $table_names['role_has_permissions'] ?? 'role_has_permissions';
+
+        $permission_ids = DB::table($permissions_table)
+            ->whereIn('name', $permissionNames)
+            ->pluck('id');
+
+        if ($permission_ids->isEmpty()) {
+            return false;
+        }
+
+        $model_type = $user->getMorphClass();
+
+        $has_direct_permission = DB::table($model_has_permissions_table)
+            ->where('model_type', $model_type)
+            ->where('model_id', $user->id)
+            ->whereIn('permission_id', $permission_ids)
+            ->exists();
+
+        if ($has_direct_permission) {
+            return true;
+        }
+
+        return DB::table($model_has_roles_table . ' as mhr')
+            ->join($role_has_permissions_table . ' as rhp', 'mhr.role_id', '=', 'rhp.role_id')
+            ->where('mhr.model_type', $model_type)
+            ->where('mhr.model_id', $user->id)
+            ->whereIn('rhp.permission_id', $permission_ids)
+            ->exists();
+    }
+
+    /**
      * All Utils instance.
      */
     protected $contactUtil;
@@ -182,8 +227,13 @@ class SellPosController extends Controller
     public function create()
     {
         $business_id = request()->session()->get('user.business_id');
+        $user = auth()->user();
 
-        if (!(auth()->user()->can('superadmin') || auth()->user()->can('sell.create') || ($this->moduleUtil->hasThePermissionInSubscription($business_id, 'repair_module') && auth()->user()->can('repair.create')))) {
+        $has_pos_create_permission = $this->userHasAnyPermission($user, ['superadmin', 'sell.create', 'direct_sell.access']);
+        $has_repair_create_permission = $this->moduleUtil->hasThePermissionInSubscription($business_id, 'repair_module')
+            && $this->userHasAnyPermission($user, ['repair.create']);
+
+        if (!($has_pos_create_permission || $has_repair_create_permission)) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -329,7 +379,7 @@ class SellPosController extends Controller
      */
     public function store(Request $request)
     {
-        if (!auth()->user()->can('sell.create') && !auth()->user()->can('direct_sell.access') && !auth()->user()->can('so.create')) {
+        if (!$this->userHasAnyPermission(auth()->user(), ['sell.create', 'direct_sell.access', 'so.create'])) {
             abort(403, 'Unauthorized action.');
         }
 

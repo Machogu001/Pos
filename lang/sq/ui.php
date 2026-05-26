@@ -872,4 +872,12 @@ return [
     'tooltip_spreadsheet_module' => 'Shfaq ose fshih menutë dhe pikat e hyrjes së modulit Spreadsheet.',
     'tooltip_woocommerce_module' => 'Shfaq ose fshih menutë dhe pikat e hyrjes së modulit WooCommerce.',
     'tooltip_hrm_module' => 'Shfaq ose fshih menutë dhe pikat e hyrjes së modulit HRM.',
+    'crm' => 'CRM',
+    'essentials' => 'Essentials',
+    'hms' => 'HMS',
+    'manufacturing' => 'Manufacturing',
+    'project' => 'Project',
+    'repair' => 'Repair',
+    'spreadsheet' => 'Spreadsheet',
+    'hrm' => 'Hrm',
 ];

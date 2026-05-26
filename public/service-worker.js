@@ -1,7 +1,7 @@
 // Unified service worker for Bremac POS
 // Use `var` and global self properties to make the script idempotent and
 // avoid SyntaxErrors if the file is accidentally concatenated/served twice.
-var CACHE_NAME = (self.__BREMAC_CACHE_NAME__ = self.__BREMAC_CACHE_NAME__ || 'bremac-pos-cache-v3');
+var CACHE_NAME = (self.__BREMAC_CACHE_NAME__ = self.__BREMAC_CACHE_NAME__ || 'bremac-pos-cache-v4');
 var ASSETS_TO_CACHE = (self.__BREMAC_ASSETS__ = self.__BREMAC_ASSETS__ || [
   './offline.html',
   './icons/icon-192.png',

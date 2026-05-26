@@ -125,6 +125,10 @@
             }
         } catch (e) {}
 
+        $(document).on('ifChanged change', 'input.module-toggle-checkbox, input[name="enabled_modules[]"]', function() {
+            $('#modules_settings_changed').val('1');
+        });
+
         $('#test_email_btn').click( function() {
             var data = {
                 mail_driver: $('#mail_driver').val(),

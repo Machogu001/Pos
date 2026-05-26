@@ -685,8 +685,20 @@ class BusinessController extends Controller
 
         $modules = $this->moduleUtil->availableModules();
 
-        // Ensure enabled_modules is available to the view for checkbox state
-        $enabled_modules = is_array($business->enabled_modules) ? $business->enabled_modules : [];
+        if (! isset($modules['inventory_management'])) {
+            $modules['inventory_management'] = [
+                'name' => 'Inventory Management',
+                'tooltip' => 'Enable or disable inventory management features and menus.',
+            ];
+        }
+
+        // Ensure enabled_modules is available to the view for checkbox state.
+        $enabled_modules = $business->enabled_modules;
+        if (is_string($enabled_modules)) {
+            $decoded_modules = json_decode($enabled_modules, true);
+            $enabled_modules = is_array($decoded_modules) ? $decoded_modules : [];
+        }
+        $enabled_modules = is_array($enabled_modules) ? $enabled_modules : [];
 
         $theme_colors = $this->theme_colors;
 
@@ -823,13 +835,20 @@ class BusinessController extends Controller
             // Enabled modules: only update when module section is present in request.
             // This prevents accidental wipes when large settings forms are truncated.
             if ($request->has('modules_section_present')) {
-                $enabled_modules = $request->input('enabled_modules', []);
-                if (is_string($enabled_modules)) {
-                    $decoded_modules = json_decode($enabled_modules, true);
-                    $enabled_modules = is_array($decoded_modules) ? $decoded_modules : [];
-                }
+                $modules_settings_changed = (int) $request->input('modules_settings_changed', 0) === 1;
+                $enabled_modules_sent = $request->has('enabled_modules');
 
-                $business_details['enabled_modules'] = array_values(array_unique((array) $enabled_modules));
+                // Persist module selection only when user changed it.
+                // This prevents accidental wipes during unrelated settings updates.
+                if ($modules_settings_changed || $enabled_modules_sent) {
+                    $enabled_modules = $request->input('enabled_modules', []);
+                    if (is_string($enabled_modules)) {
+                        $decoded_modules = json_decode($enabled_modules, true);
+                        $enabled_modules = is_array($decoded_modules) ? $decoded_modules : [];
+                    }
+
+                    $business_details['enabled_modules'] = array_values(array_unique((array) $enabled_modules));
+                }
             }
             $business->fill($business_details);
             $business->save();

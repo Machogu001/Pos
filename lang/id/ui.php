@@ -872,4 +872,12 @@ return [
     'tooltip_spreadsheet_module' => 'Tampilkan atau sembunyikan menu dan titik masuk modul Spreadsheet.',
     'tooltip_woocommerce_module' => 'Tampilkan atau sembunyikan menu dan titik masuk modul WooCommerce.',
     'tooltip_hrm_module' => 'Tampilkan atau sembunyikan menu dan titik masuk modul HRM.',
+    'crm' => 'CRM',
+    'essentials' => 'Essentials',
+    'hms' => 'HMS',
+    'manufacturing' => 'Manufacturing',
+    'project' => 'Project',
+    'repair' => 'Repair',
+    'spreadsheet' => 'Spreadsheet',
+    'hrm' => 'Hrm',
 ];

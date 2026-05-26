@@ -78,7 +78,16 @@ class ReconcileController extends Controller
         try {
             DB::beginTransaction();
 
-            $business = Business::findOrFail(session('business.id'));
+            $business = $this->resolveBusinessContext();
+
+            if (! $business) {
+                DB::rollBack();
+
+                return redirect('/home')->with('status', [
+                    'success' => 0,
+                    'msg' => __('accounting::general.accounting_module_not_enabled_for_business'),
+                ]);
+            }
 
             $payment_detail = new PaymentDetail();
             $payment_detail->created_by_id = Auth::id();
@@ -155,5 +164,16 @@ class ReconcileController extends Controller
 
         (new FlashService())->onSuccess(trans('accounting::general.undo_reconcile_success', ['account' => $chart_of_account->name]));
         return redirect('accounting/reconcile');
+    }
+
+    private function resolveBusinessContext(): ?Business
+    {
+        $business_id = session('business.id') ?? session('user.business_id') ?? optional(auth()->user())->business_id;
+
+        if (empty($business_id)) {
+            return null;
+        }
+
+        return Business::find($business_id);
     }
 }

@@ -130,8 +130,16 @@ class DataController extends Controller
 
         $business_id = session()->get('user.business_id');
         $is_woo_enabled = (bool) $module_util->hasThePermissionInSubscription($business_id, 'woocommerce_module', 'superadmin_package');
+        $is_admin = (new \App\Utils\Util())->is_admin(auth()->user(), $business_id);
+        $has_woo_permission = \App\Support\ModuleAccessGate::userCanAccess(auth()->user(), [
+            'woocommerce.syc_categories',
+            'woocommerce.sync_products',
+            'woocommerce.sync_orders',
+            'woocommerce.map_tax_rates',
+            'woocommerce.access_woocommerce_api_settings',
+        ]);
 
-        if ($is_woo_enabled && (auth()->user()->can('woocommerce.syc_categories') || auth()->user()->can('woocommerce.sync_products') || auth()->user()->can('woocommerce.sync_orders') || auth()->user()->can('woocommerce.map_tax_rates') || auth()->user()->can('woocommerce.access_woocommerce_api_settings'))) {
+        if ($is_woo_enabled && ($is_admin || auth()->user()->can('superadmin') || $has_woo_permission)) {
             try {
                 $woo_url = action([\Modules\Woocommerce\Http\Controllers\WoocommerceController::class, 'index']);
                 $menu = Menu::instance('admin-sidebar-menu');

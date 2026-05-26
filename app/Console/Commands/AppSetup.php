@@ -37,12 +37,15 @@ class AppSetup extends Command
         $this->ensureAppKey();
         $this->ensureDirectories();
         $this->ensureStoragePermissions();
+        $this->ensureLanguagePermissions();
+        $this->ensureModuleStatusFile();
         $this->ensureLogFileExists();
         $this->ensureStorageLink();
         $this->ensurePassportKeys();
         $this->ensureBootstrapCache();
         $this->clearCaches();
         $this->rediscoverPackages();
+        $this->runPosHeaderHealthCheck();
 
         $this->info('');
         $this->info('Setup complete.');
@@ -199,6 +202,94 @@ class AppSetup extends Command
         }
 
         $this->line('  Storage permissions: OK');
+    }
+
+    /**
+     * Ensure translation files are readable by the web server.
+     *
+     * Generated locale files can inherit a restrictive umask, which breaks
+     * Laravel's translator on the next request if they end up at 0600.
+     */
+    private function ensureLanguagePermissions(): void
+    {
+        $langRoot = base_path('lang');
+
+        if (! is_dir($langRoot)) {
+            $this->line('  Language permissions: skipped (lang/ missing).');
+            return;
+        }
+
+        @chmod($langRoot, 0755);
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($langRoot, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+
+        foreach ($iterator as $entry) {
+            $path = $entry->getPathname();
+
+            if ($entry->isDir()) {
+                @chmod($path, 0755);
+                continue;
+            }
+
+            if ($entry->isFile()) {
+                @chmod($path, 0644);
+            }
+        }
+
+        $this->line('  Language permissions: OK');
+    }
+
+    /**
+     * Ensure module enablement state survives restarts.
+     *
+     * The app stores Nwidart module activation in modules_statuses.json.
+     * If this file is recreated with restrictive permissions, module checkboxes
+     * can appear to reset on the next request.
+     */
+    private function ensureModuleStatusFile(): void
+    {
+        $statusFile = base_path('modules_statuses.json');
+
+        if (! file_exists($statusFile)) {
+            file_put_contents($statusFile, "{}\n");
+        }
+
+        @chmod($statusFile, 0664);
+
+        if (! is_writable($statusFile)) {
+            $this->warn('  Module status file: could not be made writable.');
+            return;
+        }
+
+        $this->line('  Module status file: OK');
+    }
+
+    /**
+     * Run a post-setup diagnostic to catch POS header visibility drift early.
+     */
+    private function runPosHeaderHealthCheck(): void
+    {
+        $this->line('  Running POS header health check...');
+
+        try {
+            $exitCode = Artisan::call('pos:health:header');
+            $output = trim(Artisan::output());
+
+            if ($output !== '') {
+                $this->line($output);
+            }
+
+            if ($exitCode !== 0) {
+                $this->warn('  POS header health check reported issues. Please review output above.');
+            } else {
+                $this->line('  POS header health check: OK');
+            }
+        } catch (\Throwable $e) {
+            $this->warn('  POS header health check skipped: ' . $e->getMessage());
+        }
     }
 
     private function clearCaches(): void

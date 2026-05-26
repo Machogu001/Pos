@@ -3,8 +3,11 @@
 namespace Modules\Accounting\Http\Controllers;
 
 use App\Support\AccountingModuleGate;
+use App\Support\ModuleAccessGate;
 use App\Utils\ModuleUtil;
+use App\Utils\Util;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\DB;
 use Menu;
 
 class DataController extends Controller
@@ -59,9 +62,11 @@ class DataController extends Controller
             $enabled_modules
         );
 
-        $is_admin = (new \App\Utils\Util())->is_admin(auth()->user(), $business_id);
+        $commonUtil = new Util();
+        $is_admin = $commonUtil->is_admin(auth()->user(), $business_id);
+
         $user_can_access_accounting = $is_admin || auth()->user()->can('superadmin') ||
-            auth()->user()->getAllPermissions()->pluck('name')->filter(fn($p) => str_starts_with($p, 'accounting.'))->isNotEmpty();
+            ModuleAccessGate::userCanAccess(auth()->user(), [], ['accounting.']);
 
         if ($is_accounting_enabled && $is_accounting_checked_for_business && $user_can_access_accounting) {
             Menu::modify('admin-sidebar-menu', function ($menu) use ($enabled_modules) {

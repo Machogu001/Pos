@@ -70,8 +70,7 @@ class DataController extends Controller
 
         $is_admin = $commonUtil->is_admin(auth()->user(), $business_id);
         $user_can_access = $is_admin || auth()->user()->can('superadmin') ||
-            auth()->user()->getAllPermissions()->pluck('name')
-                ->filter(fn ($p) => str_starts_with($p, 'cms.'))->isNotEmpty();
+            \App\Support\ModuleAccessGate::userCanAccess(auth()->user(), [], ['cms.']);
 
         if ($is_cms_enabled && $user_can_access) {
             $menu = Menu::instance('admin-sidebar-menu');

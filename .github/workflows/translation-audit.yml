@@ -1,0 +1,54 @@
+name: Translation Audit
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  translations:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: Validate Composer
+        run: composer validate --strict
+
+      - name: Install Dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Prepare Environment
+        run: |
+          cp .env.example .env || true
+
+      - name: Verify Translation Baseline Exists
+        run: test -f docs/translation/translation_baseline.json
+
+      - name: Run Translation Audit (Fail on New Issues)
+        run: |
+          php artisan translations:audit \
+            --base=en \
+            --baseline=docs/translation/translation_baseline.json \
+            --new-only \
+            --fail-on-issues \
+            --top-per-locale=200 \
+            --export=storage/app/translation_audit_ci_new.json \
+            --worklist-dir=storage/app/translation_worklists_ci
+
+      - name: Upload Translation Audit Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: translation-audit
+          path: |
+            storage/app/translation_audit_ci_new.json
+            storage/app/translation_worklists_ci

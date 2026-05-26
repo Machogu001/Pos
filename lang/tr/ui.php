@@ -872,4 +872,12 @@ return [
     'tooltip_spreadsheet_module' => 'Spreadsheet modülü menülerini ve giriş noktalarını göster veya gizle.',
     'tooltip_woocommerce_module' => 'WooCommerce modülü menülerini ve giriş noktalarını göster veya gizle.',
     'tooltip_hrm_module' => 'HRM modülü menülerini ve giriş noktalarını göster veya gizle.',
+    'crm' => 'CRM',
+    'essentials' => 'Essentials',
+    'hms' => 'HMS',
+    'manufacturing' => 'Manufacturing',
+    'project' => 'Project',
+    'repair' => 'Repair',
+    'spreadsheet' => 'Spreadsheet',
+    'hrm' => 'Hrm',
 ];

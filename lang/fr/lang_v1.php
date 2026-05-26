@@ -1359,4 +1359,12 @@ return [
     'cogs' => 'COGS:',
     'cogs_help_text' => "Coût des biens vendus = Inventaire initial (stock d'ouverture) + achats − inventaire final (stock de clôture)",
     'taxable_value' => 'Taxable value',
+    'finalize' => 'Finalize',
+    'finalized' => 'Finalized',
+    'invalid' => 'Invalid',
+    'reason' => 'Reason',
+    'details' => 'Details',
+    'status' => 'Status',
+    'id' => 'ID',
+    'sr_no' => 'S/N',
 ];

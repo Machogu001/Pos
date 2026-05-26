@@ -22,6 +22,20 @@ sudo chown -R "${WEB_USER}:${WEB_USER}" "${APP_ROOT}/storage" "${APP_ROOT}/boots
 sudo chmod -R ug+rwX "${APP_ROOT}/storage" "${APP_ROOT}/bootstrap/cache"
 echo "  -> storage/ and bootstrap/cache/: ug+rwX ${WEB_USER}:${WEB_USER}"
 
+# Translation files must be world-readable so Laravel can load them after
+# deploys, reboots, and generated locale updates.
+if [ -d "${APP_ROOT}/lang" ]; then
+    sudo chmod -R a+rX "${APP_ROOT}/lang"
+    echo "  -> lang/: a+rX"
+fi
+
+# Nwidart persists module activation in this file; keep it writable so
+# enabled modules survive restarts and redeploys.
+if [ -f "${APP_ROOT}/modules_statuses.json" ]; then
+    sudo chmod 664 "${APP_ROOT}/modules_statuses.json"
+    echo "  -> modules_statuses.json: 664"
+fi
+
 echo "[1/9] Installing/updating PHP dependencies"
 composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
 

@@ -106,6 +106,7 @@ class ModuleUtil extends Util
             'Crm' => 'crm',
             'Essentials' => 'essentials',
             'Hms' => 'hms',
+            'InventoryManagement' => 'inventory_management',
             'Manufacturing' => 'manufacturing',
             'ProductCatalogue' => 'catalogue_qr',
             'Project' => 'project',
@@ -622,6 +623,10 @@ class ModuleUtil extends Util
             'hms' => [
                 'name' => __('ui.hms'),
                 'tooltip' => __('ui.tooltip_hms_module'),
+            ],
+            'inventory_management' => [
+                'name' => __('inventorymanagement::inventory.inventory'),
+                'tooltip' => 'Enable or disable inventory management features and menus.',
             ],
             'manufacturing' => [
                 'name' => __('ui.manufacturing'),

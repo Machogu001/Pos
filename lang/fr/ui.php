@@ -872,4 +872,12 @@ return [
     'tooltip_spreadsheet_module' => 'Afficher ou masquer les menus et points dentree du module Spreadsheet.',
     'tooltip_woocommerce_module' => 'Afficher ou masquer les menus et points dentree du module WooCommerce.',
     'tooltip_hrm_module' => 'Afficher ou masquer les menus et points dentree du module HRM.',
+    'crm' => 'CRM',
+    'essentials' => 'Essentials',
+    'hms' => 'HMS',
+    'manufacturing' => 'Manufacturing',
+    'project' => 'Project',
+    'repair' => 'Repair',
+    'spreadsheet' => 'Spreadsheet',
+    'hrm' => 'Hrm',
 ];

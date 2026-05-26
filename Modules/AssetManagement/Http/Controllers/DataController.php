@@ -100,13 +100,14 @@ class DataController extends Controller
         $business_id = session()->get('user.business_id');
         $module_util = new ModuleUtil();
         $is_asset_enabled = (bool) $module_util->hasThePermissionInSubscription($business_id, 'assetmanagement_module');
+        $is_admin = (new \App\Utils\Util())->is_admin(auth()->user(), $business_id);
 
         $background_color = '';
         if (config('app.env') == 'demo') {
             $background_color = '#2e97bf !important';
         }
 
-        if ($is_asset_enabled && (auth()->user()->can('superadmin') || auth()->user()->can('asset.view') || auth()->user()->can('asset.view_own_maintenance') || auth()->user()->can('asset.view_all_maintenance'))) {
+        if ($is_asset_enabled && ($is_admin || auth()->user()->can('superadmin') || \App\Support\ModuleAccessGate::userCanAccess(auth()->user(), ['asset.view', 'asset.view_own_maintenance', 'asset.view_all_maintenance']))) {
             $menu = Menu::instance('admin-sidebar-menu');
             $group_title = 'Modules & Apps';
             $added_to_group = false;

@@ -5,6 +5,7 @@ namespace Modules\Crm\Http\Controllers;
 use App\Business;
 use App\TransactionSellLine;
 use App\User;
+use App\Support\ModuleAccessGate;
 use App\Utils\ModuleUtil;
 use App\Utils\Util;
 use DB;
@@ -143,7 +144,7 @@ class DataController extends Controller
         $is_admin = $commonUtil->is_admin(auth()->user(), $business_id);
 
         $user_can_access_crm = $is_admin || auth()->user()->can('superadmin') ||
-            auth()->user()->getAllPermissions()->pluck('name')->filter(fn($p) => str_starts_with($p, 'crm.'))->isNotEmpty();
+            ModuleAccessGate::userCanAccess(auth()->user(), [], ['crm.']);
 
         if ($is_crm_enabled && $user_can_access_crm) {
             $menu = Menu::instance('admin-sidebar-menu');

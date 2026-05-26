@@ -1401,4 +1401,12 @@ return [
     'cogs' => 'COGS:',
     'cogs_help_text' => '已售商品成本 = 起始库存（开仓库存） + 采购 − 期末库存（结仓库存）',
     'taxable_value' => 'Taxable value',
+    'finalize' => 'Finalize',
+    'finalized' => 'Finalized',
+    'invalid' => 'Invalid',
+    'reason' => 'Reason',
+    'details' => 'Details',
+    'status' => 'Status',
+    'id' => 'ID',
+    'sr_no' => 'S/N',
 ];

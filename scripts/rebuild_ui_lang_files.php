@@ -114,6 +114,8 @@ foreach ($locales as $locale) {
     $content .= "];\n";
 
     file_put_contents($path, $content);
+    chmod($path, 0644);
+    chmod($dir, 0755);
 }
 
 echo 'Rebuilt ui.php for locales with ' . count($payload) . " keys\n";

@@ -226,6 +226,51 @@ class User extends Authenticatable
         return $this->contact_number ?? null;
     }
 
+    /**
+     * Permission check that falls back to role/permission pivots when cache is stale.
+     */
+    public function hasAnyPermissionSafe(array $permissionNames): bool
+    {
+        foreach ($permissionNames as $permissionName) {
+            if ($this->can($permissionName)) {
+                return true;
+            }
+        }
+
+        $tableNames = config('permission.table_names', []);
+        $permissionsTable = $tableNames['permissions'] ?? 'permissions';
+        $modelHasPermissionsTable = $tableNames['model_has_permissions'] ?? 'model_has_permissions';
+        $modelHasRolesTable = $tableNames['model_has_roles'] ?? 'model_has_roles';
+        $roleHasPermissionsTable = $tableNames['role_has_permissions'] ?? 'role_has_permissions';
+
+        $permissionIds = DB::table($permissionsTable)
+            ->whereIn('name', $permissionNames)
+            ->pluck('id');
+
+        if ($permissionIds->isEmpty()) {
+            return false;
+        }
+
+        $modelType = $this->getMorphClass();
+
+        $hasDirectPermission = DB::table($modelHasPermissionsTable)
+            ->where('model_type', $modelType)
+            ->where('model_id', $this->id)
+            ->whereIn('permission_id', $permissionIds)
+            ->exists();
+
+        if ($hasDirectPermission) {
+            return true;
+        }
+
+        return DB::table($modelHasRolesTable . ' as mhr')
+            ->join($roleHasPermissionsTable . ' as rhp', 'mhr.role_id', '=', 'rhp.role_id')
+            ->where('mhr.model_type', $modelType)
+            ->where('mhr.model_id', $this->id)
+            ->whereIn('rhp.permission_id', $permissionIds)
+            ->exists();
+    }
+
     public function permitted_locations($business_id = null)
     {
         if ($this->can('access_all_locations')) {

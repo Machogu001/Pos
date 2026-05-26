@@ -129,6 +129,10 @@ class ChartOfAccount extends Model
 
     public function scopeForBusiness($query)
     {
-        return $query->where('chart_of_accounts.business_id', session('business.id'));
+        $business_id = session('business.id') ?? session('user.business_id') ?? optional(auth()->user())->business_id;
+
+        return ! empty($business_id)
+            ? $query->where('chart_of_accounts.business_id', $business_id)
+            : $query->whereRaw('1 = 0');
     }
 }

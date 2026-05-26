@@ -25,7 +25,7 @@
         <div class="row">
             <div class="col-md-12">
                 @component('accounting::components.filters', ['title' => __('report.filters')])
-                    <form method="get" action="{{ Request::url() }}">
+                    <form method="get" action="{{ Request::url() }}" id="journal-filter-form">
                         <div class="modal-body">
 
                             <div class="form-group @if (!count($_GET) > 0) d-none @endif">
@@ -44,6 +44,7 @@
                                     <option v-for="account in chart_of_accounts" :value="account.id">@{{ account.name }}</option>
                                 </select>
                             </div>
+
                             <!--<input type="hidden" name="chart_of_account_id" :value="chart_of_account_id">-->
 
                             <div class="row">
@@ -96,47 +97,163 @@
 
                     @slot('body')
                         <section class="content">
+                            @php
+                                $currentOrderBy = Request::get('order_by', 'date');
+                                $currentOrderDir = strtolower(Request::get('order_by_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+                            @endphp
                             <div class="card">
                                 <div class="card-body p-0">
+                                    <div class="row" style="margin: 10px 0;">
+                                        <div class="col-sm-6">
+                                            <form id="per-page-form" method="get" action="{{ Request::url() }}" class="form-inline">
+                                                @foreach (request()->except(['per_page', 'page']) as $paramKey => $paramValue)
+                                                    @if (is_array($paramValue))
+                                                        @foreach ($paramValue as $singleValue)
+                                                            <input type="hidden" name="{{ $paramKey }}[]" value="{{ $singleValue }}">
+                                                        @endforeach
+                                                    @else
+                                                        <input type="hidden" name="{{ $paramKey }}" value="{{ $paramValue }}">
+                                                    @endif
+                                                @endforeach
+                                                <label for="per_page" style="margin-right: 8px;">{{ __('Show') }}</label>
+                                                <select class="form-control input-sm" name="per_page" id="per_page" style="width: auto; display: inline-block;">
+                                                    <option value="10" {{ (int) Request::get('per_page', $perPage ?? 20) === 10 ? 'selected' : '' }}>10</option>
+                                                    <option value="20" {{ (int) Request::get('per_page', $perPage ?? 20) === 20 ? 'selected' : '' }}>20</option>
+                                                    <option value="50" {{ (int) Request::get('per_page', $perPage ?? 20) === 50 ? 'selected' : '' }}>50</option>
+                                                    <option value="100" {{ (int) Request::get('per_page', $perPage ?? 20) === 100 ? 'selected' : '' }}>100</option>
+                                                </select>
+                                                <span style="margin-left: 8px;">{{ __('entries') }}</span>
+                                            </form>
+                                        </div>
+                                    </div>
+
                                     <div class="table-responsive">
                                         <table id="data-table" class="table table-striped table-hover">
                                             <thead>
                                                 <tr>
                                                     <th>{{ trans_choice('accounting::lang.action', 1) }}</th>
                                                     <th>
-                                                        {{ trans_choice('accounting::lang.entry', 1) }} {{ trans_choice('accounting::lang.id', 1) }}
+                                                        @php $nextDir = ($currentOrderBy === 'id' && $currentOrderDir === 'asc') ? 'desc' : 'asc'; @endphp
+                                                        <a href="{{ request()->fullUrlWithQuery(['order_by' => 'id', 'order_by_dir' => $nextDir, 'page' => 1]) }}">
+                                                            {{ trans_choice('accounting::lang.entry', 1) }} {{ trans_choice('accounting::lang.id', 1) }}
+                                                            @if ($currentOrderBy === 'id')
+                                                                <i class="fa fa-sort-{{ $currentOrderDir === 'asc' ? 'asc' : 'desc' }}"></i>
+                                                            @else
+                                                                <i class="fa fa-sort text-muted"></i>
+                                                            @endif
+                                                        </a>
                                                     </th>
                                                     <th>
-                                                        {{ trans_choice('accounting::lang.business_location', 1) }}
+                                                        @php $nextDir = ($currentOrderBy === 'business_location' && $currentOrderDir === 'asc') ? 'desc' : 'asc'; @endphp
+                                                        <a href="{{ request()->fullUrlWithQuery(['order_by' => 'business_location', 'order_by_dir' => $nextDir, 'page' => 1]) }}">
+                                                            {{ trans_choice('accounting::lang.business_location', 1) }}
+                                                            @if ($currentOrderBy === 'business_location')
+                                                                <i class="fa fa-sort-{{ $currentOrderDir === 'asc' ? 'asc' : 'desc' }}"></i>
+                                                            @else
+                                                                <i class="fa fa-sort text-muted"></i>
+                                                            @endif
+                                                        </a>
                                                     </th>
                                                     <th>
-                                                        {{ trans_choice('accounting::lang.transaction', 1) }}
-                                                        {{ trans_choice('accounting::lang.date', 1) }}
+                                                        @php $nextDir = ($currentOrderBy === 'date' && $currentOrderDir === 'asc') ? 'desc' : 'asc'; @endphp
+                                                        <a href="{{ request()->fullUrlWithQuery(['order_by' => 'date', 'order_by_dir' => $nextDir, 'page' => 1]) }}">
+                                                            {{ trans_choice('accounting::lang.transaction', 1) }}
+                                                            {{ trans_choice('accounting::lang.date', 1) }}
+                                                            @if ($currentOrderBy === 'date')
+                                                                <i class="fa fa-sort-{{ $currentOrderDir === 'asc' ? 'asc' : 'desc' }}"></i>
+                                                            @else
+                                                                <i class="fa fa-sort text-muted"></i>
+                                                            @endif
+                                                        </a>
                                                     </th>
                                                     <th>
-                                                        {{ trans_choice('accounting::lang.transaction', 1) }}#
+                                                        @php $nextDir = ($currentOrderBy === 'transaction_number' && $currentOrderDir === 'asc') ? 'desc' : 'asc'; @endphp
+                                                        <a href="{{ request()->fullUrlWithQuery(['order_by' => 'transaction_number', 'order_by_dir' => $nextDir, 'page' => 1]) }}">
+                                                            {{ trans_choice('accounting::lang.transaction', 1) }}#
+                                                            @if ($currentOrderBy === 'transaction_number')
+                                                                <i class="fa fa-sort-{{ $currentOrderDir === 'asc' ? 'asc' : 'desc' }}"></i>
+                                                            @else
+                                                                <i class="fa fa-sort text-muted"></i>
+                                                            @endif
+                                                        </a>
                                                     </th>
                                                     <th>
-                                                        {{ trans_choice('accounting::lang.type', 1) }}
+                                                        @php $nextDir = ($currentOrderBy === 'account_type' && $currentOrderDir === 'asc') ? 'desc' : 'asc'; @endphp
+                                                        <a href="{{ request()->fullUrlWithQuery(['order_by' => 'account_type', 'order_by_dir' => $nextDir, 'page' => 1]) }}">
+                                                            {{ trans_choice('accounting::lang.type', 1) }}
+                                                            @if ($currentOrderBy === 'account_type')
+                                                                <i class="fa fa-sort-{{ $currentOrderDir === 'asc' ? 'asc' : 'desc' }}"></i>
+                                                            @else
+                                                                <i class="fa fa-sort text-muted"></i>
+                                                            @endif
+                                                        </a>
                                                     </th>
                                                     <th>
-                                                        {{ trans_choice('accounting::lang.account', 1) }}
+                                                        @php $nextDir = ($currentOrderBy === 'account_name' && $currentOrderDir === 'asc') ? 'desc' : 'asc'; @endphp
+                                                        <a href="{{ request()->fullUrlWithQuery(['order_by' => 'account_name', 'order_by_dir' => $nextDir, 'page' => 1]) }}">
+                                                            {{ trans_choice('accounting::lang.account', 1) }}
+                                                            @if ($currentOrderBy === 'account_name')
+                                                                <i class="fa fa-sort-{{ $currentOrderDir === 'asc' ? 'asc' : 'desc' }}"></i>
+                                                            @else
+                                                                <i class="fa fa-sort text-muted"></i>
+                                                            @endif
+                                                        </a>
                                                     </th>
                                                     <th>
-                                                        {{ trans_choice('accounting::general.account_subtype', 1) }}
+                                                        @php $nextDir = ($currentOrderBy === 'account_subtype' && $currentOrderDir === 'asc') ? 'desc' : 'asc'; @endphp
+                                                        <a href="{{ request()->fullUrlWithQuery(['order_by' => 'account_subtype', 'order_by_dir' => $nextDir, 'page' => 1]) }}">
+                                                            {{ trans_choice('accounting::general.account_subtype', 1) }}
+                                                            @if ($currentOrderBy === 'account_subtype')
+                                                                <i class="fa fa-sort-{{ $currentOrderDir === 'asc' ? 'asc' : 'desc' }}"></i>
+                                                            @else
+                                                                <i class="fa fa-sort text-muted"></i>
+                                                            @endif
+                                                        </a>
                                                     </th>
                                                     <th>
-                                                        {{ trans_choice('accounting::lang.account', 1) }}
-                                                        {{ trans_choice('accounting::general.detail_type', 1) }}
+                                                        @php $nextDir = ($currentOrderBy === 'account_detail_type' && $currentOrderDir === 'asc') ? 'desc' : 'asc'; @endphp
+                                                        <a href="{{ request()->fullUrlWithQuery(['order_by' => 'account_detail_type', 'order_by_dir' => $nextDir, 'page' => 1]) }}">
+                                                            {{ trans_choice('accounting::lang.account', 1) }}
+                                                            {{ trans_choice('accounting::general.detail_type', 1) }}
+                                                            @if ($currentOrderBy === 'account_detail_type')
+                                                                <i class="fa fa-sort-{{ $currentOrderDir === 'asc' ? 'asc' : 'desc' }}"></i>
+                                                            @else
+                                                                <i class="fa fa-sort text-muted"></i>
+                                                            @endif
+                                                        </a>
                                                     </th>
                                                     <th style="text-align: right">
-                                                        {{ trans_choice('accounting::general.debit', 1) }}
+                                                        @php $nextDir = ($currentOrderBy === 'debit' && $currentOrderDir === 'asc') ? 'desc' : 'asc'; @endphp
+                                                        <a href="{{ request()->fullUrlWithQuery(['order_by' => 'debit', 'order_by_dir' => $nextDir, 'page' => 1]) }}" style="white-space: nowrap;">
+                                                            {{ trans_choice('accounting::general.debit', 1) }}
+                                                            @if ($currentOrderBy === 'debit')
+                                                                <i class="fa fa-sort-{{ $currentOrderDir === 'asc' ? 'asc' : 'desc' }}"></i>
+                                                            @else
+                                                                <i class="fa fa-sort text-muted"></i>
+                                                            @endif
+                                                        </a>
                                                     </th>
                                                     <th style="text-align: right">
-                                                        {{ trans_choice('accounting::general.credit', 1) }}
+                                                        @php $nextDir = ($currentOrderBy === 'credit' && $currentOrderDir === 'asc') ? 'desc' : 'asc'; @endphp
+                                                        <a href="{{ request()->fullUrlWithQuery(['order_by' => 'credit', 'order_by_dir' => $nextDir, 'page' => 1]) }}" style="white-space: nowrap;">
+                                                            {{ trans_choice('accounting::general.credit', 1) }}
+                                                            @if ($currentOrderBy === 'credit')
+                                                                <i class="fa fa-sort-{{ $currentOrderDir === 'asc' ? 'asc' : 'desc' }}"></i>
+                                                            @else
+                                                                <i class="fa fa-sort text-muted"></i>
+                                                            @endif
+                                                        </a>
                                                     </th>
                                                     <th>
-                                                        {{ trans_choice('accounting::lang.created_by', 1) }}
+                                                        @php $nextDir = ($currentOrderBy === 'created_by' && $currentOrderDir === 'asc') ? 'desc' : 'asc'; @endphp
+                                                        <a href="{{ request()->fullUrlWithQuery(['order_by' => 'created_by', 'order_by_dir' => $nextDir, 'page' => 1]) }}">
+                                                            {{ trans_choice('accounting::lang.created_by', 1) }}
+                                                            @if ($currentOrderBy === 'created_by')
+                                                                <i class="fa fa-sort-{{ $currentOrderDir === 'asc' ? 'asc' : 'desc' }}"></i>
+                                                            @else
+                                                                <i class="fa fa-sort text-muted"></i>
+                                                            @endif
+                                                        </a>
                                                     </th>
                                                 </tr>
                                             </thead>
@@ -211,6 +328,30 @@
                                             </tbody>
                                         </table>
                                     </div>
+
+                                    @if (method_exists($data, 'links'))
+                                        <div class="row" style="margin-top: 15px;">
+                                            <div class="col-sm-6">
+                                                <p class="text-muted" style="margin: 8px 0 0;">
+                                                    @if (method_exists($data, 'total'))
+                                                        {{ __('Showing') }} {{ $data->firstItem() ?? 0 }} - {{ $data->lastItem() ?? 0 }} {{ __('of') }} {{ $data->total() }}
+                                                    @else
+                                                        {{ __('Showing') }} {{ $data->firstItem() ?? 0 }} - {{ $data->lastItem() ?? 0 }}
+                                                    @endif
+                                                </p>
+                                            </div>
+                                            <div class="col-sm-6 text-right">
+                                                <span class="text-muted" style="margin-right: 10px;">
+                                                    @if (method_exists($data, 'lastPage'))
+                                                        {{ __('Page') }} {{ $data->currentPage() }} {{ __('of') }} {{ $data->lastPage() }}
+                                                    @else
+                                                        {{ __('Page') }} {{ $data->currentPage() }}
+                                                    @endif
+                                                </span>
+                                                {{ $data->links() }}
+                                            </div>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
 
@@ -224,12 +365,6 @@
 
 @stop
 @section('javascript')
-    <script>
-        $(document).ready(function() {
-            $('#data-table').DataTable();
-        });
-    </script>
-
     <script>
         var app = new Vue({
             el: "#vue-app",
@@ -273,5 +408,9 @@
         })
 
         $(".select2").select2();
+
+        $('#per_page').on('change', function() {
+            $('#per-page-form').trigger('submit');
+        });
     </script>
 @endsection

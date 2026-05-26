@@ -53,7 +53,7 @@ class DataController extends Controller
 
         $is_admin = (new \App\Utils\Util())->is_admin(auth()->user(), $business_id);
         $user_can_access_catalogue = $is_admin || auth()->user()->can('superadmin') ||
-            auth()->user()->can('productcatalogue.access');
+            \App\Support\ModuleAccessGate::userCanAccess(auth()->user(), ['productcatalogue.access']);
 
         if ($is_productcatalogue_enabled && $user_can_access_catalogue) {
             $menu = Menu::instance('admin-sidebar-menu');

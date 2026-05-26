@@ -121,7 +121,10 @@ class DataController extends Controller
 
         $is_project_enabled = (bool) $module_util->hasThePermissionInSubscription($business_id, 'project_module');
 
-        if ($is_project_enabled) {
+        $user_can_access_project = $is_admin || auth()->user()->can('superadmin') ||
+            \App\Support\ModuleAccessGate::userCanAccess(auth()->user(), [], ['project.']);
+
+        if ($is_project_enabled && $user_can_access_project) {
             $menu = Menu::instance('admin-sidebar-menu');
             $group_title = 'Modules & Apps';
             $added_to_group = false;

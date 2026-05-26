@@ -41,7 +41,7 @@ class BookingController extends Controller
         $business_id = request()->session()->get('user.business_id');
 
         $user_id = request()->has('user_id') ? request()->user_id : null;
-        if (! auth()->user()->hasPermissionTo('crud_all_bookings') && ! $this->restUtil->is_admin(auth()->user(), $business_id)) {
+        if (! auth()->user()->can('crud_all_bookings') && ! $this->restUtil->is_admin(auth()->user(), $business_id)) {
             $user_id = request()->session()->get('user.id');
         }
         if (request()->ajax()) {
@@ -285,7 +285,7 @@ class BookingController extends Controller
                 $query->where('location_id', request()->location_id);
             }
 
-            if (! auth()->user()->hasPermissionTo('crud_all_bookings') && ! $this->commonUtil->is_admin(auth()->user(), $business_id)) {
+            if (! auth()->user()->can('crud_all_bookings') && ! $this->commonUtil->is_admin(auth()->user(), $business_id)) {
                 $query->where(function ($query) use ($user_id) {
                     $query->where('created_by', $user_id)
                         ->orWhere('correspondent_id', $user_id)

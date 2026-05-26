@@ -20,7 +20,16 @@ class BudgetController extends Controller
      */
     public function index()
     {
-        $financial_year_start = Business::findOrFail(session('business.id'))->fy_start_month;
+        $business = $this->resolveBusinessContext();
+
+        if (! $business) {
+            return redirect('/home')->with('status', [
+                'success' => 0,
+                'msg' => __('accounting::general.accounting_module_not_enabled_for_business'),
+            ]);
+        }
+
+        $financial_year_start = $business->fy_start_month;
         $chart_of_accounts = ChartOfAccount::forBusiness()->with('budget')->where('active', 1)->get();
         $financial_year = !empty(request()->year) ? request()->year : BudgetService::getCurrentFinancialYear($financial_year_start);
         $months = (new BudgetService($financial_year_start, $financial_year))->getMonths();
@@ -41,8 +50,17 @@ class BudgetController extends Controller
         ]);
 
         try {
+            $business = $this->resolveBusinessContext();
+
+            if (! $business) {
+                return redirect('/home')->with('status', [
+                    'success' => 0,
+                    'msg' => __('accounting::general.accounting_module_not_enabled_for_business'),
+                ]);
+            }
+
             $accounting_settings = Business::updateOrCreate(
-                ['id' => session('business.id')],
+                ['id' => $business->id],
                 ['fy_start_month' => $request->financial_year_start]
             );
 
@@ -57,6 +75,17 @@ class BudgetController extends Controller
 
         (new FlashService())->onSave();
         return back();
+    }
+
+    private function resolveBusinessContext(): ?Business
+    {
+        $business_id = session('business.id') ?? session('user.business_id') ?? optional(auth()->user())->business_id;
+
+        if (empty($business_id)) {
+            return null;
+        }
+
+        return Business::find($business_id);
     }
 
     /**

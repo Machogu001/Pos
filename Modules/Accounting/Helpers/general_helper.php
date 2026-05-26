@@ -168,7 +168,14 @@ if (!function_exists('get_business_name')) {
 if (!function_exists('get_financial_year')) {
     function get_financial_year()
     {
-        $start_month = \App\Business::findOrFail(session('business.id'))->fy_start_month;
+        $business_id = session('business.id') ?? session('user.business_id') ?? optional(auth()->user())->business_id;
+        $business = ! empty($business_id) ? \App\Business::find($business_id) : null;
+
+        if (! $business) {
+            return date('Y');
+        }
+
+        $start_month = $business->fy_start_month;
         $financial_year = \Modules\Accounting\Services\BudgetService::getCurrentFinancialYear($start_month);
         return $financial_year;
     }
@@ -177,7 +184,14 @@ if (!function_exists('get_financial_year')) {
 if (!function_exists('financial_year_start_date')) {
     function financial_year_start_date()
     {
-        $financial_year_start_month = Business::findOrFail(session('business.id'))->fy_start_month;
+        $business_id = session('business.id') ?? session('user.business_id') ?? optional(auth()->user())->business_id;
+        $business = ! empty($business_id) ? Business::find($business_id) : null;
+
+        if (! $business) {
+            return date('Y') . '-01-01';
+        }
+
+        $financial_year_start_month = $business->fy_start_month;
         $financial_year_start_year = get_financial_year();
         return $financial_year_start_year . '-' . $financial_year_start_month . '-' . '01';
     }

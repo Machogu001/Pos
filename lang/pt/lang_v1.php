@@ -1387,4 +1387,12 @@ return [
     'cogs' => 'COGS:',
     'cogs_help_text' => 'Custo dos bens vendidos = Inventário inicial (estoque de abertura) + compras − inventário final (estoque de fechamento)',
     'taxable_value' => 'Taxable value',
+    'finalize' => 'Finalize',
+    'finalized' => 'Finalized',
+    'invalid' => 'Invalid',
+    'reason' => 'Reason',
+    'details' => 'Details',
+    'status' => 'Status',
+    'id' => 'ID',
+    'sr_no' => 'S/N',
 ];

@@ -71,6 +71,15 @@
 
                     <hr>
 
+                    <div id="reco_actions" class="tw-mb-4" style="display:none;">
+                        <button type="button" id="finalize_reco_btn" class="btn btn-success">
+                            {{ __('lang_v1.finalize') ?? 'Finalize Reconciliation' }}
+                        </button>
+                        <a href="#" id="export_reco_btn" class="btn btn-default" style="display:none;">
+                            {{ __('lang_v1.download') ?? 'Download' }} Audit Package
+                        </a>
+                    </div>
+
                     <div id="reco_summary" class="tw-mb-4"></div>
 
                     <div id="reco_results">
@@ -99,7 +108,8 @@
                                         <th>@lang('messages.date')</th>
                                         <th>@lang('sale.amount')</th>
                                         <th>@lang('lang_v1.description')</th>
-                                        <th>@lang('account.payment_ref_no')</th>
+                                        <th>{{ __('lang_v1.reference') }}</th>
+                                        <th>{{ __('lang_v1.details') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -120,6 +130,23 @@
                                 <tbody></tbody>
                             </table>
                         </div>
+
+                        <h4>{{ __('lang_v1.invalid') ?? 'Invalid Statement Lines' }}</h4>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped" id="reco_invalid_table">
+                                <thead>
+                                    <tr>
+                                        <th>{{ __('lang_v1.sr_no') }}</th>
+                                        <th>@lang('messages.date')</th>
+                                        <th>@lang('sale.amount')</th>
+                                        <th>@lang('lang_v1.description')</th>
+                                        <th>@lang('lang_v1.reference')</th>
+                                        <th>{{ __('lang_v1.reason') ?? 'Reason' }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
                     </div>
                 @endcomponent
             </div>
@@ -132,6 +159,38 @@
 @section('javascript')
     <script type="text/javascript">
         $(document).ready(function() {
+            var currentRunId = null;
+            var currentRunStatus = null;
+
+            function escapeHtml(value) {
+                return $('<div/>').text(value == null ? '' : value).html();
+            }
+
+            function setRunActions(runId, status) {
+                currentRunId = runId || null;
+                currentRunStatus = status || null;
+
+                if (!currentRunId) {
+                    $('#reco_actions').hide();
+                    $('#export_reco_btn').hide().attr('href', '#');
+                    $('#finalize_reco_btn').prop('disabled', true);
+                    return;
+                }
+
+                $('#reco_actions').show();
+
+                var exportUrl = "{{ url('account/bank-reconciliation') }}/" + currentRunId + "/export";
+                $('#export_reco_btn').attr('href', exportUrl);
+
+                if (currentRunStatus === 'finalized') {
+                    $('#finalize_reco_btn').prop('disabled', true).text("{{ __('lang_v1.finalized') ?? 'Finalized' }}");
+                    $('#export_reco_btn').show();
+                } else {
+                    $('#finalize_reco_btn').prop('disabled', false).text("{{ __('lang_v1.finalize') ?? 'Finalize Reconciliation' }}");
+                    $('#export_reco_btn').hide();
+                }
+            }
+
             if ($('#date_filter').length == 1) {
                 $('#date_filter').daterangepicker(
                     dateRangeSettings,
@@ -176,24 +235,29 @@
                         }
 
                         var summary = result.summary || {};
+                        var run_id = summary.run_id ? ('<p><strong>{{ __('lang_v1.id') ?? 'ID' }}:</strong> ' + escapeHtml(summary.run_id) + '</p>') : '';
+                        var run_status = summary.status ? ('<p><strong>{{ __('lang_v1.status') ?? 'Status' }}:</strong> ' + escapeHtml(summary.status) + '</p>') : '';
                         var html = '<p><strong>{{ __('account.total_statement_lines') ?? 'Statement lines' }}:</strong> ' + (summary.total_statement_lines || 0) + '</p>';
+                        html = run_id + run_status + html;
                         html += '<p><strong>{{ __('account.total_statement_amount') ?? 'Statement amount' }}:</strong> ' + __currency_trans_from_en(summary.total_statement_amount || 0, true) + '</p>';
                         html += '<p><strong>{{ __('account.matched') ?? 'Matched' }}:</strong> ' + (summary.matched_count || 0) + ' (' + __currency_trans_from_en(summary.total_matched_amount || 0, true) + ')</p>';
                         html += '<p><strong>{{ __('account.ambiguous') ?? 'Ambiguous' }}:</strong> ' + (summary.ambiguous_count || 0) + '</p>';
                         html += '<p><strong>{{ __('account.unmatched') ?? 'Unmatched' }}:</strong> ' + (summary.unmatched_count || 0) + '</p>';
+                        html += '<p><strong>{{ __('lang_v1.invalid') ?? 'Invalid' }}:</strong> ' + (summary.invalid_count || 0) + '</p>';
                         $('#reco_summary').html(html);
+                        setRunActions(summary.run_id || null, summary.status || 'completed');
 
                         var matched_rows = '';
                         (result.matched || []).forEach(function(item) {
                             var s = item.statement || {};
                             var p = item.payment || {};
                             matched_rows += '<tr>' +
-                                '<td>' + (s.date || '') + '</td>' +
+                                '<td>' + escapeHtml(s.date || '') + '</td>' +
                                 '<td>' + __currency_trans_from_en(s.amount || 0, true) + '</td>' +
-                                '<td>' + (s.description || '') + '</td>' +
-                                '<td>' + (p.payment_ref_no || '') + '</td>' +
-                                '<td>' + (p.invoice_no || '') + '</td>' +
-                                '<td>' + (p.method || p.transaction_type || '') + '</td>' +
+                                '<td>' + escapeHtml(s.description || '') + '</td>' +
+                                '<td>' + escapeHtml(p.payment_ref_no || '') + '</td>' +
+                                '<td>' + escapeHtml(p.invoice_no || '') + '</td>' +
+                                '<td>' + escapeHtml(p.method || p.transaction_type || '') + '</td>' +
                                 '</tr>';
                         });
                         $('#reco_matched_table tbody').html(matched_rows);
@@ -201,12 +265,16 @@
                         var ambiguous_rows = '';
                         (result.ambiguous || []).forEach(function(item) {
                             var s = item.statement || {};
-                            var first = (item.candidates || [])[0] || {};
+                            var candidates = item.candidates || [];
+                            var candidateRefs = candidates.map(function(c) {
+                                return c.payment_ref_no || c.invoice_no || ('#' + c.id);
+                            }).join(', ');
                             ambiguous_rows += '<tr>' +
-                                '<td>' + (s.date || '') + '</td>' +
+                                '<td>' + escapeHtml(s.date || '') + '</td>' +
                                 '<td>' + __currency_trans_from_en(s.amount || 0, true) + '</td>' +
-                                '<td>' + (s.description || '') + '</td>' +
-                                '<td>' + (first.payment_ref_no || '') + '</td>' +
+                                '<td>' + escapeHtml(s.description || '') + '</td>' +
+                                '<td>' + escapeHtml(s.reference || '') + '</td>' +
+                                '<td>' + escapeHtml(candidates.length + ' candidates: ' + candidateRefs) + '</td>' +
                                 '</tr>';
                         });
                         $('#reco_ambiguous_table tbody').html(ambiguous_rows);
@@ -214,13 +282,56 @@
                         var unmatched_rows = '';
                         (result.unmatched || []).forEach(function(s) {
                             unmatched_rows += '<tr>' +
-                                '<td>' + (s.date || '') + '</td>' +
+                                '<td>' + escapeHtml(s.date || '') + '</td>' +
                                 '<td>' + __currency_trans_from_en(s.amount || 0, true) + '</td>' +
-                                '<td>' + (s.description || '') + '</td>' +
-                                '<td>' + (s.reference || '') + '</td>' +
+                                '<td>' + escapeHtml(s.description || '') + '</td>' +
+                                '<td>' + escapeHtml(s.reference || '') + '</td>' +
                                 '</tr>';
                         });
                         $('#reco_unmatched_table tbody').html(unmatched_rows);
+
+                        var invalid_rows = '';
+                        (result.invalid || []).forEach(function(s) {
+                            invalid_rows += '<tr>' +
+                                '<td>' + escapeHtml(s.line || '') + '</td>' +
+                                '<td>' + escapeHtml(s.date || '') + '</td>' +
+                                '<td>' + escapeHtml(s.amount || '') + '</td>' +
+                                '<td>' + escapeHtml(s.description || '') + '</td>' +
+                                '<td>' + escapeHtml(s.reference || '') + '</td>' +
+                                '<td>' + escapeHtml(s.reason || '') + '</td>' +
+                                '</tr>';
+                        });
+                        $('#reco_invalid_table tbody').html(invalid_rows);
+                    },
+                    error: function() {
+                        toastr.error('{{ __('messages.something_went_wrong') }}');
+                    }
+                });
+            });
+
+            $('#finalize_reco_btn').on('click', function() {
+                if (!currentRunId) {
+                    toastr.error("{{ __('account.no_reconciliation_run_selected') }}");
+                    return;
+                }
+
+                $.ajax({
+                    method: 'POST',
+                    url: "{{ url('account/bank-reconciliation') }}/" + currentRunId + "/finalize",
+                    dataType: 'json',
+                    success: function(result) {
+                        if (!result.success) {
+                            toastr.error(result.msg || '{{ __('messages.something_went_wrong') }}');
+                            return;
+                        }
+
+                        toastr.success(result.msg || "{{ __('account.reconciliation_finalized_successfully') }}");
+                        setRunActions(result.run_id || currentRunId, result.status || 'finalized');
+
+                        var currentHtml = $('#reco_summary').html();
+                        if (currentHtml && currentHtml.indexOf('{{ __('lang_v1.status') ?? 'Status' }}') !== -1) {
+                            $('#reco_summary').html(currentHtml.replace(/<strong>{{ __('lang_v1.status') ?? 'Status' }}:<\/strong>\s*[^<]*/i, '<strong>{{ __('lang_v1.status') ?? 'Status' }}:</strong> finalized'));
+                        }
                     },
                     error: function() {
                         toastr.error('{{ __('messages.something_went_wrong') }}');

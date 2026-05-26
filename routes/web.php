@@ -567,6 +567,8 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
         Route::get('/bank-reconciliation', [AccountReportsController::class, 'showBankReconciliation']);
         Route::get('/bank-reconciliation/template', [AccountReportsController::class, 'downloadBankReconciliationTemplate']);
         Route::post('/bank-reconciliation/upload', [AccountReportsController::class, 'uploadBankReconciliation']);
+        Route::post('/bank-reconciliation/{id}/finalize', [AccountReportsController::class, 'finalizeBankReconciliation']);
+        Route::get('/bank-reconciliation/{id}/export', [AccountReportsController::class, 'exportBankReconciliationPackage']);
         Route::get('/link-account/{id}', [AccountReportsController::class, 'getLinkAccount']);
         Route::post('/link-account', [AccountReportsController::class, 'postLinkAccount']);
         Route::get('/cash-flow', [AccountController::class, 'cashFlow']);

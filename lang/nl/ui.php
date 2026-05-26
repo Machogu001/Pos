@@ -872,4 +872,12 @@ return [
     'tooltip_spreadsheet_module' => 'Menu\'s en toegangspunten van de module Spreadsheet tonen of verbergen.',
     'tooltip_woocommerce_module' => 'Menu\'s en toegangspunten van de module WooCommerce tonen of verbergen.',
     'tooltip_hrm_module' => 'Menu\'s en toegangspunten van de module HRM tonen of verbergen.',
+    'crm' => 'CRM',
+    'essentials' => 'Essentials',
+    'hms' => 'HMS',
+    'manufacturing' => 'Manufacturing',
+    'project' => 'Project',
+    'repair' => 'Repair',
+    'spreadsheet' => 'Spreadsheet',
+    'hrm' => 'Hrm',
 ];

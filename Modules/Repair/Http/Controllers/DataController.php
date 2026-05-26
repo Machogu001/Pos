@@ -160,13 +160,14 @@ class DataController extends Controller
         $business_id = session()->get('user.business_id');
         $module_util = new ModuleUtil();
         $is_repair_enabled = (bool) $module_util->hasThePermissionInSubscription($business_id, 'repair_module');
+        $is_admin = (new \App\Utils\Util())->is_admin(auth()->user(), $business_id);
 
         $background_color = '';
         if (config('app.env') == 'demo') {
             $background_color = '#bc8f8f !important';
         }
 
-        if ($is_repair_enabled && (auth()->user()->can('superadmin') || auth()->user()->can('repair.view') || auth()->user()->can('job_sheet.view_assigned') || auth()->user()->can('job_sheet.view_all'))) {
+        if ($is_repair_enabled && ($is_admin || auth()->user()->can('superadmin') || \App\Support\ModuleAccessGate::userCanAccess(auth()->user(), ['repair.view', 'job_sheet.view_assigned', 'job_sheet.view_all']))) {
             $menu = Menu::instance('admin-sidebar-menu');
             $group_title = 'Modules & Apps';
             $added_to_group = false;

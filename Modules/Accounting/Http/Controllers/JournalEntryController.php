@@ -33,7 +33,9 @@ class JournalEntryController extends Controller
      */
     public function index(Request $request)
     {
-        $perPage = $request->per_page ?: 20;
+        $business_id = $this->resolveBusinessId();
+        $perPage = (int) ($request->per_page ?: 20);
+        $perPage = in_array($perPage, [10, 20, 50, 100], true) ? $perPage : 20;
         $orderBy = $request->order_by;
         $orderByDir = $request->order_by_dir;
         $search = $request->s;
@@ -41,14 +43,32 @@ class JournalEntryController extends Controller
         $end_date = $request->end_date;
         $location_id = $request->location_id;
         $chart_of_account_id = $request->chart_of_account_id;
+
+        $sortableColumns = [
+            'id' => 'journal_entries.id',
+            'date' => 'journal_entries.date',
+            'transaction_number' => 'journal_entries.transaction_number',
+            'debit' => 'journal_entries.debit',
+            'credit' => 'journal_entries.credit',
+            'business_location' => 'business_locations.name',
+            'account_name' => 'chart_of_accounts.name',
+            'account_type' => 'chart_of_accounts.account_type',
+            'account_subtype' => 'account_subtypes.name',
+            'account_detail_type' => 'account_detail_types.name',
+            'created_by' => 'users.first_name',
+        ];
+
+        $orderColumn = $sortableColumns[$orderBy] ?? 'journal_entries.date';
+        $orderDir = strtolower((string) $orderByDir) === 'asc' ? 'asc' : 'desc';
+
         $data = JournalEntry::leftJoin("business_locations", "business_locations.id", "journal_entries.location_id")
-            ->where('business_locations.business_id', session('business.id'))
             ->leftJoin("chart_of_accounts", "chart_of_accounts.id", "journal_entries.chart_of_account_id")
             ->leftJoin("account_subtypes", "account_subtypes.id", "chart_of_accounts.account_subtype_id")
             ->leftJoin("account_detail_types", "account_detail_types.id", "chart_of_accounts.detail_type_id")
             ->leftJoin("users", "users.id", "journal_entries.created_by_id")
-            ->when($orderBy, function (Builder $query) use ($orderBy, $orderByDir) {
-                $query->orderBy($orderBy, $orderByDir);
+            ->where('chart_of_accounts.business_id', $business_id)
+            ->when($orderColumn, function (Builder $query) use ($orderColumn, $orderDir) {
+                $query->orderBy($orderColumn, $orderDir);
             })
             ->when($end_date, function ($query) use ($start_date, $end_date) {
                 $query->whereBetween("journal_entries.date", [$start_date, $end_date]);
@@ -60,12 +80,14 @@ class JournalEntryController extends Controller
                 $query->where("journal_entries.chart_of_account_id", $chart_of_account_id);
             })
             ->when($search, function (Builder $query) use ($search) {
-                $query->where('journal_entries.name', 'like', "%$search%");
-                $query->orWhere('journal_entries.id', 'like', "%$search%");
-                $query->orWhere('journal_entries.transaction_number', 'like', "%$search%");
-                $query->orWhere('business_locations.name', 'like', "%$search%");
-                $query->orWhere('users.first_name', 'like', "%$search%");
-                $query->orWhere('users.last_name', 'like', "%$search%");
+                $query->where(function (Builder $subQuery) use ($search) {
+                    $subQuery->where('journal_entries.id', 'like', "%$search%")
+                        ->orWhere('journal_entries.transaction_number', 'like', "%$search%")
+                        ->orWhere('business_locations.name', 'like', "%$search%")
+                        ->orWhere('users.first_name', 'like', "%$search%")
+                        ->orWhere('users.last_name', 'like', "%$search%")
+                        ->orWhere('chart_of_accounts.name', 'like', "%$search%");
+                });
             })
             ->selectRaw("journal_entries.id,
                 journal_entries.created_by_id,
@@ -81,11 +103,19 @@ class JournalEntryController extends Controller
                 account_subtypes.name account_subtype,
                 account_detail_types.name account_detail_type
                 ")
-            ->get();
+            ->simplePaginate($perPage)
+            ->appends($request->query());
 
-        $chart_of_accounts = ChartOfAccount::all(['id', 'name']);
+        $chart_of_accounts = ChartOfAccount::forBusiness($business_id)->orderBy('name')->get(['id', 'name']);
 
-        return view('accounting::journal_entry.index', compact('data', 'chart_of_accounts'));
+        return view('accounting::journal_entry.index', compact('data', 'chart_of_accounts', 'perPage'));
+    }
+
+    private function resolveBusinessId(): ?int
+    {
+        $business_id = session('business.id') ?? session('user.business_id') ?? optional(auth()->user())->business_id;
+
+        return ! empty($business_id) ? (int) $business_id : null;
     }
 
     public function get_journal_entries(Request $request)

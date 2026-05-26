@@ -433,18 +433,21 @@
             }
         });
 
-        $(document).on('click', function (e) {
-            $('[data-toggle="popover"]').popover();
+        function initializeHelpOverlays(context) {
+            var $scope = context ? $(context) : $(document);
+            $scope.find('[data-toggle="popover"], [data-bs-toggle="popover"]').popover();
+            $scope.find('[data-toggle="tooltip"], [data-bs-toggle="tooltip"]').tooltip();
+        }
 
-            $(document).on('click', function (e) {
-                $('[data-toggle="popover"]').each(function () {
-                    // Check if the clicked element is the popover button or inside the popover
-                    if (!$(this).is(e.target) && $(this).has(e.target).length === 0 && $('.popover').has(e.target).length === 0) {
-                        $(this).popover('hide');
-                    }
-                });
+        initializeHelpOverlays(document);
+
+        $(document).on('click', function (e) {
+            $('[data-toggle="popover"], [data-bs-toggle="popover"]').each(function () {
+                // Hide open popovers when clicking outside of trigger or popover body.
+                if (!$(this).is(e.target) && $(this).has(e.target).length === 0 && $('.popover').has(e.target).length === 0) {
+                    $(this).popover('hide');
+                }
             });
-            
         });
 
         $('.side-bar-collapse').click(function() {

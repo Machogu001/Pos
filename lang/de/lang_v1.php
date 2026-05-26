@@ -1358,4 +1358,12 @@ return [
     'cogs' => 'COGS:',
     'cogs_help_text' => 'Kosten der verkauften Waren = Anfangsbestand (Eröffnungsbestand) + Einkäufe − Endbestand (Schlussbestand)',
     'taxable_value' => 'Taxable value',
+    'finalize' => 'Finalize',
+    'finalized' => 'Finalized',
+    'invalid' => 'Invalid',
+    'reason' => 'Reason',
+    'details' => 'Details',
+    'status' => 'Status',
+    'id' => 'ID',
+    'sr_no' => 'S/N',
 ];

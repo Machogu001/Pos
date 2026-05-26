@@ -872,4 +872,12 @@ return [
     'tooltip_spreadsheet_module' => 'Menüs und Einstiegspunkte des Moduls Spreadsheet anzeigen oder ausblenden.',
     'tooltip_woocommerce_module' => 'Menüs und Einstiegspunkte des Moduls WooCommerce anzeigen oder ausblenden.',
     'tooltip_hrm_module' => 'Menüs und Einstiegspunkte des Moduls HRM anzeigen oder ausblenden.',
+    'crm' => 'CRM',
+    'essentials' => 'Essentials',
+    'hms' => 'HMS',
+    'manufacturing' => 'Manufacturing',
+    'project' => 'Project',
+    'repair' => 'Repair',
+    'spreadsheet' => 'Spreadsheet',
+    'hrm' => 'Hrm',
 ];

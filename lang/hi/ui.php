@@ -872,4 +872,12 @@ return [
     'tooltip_spreadsheet_module' => 'Spreadsheet मॉड्यूल के मेनू और एंट्री पॉइंट दिखाएं या छिपाएं।',
     'tooltip_woocommerce_module' => 'WooCommerce मॉड्यूल के मेनू और एंट्री पॉइंट दिखाएं या छिपाएं।',
     'tooltip_hrm_module' => 'HRM मॉड्यूल के मेनू और एंट्री पॉइंट दिखाएं या छिपाएं।',
+    'crm' => 'CRM',
+    'essentials' => 'Essentials',
+    'hms' => 'HMS',
+    'manufacturing' => 'Manufacturing',
+    'project' => 'Project',
+    'repair' => 'Repair',
+    'spreadsheet' => 'Spreadsheet',
+    'hrm' => 'Hrm',
 ];

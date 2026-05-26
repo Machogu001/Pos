@@ -165,6 +165,7 @@ foreach ($locales as $locale) {
 
         if ($replaced > 0) {
             file_put_contents($path, exportPhpArray($data));
+            chmod($path, 0644);
         }
 
         $replacedTotal += $replaced;

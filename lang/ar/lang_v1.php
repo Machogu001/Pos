@@ -1366,4 +1366,12 @@ return [
     'cogs' => 'COGS:',
     'cogs_help_text' => 'تكلفة البضائع المباعة = المخزون الافتتاحي (المخزون الافتتاحي) + المشتريات - المخزون النهائي (المخزون الختامي)',
     'taxable_value' => 'Taxable value',
+    'finalize' => 'Finalize',
+    'finalized' => 'Finalized',
+    'invalid' => 'Invalid',
+    'reason' => 'Reason',
+    'details' => 'Details',
+    'status' => 'Status',
+    'id' => 'ID',
+    'sr_no' => 'S/N',
 ];

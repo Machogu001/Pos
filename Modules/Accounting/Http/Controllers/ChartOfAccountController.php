@@ -46,7 +46,7 @@ class ChartOfAccountController extends Controller
 
     private function get_account_chart_data(Request $request)
     {
-        $business_id = session('business.id');
+        $business_id = $this->resolveBusinessId();
         $perPage = $request->per_page ?: 20;
         $orderBy = $request->order_by;
         $orderByDir = $request->order_by_dir;
@@ -110,7 +110,7 @@ class ChartOfAccountController extends Controller
 
     public function get_chart_of_accounts()
     {
-        $query = ChartOfAccount::forBusiness(session('business.id'))->where('active', 1)->orderBy('gl_code');
+        $query = ChartOfAccount::forBusiness($this->resolveBusinessId())->where('active', 1)->orderBy('gl_code');
         return DataTables::of($query)->editColumn('user', function ($data) {
             return $data->first_name . ' ' . $data->last_name;
         })->editColumn('action', function ($data) {
@@ -272,8 +272,9 @@ class ChartOfAccountController extends Controller
      */
     public function show($id)
     {
-        $chart_of_account = ChartOfAccount::with('journal_entries')->forBusiness(session('business.id'))->findOrFail($id);
-        $ledger_balances = $this->getLedgerBalancesByGlCode(session('business.id'));
+        $business_id = $this->resolveBusinessId();
+        $chart_of_account = ChartOfAccount::with('journal_entries')->forBusiness($business_id)->findOrFail($id);
+        $ledger_balances = $this->getLedgerBalancesByGlCode($business_id);
         $chart_of_account->ledger_current_balance = $ledger_balances[(string) $chart_of_account->gl_code] ?? $chart_of_account->current_balance;
 
         return view('accounting::chart_of_account.show', compact('chart_of_account'));
@@ -319,13 +320,14 @@ class ChartOfAccountController extends Controller
      */
     public function edit($id)
     {
-        $chart_of_account = ChartOfAccount::forBusiness(session('business.id'))->where('active', 1)->findOrFail($id);
+        $business_id = $this->resolveBusinessId();
+        $chart_of_account = ChartOfAccount::forBusiness($business_id)->where('active', 1)->findOrFail($id);
         $payment_types = PaymentType::getTypesCollection();
         $currencies = Currency::orderBy('currency')->get();
         $account_types = AccountType::getTypes();
         $account_subtypes = AccountSubtype::forBusiness()->active()->get();
         $account_detail_types = AccountDetailType::forBusiness()->active()->get();
-        $chart_of_accounts = ChartOfAccount::forBusiness()->where('active', 1)->where('id', '!=', $id)->orderBy('gl_code')->get();
+        $chart_of_accounts = ChartOfAccount::forBusiness($business_id)->where('active', 1)->where('id', '!=', $id)->orderBy('gl_code')->get();
 
         return view('accounting::chart_of_account.edit', compact('chart_of_account', 'payment_types', 'currencies', 'account_types', 'account_subtypes', 'account_detail_types', 'chart_of_accounts'));
     }
@@ -356,7 +358,7 @@ class ChartOfAccountController extends Controller
         $chart_of_account->allow_manual = $request->allow_manual;
         $chart_of_account->active = $request->active;
         $chart_of_account->notes = $request->notes;
-        $chart_of_account->business_id = session('business.id');
+        $chart_of_account->business_id = $this->resolveBusinessId();
         $chart_of_account->opening_balance = $request->opening_balance ?: 0;
         $chart_of_account->currency_id = $request->currency_id;
         $chart_of_account->payment_type_id = $request->payment_type_id ?: 1;
@@ -377,12 +379,19 @@ class ChartOfAccountController extends Controller
      */
     public function destroy($id)
     {
-        $chart_of_account = ChartOfAccount::forBusiness(session('business.id'))->findOrFail($id);
+        $chart_of_account = ChartOfAccount::forBusiness($this->resolveBusinessId())->findOrFail($id);
         $chart_of_account->delete();
         activity()->on($chart_of_account)
             ->withProperties(['id' => $chart_of_account->id])
             ->log('Delete Chart Of Account');
         (new FlashService())->onDelete();
         return redirect()->back();
+    }
+
+    private function resolveBusinessId(): ?int
+    {
+        $business_id = session('business.id') ?? session('user.business_id') ?? optional(auth()->user())->business_id;
+
+        return ! empty($business_id) ? (int) $business_id : null;
     }
 }

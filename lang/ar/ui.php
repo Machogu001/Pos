@@ -872,4 +872,12 @@ return [
     'tooltip_spreadsheet_module' => 'إظهار أو إخفاء قوائم ونقاط دخول وحدة Spreadsheet.',
     'tooltip_woocommerce_module' => 'إظهار أو إخفاء قوائم ونقاط دخول وحدة WooCommerce.',
     'tooltip_hrm_module' => 'إظهار أو إخفاء قوائم ونقاط دخول وحدة HRM.',
+    'crm' => 'CRM',
+    'essentials' => 'Essentials',
+    'hms' => 'HMS',
+    'manufacturing' => 'Manufacturing',
+    'project' => 'Project',
+    'repair' => 'Repair',
+    'spreadsheet' => 'Spreadsheet',
+    'hrm' => 'Hrm',
 ];

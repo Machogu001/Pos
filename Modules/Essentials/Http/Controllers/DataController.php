@@ -5,6 +5,7 @@ namespace Modules\Essentials\Http\Controllers;
 use App\BusinessLocation;
 use App\Category;
 use App\User;
+use App\Support\ModuleAccessGate;
 use App\Utils\ModuleUtil;
 use App\Utils\TransactionUtil;
 use Modules\Essentials\Utils\EssentialsUtil;
@@ -333,7 +334,7 @@ class DataController extends Controller
 
         $is_admin = (new \App\Utils\Util())->is_admin(auth()->user(), $business_id);
         $user_can_access_essentials = $is_admin || auth()->user()->can('superadmin') ||
-            auth()->user()->getAllPermissions()->pluck('name')->filter(fn($p) => str_starts_with($p, 'essentials.'))->isNotEmpty();
+            ModuleAccessGate::userCanAccess(auth()->user(), [], ['essentials.']);
 
         if ($is_essentials_enabled && $user_can_access_essentials) {
             $menu = Menu::instance('admin-sidebar-menu');

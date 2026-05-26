@@ -1429,4 +1429,12 @@ return [
     'cogs' => 'COGS:',
     'cogs_help_text' => 'ຕົວຢ່າງຂອງສິນຄ້າທີ່ຂາຍແລ້ວ = ການສ້າງສາງເປີດຕົ້ນ (ສາງປິດຕົ້ນ) + ການຊື້ - ການສ້າງສາງສິ້ນສຸດ (ສາງປິດ)',
     'taxable_value' => 'Taxable value',
+    'finalize' => 'Finalize',
+    'finalized' => 'Finalized',
+    'invalid' => 'Invalid',
+    'reason' => 'Reason',
+    'details' => 'Details',
+    'status' => 'Status',
+    'id' => 'ID',
+    'sr_no' => 'S/N',
 ];

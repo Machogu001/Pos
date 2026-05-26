@@ -1357,4 +1357,12 @@ return [
     'cogs' => 'COGS:',
     'cogs_help_text' => 'Kosten van verkochte goederen = Startvoorraad (openingsvoorraad) + aankopen − eindvoorraad (sluitingsvoorraad)',
     'taxable_value' => 'Taxable value',
+    'finalize' => 'Finalize',
+    'finalized' => 'Finalized',
+    'invalid' => 'Invalid',
+    'reason' => 'Reason',
+    'details' => 'Details',
+    'status' => 'Status',
+    'id' => 'ID',
+    'sr_no' => 'S/N',
 ];

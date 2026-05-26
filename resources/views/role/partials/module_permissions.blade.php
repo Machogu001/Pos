@@ -29,6 +29,9 @@
             [ 'class' => 'input-icheck']); !!} {{ $module_permission['label'] }}
             @endif
           </label>
+          @if(!empty($module_permission['tooltip']))
+            @show_tooltip($module_permission['tooltip'])
+          @endif
         </div>
 
         @if(isset($module_permission['end_group']) && $module_permission['end_group'])

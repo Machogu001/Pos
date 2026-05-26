@@ -147,14 +147,12 @@
                 @include('repair::layouts.partials.pos_header')
             @endif
 
-            @if (in_array('pos_sale', $enabled_modules) && !empty($transaction_sub_type))
-                @can('sell.create')
+            @if (in_array('pos_sale', $enabled_modules) && !empty($transaction_sub_type) && auth()->check() && auth()->user()->hasAnyPermissionSafe(['sell.create', 'direct_sell.access']))
                     <a href="{{ action([\App\Http\Controllers\SellPosController::class, 'create']) }}"
                         title="@lang('sale.pos_sale')"
                         class="tw-dw-btn tw-dw-btn-xs tw-dw-btn-outline tw-dw-btn-success m-6 btn-xs m-5 pull-right">
                         <strong><i class="fa fa-th-large"></i> &nbsp; @lang('sale.pos_sale')</strong>
                     </a>
-                @endcan
             @endif
             @can('expense.add')
                 <button type="button" title="{{ __('expense.add_expense') }}" data-placement="bottom"
@@ -346,15 +344,13 @@
                 @include('repair::layouts.partials.pos_header')
             @endif
 
-            @if (in_array('pos_sale', $enabled_modules) && !empty($transaction_sub_type))
-                @can('sell.create')
+            @if (in_array('pos_sale', $enabled_modules) && !empty($transaction_sub_type) && auth()->check() && auth()->user()->hasAnyPermissionSafe(['sell.create', 'direct_sell.access']))
                     <a href="{{ action([\App\Http\Controllers\SellPosController::class, 'create']) }}"
                         title="@lang('sale.pos_sale')"
                         class="tw-shadow-[rgba(17,_17,_26,_0.1)_0px_0px_16px] tw-bg-white hover:tw-bg-white/60 tw-cursor-pointer tw-border-2 tw-w-auto tw-h-auto tw-py-1 tw-px-4 tw-rounded-md pull-right">
                         <strong><i class="fa fa-th-large tw-text-[#00935F] !tw-text-sm"></i> &nbsp;
                             @lang('sale.pos_sale')</strong>
                     </a>
-                @endcan
             @endif
             @can('expense.add')
                 <button type="button" title="{{ __('expense.add_expense') }}" data-placement="bottom"

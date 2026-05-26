@@ -76,12 +76,13 @@ class DataController extends Controller
         $business_id = session()->get('user.business_id');
         $module_util = new ModuleUtil();
         $is_inventorymanagement_enabled = (boolean)$module_util->hasThePermissionInSubscription($business_id, 'inventorymanagement_module');
+        $is_admin = (new \App\Utils\Util())->is_admin(auth()->user(), $business_id);
 
         $background_color = '';
         if (config('app.env') == 'demo') {$background_color = '#C7E9C0  !important';}
 
 
-        if ($is_inventorymanagement_enabled && (auth()->user()->can('superadmin') || auth()->user()->can('inventorymanagement.view'))) {
+        if ($is_inventorymanagement_enabled && ($is_admin || auth()->user()->can('superadmin') || \App\Support\ModuleAccessGate::userCanAccess(auth()->user(), ['inventorymanagement.view']))) {
             $menuparent = Menu::instance('admin-sidebar-menu');
             $menuparent->dropdown (__('inventorymanagement::inventory.inventory' ), 
 

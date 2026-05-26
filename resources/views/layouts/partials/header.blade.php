@@ -3,12 +3,25 @@
 
 @php
     $headerBusiness = optional(auth()->user())->business;
-    $sessionEnabledModules = is_array(session('business.enabled_modules')) ? session('business.enabled_modules') : [];
-    $businessEnabledModules = is_array(optional($headerBusiness)->enabled_modules) ? $headerBusiness->enabled_modules : [];
-    $headerEnabledModules = !empty($enabled_modules)
-        ? $enabled_modules
-        : array_values(array_unique(array_merge($sessionEnabledModules, $businessEnabledModules)));
-    $headerIsAdmin = auth()->check() && auth()->user()->hasRole('Admin#' . session('business.id'));
+
+    $normalizeModules = function ($modules) {
+        if (is_string($modules)) {
+            $decoded = json_decode($modules, true);
+            $modules = is_array($decoded) ? $decoded : [];
+        }
+
+        return is_array($modules) ? $modules : [];
+    };
+
+    $viewEnabledModules = isset($enabled_modules) ? $normalizeModules($enabled_modules) : [];
+    $sessionEnabledModules = $normalizeModules(session('business.enabled_modules'));
+    $businessEnabledModules = $normalizeModules(optional($headerBusiness)->enabled_modules);
+    $headerEnabledModules = array_values(array_unique(array_merge($viewEnabledModules, $sessionEnabledModules, $businessEnabledModules)));
+
+    $headerUser = auth()->user();
+    $headerCanCreatePos = !empty($headerUser)
+        ? $headerUser->hasAnyPermissionSafe(['sell.create', 'direct_sell.access'])
+        : false;
 @endphp
 
 <div
@@ -235,7 +248,7 @@
                     </svg>
                 </button>
 
-                @if (in_array('pos_sale', $headerEnabledModules) && ($headerIsAdmin || auth()->user()->can('sell.create')))
+                @if (in_array('pos_sale', $headerEnabledModules) && $headerCanCreatePos)
                         <a href="{{ action([\App\Http\Controllers\SellPosController::class, 'create']) }}"
                             class="sm:tw-inline-flex tw-transition-all tw-duration-200 tw-gap-2 tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-800 hover:tw-bg-@if(!empty(session('business.theme_color'))){{session('business.theme_color')}}@else{{'primary'}}@endif-700 tw-py-1.5 tw-px-3 tw-rounded-lg tw-items-center tw-justify-center tw-text-sm tw-font-medium tw-ring-1 tw-ring-white/10 hover:tw-text-white tw-text-white">
                             <svg aria-hidden="true" class="tw-size-5 tw-hidden md:tw-block" xmlns="http://www.w3.org/2000/svg"

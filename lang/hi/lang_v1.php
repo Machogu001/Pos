@@ -1357,4 +1357,12 @@ return [
     'cogs' => 'COGS:',
     'cogs_help_text' => 'बेचे गए सामान की लागत = प्रारंभिक इन्वेंट्री (प्रारंभिक स्टॉक) + खरीदारी − समापन इन्वेंट्री (समापन स्टॉक)',
     'taxable_value' => 'Taxable value',
+    'finalize' => 'Finalize',
+    'finalized' => 'Finalized',
+    'invalid' => 'Invalid',
+    'reason' => 'Reason',
+    'details' => 'Details',
+    'status' => 'Status',
+    'id' => 'ID',
+    'sr_no' => 'S/N',
 ];

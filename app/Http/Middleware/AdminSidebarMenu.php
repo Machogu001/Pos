@@ -63,9 +63,24 @@ class AdminSidebarMenu
 
         Menu::create('admin-sidebar-menu', function ($menu) {
             $business = optional(auth()->user())->business;
-            $sessionModules = is_array(session('business.enabled_modules')) ? session('business.enabled_modules') : [];
-            $businessModules = is_array(optional($business)->enabled_modules) ? $business->enabled_modules : [];
+            $normalizeModules = function ($modules) {
+                if (is_string($modules)) {
+                    $decoded = json_decode($modules, true);
+                    $modules = is_array($decoded) ? $decoded : [];
+                }
+
+                return is_array($modules) ? $modules : [];
+            };
+
+            $sessionModules = $normalizeModules(session('business.enabled_modules'));
+            $businessModules = $normalizeModules(optional($business)->enabled_modules);
             $enabled_modules = array_values(array_unique(array_merge($sessionModules, $businessModules)));
+
+            // Fallback for stale/malformed session payloads: read directly from DB once.
+            if (empty($enabled_modules) && ! empty(session('business.id'))) {
+                $dbModules = Business::where('id', session('business.id'))->value('enabled_modules');
+                $enabled_modules = $normalizeModules($dbModules);
+            }
 
             $common_settings = !empty(session('business.common_settings'))
                 ? session('business.common_settings')
@@ -1057,15 +1072,8 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                 $modules_statuses = json_decode(file_get_contents($statusFile), true);
             }
 
-            // Show HRM only when enabled and user has hrm.access or any granular HRM permission
-            $has_hrm_perm = auth()->user()->can('hrm.access')
-                || auth()->user()->can('hrm.companies')
-                || auth()->user()->can('hrm.departments')
-                || auth()->user()->can('hrm.designations')
-                || auth()->user()->can('hrm.office_shifts')
-                || auth()->user()->can('hrm.employees')
-                || auth()->user()->can('hrm.payrolls');
-            if ((in_array('hrm', $enabled_modules) || in_array('Hrm', $enabled_modules)) && $has_hrm_perm) {
+            // Show HRM whenever it is enabled for this business.
+            if (in_array('hrm', $enabled_modules) || in_array('Hrm', $enabled_modules)) {
                 // Build HRM dropdown with sub-links (companies, departments, designations, office shifts, employees, payroll)
                 $menu->dropdown(
                     __('hrm.hrm'),
@@ -1200,11 +1208,28 @@ if (in_array('stock_adjustment', $enabled_modules) &&
         $moduleUtil = new ModuleUtil;
 
         $business = optional(auth()->user())->business;
-        $sessionModules = is_array(session('business.enabled_modules')) ? session('business.enabled_modules') : [];
-        $businessModules = is_array(optional($business)->enabled_modules) ? $business->enabled_modules : [];
+        $normalizeModules = function ($modules) {
+            if (is_string($modules)) {
+                $decoded = json_decode($modules, true);
+                $modules = is_array($decoded) ? $decoded : [];
+            }
+
+            return is_array($modules) ? $modules : [];
+        };
+
+        $sessionModules = $normalizeModules(session('business.enabled_modules'));
+        $businessModules = $normalizeModules(optional($business)->enabled_modules);
         $enabled_modules = array_values(array_unique(array_merge($sessionModules, $businessModules)));
 
+        if (empty($enabled_modules) && ! empty(session('business.id'))) {
+            $dbModules = Business::where('id', session('business.id'))->value('enabled_modules');
+            $enabled_modules = $normalizeModules($dbModules);
+        }
+
         $modules_apps_toggles = [
+            'account',
+            'accounting',
+            'accounting_module',
             'ai_assistance',
             'asset_management',
             'cms',
@@ -1212,6 +1237,7 @@ if (in_array('stock_adjustment', $enabled_modules) &&
             'crm',
             'essentials',
             'hms',
+            'inventory_management',
             'manufacturing',
             'catalogue_qr',
             'project',

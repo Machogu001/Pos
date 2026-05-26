@@ -872,4 +872,12 @@ return [
     'tooltip_spreadsheet_module' => 'ສະແດງ ຫຼື ຊ່ອນ ເມນູ ແລະ ຈຸດເຂົ້າຂອງໂມດູນ Spreadsheet.',
     'tooltip_woocommerce_module' => 'ສະແດງ ຫຼື ຊ່ອນ ເມນູ ແລະ ຈຸດເຂົ້າຂອງໂມດູນ WooCommerce.',
     'tooltip_hrm_module' => 'ສະແດງ ຫຼື ຊ່ອນ ເມນູ ແລະ ຈຸດເຂົ້າຂອງໂມດູນ HRM.',
+    'crm' => 'CRM',
+    'essentials' => 'Essentials',
+    'hms' => 'HMS',
+    'manufacturing' => 'Manufacturing',
+    'project' => 'Project',
+    'repair' => 'Repair',
+    'spreadsheet' => 'Spreadsheet',
+    'hrm' => 'Hrm',
 ];

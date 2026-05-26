@@ -55,8 +55,7 @@ class DataController extends Controller
 
         $is_admin = $commonUtil->is_admin(auth()->user(), $business_id);
         $user_can_access = $is_admin || auth()->user()->can('superadmin') ||
-            auth()->user()->can('connector.access_api') ||
-            auth()->user()->can('connector.manage_tokens');
+            \App\Support\ModuleAccessGate::userCanAccess(auth()->user(), ['connector.access_api', 'connector.manage_tokens']);
 
         if ($is_connector_enabled && $user_can_access) {
             $menu = Menu::instance('admin-sidebar-menu');

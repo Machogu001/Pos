@@ -872,4 +872,12 @@ return [
     'tooltip_spreadsheet_module' => 'Hiển thị hoặc ẩn menu và điểm truy cập của mô-đun Spreadsheet.',
     'tooltip_woocommerce_module' => 'Hiển thị hoặc ẩn menu và điểm truy cập của mô-đun WooCommerce.',
     'tooltip_hrm_module' => 'Hiển thị hoặc ẩn menu và điểm truy cập của mô-đun HRM.',
+    'crm' => 'CRM',
+    'essentials' => 'Essentials',
+    'hms' => 'HMS',
+    'manufacturing' => 'Manufacturing',
+    'project' => 'Project',
+    'repair' => 'Repair',
+    'spreadsheet' => 'Spreadsheet',
+    'hrm' => 'Hrm',
 ];

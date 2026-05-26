@@ -592,7 +592,16 @@ class ReportController extends Controller
 
     public function budget_overview(Request $request)
     {
-        $financial_year_start = Business::findOrFail(session('business.id'))->fy_start_month;
+        $business = $this->resolveBusinessContext();
+
+        if (! $business) {
+            return redirect('/home')->with('status', [
+                'success' => 0,
+                'msg' => __('accounting::general.accounting_module_not_enabled_for_business'),
+            ]);
+        }
+
+        $financial_year_start = $business->fy_start_month;
         $account_types = ChartOfAccount::forBusiness()->where('active', 1)->distinct('account_type')->get(['account_type'])->pluck('account_type');
         $financial_year = !empty(request()->year) ? request()->year : BudgetService::getCurrentFinancialYear($financial_year_start);
         $months = (new BudgetService($financial_year_start, $financial_year))->getMonths();
@@ -636,6 +645,17 @@ class ReportController extends Controller
         }
 
         return view('accounting::report.budget.budget_overview')->with($compact_data);
+    }
+
+    private function resolveBusinessContext(): ?Business
+    {
+        $business_id = session('business.id') ?? session('user.business_id') ?? optional(auth()->user())->business_id;
+
+        if (empty($business_id)) {
+            return null;
+        }
+
+        return Business::find($business_id);
     }
 
     public function journal(Request $request)

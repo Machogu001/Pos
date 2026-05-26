@@ -3,6 +3,7 @@
 namespace Modules\Hms\Http\Controllers;
 
 use App\System;
+use App\Support\ModuleAccessGate;
 use App\Utils\Util;
 use Illuminate\Routing\Controller;
 use Menu;
@@ -215,7 +216,7 @@ class DataController extends Controller
 
         $is_admin = (new \App\Utils\Util())->is_admin(auth()->user(), $business_id);
         $user_can_access_hms = $is_admin || auth()->user()->can('superadmin') ||
-            auth()->user()->getAllPermissions()->pluck('name')->filter(fn($p) => str_starts_with($p, 'hms.'))->isNotEmpty();
+            ModuleAccessGate::userCanAccess(auth()->user(), [], ['hms.']);
 
         if ($is_hms_enabled && $user_can_access_hms) {
             $menu = Menu::instance('admin-sidebar-menu');

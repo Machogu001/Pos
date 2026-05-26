@@ -872,4 +872,12 @@ return [
     'tooltip_spreadsheet_module' => 'د Spreadsheet ماډل مینوګانې او د ننوتلو ځایونه وښایئ یا پټ کړئ.',
     'tooltip_woocommerce_module' => 'د WooCommerce ماډل مینوګانې او د ننوتلو ځایونه وښایئ یا پټ کړئ.',
     'tooltip_hrm_module' => 'د HRM ماډل مینوګانې او د ننوتلو ځایونه وښایئ یا پټ کړئ.',
+    'crm' => 'CRM',
+    'essentials' => 'Essentials',
+    'hms' => 'HMS',
+    'manufacturing' => 'Manufacturing',
+    'project' => 'Project',
+    'repair' => 'Repair',
+    'spreadsheet' => 'Spreadsheet',
+    'hrm' => 'Hrm',
 ];

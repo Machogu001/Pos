@@ -872,4 +872,12 @@ return [
     'tooltip_spreadsheet_module' => '显示或隐藏 Spreadsheet 模块菜单和入口。',
     'tooltip_woocommerce_module' => '显示或隐藏 WooCommerce 模块菜单和入口。',
     'tooltip_hrm_module' => '显示或隐藏 HRM 模块菜单和入口。',
+    'crm' => 'CRM',
+    'essentials' => 'Essentials',
+    'hms' => 'HMS',
+    'manufacturing' => 'Manufacturing',
+    'project' => 'Project',
+    'repair' => 'Repair',
+    'spreadsheet' => 'Spreadsheet',
+    'hrm' => 'Hrm',
 ];

@@ -872,4 +872,12 @@ return [
     'tooltip_spreadsheet_module' => 'Show or hide Spreadsheet module menus and entry points.',
     'tooltip_woocommerce_module' => 'Show or hide WooCommerce module menus and entry points.',
     'tooltip_hrm_module' => 'Show or hide HRM module menus and entry points.',
+    'crm' => 'CRM',
+    'essentials' => 'Essentials',
+    'hms' => 'HMS',
+    'manufacturing' => 'Manufacturing',
+    'project' => 'Project',
+    'repair' => 'Repair',
+    'spreadsheet' => 'Spreadsheet',
+    'hrm' => 'Hrm',
 ];

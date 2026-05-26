@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Business;
 use App\Observers\TransactionObserver;
 use App\Transaction;
 use App\System;
@@ -87,7 +88,24 @@ class AppServiceProvider extends ServiceProvider
         View::composer(
             ['*'],
             function ($view) {
-                $enabled_modules = ! empty(session('business.enabled_modules')) ? session('business.enabled_modules') : [];
+                $normalizeModules = function ($modules) {
+                    if (is_string($modules)) {
+                        $decoded = json_decode($modules, true);
+                        $modules = is_array($decoded) ? $decoded : [];
+                    }
+
+                    return is_array($modules) ? array_values(array_unique($modules)) : [];
+                };
+
+                $sessionModules = $normalizeModules(session('business.enabled_modules'));
+                $businessId = session('business.id') ?? optional(Auth::user())->business_id;
+                $dbModules = [];
+
+                if (! empty($businessId)) {
+                    $dbModules = $normalizeModules(Business::where('id', $businessId)->value('enabled_modules'));
+                }
+
+                $enabled_modules = array_values(array_unique(array_merge($sessionModules, $dbModules)));
 
                 $__is_pusher_enabled = isPusherEnabled();
 
@@ -184,7 +202,7 @@ class AppServiceProvider extends ServiceProvider
         //Blade directive to display help text.
         Blade::directive('show_tooltip', function ($message) {
             return "<?php
-                if(session('business.enable_tooltip')){
+                if((int) session('business.enable_tooltip', 1) === 1){
                     echo '<i class=\"fa fa-info-circle text-info hover-q no-print \" aria-hidden=\"true\" 
                     data-container=\"body\" data-toggle=\"popover\" data-placement=\"auto bottom\" 
                     data-content=\"' . $message . '\" data-html=\"true\" data-trigger=\"hover\"></i>';
