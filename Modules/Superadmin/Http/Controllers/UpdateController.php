@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Modules\Superadmin\Entities\UpdateClient;
+use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UpdateController extends BaseController
@@ -212,8 +213,11 @@ class UpdateController extends BaseController
                     'label' => 'Resetting permission cache…',
                     'pct'   => 80,
                     'run'   => function () {
-                        Artisan::call('permission:cache-reset');
-                        return Artisan::output();
+                        $flushed = app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+                        return $flushed
+                            ? "Permission cache flushed.\n"
+                            : "Permission cache already clear.\n";
                     },
                 ],
                 [
@@ -1001,7 +1005,13 @@ class UpdateController extends BaseController
                 }],
                 ['label' => 'Seeding permissions\u2026',         'pct' => 85, 'run' => function () { Artisan::call('db:seed', ['--class' => 'PermissionsTableSeeder', '--force' => true]); return Artisan::output(); }],
                 ['label' => 'Installing Passport keys\u2026',    'pct' => 88, 'run' => function () { Artisan::call('passport:install', ['--force' => true]); return Artisan::output(); }],
-                ['label' => 'Resetting permission cache\u2026',  'pct' => 91, 'run' => function () { Artisan::call('permission:cache-reset'); return Artisan::output(); }],
+                ['label' => 'Resetting permission cache\u2026',  'pct' => 91, 'run' => function () {
+                    $flushed = app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+                    return $flushed
+                        ? "Permission cache flushed.\n"
+                        : "Permission cache already clear.\n";
+                }],
                 ['label' => 'Caching config & routes\u2026',     'pct' => 95, 'run' => function () {
                     $out = '';
                     foreach (['config:cache' => 'config:clear', 'route:cache' => 'route:clear', 'view:cache' => 'view:clear'] as $try => $fallback) {

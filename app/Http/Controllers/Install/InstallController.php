@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Illuminate\Support\Facades\Abort;
 
@@ -521,6 +522,25 @@ class InstallController extends Controller
      */
     private function runArtisanStep(string $command, array $parameters = [], bool $critical = true): int
     {
+        if ($command === 'permission:cache-reset') {
+            try {
+                app(PermissionRegistrar::class)->forgetCachedPermissions();
+                return 0;
+            } catch (\Throwable $e) {
+                if ($critical) {
+                    throw new \RuntimeException($e->getMessage(), 0, $e);
+                }
+
+                \Log::warning('Non-critical install command failed', [
+                    'command' => $command,
+                    'exit_code' => 1,
+                    'output' => $e->getMessage(),
+                ]);
+
+                return 1;
+            }
+        }
+
         $exitCode = Artisan::call($command, $parameters);
 
         if ($exitCode !== 0) {

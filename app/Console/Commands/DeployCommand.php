@@ -6,6 +6,7 @@ use App\System;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\PermissionRegistrar;
 
 /**
  * pos:deploy
@@ -118,9 +119,21 @@ class DeployCommand extends Command
             Artisan::call('passport:install', ['--force' => true]);
         });
 
-        // Step 7: Reset Spatie permission cache
+        // Step 7: Reset Spatie permission cache.
+        // On some cache drivers, forgetting a non-existent key returns false,
+        // which is harmless but can look like a deployment error.
         $this->step('permission:cache-reset', function () {
-            Artisan::call('permission:cache-reset');
+            try {
+                $flushed = app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+                if ($flushed) {
+                    $this->line('    permission cache flushed.');
+                } else {
+                    $this->line('    permission cache already clear.');
+                }
+            } catch (\Throwable $e) {
+                $this->warn('    permission cache reset skipped (' . $e->getMessage() . ')');
+            }
         });
 
         // Step 8: Cache config/routes — graceful fallback if config has Closures
