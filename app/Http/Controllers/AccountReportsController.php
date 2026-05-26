@@ -9,6 +9,7 @@ use App\BusinessLocation;
 use App\Utils\BusinessUtil;
 use App\TransactionPayment;
 use App\Utils\TransactionUtil;
+use Barryvdh\DomPDF\Facade\Pdf;
 use DB;
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
@@ -1072,6 +1073,12 @@ class AccountReportsController extends Controller
             'account_id' => 'nullable|integer',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
+            'amount_tolerance' => 'nullable|numeric|min:0',
+            'date_tolerance_days' => 'nullable|integer|min:0|max:30',
+            'opening_balance' => 'nullable|numeric',
+            'closing_balance_statement' => 'nullable|numeric',
+            'reconciliation_notes' => 'nullable|string|max:2000',
+            'preview_only' => 'nullable|boolean',
         ]);
 
         // Guard against inverted date ranges for deterministic filtering.
@@ -1195,26 +1202,50 @@ class AccountReportsController extends Controller
         $account_id = $validated['account_id'] ?? null;
         $start_date_filter = $validated['start_date'] ?? null;
         $end_date_filter = $validated['end_date'] ?? null;
-        $amount_tolerance = 0.01;
+        $amount_tolerance = isset($validated['amount_tolerance']) ? (float) $validated['amount_tolerance'] : 0.01;
+        $date_tolerance_days = isset($validated['date_tolerance_days']) ? (int) $validated['date_tolerance_days'] : 3;
+        $opening_balance = isset($validated['opening_balance']) ? (float) $validated['opening_balance'] : null;
+        $closing_balance_statement = isset($validated['closing_balance_statement']) ? (float) $validated['closing_balance_statement'] : null;
+        $reconciliation_notes = $validated['reconciliation_notes'] ?? null;
+        $preview_only = $request->boolean('preview_only');
 
-        $run_id = DB::table('bank_reconciliation_runs')->insertGetId([
-            'business_id' => $business_id,
-            'user_id' => auth()->id(),
-            'account_id' => ! empty($account_id) && $account_id !== 'none' ? (int) $account_id : null,
-            'start_date' => $start_date_filter,
-            'end_date' => $end_date_filter,
-            'statement_filename' => $file->getClientOriginalName(),
-            'total_statement_lines' => 0,
-            'total_statement_amount' => 0,
-            'matched_count' => 0,
-            'ambiguous_count' => 0,
-            'unmatched_count' => 0,
-            'invalid_count' => 0,
-            'total_matched_amount' => 0,
-            'status' => 'processing',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $duplicate_keys = [];
+        foreach ($statement_lines as $line) {
+            $dupKey = implode('|', [
+                $line['date'] ?? '',
+                number_format((float) ($line['amount'] ?? 0), 4, '.', ''),
+                mb_strtolower(trim((string) ($line['reference'] ?? ''))),
+                mb_strtolower(trim((string) ($line['description'] ?? ''))),
+            ]);
+            $duplicate_keys[$dupKey] = ($duplicate_keys[$dupKey] ?? 0) + 1;
+        }
+
+        $run_id = null;
+        if (! $preview_only) {
+            $run_id = DB::table('bank_reconciliation_runs')->insertGetId([
+                'business_id' => $business_id,
+                'user_id' => auth()->id(),
+                'account_id' => ! empty($account_id) && $account_id !== 'none' ? (int) $account_id : null,
+                'start_date' => $start_date_filter,
+                'end_date' => $end_date_filter,
+                'statement_filename' => $file->getClientOriginalName(),
+                'total_statement_lines' => 0,
+                'total_statement_amount' => 0,
+                'matched_count' => 0,
+                'ambiguous_count' => 0,
+                'unmatched_count' => 0,
+                'invalid_count' => 0,
+                'total_matched_amount' => 0,
+                'opening_balance' => $opening_balance,
+                'closing_balance_statement' => $closing_balance_statement,
+                'amount_tolerance' => $amount_tolerance,
+                'date_tolerance_days' => $date_tolerance_days,
+                'reconciliation_notes' => $reconciliation_notes,
+                'status' => 'processing',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         $line_payload = [];
 
@@ -1223,6 +1254,42 @@ class AccountReportsController extends Controller
             $amount = $line['amount'];
 
             $reference = $line['reference'];
+
+            $dupKey = implode('|', [
+                $line['date'] ?? '',
+                number_format((float) ($line['amount'] ?? 0), 4, '.', ''),
+                mb_strtolower(trim((string) ($line['reference'] ?? ''))),
+                mb_strtolower(trim((string) ($line['description'] ?? ''))),
+            ]);
+
+            if (($duplicate_keys[$dupKey] ?? 0) > 1) {
+                $invalid_lines[] = [
+                    'line' => $line['line'],
+                    'date' => $line['date'],
+                    'amount' => $line['amount'],
+                    'description' => $line['description'],
+                    'reference' => $line['reference'],
+                    'reason' => 'Duplicate statement line',
+                ];
+
+                $line_payload[] = [
+                    'run_id' => $run_id,
+                    'line_no' => $line['line'],
+                    'statement_date' => $line['date'],
+                    'statement_amount' => $line['amount'],
+                    'description' => $line['description'],
+                    'reference' => $line['reference'],
+                    'status' => 'invalid',
+                    'match_type' => 'auto',
+                    'matched_transaction_payment_id' => null,
+                    'candidate_payment_ids' => null,
+                    'is_duplicate' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+
+                continue;
+            }
 
             // Build a base query scoped to this business
             $baseQuery = function () use ($business_id, $account_id, $start_date_filter, $end_date_filter, $used_payment_ids) {
@@ -1242,9 +1309,9 @@ class AccountReportsController extends Controller
                 return $q;
             };
 
-            // Allow a ±3-day window around the statement date
-            $start = \Carbon\Carbon::parse($date)->subDays(3)->format('Y-m-d');
-            $end   = \Carbon\Carbon::parse($date)->addDays(3)->format('Y-m-d');
+            // Allow a configurable ±N-day window around the statement date.
+            $start = \Carbon\Carbon::parse($date)->subDays($date_tolerance_days)->format('Y-m-d');
+            $end   = \Carbon\Carbon::parse($date)->addDays($date_tolerance_days)->format('Y-m-d');
 
             // 1. Try reference match first (most precise)
             $candidates = collect();
@@ -1297,8 +1364,10 @@ class AccountReportsController extends Controller
                     'description' => $line['description'],
                     'reference' => $line['reference'],
                     'status' => 'matched',
+                    'match_type' => 'auto',
                     'matched_transaction_payment_id' => $matched_payment->id,
                     'candidate_payment_ids' => null,
+                    'is_duplicate' => false,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
@@ -1317,8 +1386,10 @@ class AccountReportsController extends Controller
                     'description' => $line['description'],
                     'reference' => $line['reference'],
                     'status' => 'ambiguous',
+                    'match_type' => 'auto',
                     'matched_transaction_payment_id' => null,
                     'candidate_payment_ids' => json_encode($candidate_ids),
+                    'is_duplicate' => false,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
@@ -1333,8 +1404,10 @@ class AccountReportsController extends Controller
                     'description' => $line['description'],
                     'reference' => $line['reference'],
                     'status' => 'unmatched',
+                    'match_type' => 'auto',
                     'matched_transaction_payment_id' => null,
                     'candidate_payment_ids' => null,
+                    'is_duplicate' => false,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
@@ -1350,37 +1423,74 @@ class AccountReportsController extends Controller
                 'description' => $line['description'],
                 'reference' => $line['reference'],
                 'status' => 'invalid',
+                'match_type' => 'auto',
                 'matched_transaction_payment_id' => null,
                 'candidate_payment_ids' => null,
+                'is_duplicate' => false,
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
         }
 
-        if (! empty($line_payload)) {
+        if (! $preview_only && ! empty($line_payload)) {
             DB::table('bank_reconciliation_lines')->insert($line_payload);
         }
 
-        DB::table('bank_reconciliation_runs')
-            ->where('id', $run_id)
-            ->update([
-                'total_statement_lines' => count($statement_lines),
-                'total_statement_amount' => $total_statement_amount,
-                'matched_count' => count($matched),
-                'ambiguous_count' => count($ambiguous),
-                'unmatched_count' => count($unmatched),
-                'invalid_count' => count($invalid_lines),
-                'total_matched_amount' => $total_matched_amount,
-                'status' => 'completed',
-                'completed_at' => now(),
-                'updated_at' => now(),
-            ]);
+        $ledger_closing_balance = $this->getBankLedgerClosingBalance(
+            $business_id,
+            ! empty($account_id) && $account_id !== 'none' ? (int) $account_id : null,
+            $end_date_filter
+        );
+
+        $variance_amount = ! is_null($closing_balance_statement)
+            ? round($closing_balance_statement - $ledger_closing_balance, 4)
+            : null;
+
+        if (! $preview_only) {
+            DB::table('bank_reconciliation_runs')
+                ->where('id', $run_id)
+                ->update([
+                    'total_statement_lines' => count($statement_lines),
+                    'total_statement_amount' => $total_statement_amount,
+                    'matched_count' => count($matched),
+                    'ambiguous_count' => count($ambiguous),
+                    'unmatched_count' => count($unmatched),
+                    'invalid_count' => count($invalid_lines),
+                    'total_matched_amount' => $total_matched_amount,
+                    'ledger_closing_balance' => $ledger_closing_balance,
+                    'variance_amount' => $variance_amount,
+                    'status' => 'completed',
+                    'completed_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+            $this->logBankReconciliationAudit(
+                $run_id,
+                'run_created',
+                'run',
+                $run_id,
+                null,
+                [
+                    'status' => 'completed',
+                    'matched_count' => count($matched),
+                    'ambiguous_count' => count($ambiguous),
+                    'unmatched_count' => count($unmatched),
+                    'invalid_count' => count($invalid_lines),
+                    'total_statement_amount' => $total_statement_amount,
+                    'total_matched_amount' => $total_matched_amount,
+                ],
+                [
+                    'statement_filename' => $file->getClientOriginalName(),
+                    'account_id' => ! empty($account_id) && $account_id !== 'none' ? (int) $account_id : null,
+                ]
+            );
+        }
 
         return response()->json([
             'success' => true,
             'summary' => [
                 'run_id' => $run_id,
-                'status' => 'completed',
+                'status' => $preview_only ? 'preview' : 'completed',
                 'total_statement_lines' => count($statement_lines),
                 'total_statement_amount' => $total_statement_amount,
                 'matched_count' => count($matched),
@@ -1388,6 +1498,12 @@ class AccountReportsController extends Controller
                 'unmatched_count' => count($unmatched),
                 'invalid_count' => count($invalid_lines),
                 'total_matched_amount' => $total_matched_amount,
+                'opening_balance' => $opening_balance,
+                'closing_balance_statement' => $closing_balance_statement,
+                'ledger_closing_balance' => $ledger_closing_balance,
+                'variance_amount' => $variance_amount,
+                'amount_tolerance' => $amount_tolerance,
+                'date_tolerance_days' => $date_tolerance_days,
             ],
             'matched' => $matched,
             'ambiguous' => $ambiguous,
@@ -1513,11 +1629,371 @@ class AccountReportsController extends Controller
                 'updated_at' => now(),
             ]);
 
+        $this->logBankReconciliationAudit(
+            $run->id,
+            'run_finalized',
+            'run',
+            $run->id,
+            ['status' => $run->status],
+            ['status' => 'finalized']
+        );
+
         return response()->json([
             'success' => true,
             'msg' => __('account.reconciliation_finalized_successfully'),
             'run_id' => (int) $run->id,
             'status' => 'finalized',
+        ]);
+    }
+
+    /**
+     * Undo a finalized reconciliation run.
+     */
+    public function undoBankReconciliation($id)
+    {
+        if (! auth()->user()->can('account.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $run = $this->getBankReconciliationRunOrFail($id);
+
+        if (($run->status ?? 'completed') !== 'finalized') {
+            return response()->json([
+                'success' => false,
+                'msg' => __('account.reconciliation_run_not_finalized'),
+            ]);
+        }
+
+        DB::table('bank_reconciliation_runs')
+            ->where('id', $run->id)
+            ->update([
+                'status' => 'completed',
+                'finalized_at' => null,
+                'finalized_by' => null,
+                'undone_at' => now(),
+                'undone_by' => auth()->id(),
+                'updated_at' => now(),
+            ]);
+
+        $this->logBankReconciliationAudit(
+            $run->id,
+            'run_undone',
+            'run',
+            $run->id,
+            ['status' => $run->status],
+            ['status' => 'completed']
+        );
+
+        return response()->json([
+            'success' => true,
+            'msg' => __('account.reconciliation_undo_success'),
+            'run_id' => (int) $run->id,
+            'status' => 'completed',
+        ]);
+    }
+
+    /**
+     * Return reconciliation run details with lines for manual review.
+     */
+    public function bankReconciliationDetails($id)
+    {
+        if (! auth()->user()->can('account.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $run = $this->getBankReconciliationRunOrFail($id);
+        $business_id = session()->get('user.business_id');
+
+        $lines = DB::table('bank_reconciliation_lines')
+            ->where('run_id', $run->id)
+            ->orderBy('line_no')
+            ->get();
+
+        $candidate_ids = $lines
+            ->pluck('candidate_payment_ids')
+            ->filter()
+            ->map(function ($value) {
+                return json_decode($value, true);
+            })
+            ->flatten()
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $matched_ids = $lines->pluck('matched_transaction_payment_id')->filter()->unique()->values()->all();
+        $all_payment_ids = array_values(array_unique(array_merge($candidate_ids, $matched_ids)));
+
+        $payments = collect();
+        if (! empty($all_payment_ids)) {
+            $payments = TransactionPayment::with(['transaction'])
+                ->where('business_id', $business_id)
+                ->whereIn('id', $all_payment_ids)
+                ->get()
+                ->keyBy('id');
+        }
+
+        $line_data = $lines->map(function ($line) use ($payments) {
+            $candidates = collect(json_decode($line->candidate_payment_ids ?? '[]', true))
+                ->map(function ($id) use ($payments) {
+                    $payment = $payments->get($id);
+                    if (empty($payment)) {
+                        return null;
+                    }
+
+                    return [
+                        'id' => $payment->id,
+                        'paid_on' => $payment->paid_on,
+                        'amount' => (float) $payment->amount,
+                        'payment_ref_no' => $payment->payment_ref_no,
+                        'method' => $payment->method,
+                        'invoice_no' => optional($payment->transaction)->invoice_no,
+                        'transaction_type' => optional($payment->transaction)->type,
+                    ];
+                })
+                ->filter()
+                ->values();
+
+            $matched_payment = null;
+            if (! empty($line->matched_transaction_payment_id)) {
+                $payment = $payments->get($line->matched_transaction_payment_id);
+                if (! empty($payment)) {
+                    $matched_payment = [
+                        'id' => $payment->id,
+                        'paid_on' => $payment->paid_on,
+                        'amount' => (float) $payment->amount,
+                        'payment_ref_no' => $payment->payment_ref_no,
+                        'method' => $payment->method,
+                        'invoice_no' => optional($payment->transaction)->invoice_no,
+                        'transaction_type' => optional($payment->transaction)->type,
+                    ];
+                }
+            }
+
+            return [
+                'id' => (int) $line->id,
+                'line_no' => (int) $line->line_no,
+                'statement_date' => $line->statement_date,
+                'statement_amount' => (float) $line->statement_amount,
+                'description' => $line->description,
+                'reference' => $line->reference,
+                'status' => $line->status,
+                'match_type' => $line->match_type,
+                'is_duplicate' => (bool) ($line->is_duplicate ?? false),
+                'matched_payment' => $matched_payment,
+                'candidates' => $candidates,
+            ];
+        })->values();
+
+        return response()->json([
+            'success' => true,
+            'run' => $run,
+            'lines' => $line_data,
+        ]);
+    }
+
+    /**
+     * Return reconciliation audit logs.
+     */
+    public function bankReconciliationAuditLogs($id)
+    {
+        if (! auth()->user()->can('account.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $run = $this->getBankReconciliationRunOrFail($id);
+
+        $logs = collect();
+        if (DB::getSchemaBuilder()->hasTable('bank_reconciliation_audit_logs')) {
+            $logs = DB::table('bank_reconciliation_audit_logs as l')
+                ->leftJoin('users as u', 'u.id', '=', 'l.user_id')
+                ->where('l.run_id', $run->id)
+                ->orderByDesc('l.id')
+                ->limit(500)
+                ->select(
+                    'l.id',
+                    'l.action',
+                    'l.entity_type',
+                    'l.entity_id',
+                    'l.before_data',
+                    'l.after_data',
+                    'l.meta',
+                    'l.created_at',
+                    'u.username as user_name'
+                )
+                ->get()
+                ->map(function ($row) {
+                    return [
+                        'id' => (int) $row->id,
+                        'action' => (string) $row->action,
+                        'entity_type' => (string) ($row->entity_type ?? ''),
+                        'entity_id' => $row->entity_id,
+                        'before_data' => json_decode($row->before_data ?? 'null', true),
+                        'after_data' => json_decode($row->after_data ?? 'null', true),
+                        'meta' => json_decode($row->meta ?? 'null', true),
+                        'created_at' => $row->created_at,
+                        'user_name' => $row->user_name,
+                    ];
+                })
+                ->values();
+        }
+
+        return response()->json([
+            'success' => true,
+            'run_id' => (int) $run->id,
+            'logs' => $logs,
+        ]);
+    }
+
+    /**
+     * Manually match a reconciliation line to a specific payment.
+     */
+    public function manualMatchBankReconciliationLine(Request $request, $runId, $lineId)
+    {
+        if (! auth()->user()->can('account.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $validated = $request->validate([
+            'payment_id' => 'required|integer',
+        ]);
+
+        $business_id = session()->get('user.business_id');
+        $run = $this->getBankReconciliationRunOrFail($runId);
+
+        if (($run->status ?? 'completed') === 'finalized') {
+            return response()->json([
+                'success' => false,
+                'msg' => __('account.reconciliation_run_already_finalized'),
+            ]);
+        }
+
+        $line = DB::table('bank_reconciliation_lines')
+            ->where('id', $lineId)
+            ->where('run_id', $run->id)
+            ->first();
+
+        if (empty($line)) {
+            return response()->json([
+                'success' => false,
+                'msg' => __('account.reconciliation_line_not_found'),
+            ]);
+        }
+
+        $payment = TransactionPayment::where('business_id', $business_id)
+            ->where('id', $validated['payment_id'])
+            ->first();
+
+        if (empty($payment)) {
+            return response()->json([
+                'success' => false,
+                'msg' => __('account.payment_not_found'),
+            ]);
+        }
+
+        DB::table('bank_reconciliation_lines')
+            ->where('id', $line->id)
+            ->update([
+                'status' => 'matched',
+                'match_type' => 'manual',
+                'matched_transaction_payment_id' => $payment->id,
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => now(),
+                'is_duplicate' => false,
+                'updated_at' => now(),
+            ]);
+
+        $this->logBankReconciliationAudit(
+            $run->id,
+            'manual_match',
+            'line',
+            $line->id,
+            [
+                'status' => $line->status,
+                'matched_transaction_payment_id' => $line->matched_transaction_payment_id,
+            ],
+            [
+                'status' => 'matched',
+                'matched_transaction_payment_id' => $payment->id,
+            ],
+            [
+                'line_no' => $line->line_no,
+            ]
+        );
+
+        $summary = $this->recalculateBankReconciliationRun($run->id);
+
+        return response()->json([
+            'success' => true,
+            'msg' => __('account.reconciliation_manual_match_success'),
+            'summary' => $summary,
+        ]);
+    }
+
+    /**
+     * Remove manual/auto match from a reconciliation line.
+     */
+    public function manualUnmatchBankReconciliationLine($runId, $lineId)
+    {
+        if (! auth()->user()->can('account.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $run = $this->getBankReconciliationRunOrFail($runId);
+        if (($run->status ?? 'completed') === 'finalized') {
+            return response()->json([
+                'success' => false,
+                'msg' => __('account.reconciliation_run_already_finalized'),
+            ]);
+        }
+
+        $line = DB::table('bank_reconciliation_lines')
+            ->where('id', $lineId)
+            ->where('run_id', $run->id)
+            ->first();
+
+        if (empty($line)) {
+            return response()->json([
+                'success' => false,
+                'msg' => __('account.reconciliation_line_not_found'),
+            ]);
+        }
+
+        DB::table('bank_reconciliation_lines')
+            ->where('id', $line->id)
+            ->update([
+                'status' => 'unmatched',
+                'match_type' => 'manual',
+                'matched_transaction_payment_id' => null,
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+        $this->logBankReconciliationAudit(
+            $run->id,
+            'manual_unmatch',
+            'line',
+            $line->id,
+            [
+                'status' => $line->status,
+                'matched_transaction_payment_id' => $line->matched_transaction_payment_id,
+            ],
+            [
+                'status' => 'unmatched',
+                'matched_transaction_payment_id' => null,
+            ],
+            [
+                'line_no' => $line->line_no,
+            ]
+        );
+
+        $summary = $this->recalculateBankReconciliationRun($run->id);
+
+        return response()->json([
+            'success' => true,
+            'msg' => __('account.reconciliation_manual_unmatch_success'),
+            'summary' => $summary,
         ]);
     }
 
@@ -1647,7 +2123,153 @@ class AccountReportsController extends Controller
         @unlink($summaryCsvPath);
         @unlink($linesCsvPath);
 
+        $this->logBankReconciliationAudit(
+            $run->id,
+            'export_package',
+            'run',
+            $run->id,
+            null,
+            [
+                'format' => 'zip',
+                'filename' => $baseName . '.zip',
+            ]
+        );
+
         return response()->download($zipPath, $baseName . '.zip')->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Export finalized reconciliation run as PDF.
+     */
+    public function exportBankReconciliationPdf($id)
+    {
+        if (! auth()->user()->can('account.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $run = $this->getBankReconciliationRunOrFail($id);
+        if (($run->status ?? 'completed') !== 'finalized') {
+            return redirect()->back()->with('status', [
+                'success' => 0,
+                'msg' => __('account.finalize_before_exporting_audit_package'),
+            ]);
+        }
+
+        $rows = $this->getBankReconciliationExportRows($run);
+        $fileName = 'bank_reconciliation_run_' . $run->id . '_' . now()->format('Ymd_His');
+
+        $pdf = Pdf::loadView('account_reports.bank_reconciliation_pdf', [
+            'run' => $run,
+            'rows' => $rows,
+        ])->setPaper('a4', 'landscape');
+
+        $this->logBankReconciliationAudit(
+            $run->id,
+            'export_pdf',
+            'run',
+            $run->id,
+            null,
+            [
+                'format' => 'pdf',
+                'filename' => $fileName . '.pdf',
+            ]
+        );
+
+        return $pdf->download($fileName . '.pdf');
+    }
+
+    /**
+     * Export finalized reconciliation run as Excel file.
+     */
+    public function exportBankReconciliationExcel($id)
+    {
+        if (! auth()->user()->can('account.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $run = $this->getBankReconciliationRunOrFail($id);
+        if (($run->status ?? 'completed') !== 'finalized') {
+            return redirect()->back()->with('status', [
+                'success' => 0,
+                'msg' => __('account.finalize_before_exporting_audit_package'),
+            ]);
+        }
+
+        if (! class_exists('Maatwebsite\\Excel\\Facades\\Excel')) {
+            return redirect()->back()->with('status', [
+                'success' => 0,
+                'msg' => __('messages.something_went_wrong'),
+            ]);
+        }
+
+        $rows = $this->getBankReconciliationExportRows($run);
+        $fileName = 'bank_reconciliation_run_' . $run->id . '_' . now()->format('Ymd_His') . '.xlsx';
+
+        $this->logBankReconciliationAudit(
+            $run->id,
+            'export_excel',
+            'run',
+            $run->id,
+            null,
+            [
+                'format' => 'excel',
+                'filename' => $fileName,
+            ]
+        );
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new class($rows) implements \Maatwebsite\Excel\Concerns\FromCollection, \Maatwebsite\Excel\Concerns\WithHeadings {
+                protected $rows;
+
+                public function __construct($rows)
+                {
+                    $this->rows = $rows;
+                }
+
+                public function collection()
+                {
+                    return $this->rows->map(function ($row) {
+                        return [
+                            $row->line_no,
+                            $row->statement_date,
+                            $row->statement_amount,
+                            $row->description,
+                            $row->reference,
+                            $row->status,
+                            $row->payment_id,
+                            $row->paid_on,
+                            $row->payment_amount,
+                            $row->payment_ref_no,
+                            $row->payment_method,
+                            $row->invoice_no,
+                            $row->ref_no,
+                            $row->transaction_type,
+                        ];
+                    });
+                }
+
+                public function headings(): array
+                {
+                    return [
+                        'Line No',
+                        'Statement Date',
+                        'Statement Amount',
+                        'Description',
+                        'Reference',
+                        'Status',
+                        'Matched Payment ID',
+                        'Payment Date',
+                        'Payment Amount',
+                        'Payment Ref',
+                        'Payment Method',
+                        'Invoice No',
+                        'Transaction Ref',
+                        'Transaction Type',
+                    ];
+                }
+            },
+            $fileName
+        );
     }
 
     /**
@@ -1667,6 +2289,147 @@ class AccountReportsController extends Controller
         }
 
         return $run;
+    }
+
+    /**
+     * Recalculate and persist aggregate totals for a reconciliation run.
+     */
+    private function recalculateBankReconciliationRun($run_id)
+    {
+        $run = $this->getBankReconciliationRunOrFail($run_id);
+
+        $totals = DB::table('bank_reconciliation_lines')
+            ->where('run_id', $run->id)
+            ->selectRaw('COUNT(*) as total_lines')
+            ->selectRaw("SUM(CASE WHEN status = 'matched' THEN 1 ELSE 0 END) as matched_count")
+            ->selectRaw("SUM(CASE WHEN status = 'ambiguous' THEN 1 ELSE 0 END) as ambiguous_count")
+            ->selectRaw("SUM(CASE WHEN status = 'unmatched' THEN 1 ELSE 0 END) as unmatched_count")
+            ->selectRaw("SUM(CASE WHEN status = 'invalid' THEN 1 ELSE 0 END) as invalid_count")
+            ->selectRaw("SUM(CASE WHEN status = 'matched' THEN statement_amount ELSE 0 END) as total_matched_amount")
+            ->selectRaw('SUM(statement_amount) as total_statement_amount')
+            ->first();
+
+        $ledger_closing_balance = $this->getBankLedgerClosingBalance(
+            $run->business_id,
+            $run->account_id,
+            $run->end_date
+        );
+
+        $variance_amount = ! is_null($run->closing_balance_statement)
+            ? round(((float) $run->closing_balance_statement) - $ledger_closing_balance, 4)
+            : null;
+
+        DB::table('bank_reconciliation_runs')
+            ->where('id', $run->id)
+            ->update([
+                'total_statement_lines' => (int) ($totals->total_lines ?? 0),
+                'total_statement_amount' => (float) ($totals->total_statement_amount ?? 0),
+                'matched_count' => (int) ($totals->matched_count ?? 0),
+                'ambiguous_count' => (int) ($totals->ambiguous_count ?? 0),
+                'unmatched_count' => (int) ($totals->unmatched_count ?? 0),
+                'invalid_count' => (int) ($totals->invalid_count ?? 0),
+                'total_matched_amount' => (float) ($totals->total_matched_amount ?? 0),
+                'ledger_closing_balance' => $ledger_closing_balance,
+                'variance_amount' => $variance_amount,
+                'updated_at' => now(),
+            ]);
+
+        return [
+            'run_id' => (int) $run->id,
+            'total_statement_lines' => (int) ($totals->total_lines ?? 0),
+            'total_statement_amount' => (float) ($totals->total_statement_amount ?? 0),
+            'matched_count' => (int) ($totals->matched_count ?? 0),
+            'ambiguous_count' => (int) ($totals->ambiguous_count ?? 0),
+            'unmatched_count' => (int) ($totals->unmatched_count ?? 0),
+            'invalid_count' => (int) ($totals->invalid_count ?? 0),
+            'total_matched_amount' => (float) ($totals->total_matched_amount ?? 0),
+            'ledger_closing_balance' => $ledger_closing_balance,
+            'variance_amount' => $variance_amount,
+        ];
+    }
+
+    /**
+     * Shared export dataset for reconciliation run.
+     */
+    private function getBankReconciliationExportRows($run)
+    {
+        return DB::table('bank_reconciliation_lines as l')
+            ->leftJoin('transaction_payments as tp', 'tp.id', '=', 'l.matched_transaction_payment_id')
+            ->leftJoin('transactions as t', 't.id', '=', 'tp.transaction_id')
+            ->where('l.run_id', $run->id)
+            ->select(
+                'l.line_no',
+                'l.statement_date',
+                'l.statement_amount',
+                'l.description',
+                'l.reference',
+                'l.status',
+                'tp.id as payment_id',
+                'tp.paid_on',
+                'tp.amount as payment_amount',
+                'tp.payment_ref_no',
+                'tp.method as payment_method',
+                't.invoice_no',
+                't.ref_no',
+                't.type as transaction_type'
+            )
+            ->orderBy('l.id')
+            ->get();
+    }
+
+    /**
+     * Persist reconciliation action log entry.
+     */
+    private function logBankReconciliationAudit($run_id, $action, $entity_type = null, $entity_id = null, $before_data = null, $after_data = null, $meta = null)
+    {
+        try {
+            if (! DB::getSchemaBuilder()->hasTable('bank_reconciliation_audit_logs')) {
+                return;
+            }
+
+            $run = DB::table('bank_reconciliation_runs')->where('id', $run_id)->first();
+            if (empty($run)) {
+                return;
+            }
+
+            DB::table('bank_reconciliation_audit_logs')->insert([
+                'run_id' => (int) $run_id,
+                'business_id' => (int) $run->business_id,
+                'user_id' => auth()->id(),
+                'action' => (string) $action,
+                'entity_type' => $entity_type,
+                'entity_id' => $entity_id,
+                'before_data' => is_null($before_data) ? null : json_encode($before_data),
+                'after_data' => is_null($after_data) ? null : json_encode($after_data),
+                'meta' => is_null($meta) ? null : json_encode($meta),
+                'created_at' => now(),
+            ]);
+        } catch (\Exception $e) {
+            \Log::warning('Reconciliation audit log write failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get ledger closing balance for the selected bank account.
+     */
+    private function getBankLedgerClosingBalance($business_id, $account_id = null, $end_date = null)
+    {
+        if (empty($account_id)) {
+            return 0.0;
+        }
+
+        $query = DB::table('account_transactions')
+            ->where('business_id', $business_id)
+            ->where('account_id', $account_id);
+
+        if (! empty($end_date)) {
+            $query->whereDate('operation_date', '<=', $end_date);
+        }
+
+        $balance = $query->selectRaw("SUM(CASE WHEN type = 'debit' THEN amount ELSE -amount END) as balance")
+            ->value('balance');
+
+        return round((float) ($balance ?? 0), 4);
     }
 
     /**

@@ -100,6 +100,9 @@ class ReportController extends Controller
             $fy = $this->businessUtil->getCurrentFinancialYear($business_id);
 
             $location_id = ! empty(request()->input('location_id')) ? request()->input('location_id') : null;
+            if ($location_id === 'all') {
+                $location_id = null;
+            }
             $start_date = ! empty(request()->input('start_date')) ? request()->input('start_date') : $fy['start'];
             $end_date = ! empty(request()->input('end_date')) ? request()->input('end_date') : $fy['end'];
     

@@ -90,13 +90,13 @@ class DataController extends Controller
                         }
 
                         $sub->url(
-                               action([\Modules\Accounting\Http\Controllers\BudgetController::class, 'index']),
+                            url('accounting/budget'),
                             trans('accounting::general.budgeting'),
                             ['icon' => '', 'active' => request()->segment(1) == 'accounting' && request()->segment(2) == 'budget']
                         );
 
                         $sub->url(
-                            action([\Modules\Accounting\Http\Controllers\ChartOfAccountController::class, 'index']),
+                            url('accounting/chart_of_account'),
                             __('accounting::lang.view_charts_of_accounts'),
                             ['icon' => '', 'active' => request()->segment(1) == 'accounting' && request()->segment(2) == 'chart_of_account']
                         );
@@ -117,19 +117,19 @@ class DataController extends Controller
                         }
 
                         $sub->url(
-                            action([\Modules\Accounting\Http\Controllers\JournalEntryController::class, 'index']),
+                            url('accounting/journal_entry'),
                             __('accounting::lang.journal_of_entries'),
                             ['icon' => '', 'active' => request()->segment(1) == 'accounting' && request()->segment(2) == 'journal_entry']
                         );
 
                         $sub->url(
-                            action([\Modules\Accounting\Http\Controllers\ReconcileController::class, 'index']),
+                            url('accounting/reconcile'),
                             __('accounting::lang.reconcile'),
                             ['icon' => '', 'active' => request()->segment(1) == 'accounting' && request()->segment(2) == 'reconcile']
                         );
 
                         $sub->url(
-                            action([\Modules\Accounting\Http\Controllers\ReportController::class, 'index']),
+                            url('report/accounting'),
                             __('accounting::lang.reports'),
                             ['icon' => '', 'active' => request()->segment(1) == 'report' && request()->segment(2) == 'accounting']
                         );

@@ -6308,6 +6308,10 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
     //
     public function getProfitLossDetails($business_id, $location_id, $start_date, $end_date, $user_id = null, $permitted_locations = null)
     {
+        if ($location_id === 'all' || $location_id === '' || $location_id === '0' || $location_id === 0) {
+            $location_id = null;
+        }
+
         //For Opening stock date should be 1 day before
         $day_before_start_date = \Carbon::createFromFormat('Y-m-d', $start_date)->subDay()->format('Y-m-d');
 
@@ -6514,12 +6518,29 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
             $permitted_locations
         );
 
-        $data['total_sell'] = $ledgerProfitLoss['operating_income'];
-        $data['cogs'] = $ledgerProfitLoss['cogs'];
-        $data['total_expense'] = $ledgerProfitLoss['expenses'];
-        $data['total_adjustment_effect'] = $ledgerProfitLoss['inventory_adjustment_net'];
-        $gross_profit = $ledgerProfitLoss['gross_profit'];
-        $data['net_profit'] = $module_total + $ledgerProfitLoss['net_profit'];
+        $transactionalActivityTotal = abs((float) $data['total_sell'])
+            + abs((float) $data['total_purchase'])
+            + abs((float) $data['total_expense'])
+            + abs((float) $data['total_adjustment_effect'])
+            + abs((float) $data['total_sell_return'])
+            + abs((float) $data['total_purchase_return']);
+
+        $ledgerActivityTotal = abs((float) $ledgerProfitLoss['operating_income'])
+            + abs((float) $ledgerProfitLoss['cogs'])
+            + abs((float) $ledgerProfitLoss['expenses'])
+            + abs((float) $ledgerProfitLoss['inventory_adjustment_net']);
+
+        // Prefer ledger values when they are present. If ledger is empty for the selected
+        // range but transactional data exists (common for fresh accounting setups), keep
+        // the computed transactional profit/loss to avoid showing false zeros.
+        if ($ledgerActivityTotal > 0 || $transactionalActivityTotal == 0.0) {
+            $data['total_sell'] = $ledgerProfitLoss['operating_income'];
+            $data['cogs'] = $ledgerProfitLoss['cogs'];
+            $data['total_expense'] = $ledgerProfitLoss['expenses'];
+            $data['total_adjustment_effect'] = $ledgerProfitLoss['inventory_adjustment_net'];
+            $gross_profit = $ledgerProfitLoss['gross_profit'];
+            $data['net_profit'] = $module_total + $ledgerProfitLoss['net_profit'];
+        }
 
         $data['gross_profit'] = $gross_profit;
 

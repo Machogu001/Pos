@@ -568,7 +568,14 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
         Route::get('/bank-reconciliation/template', [AccountReportsController::class, 'downloadBankReconciliationTemplate']);
         Route::post('/bank-reconciliation/upload', [AccountReportsController::class, 'uploadBankReconciliation']);
         Route::post('/bank-reconciliation/{id}/finalize', [AccountReportsController::class, 'finalizeBankReconciliation']);
+        Route::post('/bank-reconciliation/{id}/undo', [AccountReportsController::class, 'undoBankReconciliation']);
+        Route::get('/bank-reconciliation/{id}/details', [AccountReportsController::class, 'bankReconciliationDetails']);
+        Route::get('/bank-reconciliation/{id}/audit-logs', [AccountReportsController::class, 'bankReconciliationAuditLogs']);
+        Route::post('/bank-reconciliation/{runId}/lines/{lineId}/manual-match', [AccountReportsController::class, 'manualMatchBankReconciliationLine']);
+        Route::post('/bank-reconciliation/{runId}/lines/{lineId}/manual-unmatch', [AccountReportsController::class, 'manualUnmatchBankReconciliationLine']);
         Route::get('/bank-reconciliation/{id}/export', [AccountReportsController::class, 'exportBankReconciliationPackage']);
+        Route::get('/bank-reconciliation/{id}/export/pdf', [AccountReportsController::class, 'exportBankReconciliationPdf']);
+        Route::get('/bank-reconciliation/{id}/export/excel', [AccountReportsController::class, 'exportBankReconciliationExcel']);
         Route::get('/link-account/{id}', [AccountReportsController::class, 'getLinkAccount']);
         Route::post('/link-account', [AccountReportsController::class, 'postLinkAccount']);
         Route::get('/cash-flow', [AccountController::class, 'cashFlow']);

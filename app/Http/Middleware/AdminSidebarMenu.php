@@ -718,7 +718,7 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                         );
                         $sub->url(
                             action([\App\Http\Controllers\AccountReportsController::class, 'showBankReconciliation']),
-                            __('account.bank_reconciliation') ?? 'Bank Reconciliation',
+                            __('account.bank_reconciliation'),
                             ['icon' => '', 'active' => request()->segment(1) == 'account' && request()->segment(2) == 'bank-reconciliation']
                         );
                     },

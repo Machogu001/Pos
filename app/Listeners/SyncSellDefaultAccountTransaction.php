@@ -5,6 +5,7 @@ namespace App\Listeners;
 use App\AccountTransaction;
 use App\Events\SellCreatedOrModified;
 use App\TransactionPayment;
+use App\Utils\BusinessUtil;
 use App\Utils\ModuleUtil;
 use Illuminate\Support\Facades\DB;
 
@@ -12,9 +13,12 @@ class SyncSellDefaultAccountTransaction
 {
     protected $moduleUtil;
 
-    public function __construct(ModuleUtil $moduleUtil)
+    protected $businessUtil;
+
+    public function __construct(ModuleUtil $moduleUtil, BusinessUtil $businessUtil)
     {
         $this->moduleUtil = $moduleUtil;
+        $this->businessUtil = $businessUtil;
     }
 
     public function handle(SellCreatedOrModified $event)
@@ -33,6 +37,10 @@ class SyncSellDefaultAccountTransaction
         $operationDate = $transaction->transaction_date;
         $createdBy = $transaction->created_by;
         $note = $transaction->ref_no;
+
+        // Ensure the business has the core accounting mappings needed for sell postings.
+        $this->businessUtil->provisionDefaultAccountMappings($transaction->business_id, $createdBy);
+
         $amountBeforeTax = (float) (! is_null($transaction->total_before_tax)
             ? $transaction->total_before_tax
             : ((float) $transaction->final_total - (float) $transaction->tax_amount));
