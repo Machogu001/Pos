@@ -13,6 +13,24 @@ const COOKIE = process.env.COOKIE || '';
 const protectedPaths = ['/hrm', '/hrm/employees', '/hrm/attendances', '/hrm/leaves', '/hrm/payrolls', '/hrm/settings'];
 const formAuditPaths = ['/hrm/attendances', '/hrm/leaves', '/hrm/payrolls'];
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function gotoWithRetry(page, url, options) {
+  try {
+    return await page.goto(url, options);
+  } catch (error) {
+    const message = String(error && error.message ? error.message : error);
+    if (!message.includes('ERR_CONNECTION_CLOSED')) {
+      throw error;
+    }
+
+    await sleep(400);
+    return page.goto(url, { waitUntil: 'domcontentloaded', timeout: options.timeout || 45000 });
+  }
+}
+
 function parseCookieHeader(header) {
   return header
     .split(';')
@@ -26,7 +44,15 @@ function parseCookieHeader(header) {
 }
 
 (async () => {
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+  const browser = await puppeteer.launch({
+    headless: true,
+    ignoreHTTPSErrors: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-features=HttpsFirstBalancedModeAutoEnable,HttpsUpgrades',
+    ],
+  });
   const authContext = await browser.newPage();
   const report = {
     generatedAt: new Date().toISOString(),
@@ -49,7 +75,10 @@ function parseCookieHeader(header) {
     }
 
     for (const path of protectedPaths) {
-      const response = await authContext.goto(`${BASE_URL}${path}`, { waitUntil: 'domcontentloaded', timeout: 45000 });
+      const response = await gotoWithRetry(authContext, `${BASE_URL}${path}`, {
+        waitUntil: 'domcontentloaded',
+        timeout: 45000,
+      });
       report.authenticatedChecks.push({
         path,
         status: response ? response.status() : null,
@@ -58,7 +87,7 @@ function parseCookieHeader(header) {
     }
 
     for (const path of formAuditPaths) {
-      await authContext.goto(`${BASE_URL}${path}`, { waitUntil: 'networkidle2', timeout: 45000 });
+      await gotoWithRetry(authContext, `${BASE_URL}${path}`, { waitUntil: 'networkidle2', timeout: 45000 });
       const data = await authContext.evaluate(() => ({
         csrfMetaPresent: !!document.querySelector('meta[name="csrf-token"]'),
         forms: Array.from(document.querySelectorAll('form')).map((form) => ({
@@ -75,7 +104,10 @@ function parseCookieHeader(header) {
     const isolated = await browser.createBrowserContext();
     const isolatedPage = await isolated.newPage();
     for (const path of ['/hrm', '/hrm/employees', '/hrm/payrolls']) {
-      const response = await isolatedPage.goto(`${BASE_URL}${path}`, { waitUntil: 'domcontentloaded', timeout: 45000 });
+      const response = await gotoWithRetry(isolatedPage, `${BASE_URL}${path}`, {
+        waitUntil: 'domcontentloaded',
+        timeout: 45000,
+      });
       report.unauthenticatedChecks.push({
         path,
         status: response ? response.status() : null,

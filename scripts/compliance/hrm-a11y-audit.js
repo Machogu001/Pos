@@ -13,9 +13,27 @@ const BASE_URL = (process.env.BASE_URL || 'http://127.0.0.1:8000').replace(/\/$/
 const COOKIE = process.env.COOKIE || '';
 const pages = ['/hrm', '/hrm/employees', '/hrm/attendances', '/hrm/leaves', '/hrm/payrolls'];
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function gotoWithRetry(page, url, options) {
+  try {
+    return await page.goto(url, options);
+  } catch (error) {
+    const message = String(error && error.message ? error.message : error);
+    if (!message.includes('ERR_CONNECTION_CLOSED')) {
+      throw error;
+    }
+
+    await sleep(400);
+    return page.goto(url, { waitUntil: 'domcontentloaded', timeout: options.timeout || 45000 });
+  }
+}
+
 async function auditPage(page, path) {
   const url = `${BASE_URL}${path}`;
-  await page.goto(url, { waitUntil: 'networkidle2', timeout: 45000 });
+  await gotoWithRetry(page, url, { waitUntil: 'networkidle2', timeout: 45000 });
 
   const findings = await page.evaluate(() => {
     const issues = [];
@@ -59,7 +77,15 @@ async function auditPage(page, path) {
 }
 
 (async () => {
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+  const browser = await puppeteer.launch({
+    headless: true,
+    ignoreHTTPSErrors: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-features=HttpsFirstBalancedModeAutoEnable,HttpsUpgrades',
+    ],
+  });
   const page = await browser.newPage();
   const report = { generatedAt: new Date().toISOString(), baseUrl: BASE_URL, pages: [] };
 

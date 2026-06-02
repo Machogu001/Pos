@@ -51,10 +51,13 @@ class AppServiceProvider extends ServiceProvider
             error_reporting(0);
         }
 
-        //force https
-        $url = parse_url(config('app.url'));
+        // Force HTTPS for deployed domains while allowing local HTTP-only audits.
+        $url = parse_url(config('app.url') ?? '');
+        $isHttpsAppUrl = (($url['scheme'] ?? null) === 'https');
+        $host = request()->getHost();
+        $isLocalHttpHost = in_array($host, ['127.0.0.1', 'localhost'], true);
 
-        if ($url['scheme'] == 'https') {
+        if ($isHttpsAppUrl && ! $isLocalHttpHost) {
             \URL::forceScheme('https');
         }
 
