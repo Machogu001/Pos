@@ -8,6 +8,7 @@ use App\User;
 use App\Subscription;
 use App\AdminSetting;
 use App\Business;
+use App\Services\SellPostingAuditService;
 
 class AdminController extends Controller
 {
@@ -23,6 +24,8 @@ class AdminController extends Controller
 {
     $user = auth()->user();
     $settings = AdminSetting::first() ?? new AdminSetting();
+    $auditBusinessId = $user->role === 'admin' ? null : optional($user->business)->id;
+    $sellPostingAuditSummary = app(SellPostingAuditService::class)->summarize($auditBusinessId);
 
     // Configurable limits (default 5)
     $subscriptionsLimit = $settings->recent_subscriptions_limit ?? 5;
@@ -66,7 +69,8 @@ class AdminController extends Controller
         return view('admin.dashboard', compact(
             'users', 'recentSubscriptions', 'recentUsers', 'settings',
             'totalUsers', 'activeUsers', 'inactiveUsers', 'terminatedUsers',
-            'activeSubscriptions', 'pendingSubscriptions', 'monthlyRevenue'
+            'activeSubscriptions', 'pendingSubscriptions', 'monthlyRevenue',
+            'sellPostingAuditSummary'
         ));
     }
 
@@ -114,9 +118,37 @@ class AdminController extends Controller
     return view('admin.dashboard', compact(
         'users', 'recentSubscriptions', 'recentUsers', 'settings',
         'totalUsers', 'activeUsers', 'inactiveUsers', 'terminatedUsers',
-        'activeSubscriptions', 'pendingSubscriptions', 'monthlyRevenue'
+        'activeSubscriptions', 'pendingSubscriptions', 'monthlyRevenue',
+        'sellPostingAuditSummary'
     ));
 }
+
+    public function fixSellPostings()
+    {
+        $this->authorize('admin');
+
+        $user = auth()->user();
+        $businessId = $user->role === 'admin' ? null : optional($user->business)->id;
+        $result = app(SellPostingAuditService::class)->backfill($businessId);
+
+        if ($result['initial_missing_count'] === 0) {
+            return back()->with('success', 'No missing item-sell accounting transactions were found.');
+        }
+
+        if ($result['error_count'] > 0) {
+            return back()->with(
+                'error',
+                'Sell posting repair completed with '.$result['error_count'].' error(s). Remaining missing COGS: '
+                .$result['summary']['missing_cogs_count'].', inventory: '.$result['summary']['missing_inventory_count'].'.'
+            );
+        }
+
+        return back()->with(
+            'success',
+            'Sell posting repair processed '.$result['processed_count'].' transaction(s). Remaining missing COGS: '
+            .$result['summary']['missing_cogs_count'].', inventory: '.$result['summary']['missing_inventory_count'].'.'
+        );
+    }
 
     // ============================
     // USERS MANAGEMENT

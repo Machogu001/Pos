@@ -872,6 +872,7 @@ Route::middleware(['auth', 'AdminSidebarMenu'])->group(function () {
 // ============================
 Route::prefix('admin')->middleware(['auth', 'admin', 'AdminSidebarMenu'])->group(function () {
     Route::get('/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
+    Route::post('/dashboard/fix-sell-postings', [AdminController::class, 'fixSellPostings'])->name('admin.dashboard.fix-sell-postings');
 
     // Users - FIXED THIS SECTION
     Route::get('/users', [AdminController::class, 'users'])->name('admin.users'); // ADDED MISSING ROUTE

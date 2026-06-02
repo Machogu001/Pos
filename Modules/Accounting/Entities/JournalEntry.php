@@ -40,8 +40,18 @@ class JournalEntry extends Model
     
     public function scopeForBusiness($query)
     {
-        return $query->whereHas('business_location', function ($q) {
-            $q->where('business_locations.business_id', session('business.id'));
+        $business_id = session('business.id') ?? session('user.business_id') ?? optional(auth()->user())->business_id;
+
+        if (empty($business_id)) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function ($q) use ($business_id) {
+            $q->whereHas('business_location', function ($locationQuery) use ($business_id) {
+                $locationQuery->where('business_locations.business_id', $business_id);
+            })->orWhereHas('chart_of_account', function ($accountQuery) use ($business_id) {
+                $accountQuery->where('chart_of_accounts.business_id', $business_id);
+            });
         });
     }
 

@@ -3,8 +3,10 @@
 namespace App\Providers;
 
 use App\Business;
+use App\Observers\TransactionSellLineObserver;
 use App\Observers\TransactionObserver;
 use App\Transaction;
+use App\TransactionSellLine;
 use App\System;
 use App\Utils\ModuleUtil;
 use Illuminate\Pagination\Paginator;
@@ -33,6 +35,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         Transaction::observe(TransactionObserver::class);
+        TransactionSellLine::observe(TransactionSellLineObserver::class);
 
         // Auto-repair storage/logs permissions so the web server can always
         // write log files even if a CLI command created them as a different user.

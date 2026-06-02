@@ -2573,7 +2573,7 @@ function updateProfitLoss(start = null, end = null, location_id = null, selector
     if(location_id == null){
         var location_id = $('#profit_loss_location_filter').val();
     }
-    var data = { start_date: start, end_date: end, location_id: location_id };
+    var data = { start_date: start, end_date: end, location_id: location_id, _ts: Date.now() };
     selector = selector == null ? $('#pl_data_div') : selector;
     var loader = '<div class="text-center">' + __fa_awesome() + '</div>';
     selector.html(loader);
@@ -2581,6 +2581,7 @@ function updateProfitLoss(start = null, end = null, location_id = null, selector
         method: 'GET',
         url: '/reports/profit-loss',
         dataType: 'html',
+        cache: false,
         data: data,
         success: function(html) {
             selector.html(html);
@@ -2606,6 +2607,43 @@ function updateStockBySellingPrice (data) {
         });
     }
 }
+
+// Keep profit figures fresh right after a sale is posted from POS/sell screens.
+$(document).ajaxSuccess(function(event, xhr, settings) {
+    if (!settings || !settings.url) {
+        return;
+    }
+
+    var url = settings.url;
+    if (url.indexOf('/sells') === -1 && url.indexOf('/sell-pos') === -1) {
+        return;
+    }
+
+    var responseType = xhr.getResponseHeader('content-type') || '';
+    if (responseType.indexOf('application/json') === -1) {
+        return;
+    }
+
+    var payload;
+    try {
+        payload = JSON.parse(xhr.responseText);
+    } catch (e) {
+        return;
+    }
+
+    if (!payload || (payload.success !== true && payload.success !== 1)) {
+        return;
+    }
+
+    if ($('#pl_data_div').length === 1 && $('#profit_loss_date_filter').length === 1) {
+        updateProfitLoss();
+    }
+
+    if ($('#todays_profit_modal').is(':visible') && $('#modal_today').length === 1) {
+        var today = $('#modal_today').val();
+        updateProfitLoss(today, today, '', $('#todays_profit'));
+    }
+});
 
 $(document).on('click', 'button.activate-deactivate-location', function(){
     swal({

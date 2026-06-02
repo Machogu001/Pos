@@ -322,7 +322,7 @@
     }
 
     .otp-switch input:checked + .otp-slider {
-      background-color: #2563eb;
+      background-color: #16a34a;
     }
 
     .otp-switch input:checked + .otp-slider:before {

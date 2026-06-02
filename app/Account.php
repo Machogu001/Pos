@@ -47,7 +47,7 @@ class Account extends Model
             $account_ids = array_unique($account_ids);
         }
 
-        if ($permitted_locations != 'all') {
+        if ($permitted_locations != 'all' && ! empty($account_ids)) {
             $query->whereIn('accounts.id', $account_ids);
         }
 

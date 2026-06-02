@@ -8,6 +8,7 @@ use App\BusinessLocation;
 use App\CashDenomination;
 use App\Contact;
 use App\Currency;
+use App\Events\SellCreatedOrModified;
 use App\Events\TransactionPaymentAdded;
 use App\Events\TransactionPaymentDeleted;
 use App\Events\TransactionPaymentUpdated;
@@ -6403,10 +6404,15 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
         $data['total_sell_return'] = $transaction_totals['total_sell_return_exc_tax'];
 
         $data['total_sell_round_off'] = ! empty($total_sell_round_off) ? $total_sell_round_off : 0;
-        $data['cogs'] = round(max(0, $data['opening_stock'] + $data['total_purchase'] - $data['closing_stock']), 2);
+
+        // Keep stock-based COGS as fallback for businesses where sell-line mapping
+        // is incomplete.
+        $stock_based_cogs = round(max(0, $data['opening_stock'] + $data['total_purchase'] - $data['closing_stock']), 2);
+        $data['cogs'] = $stock_based_cogs;
 
         //Expense
         $data['total_expense'] = $transaction_totals['total_expense'];
+        $data['total_payroll'] = $transaction_totals['total_payroll'] ?? 0;
 
         //Stock adjustments
         $data['total_adjustment'] = $transaction_totals['total_adjustment'];
@@ -6417,14 +6423,65 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
 
         $data['total_reward_amount'] = ! empty($total_reward_amount) ? $total_reward_amount : 0;
 
+        // Standard gross profit is based on net sales less COGS.
+        $net_sales = $data['total_sell']
+            - $data['total_sell_discount']
+            - $data['total_sell_return']
+            + $data['total_sell_return_discount'];
+
+        $mappedCogsQuery = TransactionSellLine::join('transactions as sale', 'transaction_sell_lines.transaction_id', '=', 'sale.id')
+            ->leftJoin('transaction_sell_lines_purchase_lines as TSPL', 'transaction_sell_lines.id', '=', 'TSPL.sell_line_id')
+            ->leftJoin('purchase_lines as PL', 'TSPL.purchase_line_id', '=', 'PL.id')
+            ->where('sale.type', 'sell')
+            ->where('sale.status', 'final')
+            ->where('sale.business_id', $business_id)
+            ->where('transaction_sell_lines.children_type', '!=', 'combo');
+
+        if (! empty($start_date) && ! empty($end_date) && $start_date != $end_date) {
+            $mappedCogsQuery->whereDate('sale.transaction_date', '>=', $start_date)
+                ->whereDate('sale.transaction_date', '<=', $end_date);
+        }
+        if (! empty($start_date) && ! empty($end_date) && $start_date == $end_date) {
+            $mappedCogsQuery->whereDate('sale.transaction_date', $end_date);
+        }
+
+        if (! empty($permitted_locations) && $permitted_locations != 'all') {
+            $mappedCogsQuery->whereIn('sale.location_id', $permitted_locations);
+        }
+
+        if (! empty($location_id)) {
+            $mappedCogsQuery->where('sale.location_id', $location_id);
+        }
+
+        if (! empty($user_id)) {
+            $mappedCogsQuery->where('sale.created_by', $user_id);
+        }
+
+        $mappedCogsStats = $mappedCogsQuery->select(
+            DB::raw('COALESCE(SUM((TSPL.quantity - TSPL.qty_returned) * PL.purchase_price_inc_tax), 0) as mapped_cogs'),
+            DB::raw('COUNT(TSPL.id) as mapped_rows')
+        )->first();
+
+        $hasMappedCogsRows = ! empty($mappedCogsStats) && (int) $mappedCogsStats->mapped_rows > 0;
+
+        // Prefer date-scoped COGS from mapped sell lines for the selected period.
+        // This keeps COGS aligned to the report date range instead of stock movement.
+        $mapped_gross_profit = (float) $gross_profit;
+        $mapped_cogs = round(max(0, $net_sales - $mapped_gross_profit), 2);
+
+        $mappedGrossProfitLooksImplausible = $data['total_purchase'] > 0
+            && round((float) $gross_profit, 2) >= round((float) $data['total_sell'], 2);
+
+        if ($hasMappedCogsRows && ! $mappedGrossProfitLooksImplausible && (float) $data['total_sell'] > 0) {
+            $data['cogs'] = $mapped_cogs;
+        }
+
         // Some ledgers do not maintain a complete sell-line to purchase-line mapping,
         // which can cause the detailed gross-profit query to return the full sales value
-        // even when purchases exist. Fall back to the report's simpler sell minus purchase
-        // logic when the mapped result is missing or looks implausible.
-        $simple_gross_profit = $data['total_sell'] - $data['total_purchase'];
-        if (empty($gross_profit)
-            || ($data['total_purchase'] > 0 && round((float) $gross_profit, 2) >= round((float) $data['total_sell'], 2))
-        ) {
+        // even when purchases exist. Fall back to the standard net sales less COGS
+        // formula when the mapped result is missing or looks implausible.
+        $simple_gross_profit = $net_sales - $data['cogs'];
+        if (empty($gross_profit) || $mappedGrossProfitLooksImplausible) {
             $gross_profit = $simple_gross_profit;
         }
 
@@ -6481,11 +6538,23 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
         //                         + $data['total_purchase_discount']
         //                         + $data['total_purchase_return']
         //                         - $data['total_sell_return'];
-        $data['net_profit'] = $module_total + $gross_profit
-                                + ($data['total_sell_round_off'] + $data['total_recovered'] + $data['total_sell_shipping_charge'] + $data['total_purchase_discount'] + $data['total_sell_additional_expense'] + $data['total_sell_return_discount']
-                                + $data['total_adjustment_effect']
-                                ) - ($data['total_reward_amount'] + $data['total_expense'] + $data['total_transfer_shipping_charges'] + $data['total_purchase_shipping_charge'] + $data['total_purchase_additional_expense'] + $data['total_sell_discount']
-                                );
+        // Standard net profit builds on gross profit, then adds other operating income
+        // and subtracts operating expenses. Purchase discounts/returns should not be
+        // added again here because COGS already comes from sold inventory cost.
+        $other_operating_income = $data['total_sell_round_off']
+            + $data['total_recovered']
+            + $data['total_sell_shipping_charge']
+            + $data['total_sell_additional_expense']
+            + $data['total_adjustment_effect'];
+
+        $operating_expenses = $data['total_reward_amount']
+            + $data['total_expense']
+            + $data['total_payroll']
+            + $data['total_transfer_shipping_charges']
+            + $data['total_purchase_shipping_charge']
+            + $data['total_purchase_additional_expense'];
+
+        $data['net_profit'] = $module_total + $gross_profit + $other_operating_income - $operating_expenses;
 
         //get gross profit from Project Module
         $module_parameters = [
@@ -6504,8 +6573,10 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
         $data['gross_profit_label'] = [];
         if(! empty($grossProfitData)){
             foreach($grossProfitData as $value){
-                $data['gross_profit_label'][] = $value['label'];
-                $gross_profit = $gross_profit + $value['value'];
+                if (! empty($value['value'])) {
+                    $data['gross_profit_label'][] = $value['label'];
+                    $gross_profit = $gross_profit + $value['value'];
+                }
             }
         }
 
@@ -6530,16 +6601,44 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
             + abs((float) $ledgerProfitLoss['expenses'])
             + abs((float) $ledgerProfitLoss['inventory_adjustment_net']);
 
-        // Prefer ledger values when they are present. If ledger is empty for the selected
-        // range but transactional data exists (common for fresh accounting setups), keep
-        // the computed transactional profit/loss to avoid showing false zeros.
-        if ($ledgerActivityTotal > 0 || $transactionalActivityTotal == 0.0) {
-            $data['total_sell'] = $ledgerProfitLoss['operating_income'];
-            $data['cogs'] = $ledgerProfitLoss['cogs'];
-            $data['total_expense'] = $ledgerProfitLoss['expenses'];
-            $data['total_adjustment_effect'] = $ledgerProfitLoss['inventory_adjustment_net'];
-            $gross_profit = $ledgerProfitLoss['gross_profit'];
-            $data['net_profit'] = $module_total + $ledgerProfitLoss['net_profit'];
+        $transactionalCogs = abs((float) $data['cogs']);
+        $ledgerCogs = abs((float) $ledgerProfitLoss['cogs']);
+
+        $isSingleDayRange = ! empty($start_date)
+            && ! empty($end_date)
+            && $start_date === $end_date;
+
+        $shouldUseLedgerForSingleDayZeroCogs = $isSingleDayRange
+            && (float) $data['total_sell'] > 0
+            && $transactionalCogs == 0.0
+            && $ledgerCogs > 0
+            && $ledgerActivityTotal > 0;
+
+        // Prefer ledger values only as a fallback when transactional data for the selected
+        // period is missing. For single-day ranges (for example, "yesterday"), keep the
+        // transactional figures unless transactional COGS is zero while ledger COGS exists.
+        $useLedgerProfitLoss = $shouldUseLedgerForSingleDayZeroCogs
+            || (! $isSingleDayRange
+                && (
+                    $transactionalActivityTotal == 0.0
+                    || ($ledgerActivityTotal > 0 && ($ledgerCogs > 0 || $transactionalCogs == 0.0))
+                ));
+
+        if ($useLedgerProfitLoss) {
+            if ($shouldUseLedgerForSingleDayZeroCogs) {
+                // For single-day rescue, keep transactional sales for the selected date
+                // and only inject ledger COGS to avoid zero-cost distortion.
+                $data['cogs'] = $ledgerProfitLoss['cogs'];
+                $gross_profit = $net_sales - $data['cogs'];
+                $data['net_profit'] = $module_total + $gross_profit + $other_operating_income - $operating_expenses;
+            } else {
+                $data['total_sell'] = $ledgerProfitLoss['operating_income'];
+                $data['cogs'] = $ledgerProfitLoss['cogs'];
+                $data['total_expense'] = $ledgerProfitLoss['expenses'];
+                $data['total_adjustment_effect'] = $ledgerProfitLoss['inventory_adjustment_net'];
+                $gross_profit = $ledgerProfitLoss['gross_profit'];
+                $data['net_profit'] = $module_total + $ledgerProfitLoss['net_profit'];
+            }
         }
 
         $data['gross_profit'] = $gross_profit;

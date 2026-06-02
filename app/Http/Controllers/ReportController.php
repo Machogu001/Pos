@@ -113,7 +113,10 @@ class ReportController extends Controller
     
             // $data['closing_stock'] = $data['closing_stock'] - $data['total_sell_return'];
 
-            return view('report.partials.profit_loss_details', compact('data'))->render();
+            return response(view('report.partials.profit_loss_details', compact('data'))->render())
+                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                ->header('Pragma', 'no-cache')
+                ->header('Expires', 'Sat, 01 Jan 2000 00:00:00 GMT');
         }
 
         $business_locations = BusinessLocation::forDropdown($business_id, true);

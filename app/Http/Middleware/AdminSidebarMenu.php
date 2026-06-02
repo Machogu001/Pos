@@ -91,7 +91,13 @@ class AdminSidebarMenu
                 ? json_decode($sessionPosSettings, true)
                 : (is_array(optional($business)->pos_settings) ? $business->pos_settings : []);
 
-            $is_admin = auth()->user()->hasRole('Admin#' . session('business.id')) ? true : false;
+            $user = auth()->user();
+            $is_admin = false;
+            try {
+                $is_admin = ! empty($user) && method_exists($user, 'isAdmin') && $user->isAdmin();
+            } catch (\Exception $e) {
+                $is_admin = false;
+            }
             $module_util = new ModuleUtil();
             $module_names = get_module_names();
             $is_accounting_module_enabled = false;
@@ -129,10 +135,10 @@ class AdminSidebarMenu
             if (auth()->check()) {
                 $menu->dropdown(
                     __('hrm.account_billing'),
-                    function ($sub) {
+                    function ($sub) use ($is_admin) {
                         // Admin Dashboard (only for business admin role)
                         try {
-                            if (auth()->user()->hasRole('Admin#' . session('business.id'))) {
+                            if ($is_admin) {
                                 $sub->url(
                                     route('admin.dashboard'),
                                     __('hrm.admin_panel'),
@@ -909,7 +915,7 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                             );
                         }
 
-                        if ($is_admin) {
+                        if ($is_admin || auth()->user()->can('purchase_n_sell_report.view')) {
                             $sub->url(
                                 action([\App\Http\Controllers\ReportController::class, 'activityLog']),
                                 __('lang_v1.activity_log'),
@@ -1191,7 +1197,7 @@ if (in_array('stock_adjustment', $enabled_modules) &&
 
                         // Settings
                         try {
-                            if (auth()->user()->can('business_settings.access') || auth()->user()->hasRole('Admin#' . session('business.id'))) {
+                            if (auth()->user()->can('business_settings.access') || $is_admin) {
                                 $sub->url(route('hrm.settings.index'), __('hrm.settings'), ['icon' => '', 'active' => request()->is('hrm/settings*')]);
                                 // (Removed) HRM modules shortcut per request
                             }

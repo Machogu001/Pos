@@ -38,7 +38,10 @@
         </div>
         @php
             $type_mappings = !empty($common_settings['default_account_mappings']) ? $common_settings['default_account_mappings'] : [];
-            $account_list = \App\Account::forDropdown(session('business.id'), false);
+            $account_business_id = $business->id ?? request()->session()->get('user.business_id');
+            $account_list = !empty($account_business_id)
+                ? \App\Account::forDropdown($account_business_id, false)
+                : [];
         @endphp
         <div class="col-sm-3">
             <div class="form-group">

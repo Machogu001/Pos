@@ -1020,13 +1020,16 @@ class UpdateController extends BaseController
                     }
                     return $out;
                 }],
-                ['label' => 'Clearing caches & reloading web services\u2026', 'pct' => 97, 'run' => function () {
-                    [$prepared, $message] = $this->prepareCurrentServerForUpdateFlow();
+                ['label' => 'Clearing caches\u2026', 'pct' => 97, 'run' => function () {
+                    // Avoid reloading apache/nginx during SSE: it drops the stream and shows a false failure.
+                    [$prepared, $message] = $this->prepareCurrentServerForUpdateFlow(false);
                     if (! $prepared) {
                         throw new \RuntimeException($message);
                     }
 
-                    return $message;
+                    $this->scheduleWebServerReloadAfterResponse();
+
+                    return trim($message . "\nWeb service reload scheduled after response.");
                 }],
                 ['label' => 'Finalising\u2026', 'pct' => 98, 'run' => function () use ($remoteVersion) {
                     $authorConfig = @include config_path('author.php');
@@ -1560,6 +1563,28 @@ class UpdateController extends BaseController
         return 'Web service reload could not be executed automatically. '
             . 'If this server requires sudo password, add a limited NOPASSWD sudoers rule for apache/nginx reload commands. '
             . 'Attempts: ' . implode(' | ', $attemptLogs);
+    }
+
+    /**
+     * Schedule web service reload once response processing is complete.
+     * This prevents SSE disconnects mid-stream while still refreshing runtime state.
+     */
+    private function scheduleWebServerReloadAfterResponse(): void
+    {
+        if (! function_exists('register_shutdown_function')) {
+            return;
+        }
+
+        register_shutdown_function(function (): void {
+            try {
+                $result = $this->reloadWebServerBestEffort();
+                if ($result !== '') {
+                    Log::info('Deferred web service reload result: ' . $result);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Deferred web service reload failed: ' . $e->getMessage());
+            }
+        });
     }
 
     /** Returns active download token; DB-managed token overrides .env token. */

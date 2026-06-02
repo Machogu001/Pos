@@ -29,6 +29,62 @@
         </div>
     </div>
 
+    @if(session('success'))
+        <div class="tw-mb-5 tw-rounded-xl tw-border tw-border-green-200 tw-bg-green-50 tw-p-4 tw-text-green-900">
+            <div class="tw-flex tw-items-start tw-gap-3">
+                <i class="fas fa-check-circle tw-mt-0.5"></i>
+                <p class="tw-mb-0 tw-text-sm tw-font-medium">{{ session('success') }}</p>
+            </div>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="tw-mb-5 tw-rounded-xl tw-border tw-border-red-200 tw-bg-red-50 tw-p-4 tw-text-red-900">
+            <div class="tw-flex tw-items-start tw-gap-3">
+                <i class="fas fa-exclamation-circle tw-mt-0.5"></i>
+                <p class="tw-mb-0 tw-text-sm tw-font-medium">{{ session('error') }}</p>
+            </div>
+        </div>
+    @endif
+
+    @if(!empty($sellPostingAuditSummary) && (($sellPostingAuditSummary['missing_cogs_count'] ?? 0) > 0 || ($sellPostingAuditSummary['missing_inventory_count'] ?? 0) > 0))
+        <div class="tw-mb-5 tw-rounded-xl tw-border tw-border-amber-200 tw-bg-amber-50 tw-p-5 tw-shadow-sm">
+            <div class="lg:tw-flex lg:tw-items-center lg:tw-justify-between lg:tw-gap-6">
+                <div>
+                    <div class="tw-flex tw-items-center tw-gap-3 tw-text-amber-900">
+                        <span class="tw-inline-flex tw-h-10 tw-w-10 tw-items-center tw-justify-center tw-rounded-full tw-bg-amber-100">
+                            <i class="fas fa-triangle-exclamation"></i>
+                        </span>
+                        <div>
+                            <h2 class="tw-mb-1 tw-text-lg tw-font-semibold">Missing sell accounting postings detected</h2>
+                            <p class="tw-mb-0 tw-text-sm tw-text-amber-800">
+                                Item sells with missing journals can distort cost of goods, gross profit, and net profit. Subscription invoices are excluded from this audit.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="tw-mt-4 tw-flex tw-flex-wrap tw-gap-3 tw-text-sm tw-text-amber-900">
+                        <span class="tw-rounded-full tw-bg-white/80 tw-px-3 tw-py-1 tw-font-medium">
+                            Missing COGS: {{ number_format($sellPostingAuditSummary['missing_cogs_count'] ?? 0) }}
+                        </span>
+                        <span class="tw-rounded-full tw-bg-white/80 tw-px-3 tw-py-1 tw-font-medium">
+                            Missing inventory: {{ number_format($sellPostingAuditSummary['missing_inventory_count'] ?? 0) }}
+                        </span>
+                        <span class="tw-rounded-full tw-bg-white/80 tw-px-3 tw-py-1 tw-font-medium">
+                            Affected businesses: {{ number_format(count($sellPostingAuditSummary['affected_businesses'] ?? [])) }}
+                        </span>
+                    </div>
+                </div>
+                <form method="POST" action="{{ route('admin.dashboard.fix-sell-postings') }}" class="tw-mt-4 lg:tw-mt-0">
+                    @csrf
+                    <button type="submit" class="tw-inline-flex tw-items-center tw-justify-center tw-gap-2 tw-rounded-lg tw-bg-amber-600 tw-px-4 tw-py-2.5 tw-text-sm tw-font-semibold tw-text-white tw-transition hover:tw-bg-amber-700">
+                        <i class="fas fa-wrench"></i>
+                        Fix Missing Transactions
+                    </button>
+                </form>
+            </div>
+        </div>
+    @endif
+
     <!-- Statistics Cards (match Home dashboard styling) -->
     <div class="tw-grid tw-grid-cols-1 tw-gap-4 sm:tw-grid-cols-2 xl:tw-grid-cols-4 sm:tw-gap-5 tw-mb-5">
         <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200">

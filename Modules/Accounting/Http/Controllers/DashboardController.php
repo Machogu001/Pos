@@ -132,7 +132,7 @@ class DashboardController extends Controller
 
             $output = [];
 
-            $output['no_journal_entries'] = JournalEntry::forBusiness()->get()->count('transaction_number');
+            $output['no_journal_entries'] = JournalEntry::forBusiness()->count();
             $output['no_charts_of_account'] = ChartOfAccount::forBusiness()->get()->count('id');
             $output['all_transactions'] = collect($account_type_balances)->sum();
 

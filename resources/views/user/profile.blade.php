@@ -24,6 +24,110 @@
 }
 .module-card .module-name { font-weight: 600; font-size: 14px; color: #374151; }
 .module-card .module-status { font-size: 11px; color: #6b7280; margin-left: 6px; }
+
+.otp-card--compact {
+    padding: 12px 14px;
+    border: 1px solid #dbe2ea;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.otp-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.otp-card__label {
+    font-weight: 700;
+    color: #111827;
+    font-size: 0.92rem;
+}
+
+.otp-card__hint,
+.otp-card__phone {
+    color: #6b7280;
+    font-size: 0.82rem;
+    margin-top: 3px;
+}
+
+.otp-card__status {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-top: 10px;
+}
+
+.otp-card__status.is-on { background: #dcfce7; color: #166534; }
+.otp-card__status.is-off { background: #e5e7eb; color: #374151; }
+
+.otp-switch {
+    position: relative;
+    display: inline-block;
+    width: 54px;
+    height: 30px;
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+.otp-switch__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    overflow: hidden;
+    white-space: nowrap;
+    -webkit-appearance: none;
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    opacity: 0;
+}
+
+.otp-slider {
+    position: absolute;
+    display: block;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #cbd5e1;
+    transition: 0.25s;
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+
+.otp-slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 4px;
+    top: 4px;
+    background-color: white;
+    transition: 0.25s;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+}
+
+.otp-switch__input:checked + .otp-slider { background-color: #16a34a; }
+.otp-switch__input:checked + .otp-slider:before { transform: translateX(24px); }
+.otp-switch__input:not(:checked) + .otp-slider { background-color: #d1d5db; }
+
+@media (max-width: 767px) {
+    .otp-card__header {
+        align-items: flex-start;
+    }
+}
 </style>
 @endsection
 
@@ -145,6 +249,34 @@
                         {!! Form::select('language',$languages, $user->language, ['class' => 'form-control select2']); !!}
                     </div>
                 </div>
+                <div class="form-group col-md-6">
+                    {!! Form::label('contact_number', __('contact.contact') . ' ' . __('lang_v1.contact_no') . ':') !!}
+                    <div class="input-group">
+                        <span class="input-group-addon">
+                            <i class="fa fa-phone"></i>
+                        </span>
+                        {!! Form::text('contact_number', $user->contact_number, ['class' => 'form-control', 'placeholder' => __('lang_v1.contact_no')]); !!}
+                    </div>
+                </div>
+                <div class="form-group col-md-6">
+                    <div class="otp-card otp-card--compact" style="margin-top: 24px;">
+                        <div class="otp-card__header">
+                            <div>
+                                <div class="otp-card__label">Two-Factor Authentication</div>
+                                <div class="otp-card__hint">Require OTP after password login</div>
+                            </div>
+                            <label class="otp-switch" title="Toggle OTP login">
+                                <input type="hidden" name="otp_login_enabled" value="0">
+                                <input class="otp-switch__input" type="checkbox" name="otp_login_enabled" value="1" id="otp_login_enabled" {{ !empty($user->otp_login_enabled) ? 'checked' : '' }}>
+                                <span class="otp-slider"></span>
+                            </label>
+                        </div>
+                        <div class="otp-card__status {{ !empty($user->otp_login_enabled) ? 'is-on' : 'is-off' }}" id="otp_login_enabled_status">
+                            {{ !empty($user->otp_login_enabled) ? 'Enabled' : 'Disabled' }}
+                        </div>
+                        <div class="otp-card__phone">Phone: {{ !empty($user->contact_number) ? $user->contact_number : 'Not set' }}</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -215,6 +347,24 @@
 
 @section('javascript')
 <script>
+function syncOtpStatusLabel() {
+    if (!$('#otp_login_enabled').length) {
+        return;
+    }
+
+    var enabled = $('#otp_login_enabled').is(':checked');
+    $('#otp_login_enabled_status')
+        .toggleClass('is-on', enabled)
+        .toggleClass('is-off', !enabled)
+        .text(enabled ? 'Enabled' : 'Disabled');
+}
+
+$(document).on('change', '#otp_login_enabled', function() {
+    syncOtpStatusLabel();
+});
+
+syncOtpStatusLabel();
+
 $(document).on('change', '.module-toggle-cb', function() {
     var cb       = $(this);
     var modName  = cb.data('module');

@@ -95,9 +95,11 @@ class UserController extends Controller
                 'guardian_name', 'custom_field_1', 'custom_field_2',
                 'custom_field_3', 'custom_field_4', 'id_proof_name', 'id_proof_number', 'gender', 'family_number', 'alt_number', 'client_pin' ]);
 
-            $input['otp_login_enabled'] = $request->boolean('otp_login_enabled');
+            if ($request->has('otp_login_enabled')) {
+                $input['otp_login_enabled'] = $request->boolean('otp_login_enabled');
+            }
 
-            if ($input['otp_login_enabled'] && empty($input['contact_number'] ?? $user->contact_number ?? null)) {
+            if (($input['otp_login_enabled'] ?? $user->otp_login_enabled ?? false) && empty($input['contact_number'] ?? $user->contact_number ?? null)) {
                 return back()->with('status', [
                     'success' => 0,
                     'msg' => __('A phone number is required before you can enable OTP login.'),

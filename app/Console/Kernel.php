@@ -22,6 +22,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\SetDefaultLeave::class,
         \App\Console\Commands\SendSubscriptionReminders::class,
         \App\Console\Commands\BackfillDefaultAccountTransactions::class,
+        \App\Console\Commands\AuditSellPostings::class,
         \App\Console\Commands\RealignPaymentAccountMappings::class,
         \App\Console\Commands\AutoCloseRegister::class,
         \App\Console\Commands\FetchRemoteVersion::class,
@@ -79,6 +80,9 @@ class Kernel extends ConsoleKernel
 
         // Generate subscription pre-expiry invoice notices and reminders (14d & 7d)
         $schedule->command('subscriptions:send_reminders')->dailyAt('09:00');
+
+        // Audit finalized item sells and auto-backfill any missing COGS/inventory postings.
+        $schedule->command('accounting:audit-sell-postings --fix')->hourly()->withoutOverlapping();
 
         // Prune Telescope entries older than 48 hours to keep the DB lean
         $schedule->command('telescope:prune --hours=48')->dailyAt('03:00');

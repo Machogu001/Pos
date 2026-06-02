@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Events\ExpenseCreatedOrModified;
+use App\Events\SellCreatedOrModified;
 use App\Transaction;
 
 class TransactionObserver
@@ -22,11 +23,7 @@ class TransactionObserver
      */
     public function updated(Transaction $transaction): void
     {
-        if (! $this->isExpenseTransaction($transaction)) {
-            return;
-        }
-
-        $relevantChanges = [
+        $expenseRelevantChanges = [
             'type',
             'status',
             'transaction_date',
@@ -42,8 +39,31 @@ class TransactionObserver
             'additional_notes',
         ];
 
-        if ($transaction->wasChanged($relevantChanges)) {
+        if ($this->isExpenseTransaction($transaction) && $transaction->wasChanged($expenseRelevantChanges)) {
             event(new ExpenseCreatedOrModified($transaction));
+        }
+
+        $sellRelevantChanges = [
+            'type',
+            'status',
+            'payment_status',
+            'transaction_date',
+            'location_id',
+            'contact_id',
+            'final_total',
+            'total_before_tax',
+            'tax_id',
+            'tax_amount',
+            'discount_type',
+            'discount_amount',
+            'shipping_charges',
+            'round_off_amount',
+            'rp_redeemed_amount',
+            'additional_notes',
+        ];
+
+        if ($this->isFinalSellTransaction($transaction) && $transaction->wasChanged($sellRelevantChanges)) {
+            event(new SellCreatedOrModified($transaction));
         }
     }
 
@@ -60,5 +80,12 @@ class TransactionObserver
     protected function isExpenseTransaction(Transaction $transaction): bool
     {
         return in_array($transaction->type, ['expense', 'expense_refund'], true);
+    }
+
+    protected function isFinalSellTransaction(Transaction $transaction): bool
+    {
+        return $transaction->type === 'sell'
+            && $transaction->status === 'final'
+            && $transaction->sub_type !== 'subscription_invoice';
     }
 }

@@ -29,6 +29,7 @@ class SyncSellDefaultAccountTransaction
             empty($transaction)
             || $transaction->type !== 'sell'
             || $transaction->status !== 'final'
+            || $transaction->sub_type === 'subscription_invoice'
             || ! $this->moduleUtil->isModuleEnabled('account', $transaction->business_id)
         ) {
             return true;
@@ -107,23 +108,16 @@ class SyncSellDefaultAccountTransaction
 
     protected function getCogsAmount($transactionId)
     {
-        $linkedCost = (float) DB::table('transaction_sell_lines_purchase_lines as tspl')
-            ->join('purchase_lines as pl', 'tspl.purchase_line_id', '=', 'pl.id')
-            ->join('transaction_sell_lines as tsl', 'tspl.sell_line_id', '=', 'tsl.id')
-            ->where('tsl.transaction_id', $transactionId)
-            ->sum(DB::raw('(tspl.quantity - tspl.qty_returned) * (pl.purchase_price + COALESCE(pl.item_tax, 0))'));
-
-        $fallbackCost = (float) DB::table('transaction_sell_lines as tsl')
+        $currentUnitCost = (float) DB::table('transaction_sell_lines as tsl')
             ->join('variations as v', 'tsl.variation_id', '=', 'v.id')
             ->where('tsl.transaction_id', $transactionId)
-            ->whereNotExists(function ($query) {
-                $query->select(DB::raw(1))
-                    ->from('transaction_sell_lines_purchase_lines as tspl')
-                    ->whereColumn('tspl.sell_line_id', 'tsl.id');
+            ->where(function ($query) {
+                $query->whereNull('tsl.children_type')
+                    ->orWhere('tsl.children_type', '!=', 'combo');
             })
             ->sum(DB::raw('(tsl.quantity - COALESCE(tsl.quantity_returned, 0)) * COALESCE(NULLIF(v.dpp_inc_tax, 0), v.default_purchase_price, 0)'));
 
-        return round($linkedCost + $fallbackCost, 4);
+        return round(max(0, $currentUnitCost), 4);
     }
 
     protected function syncEntry($transaction, $subType, $mappingKey, $amount, $type, $operationDate, $createdBy, $note)
