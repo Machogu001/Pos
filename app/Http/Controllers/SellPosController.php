@@ -54,6 +54,7 @@ use App\Utils\ProductUtil;
 use App\Utils\TransactionUtil;
 use App\Variation;
 use App\Warranty;
+use App\Services\SellPostingAuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -129,6 +130,8 @@ class SellPosController extends Controller
 
     protected $notificationUtil;
 
+    protected $sellPostingAuditService;
+
     /**
      * Constructor
      *
@@ -142,7 +145,8 @@ class SellPosController extends Controller
         TransactionUtil $transactionUtil,
         CashRegisterUtil $cashRegisterUtil,
         ModuleUtil $moduleUtil,
-        NotificationUtil $notificationUtil
+        NotificationUtil $notificationUtil,
+        SellPostingAuditService $sellPostingAuditService
     ) {
         $this->contactUtil = $contactUtil;
         $this->productUtil = $productUtil;
@@ -151,6 +155,7 @@ class SellPosController extends Controller
         $this->cashRegisterUtil = $cashRegisterUtil;
         $this->moduleUtil = $moduleUtil;
         $this->notificationUtil = $notificationUtil;
+        $this->sellPostingAuditService = $sellPostingAuditService;
 
         $this->dummyPaymentLine = ['method' => 'cash', 'amount' => 0, 'note' => '', 'card_transaction_number' => '', 'card_number' => '', 'card_type' => '', 'card_holder_name' => '', 'card_month' => '', 'card_year' => '', 'card_security' => '', 'cheque_number' => '', 'bank_account_number' => '',
             'is_return' => 0, 'transaction_no' => ''];
@@ -868,6 +873,22 @@ class SellPosController extends Controller
                 DB::commit();
 
                 SellCreatedOrModified::dispatch($transaction);
+
+                if (($input['status'] ?? null) === 'final') {
+                                       \Log::debug('SellPosController::store - about to reconcile', [
+                                           'transaction_id' => $transaction->id,
+                                           'input_status' => $input['status'] ?? null,
+                                           'transaction_status' => $transaction->status,
+                                       ]);
+                    $reconcileResult = $this->sellPostingAuditService->reconcileTransaction($transaction->fresh() ?? $transaction);
+                    if (! empty($reconcileResult['attempted'])) {
+                        \Log::info('Immediate sell posting reconciliation executed after finalize.', [
+                            'transaction_id' => $transaction->id,
+                            'fixed' => (bool) ($reconcileResult['fixed'] ?? false),
+                            'still_missing' => (bool) ($reconcileResult['still_missing'] ?? false),
+                        ]);
+                    }
+                }
 
                 // Transmit invoice to eTIMS if enabled and transaction is final (products only)
                 if ($input['status'] == 'final' && \App\Services\EtimsService::shouldTransmit($transaction)) {
@@ -1844,9 +1865,20 @@ class SellPosController extends Controller
 
                 $this->transactionUtil->activityLog($transaction, 'edited', $transaction_before);
 
-                SellCreatedOrModified::dispatch($transaction);
-
                 DB::commit();
+
+                SellCreatedOrModified::dispatch($transaction->fresh() ?? $transaction);
+
+                if (($input['status'] ?? null) === 'final') {
+                    $reconcileResult = $this->sellPostingAuditService->reconcileTransaction($transaction->fresh() ?? $transaction);
+                    if (! empty($reconcileResult['attempted'])) {
+                        \Log::info('Immediate sell posting reconciliation executed after finalize update.', [
+                            'transaction_id' => $transaction->id,
+                            'fixed' => (bool) ($reconcileResult['fixed'] ?? false),
+                            'still_missing' => (bool) ($reconcileResult['still_missing'] ?? false),
+                        ]);
+                    }
+                }
 
                 if ($request->input('is_save_and_print') == 1) {
                     $url = $this->transactionUtil->getInvoiceUrl($id, $business_id);
@@ -2997,6 +3029,19 @@ class SellPosController extends Controller
             $this->transactionUtil->mapPurchaseSell($business_data, $transaction->sell_lines, 'purchase');
             //Auto send notification
             $this->notificationUtil->autoSendNotification($business_id, 'new_sale', $transaction, $transaction->contact);
+           // Dispatch event so accounting listeners can process the finalized sale
+           SellCreatedOrModified::dispatch($transaction->fresh());
+
+           // Immediate reconciliation: verify accounting postings were created
+           $reconcileResult = $this->sellPostingAuditService->reconcileTransaction($transaction->fresh());
+           if (!empty($reconcileResult['attempted'])) {
+               \Log::info('Immediate sell posting reconciliation executed after convertToInvoice.', [
+                   'transaction_id' => $transaction->id,
+                   'fixed' => (bool) ($reconcileResult['fixed'] ?? false),
+                   'still_missing' => (bool) ($reconcileResult['still_missing'] ?? false),
+               ]);
+           }
+
 
             DB::commit();
 

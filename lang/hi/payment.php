@@ -562,4 +562,27 @@ return [
     'disabled' => 'अक्षम',
     'auto_close_register_note' => 'उस दिन बिना बिक्री वाले रजिस्टर अपरिवर्तित रहते हैं।',
     'close_at' => 'बंद करें',
+
+    // ── Accounting & Stock Costing Schedulers ─────────────────────────────
+    'accounting_backfill_schedule' => 'अकाउंटिंग बैकफिल शेड्यूलर',
+    'accounting_backfill_schedule_hint' => 'शेड्यूल के अनुसार गायब खाता लेन-देन को स्वचालित रूप से ठीक करें',
+    'toggle_accounting_backfill_schedule' => 'अकाउंटिंग बैकफिल शेड्यूलर टॉगल करें',
+    'accounting_backfill_schedule_note' => 'ओवरलैप सुरक्षा के साथ accounting:backfill-default-accounts चलाता है।',
+    'stock_costing_backfill_schedule' => 'स्टॉक कॉस्टिंग बैकफिल शेड्यूलर',
+    'stock_costing_backfill_schedule_hint' => 'शेड्यूल के अनुसार गायब स्टॉक कॉस्टिंग लेयर्स को स्वचालित रूप से ठीक करें',
+    'toggle_stock_costing_backfill_schedule' => 'स्टॉक कॉस्टिंग बैकफिल शेड्यूलर टॉगल करें',
+    'stock_costing_backfill_schedule_note' => 'ओवरलैप सुरक्षा के साथ stock:backfill-costing-layers चलाता है (बिज़नेस ID और लोकेशन ID आवश्यक)।',
+    'stock_costing_backfill_ids_required' => 'शेड्यूलर सक्रिय करने के लिए बिज़नेस ID और लोकेशन ID आवश्यक हैं।',
+    'frequency' => 'आवृत्ति',
+    'every_15_minutes' => 'हर 15 मिनट',
+    'every_30_minutes' => 'हर 30 मिनट',
+    'hourly' => 'हर घंटे',
+    'daily' => 'दैनिक',
+    'run_at' => 'पर चलाएं',
+    'last_run_at' => 'अंतिम रन',
+    'next_run_at' => 'अगला रन',
+
+    // Stock costing manual actions
+    'run_stock_backfill_dry_run' => 'Dry Run',
+    'run_stock_backfill_now' => 'Backfill abhi chalayen',
 ];

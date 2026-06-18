@@ -112,7 +112,7 @@ class EtimsService
     protected function buildInvoicePayload(Transaction $transaction, AdminSetting $settings)
     {
         // Load relationships
-        $transaction->load(['contact', 'sell_lines.product', 'business']);
+        $transaction->load(['contact', 'sell_lines.product.unit', 'business.currency']);
 
         // Prepare customer information
         $customerName = $transaction->contact ? $transaction->contact->name : 'Walk-in Customer';
@@ -152,6 +152,16 @@ class EtimsService
         // Get TIN from business settings (Tax 1 No.)
         $businessTIN = $transaction->business->tax_number_1 ?? $settings->invoice_pin ?? '';
 
+        $currencyCode = strtoupper((string) ($transaction->business->currency->code ?? 'KES'));
+        if (strlen($currencyCode) !== 3) {
+            $currencyCode = 'KES';
+        }
+
+        $exchangeRate = (float) ($transaction->exchange_rate ?? 1);
+        if ($exchangeRate <= 0) {
+            $exchangeRate = 1;
+        }
+
         // Build main payload
         return [
             'tin' => $businessTIN,
@@ -161,8 +171,8 @@ class EtimsService
             'CustPIN' => $customerPIN,
             'CustName' => $customerName,
             'SaleDate' => $transaction->transaction_date->format('Y-m-d'),
-            'CurrencyCode' => 'KES', // Can be made dynamic based on business currency
-            'ExchangeRate' => 1,
+            'CurrencyCode' => $currencyCode,
+            'ExchangeRate' => $exchangeRate,
             'RefInvoiceNo' => 0,
             'CreditNoteReason' => '',
             'CreatedBy' => 'SYSTEM',

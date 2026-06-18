@@ -525,4 +525,6 @@ return [
 'create_stocktake' => 'Create Stocktake',
 
 
+    'edit_stocktake' => 'Edit Stocktake',
+    'delete_stocktake_permission' => 'Delete Stocktake',
 ];

@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Artisan;
 use App\User;
 use App\Subscription;
 use App\AdminSetting;
 use App\Business;
+use App\BusinessLocation;
 use App\Services\SellPostingAuditService;
 
 class AdminController extends Controller
@@ -24,6 +26,8 @@ class AdminController extends Controller
 {
     $user = auth()->user();
     $settings = AdminSetting::first() ?? new AdminSetting();
+        $accountingBackfillStatus = $this->buildAccountingBackfillStatus($settings);
+        $stockCostingBackfillStatus = $this->buildStockCostingBackfillStatus($settings);
     $auditBusinessId = $user->role === 'admin' ? null : optional($user->business)->id;
     $sellPostingAuditSummary = app(SellPostingAuditService::class)->summarize($auditBusinessId);
 
@@ -66,11 +70,15 @@ class AdminController extends Controller
             ->whereMonth('created_at', now()->month)
             ->sum('amount');
 
+        $schedulerBusinesses = Business::select('id', 'name')->orderBy('name')->get();
+        $schedulerLocations = BusinessLocation::select('id', 'business_id', 'name')->orderBy('name')->get();
+
         return view('admin.dashboard', compact(
             'users', 'recentSubscriptions', 'recentUsers', 'settings',
             'totalUsers', 'activeUsers', 'inactiveUsers', 'terminatedUsers',
             'activeSubscriptions', 'pendingSubscriptions', 'monthlyRevenue',
-            'sellPostingAuditSummary'
+            'sellPostingAuditSummary', 'accountingBackfillStatus', 'stockCostingBackfillStatus',
+            'schedulerBusinesses', 'schedulerLocations'
         ));
     }
 
@@ -115,13 +123,91 @@ class AdminController extends Controller
         ->where('created_at', '>=', now()->startOfMonth())
         ->sum('amount');
 
+    $schedulerBusinesses = Business::select('id', 'name')->orderBy('name')->get();
+    $schedulerLocations = BusinessLocation::select('id', 'business_id', 'name')->orderBy('name')->get();
+
     return view('admin.dashboard', compact(
         'users', 'recentSubscriptions', 'recentUsers', 'settings',
         'totalUsers', 'activeUsers', 'inactiveUsers', 'terminatedUsers',
         'activeSubscriptions', 'pendingSubscriptions', 'monthlyRevenue',
-        'sellPostingAuditSummary'
+        'sellPostingAuditSummary', 'accountingBackfillStatus', 'stockCostingBackfillStatus',
+        'schedulerBusinesses', 'schedulerLocations'
     ));
 }
+
+    /**
+     * Build user-friendly scheduler status for dashboard display.
+     */
+    protected function buildAccountingBackfillStatus(AdminSetting $settings): array
+    {
+        $frequency = $settings->accounting_backfill_frequency ?? 'hourly';
+        $time = $settings->accounting_backfill_time ?? '02:00';
+        $nextRun = null;
+        $now = now();
+
+        switch ($frequency) {
+            case 'every_fifteen_minutes':
+                $nextRun = $now->copy()->addMinutes(15 - ($now->minute % 15))->startOfMinute();
+                break;
+            case 'every_thirty_minutes':
+                $nextRun = $now->copy()->addMinutes(30 - ($now->minute % 30))->startOfMinute();
+                break;
+            case 'daily':
+                if (! preg_match('/^\d{2}:\d{2}$/', (string) $time)) {
+                    $time = '02:00';
+                }
+                [$hour, $minute] = array_map('intval', explode(':', $time));
+                $candidate = $now->copy()->setTime($hour, $minute, 0);
+                $nextRun = $candidate->lessThanOrEqualTo($now) ? $candidate->addDay() : $candidate;
+                break;
+            case 'hourly':
+            default:
+                $nextRun = $now->copy()->addHour()->startOfHour();
+                break;
+        }
+
+        return [
+            'last_run' => $settings->accounting_backfill_last_run_at,
+            'next_run' => $nextRun,
+        ];
+    }
+
+    /**
+     * Build user-friendly scheduler status for stock costing layer backfill display.
+     */
+    protected function buildStockCostingBackfillStatus(AdminSetting $settings): array
+    {
+        $frequency = $settings->stock_costing_backfill_frequency ?? 'daily';
+        $time = $settings->stock_costing_backfill_time ?? '01:30';
+        $nextRun = null;
+        $now = now();
+
+        switch ($frequency) {
+            case 'every_fifteen_minutes':
+                $nextRun = $now->copy()->addMinutes(15 - ($now->minute % 15))->startOfMinute();
+                break;
+            case 'every_thirty_minutes':
+                $nextRun = $now->copy()->addMinutes(30 - ($now->minute % 30))->startOfMinute();
+                break;
+            case 'daily':
+                if (! preg_match('/^\d{2}:\d{2}$/', (string) $time)) {
+                    $time = '01:30';
+                }
+                [$hour, $minute] = array_map('intval', explode(':', $time));
+                $candidate = $now->copy()->setTime($hour, $minute, 0);
+                $nextRun = $candidate->lessThanOrEqualTo($now) ? $candidate->addDay() : $candidate;
+                break;
+            case 'hourly':
+            default:
+                $nextRun = $now->copy()->addHour()->startOfHour();
+                break;
+        }
+
+        return [
+            'last_run' => $settings->stock_costing_backfill_last_run_at,
+            'next_run' => $nextRun,
+        ];
+    }
 
     public function fixSellPostings()
     {
@@ -415,9 +501,33 @@ class AdminController extends Controller
             'etims_transmit_registrations' => 'nullable|boolean',
             'auto_close_register' => 'nullable|boolean',
             'auto_close_register_time' => 'nullable|date_format:H:i',
+            'accounting_backfill_enabled' => 'nullable|boolean',
+            'accounting_backfill_frequency' => 'nullable|in:every_fifteen_minutes,every_thirty_minutes,hourly,daily',
+            'accounting_backfill_time' => 'nullable|date_format:H:i',
+            'stock_costing_backfill_enabled' => 'nullable|boolean',
+            'stock_costing_backfill_frequency' => 'nullable|in:every_fifteen_minutes,every_thirty_minutes,hourly,daily',
+            'stock_costing_backfill_time' => 'nullable|date_format:H:i',
+            'stock_costing_backfill_business_id' => [
+                (
+                    $request->boolean('stock_costing_backfill_enabled')
+                    || $request->boolean('run_stock_costing_backfill_now')
+                    || $request->boolean('run_stock_costing_backfill_dry_run')
+                ) ? 'required' : 'nullable',
+                'integer', 'min:1',
+            ],
+            'stock_costing_backfill_location_id' => [
+                (
+                    $request->boolean('stock_costing_backfill_enabled')
+                    || $request->boolean('run_stock_costing_backfill_now')
+                    || $request->boolean('run_stock_costing_backfill_dry_run')
+                ) ? 'required' : 'nullable',
+                'integer', 'min:1',
+            ],
+            'run_stock_costing_backfill_now' => 'nullable|boolean',
+            'run_stock_costing_backfill_dry_run' => 'nullable|boolean',
         ]);
 
-        $settings = AdminSetting::first();
+        $settings = AdminSetting::firstOrCreate([]);
         // handle logo upload separately
         if ($request->hasFile('company_logo')) {
             try {
@@ -440,6 +550,14 @@ class AdminController extends Controller
             'etims_api_url', 'etims_api_token', 'etims_branch_id', 'etims_auto_transmit', 'etims_transmit_subscriptions', 'etims_transmit_registrations',
             'auto_close_register',
             'auto_close_register_time',
+            'accounting_backfill_enabled',
+            'accounting_backfill_frequency',
+            'accounting_backfill_time',
+            'stock_costing_backfill_enabled',
+            'stock_costing_backfill_frequency',
+            'stock_costing_backfill_time',
+            'stock_costing_backfill_business_id',
+            'stock_costing_backfill_location_id',
         ]));
 
         // update payroll-related settings if present
@@ -456,6 +574,59 @@ class AdminController extends Controller
         }
         if (!empty($updatePayroll)) {
             $settings->update($updatePayroll);
+        }
+
+        if ($request->boolean('run_stock_costing_backfill_now') || $request->boolean('run_stock_costing_backfill_dry_run')) {
+            $businessId = (int) ($settings->stock_costing_backfill_business_id ?? 0);
+            $locationId = (int) ($settings->stock_costing_backfill_location_id ?? 0);
+            $dryRun = $request->boolean('run_stock_costing_backfill_dry_run');
+
+            if ($businessId < 1 || $locationId < 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please select Business and Location before running stock costing backfill manually.',
+                ], 422);
+            }
+
+            $params = [
+                '--business-id' => $businessId,
+                '--location-id' => $locationId,
+            ];
+            if ($dryRun) {
+                $params['--dry-run'] = true;
+            }
+
+            $exitCode = Artisan::call('stock:backfill-costing-layers', $params);
+
+            if ($exitCode !== 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Stock costing backfill run failed. Please check logs/console output.',
+                ], 500);
+            }
+
+            $output = (string) Artisan::output();
+            $needsLayer = null;
+            $layerQty = null;
+            if (preg_match('/Rows needing layer backfill:\s*(\d+)/', $output, $m)) {
+                $needsLayer = (int) $m[1];
+            }
+            if (preg_match('/Layer qty backfilled:\s*([0-9.]+)/', $output, $m)) {
+                $layerQty = $m[1];
+            }
+
+            $runSummary = $dryRun
+                ? 'Stock costing backfill dry-run completed.'
+                : 'Manual stock costing backfill completed.';
+            if ($needsLayer !== null && $layerQty !== null) {
+                $runSummary .= ' Rows '.($dryRun ? 'needing fix' : 'fixed').': '.$needsLayer.', layer qty: '.$layerQty.'.';
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $runSummary,
+                'settings' => $settings->fresh(),
+            ]);
         }
 
         return response()->json([

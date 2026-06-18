@@ -15,6 +15,11 @@ class GrantPurchaseAccessToCashierSeeder extends Seeder
             'purchase.update',
             'purchase.update_status',
             'purchase.payments',
+            'stocktake.view',
+            'stocktake.create',
+            'stocktake.update',
+            'stocktake.delete',
+            'stocktake.complete',
         ];
 
         $permissionIds = [];

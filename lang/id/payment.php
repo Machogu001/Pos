@@ -562,4 +562,27 @@ return [
     'disabled' => 'Nonaktif',
     'auto_close_register_note' => 'Register tanpa penjualan hari itu tidak akan diubah.',
     'close_at' => 'Tutup pada',
+
+    // ── Accounting & Stock Costing Schedulers ─────────────────────────────
+    'accounting_backfill_schedule' => 'Penjadwal Backfill Akuntansi',
+    'accounting_backfill_schedule_hint' => 'Perbaiki transaksi akun yang hilang secara otomatis sesuai jadwal',
+    'toggle_accounting_backfill_schedule' => 'Aktifkan/nonaktifkan penjadwal backfill akuntansi',
+    'accounting_backfill_schedule_note' => 'Menjalankan accounting:backfill-default-accounts dengan perlindungan tumpang tindih.',
+    'stock_costing_backfill_schedule' => 'Penjadwal Backfill Lapisan Biaya Stok',
+    'stock_costing_backfill_schedule_hint' => 'Perbaiki lapisan biaya stok yang hilang secara otomatis sesuai jadwal',
+    'toggle_stock_costing_backfill_schedule' => 'Aktifkan/nonaktifkan penjadwal backfill biaya stok',
+    'stock_costing_backfill_schedule_note' => 'Menjalankan stock:backfill-costing-layers dengan perlindungan (memerlukan ID Bisnis dan ID Lokasi).',
+    'stock_costing_backfill_ids_required' => 'ID Bisnis dan ID Lokasi diperlukan untuk mengaktifkan penjadwal.',
+    'frequency' => 'Frekuensi',
+    'every_15_minutes' => 'Setiap 15 menit',
+    'every_30_minutes' => 'Setiap 30 menit',
+    'hourly' => 'Setiap jam',
+    'daily' => 'Harian',
+    'run_at' => 'Jalankan pada',
+    'last_run_at' => 'Terakhir dijalankan',
+    'next_run_at' => 'Selanjutnya dijalankan',
+
+    // Stock costing manual actions
+    'run_stock_backfill_dry_run' => 'Uji Coba',
+    'run_stock_backfill_now' => 'Jalankan Backfill Sekarang',
 ];

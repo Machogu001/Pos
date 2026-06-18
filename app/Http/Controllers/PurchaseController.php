@@ -9,6 +9,7 @@ use App\Contact;
 use App\CustomerGroup;
 use App\Product;
 use App\PurchaseLine;
+use App\Services\PurchasePostingAuditService;
 use App\TaxRate;
 use App\Transaction;
 use App\User;
@@ -42,12 +43,13 @@ class PurchaseController extends Controller
      * @param  ProductUtils  $product
      * @return void
      */
-    public function __construct(ProductUtil $productUtil, TransactionUtil $transactionUtil, BusinessUtil $businessUtil, ModuleUtil $moduleUtil)
+    public function __construct(ProductUtil $productUtil, TransactionUtil $transactionUtil, BusinessUtil $businessUtil, ModuleUtil $moduleUtil, PurchasePostingAuditService $purchasePostingAuditService)
     {
         $this->productUtil = $productUtil;
         $this->transactionUtil = $transactionUtil;
         $this->businessUtil = $businessUtil;
         $this->moduleUtil = $moduleUtil;
+        $this->purchasePostingAuditService = $purchasePostingAuditService;
 
         $this->dummyPaymentLine = ['method' => 'cash', 'amount' => 0, 'note' => '', 'card_transaction_number' => '', 'card_number' => '', 'card_type' => '', 'card_holder_name' => '', 'card_month' => '', 'card_year' => '', 'card_security' => '', 'cheque_number' => '', 'bank_account_number' => '',
             'is_return' => 0, 'transaction_no' => '', ];
@@ -427,6 +429,16 @@ class PurchaseController extends Controller
 
             DB::commit();
 
+            // Immediate reconciliation: verify purchase accounting postings were created
+            $reconciliation = $this->purchasePostingAuditService->reconcileTransaction($transaction);
+            if ($reconciliation['attempted']) {
+                \Log::info('Immediate purchase posting reconciliation executed', [
+                    'transaction_id' => $transaction->id,
+                    'fixed' => $reconciliation['fixed'],
+                    'still_missing' => $reconciliation['still_missing'],
+                ]);
+            }
+
             $output = ['success' => 1,
                 'msg' => __('purchase.purchase_add_success'),
             ];
@@ -770,6 +782,16 @@ class PurchaseController extends Controller
             PurchaseCreatedOrModified::dispatch($transaction);
 
             DB::commit();
+
+            // Immediate reconciliation: verify purchase accounting postings were created
+            $reconciliation = $this->purchasePostingAuditService->reconcileTransaction($transaction);
+            if ($reconciliation['attempted']) {
+                \Log::info('Immediate purchase posting reconciliation executed', [
+                    'transaction_id' => $transaction->id,
+                    'fixed' => $reconciliation['fixed'],
+                    'still_missing' => $reconciliation['still_missing'],
+                ]);
+            }
 
             $output = ['success' => 1,
                 'msg' => __('purchase.purchase_update_success'),

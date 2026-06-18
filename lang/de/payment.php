@@ -562,4 +562,27 @@ return [
     'disabled' => 'Deaktiviert',
     'auto_close_register_note' => 'Register ohne Umsatz an diesem Tag bleiben unverändert.',
     'close_at' => 'Schließen um',
+
+    // ── Accounting & Stock Costing Schedulers ─────────────────────────────
+    'accounting_backfill_schedule' => 'Buchhaltungs-Backfill-Planer',
+    'accounting_backfill_schedule_hint' => 'Fehlende Kontotransaktionen automatisch nach Zeitplan reparieren',
+    'toggle_accounting_backfill_schedule' => 'Buchhaltungs-Backfill-Planer umschalten',
+    'accounting_backfill_schedule_note' => 'Führt accounting:backfill-default-accounts mit Überlappungsschutz aus.',
+    'stock_costing_backfill_schedule' => 'Lager-Kostenschicht-Backfill-Planer',
+    'stock_costing_backfill_schedule_hint' => 'Fehlende Lagerkostenschichten automatisch nach Zeitplan reparieren',
+    'toggle_stock_costing_backfill_schedule' => 'Lager-Kostenschicht-Backfill-Planer umschalten',
+    'stock_costing_backfill_schedule_note' => 'Führt stock:backfill-costing-layers mit Überlappungsschutz aus (erfordert Unternehmens- und Standort-ID).',
+    'stock_costing_backfill_ids_required' => 'Unternehmens-ID und Standort-ID sind erforderlich, um den Planer zu aktivieren.',
+    'frequency' => 'Häufigkeit',
+    'every_15_minutes' => 'Alle 15 Minuten',
+    'every_30_minutes' => 'Alle 30 Minuten',
+    'hourly' => 'Stündlich',
+    'daily' => 'Täglich',
+    'run_at' => 'Ausführen um',
+    'last_run_at' => 'Letzter Lauf',
+    'next_run_at' => 'Nächster Lauf',
+
+    // Stock costing manual actions
+    'run_stock_backfill_dry_run' => 'Testlauf',
+    'run_stock_backfill_now' => 'Backfill jetzt ausfuhren',
 ];

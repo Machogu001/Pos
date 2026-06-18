@@ -6,6 +6,8 @@ use App\Account;
 use App\AccountTransaction;
 use App\AccountType;
 use App\BusinessLocation;
+use App\MpesaPayment;
+use App\Transaction;
 use App\Utils\BusinessUtil;
 use App\TransactionPayment;
 use App\Utils\TransactionUtil;
@@ -1033,7 +1035,7 @@ class AccountReportsController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $fileName = 'bank_statement_template.csv';
+        $fileName = 'statement_template.csv';
 
         $callback = function () {
             $handle = fopen('php://output', 'w');
@@ -1041,12 +1043,19 @@ class AccountReportsController extends Controller
             // Header row expected by uploadBankReconciliation
             fputcsv($handle, ['Date', 'Amount', 'Description', 'Reference']);
 
-            // Example row for guidance
+            // Example rows for both bank and M-Pesa style statements using the same format.
             fputcsv($handle, [
                 now()->format('Y-m-d'),
                 '1234.56',
-                'Sample payment description',
+                'Bank deposit for invoice INV-00045',
                 'BANK-REF-001',
+            ]);
+
+            fputcsv($handle, [
+                now()->format('Y-m-d'),
+                '1250.00',
+                'M-Pesa customer payment for invoice INV-00046',
+                'QJD7X8Y9Z1',
             ]);
 
             fclose($handle);
@@ -1069,8 +1078,9 @@ class AccountReportsController extends Controller
         $business_id = session()->get('user.business_id');
 
         $validated = $request->validate([
-            'statement' => 'required|file|mimes:csv,txt',
+            'statement' => 'required|file|mimes:csv,txt,xlsx,xls',
             'account_id' => 'nullable|integer',
+            'statement_source' => 'nullable|in:auto,bank,mpesa',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
             'amount_tolerance' => 'nullable|numeric|min:0',
@@ -1079,6 +1089,18 @@ class AccountReportsController extends Controller
             'closing_balance_statement' => 'nullable|numeric',
             'reconciliation_notes' => 'nullable|string|max:2000',
             'preview_only' => 'nullable|boolean',
+        ], [
+            'statement.required' => __('account.no_statement_attached_to_upload'),
+            'statement.file' => __('account.selected_statement_could_not_be_uploaded'),
+            'statement.mimes' => __('account.statement_must_be_csv_or_excel'),
+            'account_id.integer' => __('account.selected_account_invalid'),
+            'statement_source.in' => __('account.selected_statement_source_invalid'),
+            'start_date.date' => __('account.start_date_invalid'),
+            'end_date.date' => __('account.end_date_invalid'),
+            'amount_tolerance.numeric' => __('account.amount_tolerance_invalid'),
+            'date_tolerance_days.integer' => __('account.date_tolerance_invalid'),
+            'opening_balance.numeric' => __('account.opening_balance_invalid'),
+            'closing_balance_statement.numeric' => __('account.statement_closing_balance_invalid'),
         ]);
 
         // Guard against inverted date ranges for deterministic filtering.
@@ -1090,18 +1112,16 @@ class AccountReportsController extends Controller
         }
 
         $file = $request->file('statement');
-        $handle = fopen($file->getRealPath(), 'r');
-        if (! $handle) {
+        $rows = $this->readBankStatementRows($file);
+        if (empty($rows)) {
             return response()->json([
                 'success' => false,
                 'msg' => __('messages.something_went_wrong'),
             ]);
         }
 
-        $header = fgetcsv($handle, 0, ',');
-        if ($header === false) {
-            fclose($handle);
-
+        $header = array_shift($rows);
+        if (empty($header)) {
             return response()->json([
                 'success' => false,
                 'msg' => __('lang_v1.no_data_for_date_range'),
@@ -1113,14 +1133,22 @@ class AccountReportsController extends Controller
             $normalized_header[$index] = strtolower(trim($col));
         }
 
-        $date_index = array_search('date', $normalized_header, true);
-        $amount_index = array_search('amount', $normalized_header, true);
-        $description_index = array_search('description', $normalized_header, true);
-        $reference_index = array_search('reference', $normalized_header, true);
+        $date_index = $this->findStatementColumnIndex($normalized_header, [
+            'date', 'transaction date', 'completion time', 'value date', 'posting date',
+        ]);
+        $amount_index = $this->findStatementColumnIndex($normalized_header, [
+            'amount', 'paid in', 'paid_in', 'credit', 'transaction amount', 'amount paid',
+        ]);
+        $description_index = $this->findStatementColumnIndex($normalized_header, [
+            'description', 'details', 'narration', 'remarks', 'particulars', 'transaction type',
+        ]);
+        $reference_index = $this->findStatementColumnIndex($normalized_header, [
+            'reference', 'ref', 'reference no', 'reference number', 'receipt', 'receipt no',
+            'receipt number', 'transaction id', 'transaction no', 'mpesa receipt', 'mpesa receipt no',
+            'mpesa code', 'code', 'external reference',
+        ]);
 
         if ($date_index === false || $amount_index === false) {
-            fclose($handle);
-
             return response()->json([
                 'success' => false,
                 'msg' => __('messages.custom_error_message', ['msg' => __('account.csv_must_include_date_and_amount_columns')]),
@@ -1132,7 +1160,7 @@ class AccountReportsController extends Controller
         $total_statement_amount = 0;
         $line_number = 1; // header row is line 1
 
-        while (($row = fgetcsv($handle, 0, ',')) !== false) {
+        foreach ($rows as $row) {
             $line_number++;
 
             if (count(array_filter($row, function ($v) { return $v !== null && $v !== ''; })) === 0) {
@@ -1191,8 +1219,6 @@ class AccountReportsController extends Controller
             ];
         }
 
-        fclose($handle);
-
         $matched = [];
         $ambiguous = [];
         $unmatched = [];
@@ -1200,6 +1226,7 @@ class AccountReportsController extends Controller
         $used_payment_ids = [];
 
         $account_id = $validated['account_id'] ?? null;
+        $statement_source = $validated['statement_source'] ?? 'auto';
         $start_date_filter = $validated['start_date'] ?? null;
         $end_date_filter = $validated['end_date'] ?? null;
         $amount_tolerance = isset($validated['amount_tolerance']) ? (float) $validated['amount_tolerance'] : 0.01;
@@ -1253,7 +1280,11 @@ class AccountReportsController extends Controller
             $date = $line['date'];
             $amount = $line['amount'];
 
-            $reference = $line['reference'];
+            $reference = $this->normalizeStatementReference($line['reference']);
+            $statement_description = mb_strtolower(trim((string) ($line['description'] ?? '')));
+            $is_mpesa_line = $statement_source === 'mpesa'
+                || str_contains($statement_description, 'mpesa')
+                || $this->looksLikeMpesaReference($reference);
 
             $dupKey = implode('|', [
                 $line['date'] ?? '',
@@ -1269,7 +1300,7 @@ class AccountReportsController extends Controller
                     'amount' => $line['amount'],
                     'description' => $line['description'],
                     'reference' => $line['reference'],
-                    'reason' => 'Duplicate statement line',
+                    'reason' => __('account.duplicate_statement_line'),
                 ];
 
                 $line_payload[] = [
@@ -1319,7 +1350,13 @@ class AccountReportsController extends Controller
                 $candidates = $baseQuery()
                     ->whereBetween('amount', [$amount - $amount_tolerance, $amount + $amount_tolerance])
                     ->whereBetween(DB::raw('date(paid_on)'), [$start, $end])
-                    ->where('payment_ref_no', $reference)
+                    ->where(function ($query) use ($reference) {
+                        $query->where('payment_ref_no', $reference)
+                            ->orWhere('transaction_no', $reference);
+                    })
+                    ->when($is_mpesa_line, function ($query) {
+                        $query->where('method', 'mpesa');
+                    })
                     ->with(['transaction'])
                     ->get();
             }
@@ -1329,6 +1366,9 @@ class AccountReportsController extends Controller
                 $candidates = $baseQuery()
                     ->whereBetween('amount', [$amount - $amount_tolerance, $amount + $amount_tolerance])
                     ->whereBetween(DB::raw('date(paid_on)'), [$start, $end])
+                    ->when($is_mpesa_line, function ($query) {
+                        $query->where('method', 'mpesa');
+                    })
                     ->with(['transaction'])
                     ->get();
             }
@@ -1339,7 +1379,8 @@ class AccountReportsController extends Controller
                     'id'              => $payment->id,
                     'paid_on'         => $payment->paid_on,
                     'amount'          => $payment->amount,
-                    'payment_ref_no'  => $payment->payment_ref_no,
+                    'payment_ref_no'  => $payment->payment_ref_no ?: $payment->transaction_no,
+                    'transaction_no'  => $payment->transaction_no,
                     'invoice_no'      => optional($txn)->invoice_no ?? optional($txn)->ref_no ?? '',
                     'transaction_type' => optional($txn)->type ?? '',
                     'method'          => $payment->method ?? '',
@@ -1482,6 +1523,7 @@ class AccountReportsController extends Controller
                 [
                     'statement_filename' => $file->getClientOriginalName(),
                     'account_id' => ! empty($account_id) && $account_id !== 'none' ? (int) $account_id : null,
+                    'statement_source' => $statement_source,
                 ]
             );
         }
@@ -1504,6 +1546,7 @@ class AccountReportsController extends Controller
                 'variance_amount' => $variance_amount,
                 'amount_tolerance' => $amount_tolerance,
                 'date_tolerance_days' => $date_tolerance_days,
+                'statement_source' => $statement_source,
             ],
             'matched' => $matched,
             'ambiguous' => $ambiguous,
@@ -1512,11 +1555,221 @@ class AccountReportsController extends Controller
         ]);
     }
 
+    private function findStatementColumnIndex(array $normalizedHeader, array $aliases)
+    {
+        foreach ($aliases as $alias) {
+            $index = array_search($alias, $normalizedHeader, true);
+            if ($index !== false) {
+                return $index;
+            }
+        }
+
+        return false;
+    }
+
+    private function normalizeStatementReference($reference): string
+    {
+        return strtoupper(trim((string) $reference));
+    }
+
+    private function looksLikeMpesaReference(string $reference): bool
+    {
+        if ($reference === '') {
+            return false;
+        }
+
+        return preg_match('/^[A-Z0-9]{8,20}$/', $reference) === 1;
+    }
+
+    private function readBankStatementRows($file): array
+    {
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+
+        if (in_array($extension, ['xlsx', 'xls'], true)) {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
+
+            return collect($spreadsheet->getActiveSheet()->toArray(null, false, false, false))
+                ->map(function ($row) {
+                    return array_map(function ($value) {
+                        return is_string($value) ? trim($value) : $value;
+                    }, $row);
+                })
+                ->filter(function ($row) {
+                    return count(array_filter($row, function ($value) {
+                        return $value !== null && $value !== '';
+                    })) > 0;
+                })
+                ->values()
+                ->all();
+        }
+
+        $handle = fopen($file->getRealPath(), 'r');
+        if (! $handle) {
+            return [];
+        }
+
+        $rows = [];
+        while (($row = fgetcsv($handle, 0, ',')) !== false) {
+            $rows[] = $row;
+        }
+
+        fclose($handle);
+
+        return $rows;
+    }
+
+    private function findSuggestedSellTransactionForStatementLine(int $business_id, $line): ?array
+    {
+        $reference = $this->normalizeStatementReference($line->reference ?? '');
+        $description = strtoupper(trim((string) ($line->description ?? '')));
+        $amount = round((float) ($line->statement_amount ?? 0), 4);
+
+        $references = collect(array_merge([$reference], $this->extractReferenceCandidatesFromText($description)))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($references->isEmpty()) {
+            return null;
+        }
+
+        $transaction = null;
+        $mpesaPayment = MpesaPayment::where('business_id', $business_id)
+            ->where('payment_type', MpesaPayment::TYPE_SELL)
+            ->where(function ($query) use ($references) {
+                foreach ($references as $candidate) {
+                    $query->orWhere('mpesa_receipt_number', $candidate)
+                        ->orWhere('checkout_request_id', $candidate)
+                        ->orWhere('account_reference', $candidate);
+                }
+            })
+            ->when($amount > 0, function ($query) use ($amount) {
+                $query->whereBetween('amount', [$amount - 0.01, $amount + 0.01]);
+            })
+            ->latest('id')
+            ->first();
+
+        if (! empty($mpesaPayment?->consumed_by_transaction_id)) {
+            $transaction = Transaction::with('contact')
+                ->where('business_id', $business_id)
+                ->where('type', 'sell')
+                ->where('status', 'final')
+                ->find($mpesaPayment->consumed_by_transaction_id);
+        }
+
+        if (empty($transaction) && ! empty($mpesaPayment?->account_reference)) {
+            $accountReference = strtoupper(trim((string) $mpesaPayment->account_reference));
+            $transaction = Transaction::with('contact')
+                ->where('business_id', $business_id)
+                ->where('type', 'sell')
+                ->where('status', 'final')
+                ->where(function ($query) use ($accountReference) {
+                    $query->whereRaw('UPPER(invoice_no) = ?', [$accountReference])
+                        ->orWhereRaw('UPPER(ref_no) = ?', [$accountReference]);
+                })
+                ->latest('id')
+                ->first();
+        }
+
+        if (empty($transaction)) {
+            $transaction = Transaction::with('contact')
+                ->where('business_id', $business_id)
+                ->where('type', 'sell')
+                ->where('status', 'final')
+                ->where(function ($query) use ($references) {
+                    foreach ($references as $candidate) {
+                        $query->orWhereRaw('UPPER(invoice_no) = ?', [$candidate])
+                            ->orWhereRaw('UPPER(ref_no) = ?', [$candidate]);
+                    }
+                })
+                ->latest('id')
+                ->first();
+        }
+
+        if (empty($transaction)) {
+            return null;
+        }
+
+        $existingPayment = TransactionPayment::where('transaction_id', $transaction->id)
+            ->where(function ($query) use ($references) {
+                foreach ($references as $candidate) {
+                    $query->orWhere('transaction_no', $candidate)
+                        ->orWhere('payment_ref_no', $candidate);
+                }
+            })
+            ->exists();
+
+        if ($existingPayment) {
+            return null;
+        }
+
+        $due_amount = max(0, round((float) $transaction->final_total - (float) $this->transactionUtil->getTotalPaid($transaction->id), 4));
+        if ($due_amount <= 0) {
+            return null;
+        }
+
+        return [
+            'transaction_id' => $transaction->id,
+            'invoice_no' => $transaction->invoice_no ?: $transaction->ref_no,
+            'contact_name' => optional($transaction->contact)->name ?: optional($transaction->contact)->supplier_business_name,
+            'due_amount' => $due_amount,
+            'suggested_amount' => min($amount > 0 ? $amount : $due_amount, $due_amount),
+        ];
+    }
+
+    private function extractReferenceCandidatesFromText(string $text): array
+    {
+        if ($text === '') {
+            return [];
+        }
+
+        preg_match_all('/[A-Z0-9\-]{6,25}/', $text, $matches);
+
+        return collect($matches[0] ?? [])
+            ->map(function ($value) {
+                return strtoupper(trim((string) $value));
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function consumeMpesaPaymentForTransaction(int $transactionId, ?string $reference): void
+    {
+        if (empty($reference)) {
+            return;
+        }
+
+        $mpesaPayment = MpesaPayment::where(function ($query) use ($reference) {
+            $query->where('mpesa_receipt_number', $reference)
+                ->orWhere('checkout_request_id', $reference);
+        })
+            ->where('transaction_status', 'paid')
+            ->latest('id')
+            ->first();
+
+        if (! empty($mpesaPayment) && (empty($mpesaPayment->consumed_by_transaction_id) || (int) $mpesaPayment->consumed_by_transaction_id === $transactionId)) {
+            $mpesaPayment->update([
+                'consumed_by_transaction_id' => $transactionId,
+                'consumed_at' => now(),
+            ]);
+        }
+    }
+
     /**
      * Parse date formats commonly used in bank statements into Y-m-d.
      */
     private function parseBankStatementDate($rawDate)
     {
+        if (is_numeric($rawDate) && (float) $rawDate > 20000) {
+            try {
+                return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($rawDate)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                // Fall through to string parsing below.
+            }
+        }
+
         $value = trim((string) $rawDate);
         if ($value === '') {
             return null;
@@ -1733,7 +1986,7 @@ class AccountReportsController extends Controller
                 ->keyBy('id');
         }
 
-        $line_data = $lines->map(function ($line) use ($payments) {
+        $line_data = $lines->map(function ($line) use ($payments, $business_id) {
             $candidates = collect(json_decode($line->candidate_payment_ids ?? '[]', true))
                 ->map(function ($id) use ($payments) {
                     $payment = $payments->get($id);
@@ -1745,7 +1998,8 @@ class AccountReportsController extends Controller
                         'id' => $payment->id,
                         'paid_on' => $payment->paid_on,
                         'amount' => (float) $payment->amount,
-                        'payment_ref_no' => $payment->payment_ref_no,
+                        'payment_ref_no' => $payment->payment_ref_no ?: $payment->transaction_no,
+                        'transaction_no' => $payment->transaction_no,
                         'method' => $payment->method,
                         'invoice_no' => optional($payment->transaction)->invoice_no,
                         'transaction_type' => optional($payment->transaction)->type,
@@ -1762,12 +2016,18 @@ class AccountReportsController extends Controller
                         'id' => $payment->id,
                         'paid_on' => $payment->paid_on,
                         'amount' => (float) $payment->amount,
-                        'payment_ref_no' => $payment->payment_ref_no,
+                        'payment_ref_no' => $payment->payment_ref_no ?: $payment->transaction_no,
+                        'transaction_no' => $payment->transaction_no,
                         'method' => $payment->method,
                         'invoice_no' => optional($payment->transaction)->invoice_no,
                         'transaction_type' => optional($payment->transaction)->type,
                     ];
                 }
+            }
+
+            $suggested_transaction = null;
+            if ($line->status === 'unmatched') {
+                $suggested_transaction = $this->findSuggestedSellTransactionForStatementLine($business_id, $line);
             }
 
             return [
@@ -1782,6 +2042,7 @@ class AccountReportsController extends Controller
                 'is_duplicate' => (bool) ($line->is_duplicate ?? false),
                 'matched_payment' => $matched_payment,
                 'candidates' => $candidates,
+                'suggested_transaction' => $suggested_transaction,
             ];
         })->values();
 
@@ -1995,6 +2256,160 @@ class AccountReportsController extends Controller
             'msg' => __('account.reconciliation_manual_unmatch_success'),
             'summary' => $summary,
         ]);
+    }
+
+    public function createMissingPaymentFromBankReconciliationLine($runId, $lineId)
+    {
+        if (! auth()->user()->can('account.access')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $business_id = session()->get('user.business_id');
+        $run = $this->getBankReconciliationRunOrFail($runId);
+
+        if (($run->status ?? 'completed') === 'finalized') {
+            return response()->json([
+                'success' => false,
+                'msg' => __('account.reconciliation_run_already_finalized'),
+            ]);
+        }
+
+        $line = DB::table('bank_reconciliation_lines')
+            ->where('id', $lineId)
+            ->where('run_id', $run->id)
+            ->first();
+
+        if (empty($line)) {
+            return response()->json([
+                'success' => false,
+                'msg' => __('account.reconciliation_line_not_found'),
+            ]);
+        }
+
+        $suggested = $this->findSuggestedSellTransactionForStatementLine($business_id, $line);
+        if (empty($suggested['transaction_id'])) {
+            return response()->json([
+                'success' => false,
+                'msg' => __('account.no_matching_sale_for_statement_line'),
+            ]);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $transaction = Transaction::with(['contact', 'location'])
+                ->where('business_id', $business_id)
+                ->where('type', 'sell')
+                ->where('status', 'final')
+                ->lockForUpdate()
+                ->find($suggested['transaction_id']);
+
+            if (empty($transaction)) {
+                throw new \RuntimeException(__('account.suggested_sale_could_not_be_loaded'));
+            }
+
+            $reference = $this->normalizeStatementReference($line->reference ?? '');
+            $existingPaymentQuery = TransactionPayment::where('transaction_id', $transaction->id);
+            if ($reference !== '') {
+                $existingPaymentQuery->where(function ($query) use ($reference) {
+                    $query->where('transaction_no', $reference)
+                        ->orWhere('payment_ref_no', $reference);
+                });
+            }
+
+            if ($existingPaymentQuery->exists()) {
+                throw new \RuntimeException(__('account.payment_reference_already_exists_on_sale'));
+            }
+
+            $total_paid = $this->transactionUtil->getTotalPaid($transaction->id);
+            $due_amount = max(0, round((float) $transaction->final_total - (float) $total_paid, 4));
+            $statement_amount = round((float) ($line->statement_amount ?? 0), 4);
+            $payment_amount = min($statement_amount, $due_amount);
+
+            if ($payment_amount <= 0) {
+                throw new \RuntimeException(__('account.no_outstanding_balance_for_statement_payment'));
+            }
+
+            $ref_count = $this->transactionUtil->setAndGetReferenceCount('sell_payment', $transaction->business_id);
+            $payment_ref_no = $this->transactionUtil->generateReferenceNumber('sell_payment', $ref_count, $transaction->business_id);
+            $account_id = ! empty($run->account_id)
+                ? (int) $run->account_id
+                : TransactionPayment::resolveDefaultAccountId('mpesa', $transaction->location_id, $transaction->business_id, $transaction->type);
+
+            $inputs = [
+                'paid_on' => $line->statement_date ? $line->statement_date . ' 00:00:00' : now()->toDateTimeString(),
+                'transaction_id' => $transaction->id,
+                'amount' => $payment_amount,
+                'payment_for' => $transaction->contact_id,
+                'method' => 'mpesa',
+                'note' => __('account.statement_reconciliation_created_note', [
+                    'run_id' => $run->id,
+                    'line_no' => $line->line_no ?? $line->id,
+                ]),
+                'business_id' => $transaction->business_id,
+                'payment_ref_no' => $payment_ref_no,
+                'created_by' => auth()->id(),
+                'account_id' => $account_id,
+                'transaction_no' => $reference !== '' ? $reference : null,
+                'transaction_type' => $transaction->type,
+            ];
+
+            $tp = TransactionPayment::create($inputs);
+            event(new \App\Events\TransactionPaymentAdded($tp, $inputs));
+
+            $payment_status = $this->transactionUtil->updatePaymentStatus($transaction->id, $transaction->final_total);
+            $transaction->payment_status = $payment_status;
+            $transaction->save();
+
+            $this->consumeMpesaPaymentForTransaction($transaction->id, $reference);
+
+            DB::table('bank_reconciliation_lines')
+                ->where('id', $line->id)
+                ->update([
+                    'status' => 'matched',
+                    'match_type' => 'manual',
+                    'matched_transaction_payment_id' => $tp->id,
+                    'reviewed_by' => auth()->id(),
+                    'reviewed_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+            $this->logBankReconciliationAudit(
+                $run->id,
+                'create_missing_payment',
+                'line',
+                $line->id,
+                [
+                    'status' => $line->status,
+                    'matched_transaction_payment_id' => $line->matched_transaction_payment_id,
+                ],
+                [
+                    'status' => 'matched',
+                    'matched_transaction_payment_id' => $tp->id,
+                ],
+                [
+                    'line_no' => $line->line_no,
+                    'transaction_id' => $transaction->id,
+                    'invoice_no' => $transaction->invoice_no,
+                ]
+            );
+
+            $summary = $this->recalculateBankReconciliationRun($run->id);
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'msg' => 'Missing sales payment created and matched successfully.',
+                'summary' => $summary,
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'msg' => $e->getMessage() ?: __('messages.something_went_wrong'),
+            ]);
+        }
     }
 
     /**

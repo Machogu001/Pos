@@ -55,6 +55,9 @@ class SyncAccountingJournalEntryMapping
             return true;
         }
 
+        // Refresh transaction from database to get latest journal_entry_id
+        $transaction = $transaction->fresh() ?? $transaction;
+        
         if (!empty($transaction->journal_entry_id)) {
             return true;
         }
@@ -91,6 +94,12 @@ class SyncAccountingJournalEntryMapping
         }
 
         DB::transaction(function () use ($transaction, $business, $chartOfAccount, $amount, $mapType, $mappingFor) {
+            // Double-check inside transaction for concurrent safety
+            $currentTransaction = $transaction::lockForUpdate()->find($transaction->id);
+            if (!empty($currentTransaction->journal_entry_id)) {
+                return;
+            }
+
             $paymentDetail = new PaymentDetail();
             $paymentDetail->created_by_id = (int) ($transaction->created_by ?: 1);
             $paymentDetail->payment_type_id = 1;
@@ -118,8 +127,8 @@ class SyncAccountingJournalEntryMapping
             $journalEntry->notes = 'Auto-mapped by accounting integration';
             $journalEntry->save();
 
-            $transaction->journal_entry_id = $journalEntry->id;
-            $transaction->save();
+            $currentTransaction->journal_entry_id = $journalEntry->id;
+            $currentTransaction->save();
         });
 
         return true;

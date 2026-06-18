@@ -1365,4 +1365,12 @@ return [
     'status' => 'Status',
     'id' => 'ID',
     'sr_no' => 'S/N',
+
+    // ── Scheduler labels ──────────────────────────────────────────
+    'business' => 'Bedrijf',
+    'location' => 'Locatie',
+
+    // System settings sections
+    'general' => 'Algemeen',
+    'scheduled_tasks' => 'Geplande taken',
 ];

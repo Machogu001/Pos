@@ -562,4 +562,27 @@ return [
     'disabled' => 'Devre Dışı',
     'auto_close_register_note' => 'O gün satışı olmayan kasalar değiştirilmeden bırakılır.',
     'close_at' => 'Kapat saat',
+
+    // ── Accounting & Stock Costing Schedulers ─────────────────────────────
+    'accounting_backfill_schedule' => 'Muhasebe Geri Doldurma Zamanlayıcısı',
+    'accounting_backfill_schedule_hint' => 'Eksik hesap işlemlerini otomatik olarak programa göre onar',
+    'toggle_accounting_backfill_schedule' => 'Muhasebe geri doldurma zamanlayıcısını aç/kapat',
+    'accounting_backfill_schedule_note' => 'accounting:backfill-default-accounts komutunu çakışma korumasıyla çalıştırır.',
+    'stock_costing_backfill_schedule' => 'Stok Maliyet Katmanı Geri Doldurma Zamanlayıcısı',
+    'stock_costing_backfill_schedule_hint' => 'Eksik stok maliyet katmanlarını otomatik olarak programa göre onar',
+    'toggle_stock_costing_backfill_schedule' => 'Stok maliyet katmanı zamanlayıcısını aç/kapat',
+    'stock_costing_backfill_schedule_note' => 'stock:backfill-costing-layers komutunu çalıştırır (İşletme ID ve Konum ID gerektirir).',
+    'stock_costing_backfill_ids_required' => 'Zamanlayıcıyı etkinleştirmek için İşletme ID ve Konum ID gereklidir.',
+    'frequency' => 'Sıklık',
+    'every_15_minutes' => 'Her 15 dakikada bir',
+    'every_30_minutes' => 'Her 30 dakikada bir',
+    'hourly' => 'Saatlik',
+    'daily' => 'Günlük',
+    'run_at' => 'Çalışma zamanı',
+    'last_run_at' => 'Son çalışma',
+    'next_run_at' => 'Sonraki çalışma',
+
+    // Stock costing manual actions
+    'run_stock_backfill_dry_run' => 'Deneme Calistirmasi',
+    'run_stock_backfill_now' => 'Backfilli Simdi Calistir',
 ];

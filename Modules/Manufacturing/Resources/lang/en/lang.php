@@ -19,5 +19,6 @@ return [
     'status_in_progress'     => 'In Progress',
     'status_completed'       => 'Completed',
     'quantity_produced'      => 'Quantity Produced',
+    'only_mfg_products'      => 'Only manufacturing products',
     'produce'                => 'Produce',
 ];

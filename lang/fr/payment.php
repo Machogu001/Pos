@@ -562,4 +562,27 @@ return [
     'disabled' => 'Désactivé',
     'auto_close_register_note' => 'Les caisses sans ventes ce jour-là restent inchangées.',
     'close_at' => 'Fermer à',
+
+    // ── Accounting & Stock Costing Schedulers ─────────────────────────────
+    'accounting_backfill_schedule' => 'Planificateur de remplissage comptable',
+    'accounting_backfill_schedule_hint' => 'Réparer automatiquement les transactions comptables manquantes selon un calendrier',
+    'toggle_accounting_backfill_schedule' => 'Activer/désactiver le planificateur de remplissage comptable',
+    'accounting_backfill_schedule_note' => 'Exécute accounting:backfill-default-accounts avec protection contre le chevauchement.',
+    'stock_costing_backfill_schedule' => 'Planificateur de remplissage des couches de coût de stock',
+    'stock_costing_backfill_schedule_hint' => 'Réparer automatiquement les couches de coût de stock manquantes selon un calendrier',
+    'toggle_stock_costing_backfill_schedule' => 'Activer/désactiver le planificateur de remplissage de stock',
+    'stock_costing_backfill_schedule_note' => 'Exécute stock:backfill-costing-layers avec protection (nécessite l\'ID entreprise et l\'ID emplacement).',
+    'stock_costing_backfill_ids_required' => 'L\'ID entreprise et l\'ID emplacement sont requis pour activer le planificateur.',
+    'frequency' => 'Fréquence',
+    'every_15_minutes' => 'Toutes les 15 minutes',
+    'every_30_minutes' => 'Toutes les 30 minutes',
+    'hourly' => 'Toutes les heures',
+    'daily' => 'Quotidien',
+    'run_at' => 'Exécuter à',
+    'last_run_at' => 'Dernière exécution',
+    'next_run_at' => 'Prochaine exécution',
+
+    // Stock costing manual actions
+    'run_stock_backfill_dry_run' => 'Simulation',
+    'run_stock_backfill_now' => 'Executer le backfill maintenant',
 ];

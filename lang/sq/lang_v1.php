@@ -1354,4 +1354,12 @@ return [
     'status' => 'Status',
     'id' => 'ID',
     'sr_no' => 'S/N',
+
+    // ── Scheduler labels ──────────────────────────────────────────
+    'business' => 'Biznes',
+    'location' => 'Vendndodhja',
+
+    // System settings sections
+    'general' => 'Te pergjithshme',
+    'scheduled_tasks' => 'Detyra te planifikuara',
 ];

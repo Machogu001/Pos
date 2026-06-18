@@ -4,7 +4,10 @@ namespace App\Services;
 
 use App\Business;
 use App\Events\SellCreatedOrModified;
+use App\Listeners\SyncSellDefaultAccountTransaction;
 use App\Transaction;
+use App\TransactionPayment;
+use App\Utils\ModuleUtil;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -12,6 +15,104 @@ use Illuminate\Support\Facades\Schema;
 
 class SellPostingAuditService
 {
+    public function reconcileTransaction(Transaction $transaction): array
+    {
+        if (
+            empty($transaction)
+            || $transaction->type !== 'sell'
+            || $transaction->status !== 'final'
+            || $transaction->sub_type === 'subscription_invoice'
+        ) {
+            Log::debug('SellPostingAuditService::reconcileTransaction - transaction does not meet criteria', [
+                'transaction_id' => $transaction->id ?? null,
+                'type' => $transaction->type ?? null,
+                'status' => $transaction->status ?? null,
+                'sub_type' => $transaction->sub_type ?? null,
+            ]);
+            return ['attempted' => false, 'fixed' => false, 'still_missing' => false];
+        }
+
+        $transactionId = (int) $transaction->id;
+        $businessId = (int) ($transaction->business_id ?? 0);
+
+        if (! $this->isAccountModuleEnabledForBusiness($businessId)) {
+            Log::debug('SellPostingAuditService::reconcileTransaction - skipped because account module is disabled', [
+                'transaction_id' => $transactionId,
+                'business_id' => $businessId,
+            ]);
+
+            return ['attempted' => false, 'fixed' => false, 'still_missing' => false];
+        }
+        
+        // First check: are postings missing?
+        $wasMissing = $this->isTransactionMissingPostings($transactionId);
+
+        Log::debug('SellPostingAuditService::reconcileTransaction - first check', [
+            'transaction_id' => $transactionId,
+            'was_missing' => $wasMissing,
+        ]);
+
+        if (! $wasMissing) {
+            // Postings already exist - no need for reconciliation
+            return ['attempted' => false, 'fixed' => false, 'still_missing' => false];
+        }
+
+        $missingBeforeRepair = $this->getMissingPostingTypes($transactionId);
+        $diagnosticsBeforeRepair = $this->diagnoseMissingReason($transaction->fresh() ?? $transaction, $missingBeforeRepair);
+
+        // Postings were missing on first check - re-dispatch event and retry with backoff
+        Log::warning('SellPostingAuditService - missing postings detected, re-dispatching event', [
+            'transaction_id' => $transactionId,
+            'missing_postings' => $missingBeforeRepair,
+            'diagnostics' => $diagnosticsBeforeRepair,
+        ]);
+        
+        event(new SellCreatedOrModified($transaction->fresh() ?? $transaction));
+
+        // Retry a few times with brief backoff; event listeners can finish a little later.
+        $stillMissing = true;
+        foreach ([100000, 250000, 500000] as $sleepMicros) {
+            DB::reconnect();
+            usleep($sleepMicros);
+            $stillMissing = $this->isTransactionMissingPostings($transactionId);
+            if (! $stillMissing) {
+                break;
+            }
+        }
+
+        // Last-resort forced sync to avoid leaving transactions missing postings.
+        if ($stillMissing) {
+            try {
+                app(SyncSellDefaultAccountTransaction::class)
+                    ->handle(new SellCreatedOrModified($transaction->fresh() ?? $transaction));
+                DB::reconnect();
+                $stillMissing = $this->isTransactionMissingPostings($transactionId);
+            } catch (\Throwable $e) {
+                Log::error('SellPostingAuditService::reconcileTransaction - forced sync failed', [
+                    'transaction_id' => $transactionId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $missingAfterRepair = $this->getMissingPostingTypes($transactionId);
+        $diagnosticsAfterRepair = $this->diagnoseMissingReason($transaction->fresh() ?? $transaction, $missingAfterRepair);
+
+        Log::info('SellPostingAuditService::reconcileTransaction - repair attempt completed', [
+            'transaction_id' => $transactionId,
+            'was_missing_initially' => true,
+            'still_missing_after_retry' => $stillMissing,
+            'missing_postings_after_retry' => $missingAfterRepair,
+            'diagnostics' => $diagnosticsAfterRepair,
+        ]);
+
+        return [
+            'attempted' => true,
+            'fixed' => ! $stillMissing,
+            'still_missing' => $stillMissing,
+        ];
+    }
+
     public function summarize(?int $businessId = null): array
     {
         $businessSummaries = $this->getBusinessSummaries($businessId);
@@ -117,7 +218,11 @@ class SellPostingAuditService
             ->when(! empty($businessId), function ($query) use ($businessId) {
                 $query->where('id', $businessId);
             })
-            ->get();
+            ->get()
+            ->filter(function ($business) {
+                return $this->isAccountModuleEnabledForBusiness((int) $business->id);
+            })
+            ->values();
 
         return $businesses->map(function ($business) {
             $base = $this->baseSellQuery((int) $business->id);
@@ -161,7 +266,50 @@ class SellPostingAuditService
             ->distinct()
             ->orderBy('t.id');
 
+        if (empty($businessId)) {
+            $enabledBusinessIds = Business::query()
+                ->select('id')
+                ->get()
+                ->filter(function ($business) {
+                    return $this->isAccountModuleEnabledForBusiness((int) $business->id);
+                })
+                ->pluck('id')
+                ->all();
+
+            if (empty($enabledBusinessIds)) {
+                return collect();
+            }
+
+            $query->whereIn('t.business_id', $enabledBusinessIds);
+        } elseif (! $this->isAccountModuleEnabledForBusiness((int) $businessId)) {
+            return collect();
+        }
+
         return $query->get();
+    }
+
+    protected function isTransactionMissingPostings(int $transactionId): bool
+    {
+        $query = DB::table('transactions as t')
+            ->where('t.id', $transactionId)
+            ->where('t.type', 'sell')
+            ->where('t.status', 'final')
+            ->where(function ($subQuery) {
+                $subQuery->whereNull('t.sub_type')
+                    ->orWhere('t.sub_type', '!=', 'subscription_invoice');
+            })
+            ->leftJoin('account_transactions as atc', function ($join) {
+                $this->applyPostingJoin($join, 'atc', 'sell_invoice_cogs');
+            })
+            ->leftJoin('account_transactions as ati', function ($join) {
+                $this->applyPostingJoin($join, 'ati', 'sell_invoice_inventory');
+            })
+            ->where(function ($query) {
+                $query->whereNull('atc.id')
+                    ->orWhereNull('ati.id');
+            });
+
+        return $query->exists();
     }
 
     protected function baseSellQuery(?int $businessId = null)
@@ -216,5 +364,97 @@ class SellPostingAuditService
         }
 
         return $hasDeletedAt;
+    }
+
+    protected function getMissingPostingTypes(int $transactionId): array
+    {
+        $row = DB::table('transactions as t')
+            ->where('t.id', $transactionId)
+            ->where('t.type', 'sell')
+            ->where('t.status', 'final')
+            ->where(function ($subQuery) {
+                $subQuery->whereNull('t.sub_type')
+                    ->orWhere('t.sub_type', '!=', 'subscription_invoice');
+            })
+            ->leftJoin('account_transactions as atc', function ($join) {
+                $this->applyPostingJoin($join, 'atc', 'sell_invoice_cogs');
+            })
+            ->leftJoin('account_transactions as ati', function ($join) {
+                $this->applyPostingJoin($join, 'ati', 'sell_invoice_inventory');
+            })
+            ->select('atc.id as cogs_id', 'ati.id as inventory_id')
+            ->first();
+
+        if (empty($row)) {
+            return [];
+        }
+
+        $missing = [];
+        if (empty($row->cogs_id)) {
+            $missing[] = 'sell_invoice_cogs';
+        }
+        if (empty($row->inventory_id)) {
+            $missing[] = 'sell_invoice_inventory';
+        }
+
+        return $missing;
+    }
+
+    protected function diagnoseMissingReason(Transaction $transaction, array $missingPostings): array
+    {
+        if (empty($missingPostings)) {
+            return [];
+        }
+
+        $businessId = (int) ($transaction->business_id ?? 0);
+        $moduleEnabled = app(ModuleUtil::class)->isModuleEnabled('account', $businessId);
+        $cogsMapping = (int) (TransactionPayment::resolveDefaultAccountMapping('cogs', $businessId) ?: 0);
+        $inventoryMapping = (int) (TransactionPayment::resolveDefaultAccountMapping('inventory', $businessId) ?: 0);
+        $cogsAmount = (float) DB::table('transaction_sell_lines as tsl')
+            ->join('variations as v', 'tsl.variation_id', '=', 'v.id')
+            ->where('tsl.transaction_id', $transaction->id)
+            ->where(function ($query) {
+                $query->whereNull('tsl.children_type')
+                    ->orWhere('tsl.children_type', '!=', 'combo');
+            })
+            ->sum(DB::raw('(tsl.quantity - COALESCE(tsl.quantity_returned, 0)) * COALESCE(NULLIF(v.dpp_inc_tax, 0), v.default_purchase_price, 0)'));
+
+        $reasons = [];
+        if (! $moduleEnabled) {
+            $reasons[] = 'module_disabled';
+        }
+        if (in_array('sell_invoice_cogs', $missingPostings, true) && $cogsMapping <= 0) {
+            $reasons[] = 'missing_mapping:cogs';
+        }
+        if (in_array('sell_invoice_inventory', $missingPostings, true) && $inventoryMapping <= 0) {
+            $reasons[] = 'missing_mapping:inventory';
+        }
+        if ($cogsAmount <= 0) {
+            $reasons[] = 'zero_cogs_amount';
+        }
+        if (empty($reasons)) {
+            $reasons[] = 'unknown_check_listener_logs';
+        }
+
+        return [
+            'module_enabled' => $moduleEnabled,
+            'cogs_mapping' => $cogsMapping,
+            'inventory_mapping' => $inventoryMapping,
+            'cogs_amount' => round($cogsAmount, 4),
+            'reasons' => $reasons,
+        ];
+    }
+
+    protected function isAccountModuleEnabledForBusiness(int $businessId): bool
+    {
+        if ($businessId <= 0) {
+            return false;
+        }
+
+        try {
+            return app(ModuleUtil::class)->isModuleEnabled('account', $businessId);
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 }

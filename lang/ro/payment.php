@@ -562,4 +562,27 @@ return [
     'disabled' => 'Dezactivat',
     'auto_close_register_note' => 'Casele fără vânzări în acea zi rămân neschimbate.',
     'close_at' => 'Închide la',
+
+    // ── Accounting & Stock Costing Schedulers ─────────────────────────────
+    'accounting_backfill_schedule' => 'Planificator Backfill Contabilitate',
+    'accounting_backfill_schedule_hint' => 'Reparați automat tranzacțiile contabile lipsă conform unui program',
+    'toggle_accounting_backfill_schedule' => 'Comutați planificatorul backfill contabilitate',
+    'accounting_backfill_schedule_note' => 'Rulează accounting:backfill-default-accounts cu protecție la suprapunere.',
+    'stock_costing_backfill_schedule' => 'Planificator Backfill Straturi Cost Stoc',
+    'stock_costing_backfill_schedule_hint' => 'Reparați automat straturile de cost de stoc lipsă conform unui program',
+    'toggle_stock_costing_backfill_schedule' => 'Comutați planificatorul backfill stoc',
+    'stock_costing_backfill_schedule_note' => 'Rulează stock:backfill-costing-layers (necesită ID firmă și ID locație).',
+    'stock_costing_backfill_ids_required' => 'ID firmă și ID locație sunt necesare pentru a activa planificatorul.',
+    'frequency' => 'Frecvență',
+    'every_15_minutes' => 'La fiecare 15 minute',
+    'every_30_minutes' => 'La fiecare 30 de minute',
+    'hourly' => 'La fiecare oră',
+    'daily' => 'Zilnic',
+    'run_at' => 'Rulare la',
+    'last_run_at' => 'Ultima rulare',
+    'next_run_at' => 'Următoarea rulare',
+
+    // Stock costing manual actions
+    'run_stock_backfill_dry_run' => 'Rulare test',
+    'run_stock_backfill_now' => 'Ruleaza backfill acum',
 ];

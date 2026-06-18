@@ -3517,7 +3517,7 @@ class TransactionUtil extends Util
 	
 // Add this to TransactionUtil class
 public function mapPurchaseSell(
-    $business_id,
+    $business,
     $transaction_lines,
     $mapping_type = 'purchase',
     $check_expiry = true,
@@ -3525,15 +3525,214 @@ public function mapPurchaseSell(
     $is_stocktake_reduction = false,
     $location_id = null
 ) {
-    // ✅ Stocktake Reduction case (negative adjustment)
+    if (empty($transaction_lines)) {
+        return false;
+    }
+
+    // Stocktake reduction case (negative adjustment)
     if ($mapping_type === 'stock_adjustment' && $is_stocktake_reduction) {
         foreach ($transaction_lines as $line) {
-            $this->mapPurchaseSellForStocktakeReduction($business_id, $line, $location_id);
+            $this->mapPurchaseSellForStocktakeReduction($business['id'] ?? $business, $line, $location_id);
         }
+
         return true;
     }
 
-    // ... rest of existing logic for normal purchases
+    if (! empty($business['pos_settings']) && ! is_array($business['pos_settings'])) {
+        $business['pos_settings'] = json_decode($business['pos_settings'], true);
+    }
+    $allow_overselling = ! empty($business['pos_settings']['allow_overselling']) ? true : false;
+
+    // Set flag to check for expired items during SELLING only.
+    $stop_selling_expired = false;
+    if ($check_expiry) {
+        if (session()->has('business') && request()->session()->get('business')['enable_product_expiry'] == 1 && request()->session()->get('business')['on_product_expiry'] == 'stop_selling') {
+            if ($mapping_type == 'purchase') {
+                $stop_selling_expired = true;
+            }
+        }
+    }
+
+    $qty_selling = null;
+    foreach ($transaction_lines as $line) {
+        // Check if stock is not enabled then no need to assign purchase & sell
+        $product = Product::find($line->product_id);
+        if (empty($product) || $product->enable_stock != 1) {
+            continue;
+        }
+
+        $qty_sum_query = $this->get_pl_quantity_sum_string('PL');
+
+        // Get purchase lines, only for products with enable stock.
+        $query = Transaction::join('purchase_lines AS PL', 'transactions.id', '=', 'PL.transaction_id')
+            ->where('transactions.business_id', $business['id'])
+            ->where('transactions.location_id', $business['location_id'])
+            ->whereIn('transactions.type', ['purchase', 'purchase_transfer',
+                'opening_stock', 'production_purchase', 'stocktake_adjustment'])
+            ->where('transactions.status', 'received')
+            ->whereRaw("( $qty_sum_query ) < PL.quantity")
+            ->where('PL.product_id', $line->product_id)
+            ->where('PL.variation_id', $line->variation_id);
+
+        // If product expiry is enabled then check for on expiry conditions
+        if ($stop_selling_expired && empty($purchase_line_id)) {
+            $stop_before = request()->session()->get('business')['stop_selling_before'];
+            $expiry_date = \Carbon::today()->addDays($stop_before)->toDateString();
+            $query->where(function ($q) use ($expiry_date) {
+                $q->whereNull('PL.exp_date')
+                    ->orWhereRaw('PL.exp_date > ?', [$expiry_date]);
+            });
+        }
+
+        // If lot number present consider only lot number purchase line
+        if (! empty($line->lot_no_line_id)) {
+            $query->where('PL.id', $line->lot_no_line_id);
+        }
+
+        // If purchase_line_id is given consider only that purchase line
+        if (! empty($purchase_line_id)) {
+            $query->where('PL.id', $purchase_line_id);
+        }
+
+        // Sort according to LIFO or FIFO
+        if ($business['accounting_method'] == 'lifo') {
+            $query = $query->orderBy('transaction_date', 'desc');
+        } else {
+            $query = $query->orderBy('transaction_date', 'asc');
+        }
+
+        $rows = $query->select(
+            'PL.id as purchase_lines_id',
+            DB::raw("(PL.quantity - ( $qty_sum_query )) AS quantity_available"),
+            'PL.quantity_sold as quantity_sold',
+            'PL.quantity_adjusted as quantity_adjusted',
+            'PL.quantity_returned as quantity_returned',
+            'PL.mfg_quantity_used as mfg_quantity_used',
+            'transactions.invoice_no'
+                )->get();
+
+        $purchase_sell_map = [];
+        $purchase_adjustment_map = [];
+
+        // Iterate over the rows, assign the purchase line to sell lines.
+        $qty_selling = $line->quantity;
+        foreach ($rows as $k => $row) {
+            $qty_allocated = 0;
+
+            // Check if qty_available is more or equal
+            if ($qty_selling <= $row->quantity_available) {
+                $qty_allocated = $qty_selling;
+                $qty_selling = 0;
+            } else {
+                $qty_selling = $qty_selling - $row->quantity_available;
+                $qty_allocated = $row->quantity_available;
+            }
+
+            // Check for sell mapping or stock adjustment mapping
+            if ($mapping_type == 'stock_adjustment') {
+                // Mapping of stock adjustment
+                if ($qty_allocated != 0) {
+                    $purchase_adjustment_map[] =
+                        ['stock_adjustment_line_id' => $line->id,
+                            'purchase_line_id' => $row->purchase_lines_id,
+                            'quantity' => $qty_allocated,
+                            'created_at' => \Carbon::now(),
+                            'updated_at' => \Carbon::now(),
+                        ];
+
+                    // Update purchase line
+                    PurchaseLine::where('id', $row->purchase_lines_id)
+                        ->update(['quantity_adjusted' => $row->quantity_adjusted + $qty_allocated]);
+                }
+            } elseif ($mapping_type == 'purchase') {
+                // Mapping of purchase
+                if ($qty_allocated != 0) {
+                    $purchase_sell_map[] = ['sell_line_id' => $line->id,
+                        'purchase_line_id' => $row->purchase_lines_id,
+                        'quantity' => $qty_allocated,
+                        'created_at' => \Carbon::now(),
+                        'updated_at' => \Carbon::now(),
+                    ];
+                    // Update purchase line
+                    PurchaseLine::where('id', $row->purchase_lines_id)
+                        ->update(['quantity_sold' => $row->quantity_sold + $qty_allocated]);
+                }
+            } elseif ($mapping_type == 'production_purchase') {
+                if ($qty_allocated != 0) {
+                    $purchase_sell_map[] = ['sell_line_id' => $line->id,
+                        'purchase_line_id' => $row->purchase_lines_id,
+                        'quantity' => $qty_allocated,
+                        'created_at' => \Carbon::now(),
+                        'updated_at' => \Carbon::now(),
+                    ];
+
+                    // Update purchase line
+                    PurchaseLine::where('id', $row->purchase_lines_id)
+                        ->update(['mfg_quantity_used' => $row->mfg_quantity_used + $qty_allocated]);
+                }
+            }
+
+            if ($qty_selling == 0) {
+                break;
+            }
+        }
+
+        if (! ($qty_selling == 0 || is_null($qty_selling))) {
+            // If overselling not allowed throw exception else create mapping with blank purchase_line_id
+            if (! $allow_overselling) {
+                $variation = Variation::find($line->variation_id);
+                $mismatch_name = $product->name;
+                if (! empty($variation->sub_sku)) {
+                    $mismatch_name .= ' '.'SKU: '.$variation->sub_sku;
+                }
+                if (! empty($qty_selling)) {
+                    $mismatch_name .= ' '.'Quantity: '.abs($qty_selling);
+                }
+
+                if ($mapping_type == 'purchase') {
+                    $mismatch_error = trans(
+                        'messages.purchase_sell_mismatch_exception',
+                        ['product' => $mismatch_name]
+                    );
+
+                    if ($stop_selling_expired) {
+                        $mismatch_error .= __('lang_v1.available_stock_expired');
+                    }
+                } elseif ($mapping_type == 'stock_adjustment') {
+                    $mismatch_error = trans(
+                        'messages.purchase_stock_adjustment_mismatch_exception',
+                        ['product' => $mismatch_name]
+                    );
+                } else {
+                    $mismatch_error = trans(
+                        'lang_v1.quantity_mismatch_exception',
+                        ['product' => $mismatch_name]
+                    );
+                }
+
+                $business_name = optional(Business::find($business['id']))->name;
+                $location_name = optional(BusinessLocation::find($business['location_id']))->name;
+                \Log::emergency($mismatch_error.' Business: '.$business_name.' Location: '.$location_name);
+                throw new PurchaseSellMismatch($mismatch_error);
+            } else {
+                // Mapping with no purchase line
+                $purchase_sell_map[] = ['sell_line_id' => $line->id,
+                    'purchase_line_id' => 0,
+                    'quantity' => $qty_selling,
+                    'created_at' => \Carbon::now(),
+                    'updated_at' => \Carbon::now(),
+                ];
+            }
+        }
+
+        // Insert the mapping
+        if (! empty($purchase_adjustment_map)) {
+            TransactionSellLinesPurchaseLines::insert($purchase_adjustment_map);
+        }
+        if (! empty($purchase_sell_map)) {
+            TransactionSellLinesPurchaseLines::insert($purchase_sell_map);
+        }
+    }
 }
 
 /**
@@ -3589,209 +3788,7 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
     }
 
     return true;
-
-	// Stocktake Module Included
-        if (empty($transaction_lines)) {
-            return false;
-        }
-
-        if (! empty($business['pos_settings']) && ! is_array($business['pos_settings'])) {
-            $business['pos_settings'] = json_decode($business['pos_settings'], true);
-        }
-        $allow_overselling = ! empty($business['pos_settings']['allow_overselling']) ?
-                            true : false;
-
-        //Set flag to check for expired items during SELLING only.
-        $stop_selling_expired = false;
-        if ($check_expiry) {
-            if (session()->has('business') && request()->session()->get('business')['enable_product_expiry'] == 1 && request()->session()->get('business')['on_product_expiry'] == 'stop_selling') {
-                if ($mapping_type == 'purchase') {
-                    $stop_selling_expired = true;
-                }
-            }
-        }
-
-        $qty_selling = null;
-        foreach ($transaction_lines as $line) {
-            //Check if stock is not enabled then no need to assign purchase & sell
-            $product = Product::find($line->product_id);
-            if (empty($product) || $product->enable_stock != 1) {
-                continue;
-            }
-
-            $qty_sum_query = $this->get_pl_quantity_sum_string('PL');
-
-            //Get purchase lines, only for products with enable stock.
-            $query = Transaction::join('purchase_lines AS PL', 'transactions.id', '=', 'PL.transaction_id')
-                ->where('transactions.business_id', $business['id'])
-                ->where('transactions.location_id', $business['location_id'])
-                ->whereIn('transactions.type', ['purchase', 'purchase_transfer',
-                    'opening_stock', 'production_purchase', 'stocktake_adjustment'])
-                ->where('transactions.status', 'received')
-                ->whereRaw("( $qty_sum_query ) < PL.quantity")
-                ->where('PL.product_id', $line->product_id)
-                ->where('PL.variation_id', $line->variation_id);
-
-            //If product expiry is enabled then check for on expiry conditions
-            if ($stop_selling_expired && empty($purchase_line_id)) {
-                $stop_before = request()->session()->get('business')['stop_selling_before'];
-                $expiry_date = \Carbon::today()->addDays($stop_before)->toDateString();
-                $query->where(function ($q) use ($expiry_date) {
-                    $q->whereNull('PL.exp_date')
-                        ->orWhereRaw('PL.exp_date > ?', [$expiry_date]);
-                });
-            }
-
-            //If lot number present consider only lot number purchase line
-            if (! empty($line->lot_no_line_id)) {
-                $query->where('PL.id', $line->lot_no_line_id);
-            }
-
-            //If purchase_line_id is given consider only that purchase line
-            if (! empty($purchase_line_id)) {
-                $query->where('PL.id', $purchase_line_id);
-            }
-
-            //Sort according to LIFO or FIFO
-            if ($business['accounting_method'] == 'lifo') {
-                $query = $query->orderBy('transaction_date', 'desc');
-            } else {
-                $query = $query->orderBy('transaction_date', 'asc');
-            }
-
-            $rows = $query->select(
-                'PL.id as purchase_lines_id',
-                DB::raw("(PL.quantity - ( $qty_sum_query )) AS quantity_available"),
-                'PL.quantity_sold as quantity_sold',
-                'PL.quantity_adjusted as quantity_adjusted',
-                'PL.quantity_returned as quantity_returned',
-                'PL.mfg_quantity_used as mfg_quantity_used',
-                'transactions.invoice_no'
-                    )->get();
-
-            $purchase_sell_map = [];
-
-            //Iterate over the rows, assign the purchase line to sell lines.
-            $qty_selling = $line->quantity;
-            foreach ($rows as $k => $row) {
-                $qty_allocated = 0;
-
-                //Check if qty_available is more or equal
-                if ($qty_selling <= $row->quantity_available) {
-                    $qty_allocated = $qty_selling;
-                    $qty_selling = 0;
-                } else {
-                    $qty_selling = $qty_selling - $row->quantity_available;
-                    $qty_allocated = $row->quantity_available;
-                }
-
-                //Check for sell mapping or stock adjsutment mapping
-                if ($mapping_type == 'stock_adjustment') {
-                    //Mapping of stock adjustment
-                    if ($qty_allocated != 0) {
-                        $purchase_adjustment_map[] =
-                            ['stock_adjustment_line_id' => $line->id,
-                                'purchase_line_id' => $row->purchase_lines_id,
-                                'quantity' => $qty_allocated,
-                                'created_at' => \Carbon::now(),
-                                'updated_at' => \Carbon::now(),
-                            ];
-
-                        //Update purchase line
-                        PurchaseLine::where('id', $row->purchase_lines_id)
-                            ->update(['quantity_adjusted' => $row->quantity_adjusted + $qty_allocated]);
-                    }
-                } elseif ($mapping_type == 'purchase') {
-                    //Mapping of purchase
-                    if ($qty_allocated != 0) {
-                        $purchase_sell_map[] = ['sell_line_id' => $line->id,
-                            'purchase_line_id' => $row->purchase_lines_id,
-                            'quantity' => $qty_allocated,
-                            'created_at' => \Carbon::now(),
-                            'updated_at' => \Carbon::now(),
-                        ];
-                        //Update purchase line
-                        PurchaseLine::where('id', $row->purchase_lines_id)
-                            ->update(['quantity_sold' => $row->quantity_sold + $qty_allocated]);
-                    }
-                } elseif ($mapping_type == 'production_purchase') {
-                    //Mapping of purchase
-                    if ($qty_allocated != 0) {
-                        $purchase_sell_map[] = ['sell_line_id' => $line->id,
-                            'purchase_line_id' => $row->purchase_lines_id,
-                            'quantity' => $qty_allocated,
-                            'created_at' => \Carbon::now(),
-                            'updated_at' => \Carbon::now(),
-                        ];
-
-                        //Update purchase line
-                        PurchaseLine::where('id', $row->purchase_lines_id)
-                            ->update(['mfg_quantity_used' => $row->mfg_quantity_used + $qty_allocated]);
-                    }
-                }
-
-                if ($qty_selling == 0) {
-                    break;
-                }
-            }
-
-            if (! ($qty_selling == 0 || is_null($qty_selling))) {
-                //If overselling not allowed through exception else create mapping with blank purchase_line_id
-                if (! $allow_overselling) {
-                    $variation = Variation::find($line->variation_id);
-                    $mismatch_name = $product->name;
-                    if (! empty($variation->sub_sku)) {
-                        $mismatch_name .= ' '.'SKU: '.$variation->sub_sku;
-                    }
-                    if (! empty($qty_selling)) {
-                        $mismatch_name .= ' '.'Quantity: '.abs($qty_selling);
-                    }
-
-                    if ($mapping_type == 'purchase') {
-                        $mismatch_error = trans(
-                            'messages.purchase_sell_mismatch_exception',
-                            ['product' => $mismatch_name]
-                        );
-
-                        if ($stop_selling_expired) {
-                            $mismatch_error .= __('lang_v1.available_stock_expired');
-                        }
-                    } elseif ($mapping_type == 'stock_adjustment') {
-                        $mismatch_error = trans(
-                            'messages.purchase_stock_adjustment_mismatch_exception',
-                            ['product' => $mismatch_name]
-                        );
-                    } else {
-                        $mismatch_error = trans(
-                            'lang_v1.quantity_mismatch_exception',
-                            ['product' => $mismatch_name]
-                        );
-                    }
-
-                    $business_name = optional(Business::find($business['id']))->name;
-                    $location_name = optional(BusinessLocation::find($business['location_id']))->name;
-                    \Log::emergency($mismatch_error.' Business: '.$business_name.' Location: '.$location_name);
-                    throw new PurchaseSellMismatch($mismatch_error);
-                } else {
-                    //Mapping with no purchase line
-                    $purchase_sell_map[] = ['sell_line_id' => $line->id,
-                        'purchase_line_id' => 0,
-                        'quantity' => $qty_selling,
-                        'created_at' => \Carbon::now(),
-                        'updated_at' => \Carbon::now(),
-                    ];
-                }
-            }
-
-            //Insert the mapping
-            if (! empty($purchase_adjustment_map)) {
-                TransactionSellLinesPurchaseLines::insert($purchase_adjustment_map);
-            }
-            if (! empty($purchase_sell_map)) {
-                TransactionSellLinesPurchaseLines::insert($purchase_sell_map);
-            }
-        }
-    }
+}
 
     /**
      * F => D (Delete all mapping lines, decrease the qty sold.)
@@ -4233,6 +4230,9 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
         if (! empty($filters['unit_id'])) {
             $query->where('p.unit_id', $filters['unit_id']);
         }
+        if (! empty($filters['product_id'])) {
+            $query->where('purchase_lines.product_id', $filters['product_id']);
+        }
         if (! empty($filters['user_id'])) {
             $query->where('purchase.created_by', $filters['user_id']);
         }
@@ -4278,7 +4278,7 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
         return $details->stock;
     }
 
-    public function getCurrentStockValue($business_id, $location_id = null, $filters = [], $permitted_locations = null)
+    public function getCurrentStockValueByVariationPrice($business_id, $location_id = null, $filters = [], $permitted_locations = null, $by_sale_price = false)
     {
         $query = DB::table('variation_location_details as vld')
             ->join('variations as v', 'vld.variation_id', '=', 'v.id')
@@ -4300,6 +4300,9 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
         if (! empty($filters['unit_id'])) {
             $query->where('p.unit_id', $filters['unit_id']);
         }
+        if (! empty($filters['product_id'])) {
+            $query->where('p.id', $filters['product_id']);
+        }
 
         if (! empty($permitted_locations) && $permitted_locations !== 'all') {
             $query->whereIn('vld.location_id', $permitted_locations);
@@ -4309,30 +4312,25 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
             $query->where('vld.location_id', $location_id);
         }
 
-        $stockValue = $query->select(DB::raw('SUM(
-                GREATEST(vld.qty_available, 0) * COALESCE(
-                    (SELECT pl.purchase_price_inc_tax
-                     FROM purchase_lines as pl
-                     JOIN transactions as t on pl.transaction_id = t.id
-                     WHERE pl.variation_id = v.id
-                       AND t.business_id = '.$business_id.
-                       (! empty($location_id) ? ' AND t.location_id = '.(int) $location_id : '').'
-                     ORDER BY pl.id DESC
-                     LIMIT 1),
-                    (SELECT pl_product.purchase_price_inc_tax
-                     FROM purchase_lines as pl_product
-                     JOIN transactions as t_product on pl_product.transaction_id = t_product.id
-                     WHERE pl_product.product_id = p.id
-                       AND t_product.business_id = '.$business_id.
-                       (! empty($location_id) ? ' AND t_product.location_id = '.(int) $location_id : '').'
-                     ORDER BY pl_product.id DESC
-                     LIMIT 1),
-                    v.dpp_inc_tax,
-                    0
-                )
-            ) as stock_value'))->value('stock_value');
+        $priceExpression = $by_sale_price
+            ? 'COALESCE(NULLIF(v.sell_price_inc_tax, 0), NULLIF(v.default_sell_price, 0), 0)'
+            : 'COALESCE(NULLIF(v.dpp_inc_tax, 0), NULLIF(v.default_purchase_price, 0), 0)';
+
+        $stockValue = $query->select(DB::raw('SUM(GREATEST(vld.qty_available, 0) * '.$priceExpression.') as stock_value'))
+            ->value('stock_value');
 
         return (float) $stockValue;
+    }
+
+    public function getCurrentStockValue($business_id, $location_id = null, $filters = [], $permitted_locations = null)
+    {
+        return $this->getCurrentStockValueByVariationPrice(
+            $business_id,
+            $location_id,
+            $filters,
+            $permitted_locations,
+            false
+        );
     }
 
     public function getStockValueForDate($business_id, $date, $location_id = null, $filters = [], $permitted_locations = null)

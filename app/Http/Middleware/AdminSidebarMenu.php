@@ -796,10 +796,28 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                             );
                         }
                         if (auth()->user()->can('stock_report.view')) {
+                            if (auth()->user()->can('view_product_stock_value')) {
+                                $stock_valuation_label = __('report.stock_valuation_report') !== 'report.stock_valuation_report'
+                                    ? __('report.stock_valuation_report')
+                                    : __('lang_v1.view_product_stock_value');
+
+                                $sub->url(
+                                    action([\App\Http\Controllers\ReportController::class, 'getStockValuationReport']),
+                                    $stock_valuation_label,
+                                    ['icon' => '', 'active' => request()->segment(2) == 'stock-valuation-report']
+                                );
+
+                                $sub->url(
+                                    action([\App\Http\Controllers\ReportController::class, 'getStockCostingLayerGapReport']),
+                                    __('report.stock_costing_layer_gap_report'),
+                                    ['icon' => '', 'active' => request()->segment(2) == 'stock-costing-layer-gap-report']
+                                );
+                            }
+
                             $sub->url(
                                 action([\App\Http\Controllers\ReportController::class, 'getStockReport']),
                                 __('report.stock_report'),
-                                ['icon' => '', 'active' => request()->segment(2) == 'stock-report']
+                                ['icon' => '', 'active' => request()->segment(2) == 'stock-report' && request()->get('view') != 'stock_value']
                             );
                             if (session('business.enable_product_expiry') == 1) {
                                 $sub->url(

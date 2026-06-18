@@ -562,4 +562,27 @@ return [
     'disabled' => 'Desativado',
     'auto_close_register_note' => 'Os caixas sem vendas naquele dia ficam inalterados.',
     'close_at' => 'Fechar às',
+
+    // ── Accounting & Stock Costing Schedulers ─────────────────────────────
+    'accounting_backfill_schedule' => 'Agendador de Preenchimento Contábil',
+    'accounting_backfill_schedule_hint' => 'Reparar automaticamente transações contábeis ausentes conforme cronograma',
+    'toggle_accounting_backfill_schedule' => 'Ativar/desativar agendador de preenchimento contábil',
+    'accounting_backfill_schedule_note' => 'Executa accounting:backfill-default-accounts com proteção contra sobreposição.',
+    'stock_costing_backfill_schedule' => 'Agendador de Preenchimento de Camadas de Custo de Estoque',
+    'stock_costing_backfill_schedule_hint' => 'Reparar automaticamente camadas de custo de estoque ausentes conforme cronograma',
+    'toggle_stock_costing_backfill_schedule' => 'Ativar/desativar agendador de custo de estoque',
+    'stock_costing_backfill_schedule_note' => 'Executa stock:backfill-costing-layers (requer ID da empresa e ID da localização).',
+    'stock_costing_backfill_ids_required' => 'ID da empresa e ID da localização são necessários para ativar o agendador.',
+    'frequency' => 'Frequência',
+    'every_15_minutes' => 'A cada 15 minutos',
+    'every_30_minutes' => 'A cada 30 minutos',
+    'hourly' => 'A cada hora',
+    'daily' => 'Diariamente',
+    'run_at' => 'Executar às',
+    'last_run_at' => 'Última execução',
+    'next_run_at' => 'Próxima execução',
+
+    // Stock costing manual actions
+    'run_stock_backfill_dry_run' => 'Simulacao',
+    'run_stock_backfill_now' => 'Executar backfill agora',
 ];

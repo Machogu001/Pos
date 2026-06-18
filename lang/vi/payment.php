@@ -562,4 +562,27 @@ return [
     'disabled' => 'Đã tắt',
     'auto_close_register_note' => 'Các máy tính tiền không có bán hàng trong ngày đó sẽ không bị thay đổi.',
     'close_at' => 'Đóng lúc',
+
+    // ── Accounting & Stock Costing Schedulers ─────────────────────────────
+    'accounting_backfill_schedule' => 'Lịch bổ sung kế toán',
+    'accounting_backfill_schedule_hint' => 'Tự động sửa chữa các giao dịch kế toán bị thiếu theo lịch trình',
+    'toggle_accounting_backfill_schedule' => 'Bật/tắt lịch bổ sung kế toán',
+    'accounting_backfill_schedule_note' => 'Chạy accounting:backfill-default-accounts với bảo vệ chồng chéo.',
+    'stock_costing_backfill_schedule' => 'Lịch bổ sung lớp chi phí tồn kho',
+    'stock_costing_backfill_schedule_hint' => 'Tự động sửa chữa các lớp chi phí tồn kho bị thiếu theo lịch trình',
+    'toggle_stock_costing_backfill_schedule' => 'Bật/tắt lịch bổ sung chi phí tồn kho',
+    'stock_costing_backfill_schedule_note' => 'Chạy stock:backfill-costing-layers (yêu cầu ID doanh nghiệp và ID địa điểm).',
+    'stock_costing_backfill_ids_required' => 'ID doanh nghiệp và ID địa điểm là bắt buộc để kích hoạt lịch trình.',
+    'frequency' => 'Tần suất',
+    'every_15_minutes' => 'Mỗi 15 phút',
+    'every_30_minutes' => 'Mỗi 30 phút',
+    'hourly' => 'Mỗi giờ',
+    'daily' => 'Hàng ngày',
+    'run_at' => 'Chạy lúc',
+    'last_run_at' => 'Lần chạy cuối',
+    'next_run_at' => 'Lần chạy tiếp theo',
+
+    // Stock costing manual actions
+    'run_stock_backfill_dry_run' => 'Chay thu',
+    'run_stock_backfill_now' => 'Chay backfill ngay',
 ];

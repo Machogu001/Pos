@@ -3,7 +3,23 @@
 
 @section('content')
 
+    @include('accounting::layouts.nav')
+
+    @component('accounting::components.section_header')
+        @slot('title')
+            {{ __('account.bank_reconciliation') }}
+        @endslot
+        @slot('subtitle')
+            {{ __('account.bank_reconciliation_subtitle') }}
+        @endslot
+    @endcomponent
+
     <style>
+        .reco-shell {
+            display: grid;
+            gap: 18px;
+        }
+
         .reco-page-title {
             display: flex;
             align-items: center;
@@ -12,34 +28,157 @@
         }
 
         .reco-upload-card {
-            border: 1px solid #e5e7eb;
+            border: 1px solid #dbe4ee;
+            border-radius: 14px;
+            padding: 22px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+            margin-bottom: 18px;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+        }
+
+        .reco-upload-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .reco-upload-header-copy {
+            max-width: 760px;
+        }
+
+        .reco-upload-header-copy h3 {
+            margin: 0 0 6px;
+            font-size: 22px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.02em;
+        }
+
+        .reco-upload-header-copy p {
+            margin: 0;
+            max-width: 62ch;
+            line-height: 1.6;
+        }
+
+        .reco-upload-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 120px;
+            padding: 9px 12px;
+            border-radius: 999px;
+            background: #e0f2fe;
+            color: #075985;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .reco-form-grid {
+            display: grid;
+            grid-template-columns: repeat(12, minmax(0, 1fr));
+            gap: 14px 16px;
+            align-items: end;
+        }
+
+        .reco-form-span-5 { grid-column: span 5; }
+        .reco-form-span-3 { grid-column: span 3; }
+        .reco-form-span-2 { grid-column: span 2; }
+        .reco-form-span-1 { grid-column: span 1; }
+        .reco-form-span-4 { grid-column: span 4; }
+
+        .reco-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-height: 100%;
+        }
+
+        .reco-field label,
+        .reco-check-field label {
+            margin-bottom: 0;
+            font-size: 12px;
+            font-weight: 700;
+            color: #334155;
+            letter-spacing: 0.02em;
+        }
+
+        .reco-field .form-control,
+        .reco-check-field {
+            min-height: 42px;
+        }
+
+        .reco-field .form-control {
             border-radius: 10px;
-            padding: 16px;
-            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-            margin-bottom: 16px;
+            border-color: #d7dee8;
+            box-shadow: none;
+        }
+
+        .reco-field .form-control:focus {
+            border-color: #0ea5e9;
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+        }
+
+        .reco-check-field {
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            background: #fff;
+        }
+
+        .reco-check-field input {
+            margin-right: 8px;
+        }
+
+        .reco-check-field label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .reco-upload-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            min-height: 42px;
+        }
+
+        .reco-upload-actions .btn {
+            min-width: 170px;
+            border-radius: 10px;
         }
 
         .reco-hint {
             border-left: 3px solid #0ea5e9;
-            padding: 10px 12px;
+            padding: 12px 14px;
             background: #f0f9ff;
-            border-radius: 6px;
+            border-radius: 10px;
             color: #0f172a;
-            margin-top: 4px;
+            margin-top: 18px;
+            line-height: 1.6;
         }
 
         .reco-summary-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 10px;
-            margin-bottom: 12px;
+            gap: 12px;
+            margin-bottom: 14px;
         }
 
         .reco-metric {
             border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 10px 12px;
+            border-radius: 12px;
+            padding: 14px;
             background: #fff;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
         }
 
         .reco-metric-label {
@@ -56,9 +195,11 @@
 
         .reco-section {
             border: 1px solid #e5e7eb;
-            border-radius: 10px;
+            border-radius: 14px;
             background: #fff;
-            margin-bottom: 14px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
         }
 
         .reco-section-header {
@@ -66,9 +207,9 @@
             justify-content: space-between;
             align-items: center;
             gap: 8px;
-            padding: 10px 12px;
+            padding: 14px 16px;
             border-bottom: 1px solid #f1f5f9;
-            background: #f8fafc;
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
         }
 
         .reco-section-header h4 {
@@ -79,6 +220,10 @@
 
         .reco-section .table {
             margin-bottom: 0;
+        }
+
+        .reco-section .table-responsive {
+            padding: 0;
         }
 
         #reco_results table {
@@ -93,6 +238,36 @@
             text-align: left;
             word-break: break-word;
             padding: 10px 8px;
+        }
+
+        #reco_results table tbody tr:nth-child(even) {
+            background: #fcfdff;
+        }
+
+        #reco_results table tbody tr:hover {
+            background: #f8fbff;
+        }
+
+        #reco_actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 14px;
+            border: 1px solid #dbe4ee;
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+        }
+
+        #reco_actions .btn {
+            border-radius: 10px;
+        }
+
+        .reco-section .label {
+            border-radius: 999px;
+            padding: 0.45em 0.8em;
+            font-size: 11px;
+            font-weight: 700;
         }
 
         #reco_results table th {
@@ -204,14 +379,49 @@
                 min-width: 980px;
             }
         }
-    </style>
 
-    <!-- Content Header (Page header) -->
-    <section class="content-header">
-        <div class="reco-page-title">
-            <h1 class="tw-text-xl md:tw-text-3xl tw-font-bold tw-text-black tw-m-0">{{ __('account.bank_reconciliation') }}</h1>
-        </div>
-    </section>
+        @media (max-width: 991px) {
+            .reco-upload-header {
+                flex-direction: column;
+            }
+
+            .reco-form-span-5,
+            .reco-form-span-4,
+            .reco-form-span-3,
+            .reco-form-span-2,
+            .reco-form-span-1 {
+                grid-column: span 6;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .reco-upload-card {
+                padding: 16px;
+            }
+
+            .reco-form-grid {
+                grid-template-columns: repeat(1, minmax(0, 1fr));
+            }
+
+            .reco-form-span-5,
+            .reco-form-span-4,
+            .reco-form-span-3,
+            .reco-form-span-2,
+            .reco-form-span-1 {
+                grid-column: span 1;
+            }
+
+            .reco-upload-actions .btn,
+            #reco_actions .btn {
+                width: 100%;
+            }
+
+            .reco-section-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+    </style>
 
     <!-- Main content -->
     <section class="content no-print">
@@ -242,62 +452,73 @@
         <div class="row">
             <div class="col-md-12">
                 @component('components.widget')
+                    <div class="reco-shell">
                     <div class="reco-upload-card">
-                        <h3 class="tw-text-lg tw-font-semibold tw-mt-0 tw-mb-3">{{ __('account.bank_reconciliation') }}</h3>
+                        <div class="reco-upload-header">
+                            <div class="reco-upload-header-copy">
+                                <h3>{{ __('account.bank_reconciliation') }}</h3>
+                                <p class="text-muted">{{ __('account.statement_matching_help_full') }}</p>
+                            </div>
+                            <div class="reco-upload-badge">{{ __('account.reconcile') }}</div>
+                        </div>
 
                         {!! Form::open(['url' => action([\App\Http\Controllers\AccountReportsController::class, 'uploadBankReconciliation']), 'method' => 'post', 'id' => 'bank_reco_form', 'files' => true]) !!}
-                            <div class="row">
-                                <div class="col-md-5">
-                                    <div class="form-group">
-                                        {!! Form::label('statement', __('account.bank_statement') . ' (CSV):') !!}
-                                        {!! Form::file('statement', ['class' => 'form-control', 'accept' => '.csv,text/csv']) !!}
+                            <div class="reco-form-grid">
+                                <div class="reco-form-span-5">
+                                    <div class="form-group reco-field">
+                                        {!! Form::label('statement', __('account.statement_file') . ':') !!}
+                                        {!! Form::file('statement', ['class' => 'form-control', 'accept' => '.csv,.txt,.xlsx,.xls,text/csv']) !!}
                                     </div>
                                 </div>
-                                <div class="col-md-2">
-                                    <div class="form-group">
-                                        {!! Form::label('amount_tolerance', __('sale.amount') . ' tolerance:') !!}
+                                <div class="reco-form-span-2">
+                                    <div class="form-group reco-field">
+                                        {!! Form::label('statement_source', __('account.statement_source') . ':') !!}
+                                        {!! Form::select('statement_source', ['auto' => __('account.statement_source_auto'), 'bank' => __('account.statement_source_bank'), 'mpesa' => __('account.statement_source_mpesa')], 'auto', ['class' => 'form-control']) !!}
+                                    </div>
+                                </div>
+                                <div class="reco-form-span-2">
+                                    <div class="form-group reco-field">
+                                        {!! Form::label('amount_tolerance', __('account.amount_tolerance') . ':') !!}
                                         {!! Form::number('amount_tolerance', 0.01, ['class' => 'form-control', 'step' => '0.0001', 'min' => '0']) !!}
                                     </div>
                                 </div>
-                                <div class="col-md-2">
-                                    <div class="form-group">
-                                        {!! Form::label('date_tolerance_days', __('messages.date') . ' tolerance (days):') !!}
+                                <div class="reco-form-span-1">
+                                    <div class="form-group reco-field">
+                                        {!! Form::label('date_tolerance_days', __('account.date_tolerance_days') . ':') !!}
                                         {!! Form::number('date_tolerance_days', 3, ['class' => 'form-control', 'step' => '1', 'min' => '0', 'max' => '30']) !!}
                                     </div>
                                 </div>
-                                <div class="col-md-3">
-                                    <div class="form-group" style="margin-top:25px;">
+                                <div class="reco-form-span-2">
+                                    <div class="form-group reco-check-field">
                                         <label>
-                                            <input type="checkbox" id="preview_only" name="preview_only" value="1"> Preview only
+                                            <input type="checkbox" id="preview_only" name="preview_only" value="1"> {{ __('account.preview_only') }}
                                         </label>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-3">
-                                    <div class="form-group">
+                                <div class="reco-form-span-3">
+                                    <div class="form-group reco-field">
                                         {!! Form::label('opening_balance', __('account.opening_balance') . ':') !!}
                                         {!! Form::number('opening_balance', null, ['class' => 'form-control', 'step' => '0.0001']) !!}
                                     </div>
                                 </div>
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        {!! Form::label('closing_balance_statement', 'Statement closing balance:') !!}
+                                <div class="reco-form-span-3">
+                                    <div class="form-group reco-field">
+                                        {!! Form::label('closing_balance_statement', __('account.statement_closing_balance') . ':') !!}
                                         {!! Form::number('closing_balance_statement', null, ['class' => 'form-control', 'step' => '0.0001']) !!}
                                     </div>
                                 </div>
-                                <div class="col-md-3">
-                                    <div class="form-group">
+                                <div class="reco-form-span-3">
+                                    <div class="form-group reco-field">
                                         {!! Form::label('reconciliation_notes', __('account.reconciliation_note') . ':') !!}
                                         {!! Form::text('reconciliation_notes', null, ['class' => 'form-control', 'maxlength' => 2000]) !!}
                                     </div>
                                 </div>
-                                <div class="col-md-3">
-                                    <div class="form-group" style="margin-top:25px;">
+                                <div class="reco-form-span-3">
+                                    <div class="form-group reco-upload-actions">
                                         <a href="{{ action([\App\Http\Controllers\AccountReportsController::class, 'downloadBankReconciliationTemplate']) }}" class="btn btn-default">
-                                            @lang('account.download_bank_statement_template')
+                                            {{ __('account.download_statement_template') }}
                                         </a>
-                                        <button type="submit" class="btn btn-primary tw-ml-2">
+                                        <button type="submit" class="btn btn-primary">
                                             @lang('account.reconcile')
                                         </button>
                                     </div>
@@ -314,10 +535,10 @@
                             {{ __('lang_v1.finalize') }}
                         </button>
                         <button type="button" id="undo_reco_btn" class="btn btn-warning tw-ml-2" style="display:none;">
-                            Undo Reconciliation
+                            {{ __('account.undo_reconciliation') }}
                         </button>
                         <a href="#" id="export_reco_btn" class="btn btn-default" style="display:none;">
-                            {{ __('lang_v1.download') }} Audit Package
+                            {{ __('lang_v1.download') }} {{ __('account.audit_package') }}
                         </a>
                         <a href="#" id="export_reco_pdf_btn" class="btn btn-default" style="display:none;">
                             {{ __('lang_v1.download') }} PDF
@@ -446,7 +667,7 @@
 
                         <div class="reco-section">
                             <div class="reco-section-header">
-                                <h4>Audit Log</h4>
+                                <h4>{{ __('account.audit_log') }}</h4>
                                 <span class="label label-primary" id="audit_log_count_badge">0</span>
                             </div>
                             <div class="table-responsive">
@@ -455,8 +676,8 @@
                                         <tr>
                                             <th>#</th>
                                             <th>{{ __('messages.date') }}</th>
-                                            <th>{{ __('lang_v1.action') }}</th>
-                                            <th>{{ __('sale.user') }}</th>
+                                            <th>{{ __('messages.action') }}</th>
+                                            <th>{{ __('report.user') }}</th>
                                             <th>{{ __('lang_v1.details') }}</th>
                                         </tr>
                                     </thead>
@@ -464,6 +685,7 @@
                                 </table>
                             </div>
                         </div>
+                    </div>
                     </div>
                 @endcomponent
             </div>
@@ -572,10 +794,10 @@
                 html += '<div class="reco-metric"><div class="reco-metric-label">{{ __('account.unmatched') }}</div><div class="reco-metric-value">' + (summary.unmatched_count || 0) + '</div></div>';
                 html += '<div class="reco-metric"><div class="reco-metric-label">{{ __('lang_v1.invalid') }}</div><div class="reco-metric-value">' + (summary.invalid_count || 0) + '</div></div>';
                 html += '<div class="reco-metric"><div class="reco-metric-label">{{ __('account.opening_balance') }}</div><div class="reco-metric-value">' + __currency_trans_from_en(summary.opening_balance || 0, true) + '</div></div>';
-                html += '<div class="reco-metric"><div class="reco-metric-label">Statement closing</div><div class="reco-metric-value">' + __currency_trans_from_en(summary.closing_balance_statement || 0, true) + '</div></div>';
-                html += '<div class="reco-metric"><div class="reco-metric-label">Ledger closing</div><div class="reco-metric-value">' + __currency_trans_from_en(summary.ledger_closing_balance || 0, true) + '</div></div>';
-                html += '<div class="reco-metric"><div class="reco-metric-label">Variance</div><div class="reco-metric-value">' + __currency_trans_from_en(summary.variance_amount || 0, true) + '</div></div>';
-                html += '<div class="reco-metric"><div class="reco-metric-label">Tolerance</div><div class="reco-metric-value">Amt: ' + escapeHtml(summary.amount_tolerance || 0) + ' | Days: ' + escapeHtml(summary.date_tolerance_days || 0) + '</div></div>';
+                html += '<div class="reco-metric"><div class="reco-metric-label">{{ __('account.statement_closing') }}</div><div class="reco-metric-value">' + __currency_trans_from_en(summary.closing_balance_statement || 0, true) + '</div></div>';
+                html += '<div class="reco-metric"><div class="reco-metric-label">{{ __('account.ledger_closing') }}</div><div class="reco-metric-value">' + __currency_trans_from_en(summary.ledger_closing_balance || 0, true) + '</div></div>';
+                html += '<div class="reco-metric"><div class="reco-metric-label">{{ __('account.variance') }}</div><div class="reco-metric-value">' + __currency_trans_from_en(summary.variance_amount || 0, true) + '</div></div>';
+                html += '<div class="reco-metric"><div class="reco-metric-label">{{ __('account.tolerance') }}</div><div class="reco-metric-value">{{ __('account.amount_short') }}: ' + escapeHtml(summary.amount_tolerance || 0) + ' | {{ __('messages.date') }}: ' + escapeHtml(summary.date_tolerance_days || 0) + '</div></div>';
                 html += '</div>';
                 $('#reco_summary').html(html);
 
@@ -583,6 +805,10 @@
                 $('#ambiguous_count_badge').text((summary.ambiguous_count || 0));
                 $('#unmatched_count_badge').text((summary.unmatched_count || 0));
                 $('#invalid_count_badge').text((summary.invalid_count || 0));
+            }
+
+            function showStatementUploadSuccessToast() {
+                toastr.success(@json(__('account.statement_uploaded_successfully')));
             }
 
             function renderLines(lines) {
@@ -606,7 +832,7 @@
                             '</td>' +
                             '</tr>';
                     } else if (line.status === 'ambiguous') {
-                        var options = '<option value="">Select payment</option>';
+                        var options = '<option value="">{{ __('account.select_payment') }}</option>';
                         (line.candidates || []).forEach(function(c) {
                             var label = (c.payment_ref_no || c.invoice_no || ('#' + c.id)) + ' | ' + (c.paid_on || '') + ' | ' + __currency_trans_from_en(c.amount || 0, true);
                             options += '<option value="' + c.id + '">' + escapeHtml(label) + '</option>';
@@ -619,15 +845,22 @@
                             '<td>' + escapeHtml(line.reference || '') + '</td>' +
                             '<td>' +
                                 '<select class="form-control input-sm candidate-select" data-line-id="' + line.id + '">' + options + '</select>' +
-                                '<button type="button" class="btn btn-xs btn-primary tw-mt-1 match-line-btn" data-line-id="' + line.id + '">Manual Match</button>' +
+                                '<button type="button" class="btn btn-xs btn-primary tw-mt-1 match-line-btn" data-line-id="' + line.id + '">{{ __('account.manual_match') }}</button>' +
                             '</td>' +
                             '</tr>';
                     } else if (line.status === 'unmatched') {
+                        var suggestion = line.suggested_transaction || null;
+                        var actionHtml = '';
+                        if (suggestion && suggestion.transaction_id) {
+                            actionHtml = '<div class="tw-mt-1 text-muted">{{ __('account.suggested_sale') }}: ' + escapeHtml(suggestion.invoice_no || ('#' + suggestion.transaction_id)) + ' | {{ __('account.due') }}: ' + __currency_trans_from_en(suggestion.due_amount || 0, true) + '</div>' +
+                                '<button type="button" class="btn btn-xs btn-success tw-mt-1 create-payment-btn" data-line-id="' + line.id + '">{{ __('account.create_missing_mpesa_payment') }}</button>';
+                        }
+
                         unmatched_rows += '<tr>' +
                             '<td>' + escapeHtml(line.statement_date || '') + '</td>' +
                             '<td>' + __currency_trans_from_en(line.statement_amount || 0, true) + '</td>' +
                             '<td>' + escapeHtml(line.description || '') + '</td>' +
-                            '<td>' + escapeHtml(line.reference || '') + '</td>' +
+                            '<td>' + escapeHtml(line.reference || '') + actionHtml + '</td>' +
                             '</tr>';
                     } else if (line.status === 'invalid') {
                         invalid_rows += '<tr>' +
@@ -636,7 +869,7 @@
                             '<td>' + __currency_trans_from_en(line.statement_amount || 0, true) + '</td>' +
                             '<td>' + escapeHtml(line.description || '') + '</td>' +
                             '<td>' + escapeHtml(line.reference || '') + '</td>' +
-                            '<td>' + (line.is_duplicate ? 'Duplicate statement line' : '') + '</td>' +
+                            '<td>' + (line.is_duplicate ? '{{ __('account.duplicate_statement_line') }}' : '') + '</td>' +
                             '</tr>';
                     }
                 });
@@ -704,6 +937,31 @@
 
                 var formData = new FormData(this);
 
+                function extractAjaxErrorMessage(xhr) {
+                    if (!xhr) {
+                        return '{{ __('messages.something_went_wrong') }}';
+                    }
+
+                    if (xhr.responseJSON) {
+                        if (xhr.responseJSON.errors) {
+                            var firstErrorGroup = Object.values(xhr.responseJSON.errors)[0];
+                            if (Array.isArray(firstErrorGroup) && firstErrorGroup.length) {
+                                return firstErrorGroup[0];
+                            }
+                        }
+
+                        if (xhr.responseJSON.msg) {
+                            return xhr.responseJSON.msg;
+                        }
+
+                        if (xhr.responseJSON.message) {
+                            return xhr.responseJSON.message;
+                        }
+                    }
+
+                    return '{{ __('messages.something_went_wrong') }}';
+                }
+
                 var account_id = $('#account_id').val();
                 if (account_id) {
                     formData.append('account_id', account_id);
@@ -719,6 +977,10 @@
                 $.ajax({
                     method: 'POST',
                     url: $(this).attr('action'),
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
                     data: formData,
                     processData: false,
                     contentType: false,
@@ -730,15 +992,28 @@
                         }
 
                         var summary = result.summary || {};
+                        showStatementUploadSuccessToast();
                         renderSummary(summary);
                         setRunActions(summary.run_id || null, summary.status || 'completed');
                         loadRunDetails(summary.run_id || null);
                     },
-                    error: function() {
-                        toastr.error('{{ __('messages.something_went_wrong') }}');
+                    error: function(xhr) {
+                        toastr.error(extractAjaxErrorMessage(xhr));
                     }
                 });
             });
+
+            var urlParams = new URLSearchParams(window.location.search);
+            var initialRunId = urlParams.get('run_id');
+            var uploadedFromRedirect = urlParams.get('uploaded');
+
+            if (uploadedFromRedirect === '1') {
+                showStatementUploadSuccessToast();
+            }
+
+            if (initialRunId) {
+                loadRunDetails(initialRunId);
+            }
 
             $('#finalize_reco_btn').on('click', function() {
                 if (!currentRunId) {
@@ -782,7 +1057,7 @@
                             return;
                         }
 
-                        toastr.success(result.msg || 'Reconciliation undo successful');
+                        toastr.success(result.msg || @json(__('account.reconciliation_undo_success')));
                         loadRunDetails(result.run_id || currentRunId);
                     },
                     error: function() {
@@ -799,7 +1074,7 @@
                 var lineId = $(this).data('line-id');
                 var paymentId = $('.candidate-select[data-line-id="' + lineId + '"]').val();
                 if (!paymentId) {
-                    toastr.error('Select a payment first');
+                    toastr.error(@json(__('account.select_payment_first')));
                     return;
                 }
 
@@ -816,7 +1091,7 @@
                             return;
                         }
 
-                        toastr.success(result.msg || 'Line matched');
+                        toastr.success(result.msg || @json(__('account.line_matched')));
                         loadRunDetails(currentRunId);
                     },
                     error: function() {
@@ -841,7 +1116,32 @@
                             return;
                         }
 
-                        toastr.success(result.msg || 'Line unmatched');
+                        toastr.success(result.msg || @json(__('account.line_unmatched')));
+                        loadRunDetails(currentRunId);
+                    },
+                    error: function() {
+                        toastr.error('{{ __('messages.something_went_wrong') }}');
+                    }
+                });
+            });
+
+            $(document).on('click', '.create-payment-btn', function() {
+                if (!currentRunId || currentRunStatus === 'finalized') {
+                    return;
+                }
+
+                var lineId = $(this).data('line-id');
+                $.ajax({
+                    method: 'POST',
+                    url: "{{ url('account/bank-reconciliation') }}/" + currentRunId + "/lines/" + lineId + "/create-payment",
+                    dataType: 'json',
+                    success: function(result) {
+                        if (!result.success) {
+                            toastr.error(result.msg || '{{ __('messages.something_went_wrong') }}');
+                            return;
+                        }
+
+                        toastr.success(result.msg || @json(__('account.payment_created_successfully')));
                         loadRunDetails(currentRunId);
                     },
                     error: function() {

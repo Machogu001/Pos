@@ -167,16 +167,23 @@ class CrmServiceProvider extends ServiceProvider
 
     public function registerScheduleCommands()
     {
-        $env = config('app.env');
-        $module_util = new ModuleUtil();
-        $is_installed = $module_util->isModuleInstalled(config('crm.name'));
+        try {
+            $env = config('app.env');
+            $module_util = new ModuleUtil();
+            $is_installed = $module_util->isModuleInstalled(config('crm.name'));
 
-        if ($env === 'live' && $is_installed) {
-            $this->app->booted(function () {
-                $schedule = $this->app->make(Schedule::class);
-                $schedule->command('pos:sendScheduleNotification')->everyMinute();
-                $schedule->command('pos:createRecursiveFollowup')->daily();
-            });
+            if ($env === 'live' && $is_installed) {
+                $this->app->booted(function () {
+                    $schedule = $this->app->make(Schedule::class);
+                    $schedule->command('pos:sendScheduleNotification')->everyMinute();
+                    $schedule->command('pos:createRecursiveFollowup')->daily();
+                });
+            }
+        } catch (\Exception $e) {
+            // Log but don't crash if database is unavailable during boot
+            \Log::warning('CrmServiceProvider::registerScheduleCommands failed', [
+                'error' => $e->getMessage()
+            ]);
         }
     }
 }

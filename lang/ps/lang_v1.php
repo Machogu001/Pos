@@ -1377,4 +1377,12 @@ return [
     'status' => 'Status',
     'id' => 'ID',
     'sr_no' => 'S/N',
+
+    // ── Scheduler labels ──────────────────────────────────────────
+    'business' => 'سوداګري',
+    'location' => 'ځای',
+
+    // System settings sections
+    'general' => 'عمومي',
+    'scheduled_tasks' => 'مهالویش شوي دندې',
 ];

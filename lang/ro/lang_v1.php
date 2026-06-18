@@ -1405,4 +1405,12 @@ return [
     'status' => 'Status',
     'id' => 'ID',
     'sr_no' => 'S/N',
+
+    // ── Scheduler labels ──────────────────────────────────────────
+    'business' => 'Companie',
+    'location' => 'Locație',
+
+    // System settings sections
+    'general' => 'General',
+    'scheduled_tasks' => 'Sarcini programate',
 ];

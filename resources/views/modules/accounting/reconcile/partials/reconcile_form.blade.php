@@ -1,4 +1,4 @@
-<form action="{{ url('accounting/reconcile/start') }}" method="post">
+<form action="{{ url('accounting/reconcile/start') }}" method="post" id="start_reconcile_form">
     @csrf
     <input type="hidden" name="chart_of_account_name" v-model="chart_of_account.name">
 

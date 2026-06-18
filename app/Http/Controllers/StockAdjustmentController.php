@@ -263,7 +263,9 @@ class StockAdjustmentController extends Controller
                 ];
                 $this->transactionUtil->mapPurchaseSell($business, $stock_adjustment->stock_adjustment_lines, 'stock_adjustment');
 
-                event(new StockAdjustmentCreatedOrModified($stock_adjustment, 'added'));
+                DB::afterCommit(function () use ($stock_adjustment) {
+                    event(new StockAdjustmentCreatedOrModified($stock_adjustment->fresh() ?? $stock_adjustment, 'added'));
+                });
 
                 $this->transactionUtil->activityLog($stock_adjustment, 'added', null, [], false);
             }
@@ -388,7 +390,9 @@ class StockAdjustmentController extends Controller
                 }
                 $stock_adjustment->delete();
 
-                event( new StockAdjustmentCreatedOrModified($stock_adjustment, 'deleted'));
+                DB::afterCommit(function () use ($stock_adjustment) {
+                    event(new StockAdjustmentCreatedOrModified($stock_adjustment, 'deleted'));
+                });
 
 
                 //Remove Mapping between stock adjustment & purchase.

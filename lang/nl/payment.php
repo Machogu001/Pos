@@ -562,4 +562,27 @@ return [
     'disabled' => 'Uitgeschakeld',
     'auto_close_register_note' => 'Kassa\'s zonder verkopen op die dag blijven ongewijzigd.',
     'close_at' => 'Sluiten om',
+
+    // ── Accounting & Stock Costing Schedulers ─────────────────────────────
+    'accounting_backfill_schedule' => 'Boekhouding Backfill Planner',
+    'accounting_backfill_schedule_hint' => 'Automatisch ontbrekende boekhoudingtransacties repareren op schema',
+    'toggle_accounting_backfill_schedule' => 'Boekhouding backfill planner in-/uitschakelen',
+    'accounting_backfill_schedule_note' => 'Voert accounting:backfill-default-accounts uit met overlap-beveiliging.',
+    'stock_costing_backfill_schedule' => 'Voorraad Kostlaag Backfill Planner',
+    'stock_costing_backfill_schedule_hint' => 'Automatisch ontbrekende voorraadkostlagen repareren op schema',
+    'toggle_stock_costing_backfill_schedule' => 'Voorraad kostlaag backfill planner in-/uitschakelen',
+    'stock_costing_backfill_schedule_note' => 'Voert stock:backfill-costing-layers uit (vereist Bedrijfs-ID en Locatie-ID).',
+    'stock_costing_backfill_ids_required' => 'Bedrijfs-ID en Locatie-ID zijn vereist om de planner in te schakelen.',
+    'frequency' => 'Frequentie',
+    'every_15_minutes' => 'Elke 15 minuten',
+    'every_30_minutes' => 'Elke 30 minuten',
+    'hourly' => 'Elk uur',
+    'daily' => 'Dagelijks',
+    'run_at' => 'Uitvoeren om',
+    'last_run_at' => 'Laatste uitvoering',
+    'next_run_at' => 'Volgende uitvoering',
+
+    // Stock costing manual actions
+    'run_stock_backfill_dry_run' => 'Proefdraaien',
+    'run_stock_backfill_now' => 'Backfill nu uitvoeren',
 ];

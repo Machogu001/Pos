@@ -146,7 +146,9 @@ class LoginController extends Controller
             'attempts' => 0,
         ]);
 
-        if (! $this->sendOtpCode($deliveryMethod, $deliveryTarget, $otp, $user)) {
+        $otpDelivery = $this->sendOtpCode($deliveryMethod, $deliveryTarget, $otp, $user);
+
+        if (! $otpDelivery['sent']) {
             $request->session()->forget('login_otp');
 
             return redirect('/login')->with('status', [
@@ -155,7 +157,12 @@ class LoginController extends Controller
             ]);
         }
 
-        $destinationMessage = $deliveryMethod === self::OTP_DELIVERY_EMAIL
+        $request->session()->put('login_otp', array_merge($request->session()->get('login_otp', []), [
+            'delivery_method' => $otpDelivery['method'],
+            'delivery_target' => $otpDelivery['target'],
+        ]));
+
+        $destinationMessage = $otpDelivery['method'] === self::OTP_DELIVERY_EMAIL
             ? __('email address')
             : __('phone');
 
@@ -354,13 +361,19 @@ class LoginController extends Controller
         $otpData['email'] = $user->email;
         $request->session()->put('login_otp', $otpData);
 
-        if (! $this->sendOtpCode($deliveryMethod, $deliveryTarget, $otp, $user)) {
+        $otpDelivery = $this->sendOtpCode($deliveryMethod, $deliveryTarget, $otp, $user);
+
+        if (! $otpDelivery['sent']) {
             return back()->withErrors([
                 'otp' => __('We could not resend the OTP code right now.'),
             ]);
         }
 
-        $destinationMessage = $deliveryMethod === self::OTP_DELIVERY_EMAIL
+        $otpData['delivery_method'] = $otpDelivery['method'];
+        $otpData['delivery_target'] = $otpDelivery['target'];
+        $request->session()->put('login_otp', $otpData);
+
+        $destinationMessage = $otpDelivery['method'] === self::OTP_DELIVERY_EMAIL
             ? __('your email address')
             : __('your phone');
 
@@ -372,13 +385,17 @@ class LoginController extends Controller
         ]);
     }
 
-    protected function sendOtpCode(string $deliveryMethod, string $deliveryTarget, string $otp, ?User $user = null): bool
+    protected function sendOtpCode(string $deliveryMethod, string $deliveryTarget, string $otp, ?User $user = null): array
     {
         if ($deliveryMethod === self::OTP_DELIVERY_EMAIL) {
             try {
                 Mail::to($deliveryTarget)->send(new LoginOtpMail($otp, $user));
 
-                return true;
+                return [
+                    'sent' => true,
+                    'method' => self::OTP_DELIVERY_EMAIL,
+                    'target' => $deliveryTarget,
+                ];
             } catch (\Throwable $exception) {
                 Log::warning('Login OTP email delivery failed', [
                     'email' => $deliveryTarget,
@@ -386,11 +403,34 @@ class LoginController extends Controller
                     'message' => $exception->getMessage(),
                 ]);
 
-                return false;
+                $smsTarget = $this->resolveOtpDeliveryTarget($user, self::OTP_DELIVERY_SMS);
+                if (! empty($smsTarget) && $this->smsService->sendLoginOtp($smsTarget, $otp, $user)) {
+                    Log::info('Login OTP email delivery fell back to SMS', [
+                        'email' => $deliveryTarget,
+                        'phone' => $smsTarget,
+                        'user_id' => $user?->id,
+                    ]);
+
+                    return [
+                        'sent' => true,
+                        'method' => self::OTP_DELIVERY_SMS,
+                        'target' => $smsTarget,
+                    ];
+                }
+
+                return [
+                    'sent' => false,
+                    'method' => self::OTP_DELIVERY_EMAIL,
+                    'target' => $deliveryTarget,
+                ];
             }
         }
 
-        return $this->smsService->sendLoginOtp($deliveryTarget, $otp, $user);
+        return [
+            'sent' => $this->smsService->sendLoginOtp($deliveryTarget, $otp, $user),
+            'method' => self::OTP_DELIVERY_SMS,
+            'target' => $deliveryTarget,
+        ];
     }
 
     protected function normalizeOtpDeliveryMethod(?string $deliveryMethod): string

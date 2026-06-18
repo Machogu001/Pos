@@ -56,6 +56,10 @@
                         <a href="{{ url('accounting/reconcile') }}">@lang('accounting::lang.reconcile')</a>
                     </li>
 
+                    <li @if (request()->segment(1) == 'account' && request()->segment(2) == 'bank-reconciliation') class="active" @endif>
+                        <a href="{{ url('account/bank-reconciliation') }}">Bank Reconciliation</a>
+                    </li>
+
 
 
                     <li @if (request()->segment(1) == 'accounting' && request()->segment(2) == 'budget') class="active" @endif>

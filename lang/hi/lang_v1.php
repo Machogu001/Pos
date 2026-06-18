@@ -1365,4 +1365,12 @@ return [
     'status' => 'Status',
     'id' => 'ID',
     'sr_no' => 'S/N',
+
+    // ── Scheduler labels ──────────────────────────────────────────
+    'business' => 'व्यवसाय',
+    'location' => 'स्थान',
+
+    // System settings sections
+    'general' => 'Samanya',
+    'scheduled_tasks' => 'Nirdharit Karya',
 ];

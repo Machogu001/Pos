@@ -397,6 +397,8 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     Route::get('/reports/get-opening-stock', [ReportController::class, 'getOpeningStock']);
     Route::get('/reports/purchase-sell', [ReportController::class, 'getPurchaseSell']);
     Route::get('/reports/customer-supplier', [ReportController::class, 'getCustomerSuppliers']);
+    Route::get('/reports/stock-valuation-report', [ReportController::class, 'getStockValuationReport']);
+    Route::get('/reports/stock-costing-layer-gap-report', [ReportController::class, 'getStockCostingLayerGapReport']);
     Route::get('/reports/stock-report', [ReportController::class, 'getStockReport']);
     Route::get('/reports/stock-details', [ReportController::class, 'getStockDetails']);
     Route::get('/reports/tax-report', [ReportController::class, 'getTaxReport']);
@@ -573,6 +575,7 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
         Route::get('/bank-reconciliation/{id}/audit-logs', [AccountReportsController::class, 'bankReconciliationAuditLogs']);
         Route::post('/bank-reconciliation/{runId}/lines/{lineId}/manual-match', [AccountReportsController::class, 'manualMatchBankReconciliationLine']);
         Route::post('/bank-reconciliation/{runId}/lines/{lineId}/manual-unmatch', [AccountReportsController::class, 'manualUnmatchBankReconciliationLine']);
+        Route::post('/bank-reconciliation/{runId}/lines/{lineId}/create-payment', [AccountReportsController::class, 'createMissingPaymentFromBankReconciliationLine']);
         Route::get('/bank-reconciliation/{id}/export', [AccountReportsController::class, 'exportBankReconciliationPackage']);
         Route::get('/bank-reconciliation/{id}/export/pdf', [AccountReportsController::class, 'exportBankReconciliationPdf']);
         Route::get('/bank-reconciliation/{id}/export/excel', [AccountReportsController::class, 'exportBankReconciliationExcel']);

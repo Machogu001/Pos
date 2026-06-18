@@ -36,16 +36,24 @@ class System extends Model
      */
     public static function getProperty($key)
     {
-        if (! Schema::hasTable('system')) {
-            return null;
-        }
+        try {
+            if (! Schema::hasTable('system')) {
+                return null;
+            }
 
-        $row = System::where('key', $key)
-                ->first();
+            $row = System::where('key', $key)
+                    ->first();
 
-        if (isset($row->value)) {
-            return $row->value;
-        } else {
+            if (isset($row->value)) {
+                return $row->value;
+            } else {
+                return null;
+            }
+        } catch (\Exception $e) {
+            // Log but don't crash if database is unavailable during boot
+            \Log::warning('System::getProperty failed to retrieve key: ' . $key, [
+                'error' => $e->getMessage()
+            ]);
             return null;
         }
     }

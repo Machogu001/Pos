@@ -2,6 +2,7 @@
 
 namespace Modules\Accounting\Http\Controllers;
 
+use App\Account;
 use App\Business;
 use Modules\Accounting\Services\FlashService;
 use Modules\Accounting\Entities\PaymentDetail;
@@ -21,8 +22,11 @@ class ReconcileController extends Controller
      */
     public function index()
     {
+        $business_id = session('user.business_id');
         $chart_of_accounts = ChartOfAccount::with('account_subtype')->forBusiness()->orderBy('gl_code')->get();
-        return view('accounting::reconcile.index', compact('chart_of_accounts'));
+        $bank_reconciliation_accounts = Account::forDropdown($business_id, false);
+
+        return view('accounting::reconcile.index', compact('chart_of_accounts', 'bank_reconciliation_accounts'));
     }
 
     public function start_reconcile(Request $request)
@@ -49,10 +53,13 @@ class ReconcileController extends Controller
         }
 
         $difference = $request->ending_balance - $chart_of_account->current_balance;
+        $business_id = session('user.business_id');
+        $bank_reconciliation_accounts = Account::forDropdown($business_id, false);
 
         $data = [
             'chart_of_accounts' => ChartOfAccount::with('account_subtype')->orderBy('gl_code')->get(),
             'chart_of_account_id' => $chart_of_account->id,
+            'bank_reconciliation_accounts' => $bank_reconciliation_accounts,
         ];
 
         $computed_data['total_debit'] = $chart_of_account->journal_entries_not_reversed->sum('debit');

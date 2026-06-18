@@ -42,7 +42,7 @@ return [
             'username' => env('MAIL_USERNAME'),
             'address' => env('MAIL_FROM_ADDRESS'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            'timeout' => 5,
             'local_domain' => env('MAIL_EHLO_DOMAIN'),
         ],
 

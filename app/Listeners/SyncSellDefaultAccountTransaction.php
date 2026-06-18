@@ -8,6 +8,7 @@ use App\TransactionPayment;
 use App\Utils\BusinessUtil;
 use App\Utils\ModuleUtil;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SyncSellDefaultAccountTransaction
 {
@@ -25,13 +26,29 @@ class SyncSellDefaultAccountTransaction
     {
         $transaction = $event->transaction;
 
-        if (
-            empty($transaction)
-            || $transaction->type !== 'sell'
-            || $transaction->status !== 'final'
-            || $transaction->sub_type === 'subscription_invoice'
-            || ! $this->moduleUtil->isModuleEnabled('account', $transaction->business_id)
-        ) {
+        $skipReason = null;
+
+        if (empty($transaction)) {
+            $skipReason = 'empty_transaction';
+        } elseif ($transaction->type !== 'sell') {
+            $skipReason = 'not_sell_type';
+        } elseif ($transaction->status !== 'final') {
+            $skipReason = 'status_not_final';
+        } elseif ($transaction->sub_type === 'subscription_invoice') {
+            $skipReason = 'subscription_invoice';
+        } elseif (! $this->moduleUtil->isModuleEnabled('account', $transaction->business_id)) {
+            $skipReason = 'module_disabled';
+        }
+
+        if (! empty($skipReason)) {
+            Log::debug('SyncSellDefaultAccountTransaction::handle skipped', [
+                'transaction_id' => $transaction->id ?? null,
+                'business_id' => $transaction->business_id ?? null,
+                'reason' => $skipReason,
+                'type' => $transaction->type ?? null,
+                'status' => $transaction->status ?? null,
+                'sub_type' => $transaction->sub_type ?? null,
+            ]);
             return true;
         }
 
@@ -131,6 +148,17 @@ class SyncSellDefaultAccountTransaction
         $amount = round((float) $amount, 4);
 
         if (empty($accountId) || $amount <= 0) {
+            Log::debug('SyncSellDefaultAccountTransaction::syncEntry skipped', [
+                'transaction_id' => $transaction->id,
+                'business_id' => $transaction->business_id,
+                'posting' => $subType,
+                'mapping_key' => $mappingKey,
+                'reason' => empty($accountId) ? 'missing_mapping' : 'zero_amount',
+                'account_id' => $accountId,
+                'amount' => $amount,
+                'deleted_existing' => ! empty($accountTransaction),
+            ]);
+
             if (! empty($accountTransaction)) {
                 $accountTransaction->delete();
             }

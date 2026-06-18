@@ -53,6 +53,16 @@ class AdminSetting extends Model
     'etims_auto_transmit',
         'auto_close_register',
         'auto_close_register_time',
+        'accounting_backfill_enabled',
+        'accounting_backfill_frequency',
+        'accounting_backfill_time',
+        'accounting_backfill_last_run_at',
+        'stock_costing_backfill_enabled',
+        'stock_costing_backfill_frequency',
+        'stock_costing_backfill_time',
+        'stock_costing_backfill_business_id',
+        'stock_costing_backfill_location_id',
+        'stock_costing_backfill_last_run_at',
     ];
 
     protected $casts = [
@@ -60,6 +70,10 @@ class AdminSetting extends Model
         'subscription_required' => 'boolean',
         'payroll_auto_post' => 'boolean',
         'etims_auto_transmit' => 'boolean',
-            'auto_close_register' => 'boolean',
+        'auto_close_register' => 'boolean',
+        'accounting_backfill_enabled' => 'boolean',
+        'accounting_backfill_last_run_at' => 'datetime',
+        'stock_costing_backfill_enabled' => 'boolean',
+        'stock_costing_backfill_last_run_at' => 'datetime',
     ];
 }

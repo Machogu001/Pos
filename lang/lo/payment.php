@@ -562,4 +562,27 @@ return [
     'disabled' => 'ປິດໃຊ້',
     'auto_close_register_note' => 'ລົງທະບຽນທີ່ບໍ່ມີການຂາຍໃນມື້ນັ້ນຈະຖືກປ່ອຍໄວ້ໂດຍບໍ່ມີການປ່ຽນແປງ.',
     'close_at' => 'ປິດໃນ',
+
+    // ── Accounting & Stock Costing Schedulers ─────────────────────────────
+    'accounting_backfill_schedule' => 'ຕາຕະລາງຕື່ມຂໍ້ມູນການບັນຊີ',
+    'accounting_backfill_schedule_hint' => 'ສ້ອມແປງການໂອນເງິນບັນຊີທີ່ຂາດຫຼຸດໂດຍອັດຕະໂນມັດຕາມຕາຕະລາງ',
+    'toggle_accounting_backfill_schedule' => 'ສະຫຼັບຕາຕະລາງຕື່ມຂໍ້ມູນການບັນຊີ',
+    'accounting_backfill_schedule_note' => 'ຮັນ accounting:backfill-default-accounts ດ້ວຍການປ້ອງກັນການຊ້ອນທັບ.',
+    'stock_costing_backfill_schedule' => 'ຕາຕະລາງຕື່ມຂໍ້ມູນຊັ້ນຕົ້ນທຶນສາງ',
+    'stock_costing_backfill_schedule_hint' => 'ສ້ອມແປງຊັ້ນຕົ້ນທຶນສາງທີ່ຂາດຫຼຸດໂດຍອັດຕະໂນມັດ',
+    'toggle_stock_costing_backfill_schedule' => 'ສະຫຼັບຕາຕະລາງຕື່ມຂໍ້ມູນຊັ້ນຕົ້ນທຶນສາງ',
+    'stock_costing_backfill_schedule_note' => 'ຮັນ stock:backfill-costing-layers (ຕ້ອງການ ID ທຸລະກິດ ແລະ ID ສາງ).',
+    'stock_costing_backfill_ids_required' => 'ID ທຸລະກິດ ແລະ ID ສາງຕ້ອງການເພື່ອເປີດໃຊ້ຕາຕະລາງ.',
+    'frequency' => 'ຄວາມຖີ່',
+    'every_15_minutes' => 'ທຸກໆ 15 ນາທີ',
+    'every_30_minutes' => 'ທຸກໆ 30 ນາທີ',
+    'hourly' => 'ທຸກໆຊົ່ວໂມງ',
+    'daily' => 'ປະຈຳວັນ',
+    'run_at' => 'ຮັນເວລາ',
+    'last_run_at' => 'ຮັນລ່າສຸດ',
+    'next_run_at' => 'ຮັນຕໍ່ໄປ',
+
+    // Stock costing manual actions
+    'run_stock_backfill_dry_run' => 'Dry Run',
+    'run_stock_backfill_now' => 'Run Backfill Now',
 ];

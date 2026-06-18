@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\TransactionPayment;
 use App\AccountTransaction;
+use App\AdminSetting;
 use App\Transaction;
 use App\Utils\ModuleUtil;
 
@@ -53,6 +54,9 @@ class BackfillDefaultAccountTransactions extends Command
         $count = $query->count();
         if ($count === 0) {
             $this->info('No payments found that need backfilling.');
+            if (! $dryRun) {
+                $this->markLastRun();
+            }
             return 0;
         }
 
@@ -110,8 +114,23 @@ class BackfillDefaultAccountTransactions extends Command
             $this->info('Dry run complete. No changes were written.');
         } else {
             $this->info("Backfill complete. Created {$created} account transactions.");
+            $this->markLastRun();
         }
 
         return 0;
+    }
+
+    /**
+     * Track the most recent execution time for dashboard status display.
+     */
+    protected function markLastRun(): void
+    {
+        try {
+            $settings = AdminSetting::firstOrCreate([]);
+            $settings->accounting_backfill_last_run_at = now();
+            $settings->save();
+        } catch (\Throwable $e) {
+            // Swallow settings write failures to avoid failing the command itself.
+        }
     }
 }

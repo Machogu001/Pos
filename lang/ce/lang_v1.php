@@ -1409,4 +1409,12 @@ return [
     'status' => 'Status',
     'id' => 'ID',
     'sr_no' => 'S/N',
+
+    // ── Scheduler labels ──────────────────────────────────────────
+    'business' => 'Business',
+    'location' => 'Location',
+
+    // System settings sections
+    'general' => 'General',
+    'scheduled_tasks' => 'Scheduled Tasks',
 ];

@@ -1369,4 +1369,12 @@ return [
     'status' => 'Status',
     'id' => 'ID',
     'sr_no' => 'S/N',
+
+    // ── Scheduler labels ──────────────────────────────────────────
+    'business' => 'Bisnis',
+    'location' => 'Lokasi',
+
+    // System settings sections
+    'general' => 'Umum',
+    'scheduled_tasks' => 'Tugas Terjadwal',
 ];

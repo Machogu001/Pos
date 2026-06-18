@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Events\ExpenseCreatedOrModified;
 use App\Events\SellCreatedOrModified;
 use App\Transaction;
+use Illuminate\Support\Facades\DB;
 
 class TransactionObserver
 {
@@ -14,7 +15,9 @@ class TransactionObserver
     public function created(Transaction $transaction): void
     {
         if ($this->isExpenseTransaction($transaction)) {
-            event(new ExpenseCreatedOrModified($transaction));
+            DB::afterCommit(function () use ($transaction) {
+                event(new ExpenseCreatedOrModified($transaction->fresh() ?? $transaction));
+            });
         }
     }
 
@@ -40,7 +43,9 @@ class TransactionObserver
         ];
 
         if ($this->isExpenseTransaction($transaction) && $transaction->wasChanged($expenseRelevantChanges)) {
-            event(new ExpenseCreatedOrModified($transaction));
+            DB::afterCommit(function () use ($transaction) {
+                event(new ExpenseCreatedOrModified($transaction->fresh() ?? $transaction));
+            });
         }
 
         $sellRelevantChanges = [
@@ -63,7 +68,9 @@ class TransactionObserver
         ];
 
         if ($this->isFinalSellTransaction($transaction) && $transaction->wasChanged($sellRelevantChanges)) {
-            event(new SellCreatedOrModified($transaction));
+            DB::afterCommit(function () use ($transaction) {
+                event(new SellCreatedOrModified($transaction->fresh() ?? $transaction));
+            });
         }
     }
 
@@ -73,7 +80,9 @@ class TransactionObserver
     public function deleted(Transaction $transaction): void
     {
         if ($this->isExpenseTransaction($transaction)) {
-            event(new ExpenseCreatedOrModified($transaction, true));
+            DB::afterCommit(function () use ($transaction) {
+                event(new ExpenseCreatedOrModified($transaction, true));
+            });
         }
     }
 

@@ -826,92 +826,220 @@
 
     <!-- System Modal -->
     <div class="modal fade" id="systemModal" tabindex="-1" aria-labelledby="systemModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
-                <div class="modal-header bg-info text-white">
-                    <h5 class="modal-title" id="systemModalLabel">
+                <div class="modal-header py-2" style="background:linear-gradient(135deg,#17a2b8 0%,#138496 100%);">
+                    <h6 class="modal-title text-white mb-0" id="systemModalLabel">
                         <i class="fas fa-server me-2"></i>{{ __('payment.system') }} {{ __('messages.settings') }}
-                    </h5>
+                    </h6>
                     <button type="button" class="close text-white" data-dismiss="modal" aria-label="{{ __('payment.close') }}">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-              <form action="{{ route('admin.settings.update') }}" method="POST" class="settings-form" 
-                          onsubmit="return handleModalFormSubmit(event, this, 'systemModal');">
-                        @csrf
-                        <!-- Hidden fields for required settings not in this modal -->
-                        <input type="hidden" name="monthly_price" value="{{ $settings?->monthly_price ?? 0 }}">
-                        <input type="hidden" name="quarterly_price" value="{{ $settings?->quarterly_price ?? 0 }}">
-                        <input type="hidden" name="yearly_price" value="{{ $settings?->yearly_price ?? 0 }}">
-                <div class="modal-body">
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-6">
-                                <div class="form-check form-switch mt-3">
-                                    <input class="form-check-input" type="checkbox" name="auto_renewal"
-                                        id="auto_renewal" value="1" {{ ($settings?->auto_renewal ?? false) ? 'checked' : '' }}>
-                                    <label for="auto_renewal" class="form-check-label fw-medium">{{ __('payment.enable_auto_renewal') }}</label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-medium">{{ __('payment.grace_period_days') }}</label>
-                                <input type="number" class="form-control" name="grace_period_days"
-                                    value="{{ $settings?->grace_period_days ?? 7 }}" required>
-                            </div>
-                        </div>
+                <form action="{{ route('admin.settings.update') }}" method="POST" class="settings-form"
+                      onsubmit="return handleModalFormSubmit(event, this, 'systemModal');">
+                    @csrf
+                    <input type="hidden" name="monthly_price" value="{{ $settings?->monthly_price ?? 0 }}">
+                    <input type="hidden" name="quarterly_price" value="{{ $settings?->quarterly_price ?? 0 }}">
+                    <input type="hidden" name="yearly_price" value="{{ $settings?->yearly_price ?? 0 }}">
 
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label fw-medium">{{ __('payment.recent_records_limit') }}</label>
-                                <input type="number" min="1" max="100" class="form-control" name="recent_limit"
-                                    value="{{ $settings?->recent_limit ?? 5 }}" required>
-                                <small class="text-muted">{{ __('payment.controls_how_many_recent') }}</small>
-                            </div>
-                        </div>
+                    <div class="modal-body py-3 px-4" style="background:#f8fafc;">
 
-                        {{-- ── Cash Register ──────────────────────────────────────── --}}
-                        <hr class="my-3">
-                        <h6 class="fw-semibold mb-3"><i class="fas fa-cash-register me-1"></i> {{ __('cash_register.cash_register') }}</h6>
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-6">
-                                <div class="otp-card">
-                                    <div class="otp-card__header">
-                                        <div>
-                                            <div class="otp-card__label">{{ __('payment.auto_close_register') }}</div>
-                                            <div class="otp-card__hint">{{ __('payment.auto_close_register_hint') }}</div>
-                                        </div>
-                                        <label class="otp-switch" title="{{ __('payment.toggle_auto_close_register') }}">
-                                            <input type="checkbox" name="auto_close_register"
-                                                   id="autoCloseRegister" value="1"
-                                                   {{ ($settings?->auto_close_register ?? false) ? 'checked' : '' }}>
-                                            <span class="otp-slider"></span>
+                        {{-- ── General ─────────────────────────────────────────────── --}}
+                        <div class="sys-section-card mb-3">
+                            <div class="sys-section-title">
+                                <i class="fas fa-sliders-h me-1"></i>{{ __('lang_v1.general') }}
+                            </div>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-auto" style="padding-top:1.5rem;">
+                                    <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input" type="checkbox" name="auto_renewal"
+                                               id="auto_renewal" value="1"
+                                               {{ ($settings?->auto_renewal ?? false) ? 'checked' : '' }}>
+                                        <label for="auto_renewal" class="form-check-label fw-medium" style="font-size:.85rem;">
+                                            {{ __('payment.enable_auto_renewal') }}
                                         </label>
                                     </div>
-                                    <div class="otp-card__status {{ ($settings?->auto_close_register ?? false) ? 'is-on' : 'is-off' }}"
-                                         id="autoCloseRegisterStatus">
-                                        {{ ($settings?->auto_close_register ?? false) ? __('payment.enabled') : __('payment.disabled') }}
-                                    </div>
-                                    <div class="otp-card__phone">{{ __('payment.auto_close_register_note') }}</div>
-                                    <div class="mt-3 d-flex align-items-center gap-2">
-                                        <label for="autoCloseRegisterTime" class="mb-0 fw-medium" style="font-size:0.85rem;white-space:nowrap;">{{ __('payment.close_at') }}</label>
-                                        <input type="time" class="form-control form-control-sm" style="max-width:110px;"
-                                               name="auto_close_register_time"
-                                               id="autoCloseRegisterTime"
-                                               value="{{ $settings?->auto_close_register_time ?? '23:59' }}">
-                                    </div>
+                                </div>
+                                <div class="col-sm-3">
+                                    <label class="form-label mb-1 fw-medium" style="font-size:.8rem;">{{ __('payment.grace_period_days') }}</label>
+                                    <input type="number" class="form-control form-control-sm" name="grace_period_days"
+                                           value="{{ $settings?->grace_period_days ?? 7 }}" required>
+                                </div>
+                                <div class="col-sm-3">
+                                    <label class="form-label mb-1 fw-medium" style="font-size:.8rem;">{{ __('payment.recent_records_limit') }}</label>
+                                    <input type="number" min="1" max="100" class="form-control form-control-sm" name="recent_limit"
+                                           value="{{ $settings?->recent_limit ?? 5 }}" required>
+                                    <small class="text-muted" style="font-size:.72rem;">{{ __('payment.controls_how_many_recent') }}</small>
                                 </div>
                             </div>
                         </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-info px-4">
-                        <span class="btn-text">{{ __('payment.update_settings') }}</span>
-                        <span class="btn-loading d-none">
-                            <span class="spinner-border spinner-border-sm" role="status"></span>
-                        </span>
-                    </button>
-                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('payment.close') }}</button>
-                </div>
-              </form>
+
+                        {{-- ── Scheduled Tasks ─────────────────────────────────────── --}}
+                        <div class="sys-section-card">
+                            <div class="sys-section-title">
+                                <i class="fas fa-clock me-1"></i>{{ __('lang_v1.scheduled_tasks') ?? 'Scheduled Tasks' }}
+                            </div>
+                            <div class="row g-3">
+
+                                {{-- Card 1: Auto-close Register --}}
+                                <div class="col-lg-4 col-md-6">
+                                    <input type="hidden" name="auto_close_register" value="0">
+                                    <div class="sched-card h-100">
+                                        <div class="sched-card__head">
+                                            <div class="sched-card__icon" style="background:#e0f2fe;color:#0369a1;"><i class="fas fa-cash-register"></i></div>
+                                            <div class="sched-card__title">{{ __('payment.auto_close_register') }}</div>
+                                            <label class="otp-switch ms-auto flex-shrink-0" title="{{ __('payment.toggle_auto_close_register') }}">
+                                                <input type="checkbox" name="auto_close_register" id="autoCloseRegister" value="1"
+                                                       {{ ($settings?->auto_close_register ?? false) ? 'checked' : '' }}>
+                                                <span class="otp-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="sched-card__hint">{{ __('payment.auto_close_register_hint') }}</div>
+                                        <div class="sched-card__badge {{ ($settings?->auto_close_register ?? false) ? 'is-on' : 'is-off' }}" id="autoCloseRegisterStatus">
+                                            {{ ($settings?->auto_close_register ?? false) ? __('payment.enabled') : __('payment.disabled') }}
+                                        </div>
+                                        <div class="sched-card__note">{{ __('payment.auto_close_register_note') }}</div>
+                                        <div class="sched-card__row mt-auto pt-2">
+                                            <span class="sched-card__lbl">{{ __('payment.close_at') }}</span>
+                                            <input type="time" class="form-control form-control-sm sched-card__time"
+                                                   name="auto_close_register_time" id="autoCloseRegisterTime"
+                                                   value="{{ $settings?->auto_close_register_time ?? '23:59' }}">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- Card 2: Accounting Backfill --}}
+                                <div class="col-lg-4 col-md-6">
+                                    <input type="hidden" name="accounting_backfill_enabled" value="0">
+                                    <div class="sched-card h-100">
+                                        <div class="sched-card__head">
+                                            <div class="sched-card__icon" style="background:#fef9c3;color:#854d0e;"><i class="fas fa-calculator"></i></div>
+                                            <div class="sched-card__title">{{ __('payment.accounting_backfill_schedule') }}</div>
+                                            <label class="otp-switch ms-auto flex-shrink-0" title="{{ __('payment.toggle_accounting_backfill_schedule') }}">
+                                                <input type="checkbox" name="accounting_backfill_enabled" id="accountingBackfillEnabled" value="1"
+                                                       {{ ($settings?->accounting_backfill_enabled ?? false) ? 'checked' : '' }}>
+                                                <span class="otp-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="sched-card__hint">{{ __('payment.accounting_backfill_schedule_hint') }}</div>
+                                        <div class="sched-card__badge {{ ($settings?->accounting_backfill_enabled ?? false) ? 'is-on' : 'is-off' }}" id="accountingBackfillStatus">
+                                            {{ ($settings?->accounting_backfill_enabled ?? false) ? __('payment.enabled') : __('payment.disabled') }}
+                                        </div>
+                                        <div class="sched-card__note">{{ __('payment.accounting_backfill_schedule_note') }}</div>
+                                        <div class="sched-card__runinfo">
+                                            <span><i class="far fa-check-circle me-1"></i>{{ __('payment.last_run_at') }}: <strong>{{ !empty($accountingBackfillStatus['last_run']) ? \Carbon\Carbon::parse($accountingBackfillStatus['last_run'])->format('d M H:i') : __('payment.not_available') }}</strong></span>
+                                            <span><i class="far fa-clock me-1"></i>{{ __('payment.next_run_at') }}: <strong>{{ !empty($accountingBackfillStatus['next_run']) ? \Carbon\Carbon::parse($accountingBackfillStatus['next_run'])->format('d M H:i') : __('payment.not_available') }}</strong></span>
+                                        </div>
+                                        <div class="sched-card__row mt-2">
+                                            <span class="sched-card__lbl">{{ __('payment.frequency') }}</span>
+                                            <select class="form-select form-select-sm sched-card__sel" name="accounting_backfill_frequency" id="accountingBackfillFrequency">
+                                                @php $backfillFrequency = $settings?->accounting_backfill_frequency ?? 'hourly'; @endphp
+                                                <option value="every_fifteen_minutes" {{ $backfillFrequency === 'every_fifteen_minutes' ? 'selected' : '' }}>{{ __('payment.every_15_minutes') }}</option>
+                                                <option value="every_thirty_minutes"  {{ $backfillFrequency === 'every_thirty_minutes'  ? 'selected' : '' }}>{{ __('payment.every_30_minutes') }}</option>
+                                                <option value="hourly" {{ $backfillFrequency === 'hourly' ? 'selected' : '' }}>{{ __('payment.hourly') }}</option>
+                                                <option value="daily"  {{ $backfillFrequency === 'daily'  ? 'selected' : '' }}>{{ __('payment.daily') }}</option>
+                                            </select>
+                                        </div>
+                                        <div class="sched-card__row mt-1" id="accountingBackfillTimeWrap"
+                                             style="display:{{ ($settings?->accounting_backfill_frequency ?? 'hourly') === 'daily' ? 'flex' : 'none' }};">
+                                            <span class="sched-card__lbl">{{ __('payment.run_at') }}</span>
+                                            <input type="time" class="form-control form-control-sm sched-card__time"
+                                                   name="accounting_backfill_time" id="accountingBackfillTime"
+                                                   value="{{ $settings?->accounting_backfill_time ?? '02:00' }}">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- Card 3: Stock Costing Backfill --}}
+                                <div class="col-lg-4 col-md-12">
+                                    <input type="hidden" name="stock_costing_backfill_enabled" value="0">
+                                    <input type="hidden" name="run_stock_costing_backfill_now" id="runStockCostingBackfillNow" value="0">
+                                    <input type="hidden" name="run_stock_costing_backfill_dry_run" id="runStockCostingBackfillDryRun" value="0">
+                                    <div class="sched-card h-100">
+                                        <div class="sched-card__head">
+                                            <div class="sched-card__icon" style="background:#dcfce7;color:#166534;"><i class="fas fa-boxes"></i></div>
+                                            <div class="sched-card__title">{{ __('payment.stock_costing_backfill_schedule') }}</div>
+                                            <label class="otp-switch ms-auto flex-shrink-0" title="{{ __('payment.toggle_stock_costing_backfill_schedule') }}">
+                                                <input type="checkbox" name="stock_costing_backfill_enabled" id="stockCostingBackfillEnabled" value="1"
+                                                       {{ ($settings?->stock_costing_backfill_enabled ?? false) ? 'checked' : '' }}>
+                                                <span class="otp-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="sched-card__hint">{{ __('payment.stock_costing_backfill_schedule_hint') }}</div>
+                                        <div class="sched-card__badge {{ ($settings?->stock_costing_backfill_enabled ?? false) ? 'is-on' : 'is-off' }}" id="stockCostingBackfillStatus">
+                                            {{ ($settings?->stock_costing_backfill_enabled ?? false) ? __('payment.enabled') : __('payment.disabled') }}
+                                        </div>
+                                        <div class="sched-card__note">{{ __('payment.stock_costing_backfill_schedule_note') }}</div>
+                                        <div class="sched-card__runinfo">
+                                            <span><i class="far fa-check-circle me-1"></i>{{ __('payment.last_run_at') }}: <strong>{{ !empty($stockCostingBackfillStatus['last_run']) ? \Carbon\Carbon::parse($stockCostingBackfillStatus['last_run'])->format('d M H:i') : __('payment.not_available') }}</strong></span>
+                                            <span><i class="far fa-clock me-1"></i>{{ __('payment.next_run_at') }}: <strong>{{ !empty($stockCostingBackfillStatus['next_run']) ? \Carbon\Carbon::parse($stockCostingBackfillStatus['next_run'])->format('d M H:i') : __('payment.not_available') }}</strong></span>
+                                        </div>
+                                        <div class="sched-card__row mt-2">
+                                            <span class="sched-card__lbl">{{ __('payment.frequency') }}</span>
+                                            <select class="form-select form-select-sm sched-card__sel" name="stock_costing_backfill_frequency" id="stockCostingBackfillFrequency">
+                                                @php $stockBackfillFrequency = $settings?->stock_costing_backfill_frequency ?? 'daily'; @endphp
+                                                <option value="every_fifteen_minutes" {{ $stockBackfillFrequency === 'every_fifteen_minutes' ? 'selected' : '' }}>{{ __('payment.every_15_minutes') }}</option>
+                                                <option value="every_thirty_minutes"  {{ $stockBackfillFrequency === 'every_thirty_minutes'  ? 'selected' : '' }}>{{ __('payment.every_30_minutes') }}</option>
+                                                <option value="hourly" {{ $stockBackfillFrequency === 'hourly' ? 'selected' : '' }}>{{ __('payment.hourly') }}</option>
+                                                <option value="daily"  {{ $stockBackfillFrequency === 'daily'  ? 'selected' : '' }}>{{ __('payment.daily') }}</option>
+                                            </select>
+                                        </div>
+                                        <div class="sched-card__row mt-1" id="stockCostingBackfillTimeWrap"
+                                             style="display:{{ ($settings?->stock_costing_backfill_frequency ?? 'daily') === 'daily' ? 'flex' : 'none' }};">
+                                            <span class="sched-card__lbl">{{ __('payment.run_at') }}</span>
+                                            <input type="time" class="form-control form-control-sm sched-card__time"
+                                                   name="stock_costing_backfill_time" id="stockCostingBackfillTime"
+                                                   value="{{ $settings?->stock_costing_backfill_time ?? '01:30' }}">
+                                        </div>
+                                        <div class="row g-2 mt-1">
+                                            <div class="col-6">
+                                                <label class="sched-card__lbl d-block mb-1">{{ __('lang_v1.business') }}</label>
+                                                <select class="form-select form-select-sm" name="stock_costing_backfill_business_id" id="stockCostingBackfillBusinessId">
+                                                    <option value="">— {{ __('lang_v1.business') }} —</option>
+                                                    @foreach($schedulerBusinesses ?? [] as $sb)
+                                                        <option value="{{ $sb->id }}" {{ (int)($settings?->stock_costing_backfill_business_id) === (int)$sb->id ? 'selected' : '' }}>{{ $sb->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="sched-card__lbl d-block mb-1">{{ __('lang_v1.location') }}</label>
+                                                <select class="form-select form-select-sm" name="stock_costing_backfill_location_id" id="stockCostingBackfillLocationId">
+                                                    <option value="">— {{ __('lang_v1.location') }} —</option>
+                                                    @foreach($schedulerLocations ?? [] as $sl)
+                                                        <option value="{{ $sl->id }}" data-business="{{ $sl->business_id }}"
+                                                            {{ (int)($settings?->stock_costing_backfill_location_id) === (int)$sl->id ? 'selected' : '' }}>{{ $sl->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div id="stockCostingBackfillIdsWarning" class="alert alert-warning py-1 px-2 mt-2 small" style="display:none;">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>{{ __('payment.stock_costing_backfill_ids_required') }}
+                                        </div>
+                                        <div class="sched-card__row mt-1">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="runStockCostingBackfillDryRunBtn">
+                                                <i class="fas fa-search me-1"></i>{{ __('payment.run_stock_backfill_dry_run') }}
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-success" id="runStockCostingBackfillNowBtn">
+                                                <i class="fas fa-play me-1"></i>{{ __('payment.run_stock_backfill_now') }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>{{-- /row --}}
+                        </div>{{-- /sys-section-card --}}
+
+                    </div>{{-- /modal-body --}}
+
+                    <div class="modal-footer py-2">
+                        <button type="submit" class="btn btn-sm btn-info px-4">
+                            <span class="btn-text">{{ __('payment.update_settings') }}</span>
+                            <span class="btn-loading d-none"><span class="spinner-border spinner-border-sm" role="status"></span></span>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">{{ __('payment.close') }}</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -1399,6 +1527,96 @@
         }
         .otp-card__status.is-on  { background: #dcfce7; color: #166534; }
         .otp-card__status.is-off { background: #e5e7eb; color: #374151; }
+
+            /* ── System modal redesign ────────────────────────────────── */
+            .sys-section-card {
+                background: #fff;
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                padding: 14px 16px;
+            }
+            .sys-section-title {
+                font-size: .78rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: .06em;
+                color: #64748b;
+                margin-bottom: 12px;
+            }
+            /* scheduler card */
+            .sched-card {
+                background: #fff;
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                padding: 12px 14px;
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+            .sched-card__head {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .sched-card__icon {
+                width: 30px; height: 30px;
+                border-radius: 8px;
+                display: flex; align-items: center; justify-content: center;
+                font-size: .85rem;
+                flex-shrink: 0;
+            }
+            .sched-card__title {
+                font-size: .82rem;
+                font-weight: 700;
+                color: #1e293b;
+                line-height: 1.2;
+            }
+            .sched-card__hint {
+                font-size: .75rem;
+                color: #64748b;
+                line-height: 1.3;
+            }
+            .sched-card__badge {
+                display: inline-flex;
+                align-items: center;
+                padding: 2px 9px;
+                border-radius: 999px;
+                font-size: .72rem;
+                font-weight: 700;
+                width: fit-content;
+            }
+            .sched-card__badge.is-on  { background: #dcfce7; color: #166534; }
+            .sched-card__badge.is-off { background: #e5e7eb; color: #374151; }
+            .sched-card__note {
+                font-size: .72rem;
+                color: #94a3b8;
+                line-height: 1.3;
+            }
+            .sched-card__runinfo {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+                font-size: .72rem;
+                color: #475569;
+                background: #f8fafc;
+                border-radius: 6px;
+                padding: 5px 8px;
+            }
+            .sched-card__runinfo strong { color: #1e293b; }
+            .sched-card__row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+            .sched-card__lbl {
+                font-size: .75rem;
+                font-weight: 600;
+                color: #475569;
+                white-space: nowrap;
+            }
+            .sched-card__sel  { max-width: 100%; }
+            .sched-card__time { max-width: 105px; }
         .otp-switch {
             position: relative;
             display: inline-block;
@@ -1557,6 +1775,158 @@
                 badge.classList.replace('is-on', 'is-off');
             }
         });
+
+        document.getElementById('accountingBackfillEnabled')?.addEventListener('change', function () {
+            var badge = document.getElementById('accountingBackfillStatus');
+            if (!badge) return;
+            if (this.checked) {
+                badge.textContent = '{{ __('payment.enabled') }}';
+                badge.classList.replace('is-off', 'is-on');
+            } else {
+                badge.textContent = '{{ __('payment.disabled') }}';
+                badge.classList.replace('is-on', 'is-off');
+            }
+        });
+
+        document.getElementById('accountingBackfillFrequency')?.addEventListener('change', function () {
+            var wrap = document.getElementById('accountingBackfillTimeWrap');
+            if (!wrap) return;
+            wrap.style.display = this.value === 'daily' ? 'flex' : 'none';
+        });
+
+        document.getElementById('stockCostingBackfillEnabled')?.addEventListener('change', function () {
+            var badge = document.getElementById('stockCostingBackfillStatus');
+            if (!badge) return;
+            if (this.checked) {
+                badge.textContent = '{{ __('payment.enabled') }}';
+                badge.classList.replace('is-off', 'is-on');
+            } else {
+                badge.textContent = '{{ __('payment.disabled') }}';
+                badge.classList.replace('is-on', 'is-off');
+            }
+        });
+
+        document.getElementById('stockCostingBackfillFrequency')?.addEventListener('change', function () {
+            var wrap = document.getElementById('stockCostingBackfillTimeWrap');
+            if (!wrap) return;
+            wrap.style.display = this.value === 'daily' ? 'flex' : 'none';
+        });
+
+        (function () {
+            var toggle   = document.getElementById('stockCostingBackfillEnabled');
+            var bizSel   = document.getElementById('stockCostingBackfillBusinessId');
+            var locSel   = document.getElementById('stockCostingBackfillLocationId');
+            var warning  = document.getElementById('stockCostingBackfillIdsWarning');
+            var runNowInput = document.getElementById('runStockCostingBackfillNow');
+            var dryRunInput = document.getElementById('runStockCostingBackfillDryRun');
+            var runNowBtn = document.getElementById('runStockCostingBackfillNowBtn');
+            var dryRunBtn = document.getElementById('runStockCostingBackfillDryRunBtn');
+            if (!toggle || !bizSel || !locSel) return;
+
+            // Cascade: filter location options by selected business
+            var allLocOptions = Array.from(locSel.options).map(function(o) {
+                return { value: o.value, text: o.text, biz: o.dataset.business };
+            });
+
+            function filterLocations() {
+                var bizId = bizSel.value;
+                var currentLoc = locSel.value;
+                locSel.innerHTML = '';
+                var blank = document.createElement('option');
+                blank.value = ''; blank.textContent = '— Select location —';
+                locSel.appendChild(blank);
+                allLocOptions.forEach(function(opt) {
+                    if (!opt.value) return;
+                    if (!bizId || opt.biz === bizId) {
+                        var o = document.createElement('option');
+                        o.value = opt.value; o.textContent = opt.text;
+                        o.dataset.business = opt.biz;
+                        if (opt.value === currentLoc) o.selected = true;
+                        locSel.appendChild(o);
+                    }
+                });
+            }
+
+            bizSel.addEventListener('change', filterLocations);
+            filterLocations(); // run on page load to apply saved business filter
+
+            function validateIds() {
+                var enabled = toggle.checked;
+                var missing = enabled && (!bizSel.value || !locSel.value);
+                if (warning) warning.style.display = missing ? '' : 'none';
+                bizSel.classList.toggle('is-invalid', !!(enabled && !bizSel.value));
+                locSel.classList.toggle('is-invalid', !!(enabled && !locSel.value));
+                return !missing;
+            }
+
+            toggle.addEventListener('change', validateIds);
+            bizSel.addEventListener('change', validateIds);
+            locSel.addEventListener('change', validateIds);
+
+            // Hook into the System modal form submit to block when IDs are missing
+            var systemForm = document.querySelector('#systemModal form');
+            if (systemForm) {
+                systemForm.addEventListener('submit', function (e) {
+                    if (!validateIds()) {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        (bizSel.value ? locSel : bizSel).focus();
+                    }
+                }, true);
+
+                // Reset run-now flag for normal saves unless explicitly triggered.
+                systemForm.addEventListener('submit', function () {
+                    if ((!runNowBtn || !runNowBtn.dataset.triggered) && runNowInput) {
+                        runNowInput.value = '0';
+                    }
+                    if ((!dryRunBtn || !dryRunBtn.dataset.triggered) && dryRunInput) {
+                        dryRunInput.value = '0';
+                    }
+                    if (runNowBtn) {
+                        delete runNowBtn.dataset.triggered;
+                    }
+                    if (dryRunBtn) {
+                        delete dryRunBtn.dataset.triggered;
+                    }
+                });
+            }
+
+            if (dryRunBtn && systemForm) {
+                dryRunBtn.addEventListener('click', function () {
+                    if (!validateIds()) {
+                        (bizSel.value ? locSel : bizSel).focus();
+                        return;
+                    }
+
+                    if (runNowInput) {
+                        runNowInput.value = '0';
+                    }
+                    if (dryRunInput) {
+                        dryRunInput.value = '1';
+                    }
+                    dryRunBtn.dataset.triggered = '1';
+                    systemForm.requestSubmit();
+                });
+            }
+
+            if (runNowBtn && systemForm) {
+                runNowBtn.addEventListener('click', function () {
+                    if (!validateIds()) {
+                        (bizSel.value ? locSel : bizSel).focus();
+                        return;
+                    }
+
+                    if (runNowInput) {
+                        runNowInput.value = '1';
+                    }
+                    if (dryRunInput) {
+                        dryRunInput.value = '0';
+                    }
+                    runNowBtn.dataset.triggered = '1';
+                    systemForm.requestSubmit();
+                });
+            }
+        })();
 
         // Small set of translations used in runtime JS. Keep minimal to avoid large inlined objects.
         const DASHBOARD_I18N = {!! json_encode([

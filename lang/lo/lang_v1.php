@@ -1437,4 +1437,12 @@ return [
     'status' => 'Status',
     'id' => 'ID',
     'sr_no' => 'S/N',
+
+    // ── Scheduler labels ──────────────────────────────────────────
+    'business' => 'ທຸລະກິດ',
+    'location' => 'ສະຖານທີ່',
+
+    // System settings sections
+    'general' => 'Thua pai',
+    'scheduled_tasks' => 'Viek thi kamnot wela',
 ];

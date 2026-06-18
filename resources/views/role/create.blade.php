@@ -462,6 +462,46 @@
               </label>
             </div>
           </div>
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'stocktake.view', false, ['class' => 'input-icheck']); !!}
+                {{ __('stocktake.view_stocktakes') }}
+              </label>
+            </div>
+          </div>
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'stocktake.create', false, ['class' => 'input-icheck']); !!}
+                {{ __('stocktake.add_stocktake') }}
+              </label>
+            </div>
+          </div>
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'stocktake.update', false, ['class' => 'input-icheck']); !!}
+                {{ __('stocktake.edit_stocktake') !== 'stocktake.edit_stocktake' ? __('stocktake.edit_stocktake') : __('messages.edit') . ' ' . __('stocktake.stocktake') }}
+              </label>
+            </div>
+          </div>
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'stocktake.delete', false, ['class' => 'input-icheck']); !!}
+                {{ __('stocktake.delete_stocktake_permission') !== 'stocktake.delete_stocktake_permission' ? __('stocktake.delete_stocktake_permission') : __('messages.delete') . ' ' . __('stocktake.stocktake') }}
+              </label>
+            </div>
+          </div>
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'stocktake.complete', false, ['class' => 'input-icheck']); !!}
+                {{ __('stocktake.complete_stocktake') }}
+              </label>
+            </div>
+          </div>
         </div>
         </div>
         <hr>

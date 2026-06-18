@@ -452,6 +452,37 @@
                             </div>
                         </div>
                     @endif
+
+                    @if (!empty($business_kpi_trend_chart))
+                        <div
+                            class="tw-transition-all lg:tw-col-span-2 xl:tw-col-span-2 tw-duration-200 tw-bg-white tw-shadow-sm tw-rounded-xl tw-ring-1 hover:tw-shadow-md hover:tw--translate-y-0.5 tw-ring-gray-200">
+                            <div class="tw-p-4 sm:tw-p-5">
+                                <div class="tw-flex tw-items-center tw-gap-2.5">
+                                    <div
+                                        class="tw-border-2 tw-flex tw-items-center tw-justify-center tw-rounded-full tw-w-10 tw-h-10">
+                                        <svg aria-hidden="true" class="tw-size-5 tw-text-indigo-500 tw-shrink-0"
+                                            xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2"
+                                            stroke="currentColor" fill="none" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                            <path d="M3 12h4l3 -8l4 16l3 -8h4"></path>
+                                        </svg>
+                                    </div>
+                                    <h3 class="tw-font-bold tw-text-base lg:tw-text-xl">
+                                        Business Trend (Last 30 Days)
+                                    </h3>
+                                </div>
+                                <div class="tw-mt-5">
+                                    <div
+                                        class="tw-grid tw-w-full tw-h-100 tw-border tw-border-gray-200 tw-border-dashed tw-rounded-xl tw-bg-gray-50 ">
+                                        <p class="tw-text-sm tw-italic tw-font-normal tw-text-gray-400">
+                                            {!! $business_kpi_trend_chart->container() !!}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 @endif
                 {{-- @if (!empty($widgets['after_sales_current_fy']))
                     @foreach ($widgets['after_sales_current_fy'] as $widget)
@@ -1046,6 +1077,9 @@
     @if (!empty($all_locations))
         {!! $sells_chart_1->script() !!}
         {!! $sells_chart_2->script() !!}
+    @endif
+    @if (!empty($business_kpi_trend_chart))
+        {!! $business_kpi_trend_chart->script() !!}
     @endif
     <script type="text/javascript">
         $(document).ready(function() {

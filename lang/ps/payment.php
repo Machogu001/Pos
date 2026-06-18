@@ -562,4 +562,27 @@ return [
     'disabled' => 'غیرفعال',
     'auto_close_register_note' => 'هغه ثبتونه چې پدې ورځ خرڅلاو نلري بدلیدلي پریږدي.',
     'close_at' => 'بند کول',
+
+    // ── Accounting & Stock Costing Schedulers ─────────────────────────────
+    'accounting_backfill_schedule' => 'د محاسبې بیک فل مهالویش',
+    'accounting_backfill_schedule_hint' => 'د مهالویش سره سم ورک شوي محاسبوي معاملات چمتو کول',
+    'toggle_accounting_backfill_schedule' => 'د محاسبې بیک فل مهالویش بدلول',
+    'accounting_backfill_schedule_note' => 'accounting:backfill-default-accounts د مخkاست ساتنې سره چلوي.',
+    'stock_costing_backfill_schedule' => 'د ذخیره لګښت پرت بیک فل مهالویش',
+    'stock_costing_backfill_schedule_hint' => 'د مهالویش سره سم ورک شوي ذخیره لګښت پرتونه چمتو کول',
+    'toggle_stock_costing_backfill_schedule' => 'د ذخیره لګښت بیک فل مهالویش بدلول',
+    'stock_costing_backfill_schedule_note' => 'stock:backfill-costing-layers (د سوداګرۍ ID او ځای ID ته اړتیا ده).',
+    'stock_costing_backfill_ids_required' => 'د مهالویش فعالولو لپاره د سوداګرۍ ID او ځای ID اړین دي.',
+    'frequency' => 'تکراریت',
+    'every_15_minutes' => 'هره ۱۵ دقیقه',
+    'every_30_minutes' => 'هره ۳۰ دقیقه',
+    'hourly' => 'هره ساعته',
+    'daily' => 'ورځني',
+    'run_at' => 'پرمهال چلول',
+    'last_run_at' => 'وروستی چلول',
+    'next_run_at' => 'راتلونکی چلول',
+
+    // Stock costing manual actions
+    'run_stock_backfill_dry_run' => 'Dry Run',
+    'run_stock_backfill_now' => 'Backfill اوس اجرا کړئ',
 ];

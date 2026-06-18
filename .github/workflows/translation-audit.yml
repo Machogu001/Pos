@@ -12,6 +12,7 @@ jobs:
   translations:
     runs-on: ubuntu-latest
     env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       APP_ENV: testing
       APP_DEBUG: false
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -24,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -57,6 +58,7 @@ jobs:
             --worklist-dir=storage/app/translation_worklists_ci
 
       - name: Upload Translation Audit Artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: translation-audit

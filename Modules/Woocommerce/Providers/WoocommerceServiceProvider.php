@@ -142,24 +142,31 @@ class WoocommerceServiceProvider extends ServiceProvider
 
     public function registerScheduleCommands()
     {
-        $env = config('app.env');
-        $module_util = new ModuleUtil();
-        $is_installed = $module_util->isModuleInstalled(config('woocommerce.name'));
+        try {
+            $env = config('app.env');
+            $module_util = new ModuleUtil();
+            $is_installed = $module_util->isModuleInstalled(config('woocommerce.name'));
 
-        if ($env === 'live' && $is_installed) {
-            $businesses = Business::whereNotNull('woocommerce_api_settings')->get();
+            if ($env === 'live' && $is_installed) {
+                $businesses = Business::whereNotNull('woocommerce_api_settings')->get();
 
-            foreach ($businesses as $business) {
-                $api_settings = json_decode($business->woocommerce_api_settings);
-                if (!empty($api_settings->enable_auto_sync)) {
-                    //schedule command to auto sync orders
-                    $this->app->booted(function () use ($business) {
-                        $schedule = $this->app->make(Schedule::class);
-                        $schedule->command('pos:WoocommerceSyncProducts ' . $business->id)->twiceDaily(1, 13);
-                        $schedule->command('pos:WooCommerceSyncOrder ' . $business->id)->twiceDaily(1, 13);
-                    });
+                foreach ($businesses as $business) {
+                    $api_settings = json_decode($business->woocommerce_api_settings);
+                    if (!empty($api_settings->enable_auto_sync)) {
+                        //schedule command to auto sync orders
+                        $this->app->booted(function () use ($business) {
+                            $schedule = $this->app->make(Schedule::class);
+                            $schedule->command('pos:WoocommerceSyncProducts ' . $business->id)->twiceDaily(1, 13);
+                            $schedule->command('pos:WooCommerceSyncOrder ' . $business->id)->twiceDaily(1, 13);
+                        });
+                    }
                 }
             }
+        } catch (\Exception $e) {
+            // Log but don't crash if database is unavailable during boot
+            \Log::warning('WoocommerceServiceProvider::registerScheduleCommands failed', [
+                'error' => $e->getMessage()
+            ]);
         }
     }
 }

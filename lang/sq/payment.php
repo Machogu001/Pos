@@ -562,4 +562,27 @@ return [
     'disabled' => 'Çaktivizuar',
     'auto_close_register_note' => 'Regjistrat pa shitje në atë ditë mbeten të paprekur.',
     'close_at' => 'Mbylle në',
+
+    // ── Accounting & Stock Costing Schedulers ─────────────────────────────
+    'accounting_backfill_schedule' => 'Planifikuesi i Mbushjes Kontabël',
+    'accounting_backfill_schedule_hint' => 'Riparoni automatikisht transaksionet e llogarisë që mungojnë sipas orarit',
+    'toggle_accounting_backfill_schedule' => 'Aktivizo/çaktivizo planifikuesin e mbushjes kontabël',
+    'accounting_backfill_schedule_note' => 'Ekzekuton accounting:backfill-default-accounts me mbrojtje nga mbivendosja.',
+    'stock_costing_backfill_schedule' => 'Planifikuesi i Mbushjes së Shtresave të Kostos së Stokut',
+    'stock_costing_backfill_schedule_hint' => 'Riparoni automatikisht shtresat e kostos së stokut që mungojnë sipas orarit',
+    'toggle_stock_costing_backfill_schedule' => 'Aktivizo/çaktivizo planifikuesin e mbushjes stokut',
+    'stock_costing_backfill_schedule_note' => 'Ekzekuton stock:backfill-costing-layers (kërkon ID Biznesi dhe ID Lokacioni).',
+    'stock_costing_backfill_ids_required' => 'ID Biznesi dhe ID Lokacioni janë të nevojshme për të aktivizuar planifikuesin.',
+    'frequency' => 'Frekuenca',
+    'every_15_minutes' => 'Çdo 15 minuta',
+    'every_30_minutes' => 'Çdo 30 minuta',
+    'hourly' => 'Çdo orë',
+    'daily' => 'Çdo ditë',
+    'run_at' => 'Ekzekuto në',
+    'last_run_at' => 'Ekzekutimi i fundit',
+    'next_run_at' => 'Ekzekutimi tjetër',
+
+    // Stock costing manual actions
+    'run_stock_backfill_dry_run' => 'Ekzekutim prove',
+    'run_stock_backfill_now' => 'Ekzekuto backfill tani',
 ];

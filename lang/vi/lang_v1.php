@@ -1380,4 +1380,12 @@ return [
     'status' => 'Status',
     'id' => 'ID',
     'sr_no' => 'S/N',
+
+    // ── Scheduler labels ──────────────────────────────────────────
+    'business' => 'Doanh nghiệp',
+    'location' => 'Địa điểm',
+
+    // System settings sections
+    'general' => 'Chung',
+    'scheduled_tasks' => 'Tac vu da len lich',
 ];

@@ -1,6 +1,27 @@
 @extends('layouts.app')
 @section('title', __('report.stock_report'))
 
+@section('css')
+<style>
+    .stock-valuation-summary {
+        scroll-margin-top: 90px;
+        transition: box-shadow 0.35s ease, border-color 0.35s ease, background-color 0.35s ease;
+    }
+
+    .stock-valuation-summary.is-highlighted {
+        border: 1px solid #2c7a7b;
+        background-color: #f1fbfa;
+        box-shadow: 0 0 0 3px rgba(44, 122, 123, 0.14);
+        animation: valuationPulse 1.4s ease-in-out 1;
+    }
+
+    @keyframes valuationPulse {
+        0% { box-shadow: 0 0 0 0 rgba(44, 122, 123, 0.36); }
+        100% { box-shadow: 0 0 0 12px rgba(44, 122, 123, 0); }
+    }
+</style>
+@endsection
+
 @section('content')
 
 <!-- Content Header (Page header) -->
@@ -64,6 +85,7 @@
     @can('view_product_stock_value')
     <div class="row">
         <div class="col-md-12">
+            <div id="stock_valuation_summary" class="stock-valuation-summary">
             @component('components.widget', ['class' => 'box-solid'])
             <table class="table no-border">
                 <tr>
@@ -80,6 +102,7 @@
                 </tr>
             </table>
             @endcomponent
+            </div>
         </div>
     </div>
     @endcan
@@ -97,4 +120,26 @@
 
 @section('javascript')
     <script src="{{ asset('js/report.js?v=' . $asset_v) }}"></script>
+    <script>
+        $(document).ready(function() {
+            var query = new URLSearchParams(window.location.search || '');
+            var shouldFocusStockValue = query.get('view') === 'stock_value';
+            var $valuationSummary = $('#stock_valuation_summary');
+
+            if (!shouldFocusStockValue || !$valuationSummary.length) {
+                return;
+            }
+
+            // Let initial widgets render before scrolling and highlighting.
+            setTimeout(function() {
+                var top = $valuationSummary.offset().top - 80;
+                $('html, body').animate({ scrollTop: top }, 450);
+
+                $valuationSummary.addClass('is-highlighted');
+                setTimeout(function() {
+                    $valuationSummary.removeClass('is-highlighted');
+                }, 2600);
+            }, 220);
+        });
+    </script>
 @endsection

@@ -562,4 +562,27 @@ return [
     'disabled' => 'Desactivado',
     'auto_close_register_note' => 'Las cajas sin ventas ese día se dejan sin cambios.',
     'close_at' => 'Cerrar a las',
+
+    // ── Accounting & Stock Costing Schedulers ─────────────────────────────
+    'accounting_backfill_schedule' => 'Planificador de relleno contable',
+    'accounting_backfill_schedule_hint' => 'Reparar automáticamente las transacciones contables faltantes según un calendario',
+    'toggle_accounting_backfill_schedule' => 'Alternar planificador de relleno contable',
+    'accounting_backfill_schedule_note' => 'Ejecuta accounting:backfill-default-accounts con protección de solapamiento.',
+    'stock_costing_backfill_schedule' => 'Planificador de relleno de capas de costo de inventario',
+    'stock_costing_backfill_schedule_hint' => 'Reparar automáticamente las capas de costo de inventario faltantes según un calendario',
+    'toggle_stock_costing_backfill_schedule' => 'Alternar planificador de relleno de inventario',
+    'stock_costing_backfill_schedule_note' => 'Ejecuta stock:backfill-costing-layers con protección de solapamiento (requiere ID de empresa y ubicación).',
+    'stock_costing_backfill_ids_required' => 'El ID de empresa y el ID de ubicación son necesarios para activar el planificador.',
+    'frequency' => 'Frecuencia',
+    'every_15_minutes' => 'Cada 15 minutos',
+    'every_30_minutes' => 'Cada 30 minutos',
+    'hourly' => 'Cada hora',
+    'daily' => 'Diario',
+    'run_at' => 'Ejecutar a las',
+    'last_run_at' => 'Última ejecución',
+    'next_run_at' => 'Próxima ejecución',
+
+    // Stock costing manual actions
+    'run_stock_backfill_dry_run' => 'Prueba en seco',
+    'run_stock_backfill_now' => 'Ejecutar backfill ahora',
 ];

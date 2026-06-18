@@ -1367,4 +1367,12 @@ return [
     'status' => 'Status',
     'id' => 'ID',
     'sr_no' => 'S/N',
+
+    // ── Scheduler labels ──────────────────────────────────────────
+    'business' => 'Entreprise',
+    'location' => 'Emplacement',
+
+    // System settings sections
+    'general' => 'General',
+    'scheduled_tasks' => 'Taches planifiees',
 ];

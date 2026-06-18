@@ -562,4 +562,27 @@ return [
     'disabled' => 'معطّل',
     'auto_close_register_note' => 'السجلات التي لا تحتوي على مبيعات في ذلك اليوم تُترك دون تغيير.',
     'close_at' => 'أغلق عند',
+
+    // ── Accounting & Stock Costing Schedulers ─────────────────────────────
+    'accounting_backfill_schedule' => 'جدولة تعبئة المحاسبة',
+    'accounting_backfill_schedule_hint' => 'إصلاح تلقائي لمعاملات الحسابات المفقودة حسب جدول زمني',
+    'toggle_accounting_backfill_schedule' => 'تبديل جدولة تعبئة المحاسبة',
+    'accounting_backfill_schedule_note' => 'يشغّل accounting:backfill-default-accounts مع حماية التداخل.',
+    'stock_costing_backfill_schedule' => 'جدولة تعبئة طبقات تكلفة المخزون',
+    'stock_costing_backfill_schedule_hint' => 'إصلاح تلقائي لطبقات تكلفة المخزون المفقودة حسب جدول',
+    'toggle_stock_costing_backfill_schedule' => 'تبديل جدولة تعبئة تكلفة المخزون',
+    'stock_costing_backfill_schedule_note' => 'يشغّل stock:backfill-costing-layers مع حماية التداخل (يتطلب معرّف الشركة والموقع).',
+    'stock_costing_backfill_ids_required' => 'معرّف الشركة والموقع مطلوبان لتفعيل جدولة تعبئة تكلفة المخزون.',
+    'frequency' => 'التكرار',
+    'every_15_minutes' => 'كل 15 دقيقة',
+    'every_30_minutes' => 'كل 30 دقيقة',
+    'hourly' => 'كل ساعة',
+    'daily' => 'يومياً',
+    'run_at' => 'التشغيل في',
+    'last_run_at' => 'آخر تشغيل',
+    'next_run_at' => 'التشغيل القادم',
+
+    // Stock costing manual actions
+    'run_stock_backfill_dry_run' => 'تشغيل تجريبي',
+    'run_stock_backfill_now' => 'تشغيل الإصلاح الآن',
 ];

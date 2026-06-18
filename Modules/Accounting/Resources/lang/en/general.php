@@ -84,4 +84,8 @@ return [
     'preview' => 'Preview|Previews',
     'review' => 'Review|Reviews',
     'accounting_module_not_enabled_for_business' => 'Accounting module not enabled for this business.',
+    'hold_on' => 'Hold on',
+    'difference_not_zero_proceed' => 'The difference is not zero. Proceed?',
+    'action_may_not_be_reversible' => 'This action may not be reversible',
+    'ending_balance_field_required' => 'The ending balance field is required.',
 ];

@@ -1371,4 +1371,12 @@ return [
     'status' => 'Status',
     'id' => 'ID',
     'sr_no' => 'S/N',
+
+    // ── Scheduler labels ──────────────────────────────────────────
+    'business' => 'İşletme',
+    'location' => 'Konum',
+
+    // System settings sections
+    'general' => 'Genel',
+    'scheduled_tasks' => 'Zamanlanmis Gorevler',
 ];

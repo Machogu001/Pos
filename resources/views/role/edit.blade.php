@@ -460,6 +460,46 @@
               </label>
             </div>
           </div>
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'stocktake.view', in_array('stocktake.view', $role_permissions), ['class' => 'input-icheck']); !!}
+                {{ __('stocktake.view_stocktakes') }}
+              </label>
+            </div>
+          </div>
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'stocktake.create', in_array('stocktake.create', $role_permissions), ['class' => 'input-icheck']); !!}
+                {{ __('stocktake.add_stocktake') }}
+              </label>
+            </div>
+          </div>
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'stocktake.update', in_array('stocktake.update', $role_permissions), ['class' => 'input-icheck']); !!}
+                {{ __('stocktake.edit_stocktake') !== 'stocktake.edit_stocktake' ? __('stocktake.edit_stocktake') : __('messages.edit') . ' ' . __('stocktake.stocktake') }}
+              </label>
+            </div>
+          </div>
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'stocktake.delete', in_array('stocktake.delete', $role_permissions), ['class' => 'input-icheck']); !!}
+                {{ __('stocktake.delete_stocktake_permission') !== 'stocktake.delete_stocktake_permission' ? __('stocktake.delete_stocktake_permission') : __('messages.delete') . ' ' . __('stocktake.stocktake') }}
+              </label>
+            </div>
+          </div>
+          <div class="col-md-12">
+            <div class="checkbox">
+              <label>
+                {!! Form::checkbox('permissions[]', 'stocktake.complete', in_array('stocktake.complete', $role_permissions), ['class' => 'input-icheck']); !!}
+                {{ __('stocktake.complete_stocktake') }}
+              </label>
+            </div>
+          </div>
         </div>
         </div>
         <hr>

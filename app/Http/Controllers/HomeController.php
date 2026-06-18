@@ -208,6 +208,73 @@ class HomeController extends Controller
             $sells_chart_2->dataset(__('report.all_locations'), 'line', $values);
         }
 
+        // Power BI-style trend chart: Sales vs Purchases vs Expenses (last 30 days)
+        $trend_dates = [];
+        $trend_labels = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $date = \Carbon::now()->subDays($i)->format('Y-m-d');
+            $trend_dates[] = $date;
+            $trend_labels[] = date('j M', strtotime($date));
+        }
+
+        $trend_totals = Transaction::where('business_id', $business_id)
+            ->whereIn('type', ['sell', 'purchase', 'expense'])
+            ->whereDate('transaction_date', '>=', $trend_dates[0])
+            ->whereDate('transaction_date', '<=', end($trend_dates))
+            ->select(
+                DB::raw("DATE(transaction_date) as txn_date"),
+                'type',
+                DB::raw('SUM(final_total) as total')
+            )
+            ->groupBy('txn_date', 'type')
+            ->get();
+
+        $sales_values = [];
+        $purchase_values = [];
+        $expense_values = [];
+        foreach ($trend_dates as $trend_date) {
+            $sales_values[] = (float) optional($trend_totals->where('txn_date', $trend_date)->where('type', 'sell')->first())->total ?? 0;
+            $purchase_values[] = (float) optional($trend_totals->where('txn_date', $trend_date)->where('type', 'purchase')->first())->total ?? 0;
+            $expense_values[] = (float) optional($trend_totals->where('txn_date', $trend_date)->where('type', 'expense')->first())->total ?? 0;
+        }
+
+        $business_kpi_trend_chart = new CommonChart;
+        $business_kpi_trend_chart->labels($trend_labels)
+            ->options([
+                'chart' => [
+                    'type' => 'areaspline',
+                    'height' => 340,
+                ],
+                'title' => [
+                    'text' => null,
+                ],
+                'yAxis' => [
+                    'title' => [
+                        'text' => __('Amount'),
+                    ],
+                ],
+                'tooltip' => [
+                    'shared' => true,
+                    'valueDecimals' => 2,
+                ],
+                'legend' => [
+                    'align' => 'left',
+                    'verticalAlign' => 'top',
+                    'layout' => 'horizontal',
+                ],
+                'plotOptions' => [
+                    'series' => [
+                        'marker' => [
+                            'enabled' => false,
+                        ],
+                    ],
+                ],
+            ]);
+
+        $business_kpi_trend_chart->dataset('Sales', 'areaspline', $sales_values);
+        $business_kpi_trend_chart->dataset('Purchases', 'areaspline', $purchase_values);
+        $business_kpi_trend_chart->dataset('Expenses', 'areaspline', $expense_values);
+
         //Get Dashboard widgets from module
         $module_widgets = $this->moduleUtil->getModuleData('dashboard_widget');
 
@@ -222,7 +289,7 @@ class HomeController extends Controller
         $common_settings = ! empty(session('business.common_settings')) ? session('business.common_settings') : [];
 
 
-        return view('home.index', compact('sells_chart_1', 'sells_chart_2', 'widgets', 'all_locations', 'common_settings', 'is_admin'));
+        return view('home.index', compact('sells_chart_1', 'sells_chart_2', 'business_kpi_trend_chart', 'widgets', 'all_locations', 'common_settings', 'is_admin'));
     }
 
     /**

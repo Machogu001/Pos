@@ -1864,13 +1864,17 @@ function get_stock_value() {
     $('#closing_stock_by_sp').html(loader);
     $('#potential_profit').html(loader);
     $('#profit_margin').html(loader);
+
+    var is_stock_valuation_page = $('#valuation_location_id').length > 0 || $('#valuation_product_id').length > 0;
     var data = {
-        location_id: $('#location_id').val(),
-        category_id: $('#category_id').val(),
-        sub_category_id: $('#sub_category_id').val(),
-        brand_id: $('#brand').val(),
-        unit_id: $('#unit').val(),
-    }
+        location_id: is_stock_valuation_page ? $('#valuation_location_id').val() : $('#location_id').val(),
+        category_id: is_stock_valuation_page ? $('#valuation_category_id').val() : $('#category_id').val(),
+        sub_category_id: is_stock_valuation_page ? $('#valuation_sub_category_id').val() : $('#sub_category_id').val(),
+        brand_id: is_stock_valuation_page ? $('#valuation_brand_id').val() : $('#brand').val(),
+        unit_id: is_stock_valuation_page ? $('#valuation_unit_id').val() : $('#unit').val(),
+        product_id: is_stock_valuation_page ? $('#valuation_product_id').val() : null,
+    };
+
     $.ajax({
         url: '/reports/get-stock-value',
         data: data,

@@ -1612,5 +1612,13 @@ return [
     'in_stock' => 'in stock',
     'cogs' => 'COGS:',
     'cogs_help_text' => 'Cost of Goods Sold = Starting inventory(opening stock) + purchases − ending inventory(closing stock)',
-    'overall_summary' => 'Overall Summary'
+    'overall_summary' => 'Overall Summary',
+
+    // ── Scheduler labels ──────────────────────────────────────────
+    'business' => 'Business',
+    'location' => 'Location',
+
+    // System settings sections
+    'general' => 'General',
+    'scheduled_tasks' => 'Scheduled Tasks',
 ];

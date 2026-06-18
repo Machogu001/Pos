@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Events\SellCreatedOrModified;
 use App\Transaction;
 use App\TransactionSellLine;
+use Illuminate\Support\Facades\DB;
 
 class TransactionSellLineObserver
 {
@@ -38,6 +39,8 @@ class TransactionSellLineObserver
             return;
         }
 
-        event(new SellCreatedOrModified($transaction));
+        DB::afterCommit(function () use ($transaction) {
+            event(new SellCreatedOrModified($transaction->fresh() ?? $transaction));
+        });
     }
 }

@@ -29,6 +29,7 @@ use App\Variation;
 use Datatables;
 use DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Activitylog\Models\Activity;
 
 class ReportController extends Controller
@@ -351,7 +352,11 @@ class ReportController extends Controller
                 break;
             }
         }
-        if ($this->moduleUtil->isModuleInstalled('Manufacturing') && (auth()->user()->can('superadmin') || $this->moduleUtil->hasThePermissionInSubscription($business_id, 'manufacturing_module'))) {
+        if (
+            $this->moduleUtil->isModuleInstalled('Manufacturing')
+            && Schema::hasTable('manufacturing_recipes')
+            && (auth()->user()->can('superadmin') || $this->moduleUtil->hasThePermissionInSubscription($business_id, 'manufacturing_module'))
+        ) {
             $show_manufacturing_data = 1;
         } else {
             $show_manufacturing_data = 0;
@@ -499,6 +504,170 @@ class ReportController extends Controller
 
         return view('report.stock_report')
             ->with(compact('categories', 'brands', 'units', 'business_locations', 'show_manufacturing_data'));
+    }
+
+    /**
+     * Shows stock valuation summary report
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function getStockValuationReport(Request $request)
+    {
+        if (! auth()->user()->can('view_product_stock_value')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $business_id = $request->session()->get('user.business_id');
+
+        if ($request->ajax()) {
+            $filters = $request->only(['location_id', 'category_id', 'sub_category_id', 'brand_id', 'unit_id', 'product_id']);
+            $products = $this->productUtil->getProductStockDetails($business_id, $filters, 'datatables');
+            $products->havingRaw('SUM(vld.qty_available) > 0');
+
+            $datatable = Datatables::of($products)
+                ->editColumn('product', function ($row) {
+                    return $row->product;
+                })
+                ->editColumn('variation', function ($row) {
+                    if ($row->type == 'variable') {
+                        return $row->product_variation.' - '.$row->variation_name;
+                    }
+
+                    return $row->variation_name;
+                })
+                ->editColumn('stock', function ($row) {
+                    if ($row->enable_stock) {
+                        $stock = $row->stock ? $row->stock : 0;
+
+                        return '<span class="current_stock" data-orig-value="'.(float) $stock.'" data-unit="'.$row->unit.'">'.$this->transactionUtil->num_f($stock, false, null, true).'</span> '.$row->unit;
+                    }
+
+                    return '--';
+                })
+                ->editColumn('stock_price', function ($row) {
+                    $stock_price = (float) ($row->stock_price ?? 0);
+
+                    return '<span class="total_stock_price" data-orig-value="'.$stock_price.'">'.$this->transactionUtil->num_f($stock_price, true).'</span>';
+                })
+                ->editColumn('stock_value_by_sale_price', function ($row) {
+                    $stock_value_by_sale_price = (float) ($row->stock_value_by_sale_price ?? 0);
+
+                    return '<span class="stock_value_by_sale_price" data-orig-value="'.$stock_value_by_sale_price.'">'.$this->transactionUtil->num_f($stock_value_by_sale_price, true).'</span>';
+                })
+                ->editColumn('potential_profit', function ($row) {
+                    $potential_profit = (float) ($row->potential_profit ?? 0);
+
+                    return '<span class="potential_profit" data-orig-value="'.$potential_profit.'">'.$this->transactionUtil->num_f($potential_profit, true).'</span>';
+                })
+                ->filterColumn('sku', function ($query, $keyword) {
+                    $query->where('variations.sub_sku', 'like', "%{$keyword}%");
+                })
+                ->filterColumn('product', function ($query, $keyword) {
+                    $query->where('p.name', 'like', "%{$keyword}%");
+                })
+                ->filterColumn('variation', function ($query, $keyword) {
+                    $query->whereRaw("CONCAT(COALESCE(pv.name, ''), ' - ', COALESCE(variations.name, '')) like ?", ["%{$keyword}%"]);
+                })
+                ->filterColumn('category_name', function ($query, $keyword) {
+                    $query->where('c.name', 'like', "%{$keyword}%");
+                })
+                ->filterColumn('location_name', function ($query, $keyword) {
+                    $query->where('l.name', 'like', "%{$keyword}%");
+                })
+                ->rawColumns(['stock', 'stock_price', 'stock_value_by_sale_price', 'potential_profit']);
+
+            return $datatable->make(true);
+        }
+
+        $categories = Category::forDropdown($business_id, 'product');
+        $brands = Brands::forDropdown($business_id);
+        $units = Unit::where('business_id', $business_id)
+                            ->pluck('short_name', 'id');
+        $business_locations = BusinessLocation::forDropdown($business_id, true);
+
+        return view('report.stock_valuation_report')
+            ->with(compact('categories', 'brands', 'units', 'business_locations'));
+    }
+
+    /**
+     * Shows gaps where physical stock exceeds available costing layers.
+     * Useful before running stock:backfill-costing-layers.
+     */
+    public function getStockCostingLayerGapReport(Request $request)
+    {
+        if (! auth()->user()->can('stock_report.view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $business_id = $request->session()->get('user.business_id');
+        $permitted_locations = auth()->user()->permitted_locations();
+
+        if ($request->ajax()) {
+            $layerQuery = DB::table('purchase_lines as pl')
+                ->join('transactions as t', 't.id', '=', 'pl.transaction_id')
+                ->where('t.business_id', $business_id)
+                ->whereIn('t.type', ['purchase', 'purchase_transfer', 'opening_stock', 'production_purchase', 'stocktake_adjustment'])
+                ->where('t.status', 'received')
+                ->groupBy('t.location_id', 'pl.product_id', 'pl.variation_id')
+                ->select([
+                    't.location_id',
+                    'pl.product_id',
+                    'pl.variation_id',
+                    DB::raw('SUM(GREATEST(0, pl.quantity - (pl.quantity_sold + pl.quantity_adjusted + pl.quantity_returned + pl.mfg_quantity_used))) as layer_available'),
+                ]);
+
+            $query = DB::table('variation_location_details as vld')
+                ->join('products as p', 'p.id', '=', 'vld.product_id')
+                ->join('variations as v', 'v.id', '=', 'vld.variation_id')
+                ->join('business_locations as l', 'l.id', '=', 'vld.location_id')
+                ->leftJoinSub($layerQuery, 'layers', function ($join) {
+                    $join->on('layers.location_id', '=', 'vld.location_id')
+                        ->on('layers.product_id', '=', 'vld.product_id')
+                        ->on('layers.variation_id', '=', 'vld.variation_id');
+                })
+                ->where('p.business_id', $business_id)
+                ->where('p.enable_stock', 1)
+                ->whereRaw('vld.qty_available > COALESCE(layers.layer_available, 0)')
+                ->select([
+                    'vld.product_id',
+                    'vld.variation_id',
+                    'vld.location_id',
+                    'p.name as product_name',
+                    'v.sub_sku as sku',
+                    'l.name as location_name',
+                    DB::raw('ROUND(vld.qty_available, 4) as qty_available'),
+                    DB::raw('ROUND(COALESCE(layers.layer_available, 0), 4) as layer_available'),
+                    DB::raw('ROUND(vld.qty_available - COALESCE(layers.layer_available, 0), 4) as layer_gap'),
+                ]);
+
+            if ($permitted_locations != 'all') {
+                $query->whereIn('vld.location_id', $permitted_locations);
+            }
+
+            if (! empty($request->input('location_id'))) {
+                $query->where('vld.location_id', $request->input('location_id'));
+            }
+
+            if (! empty($request->input('product_id'))) {
+                $query->where('vld.product_id', $request->input('product_id'));
+            }
+
+            return Datatables::of($query)
+                ->filterColumn('sku', function ($q, $keyword) {
+                    $q->where('v.sub_sku', 'like', "%{$keyword}%");
+                })
+                ->filterColumn('product_name', function ($q, $keyword) {
+                    $q->where('p.name', 'like', "%{$keyword}%");
+                })
+                ->filterColumn('location_name', function ($q, $keyword) {
+                    $q->where('l.name', 'like', "%{$keyword}%");
+                })
+                ->make(true);
+        }
+
+        $business_locations = BusinessLocation::forDropdown($business_id, true);
+
+        return view('report.stock_costing_layer_gap_report', compact('business_locations'));
     }
 
     // // this function copy of above get route becouse of large size parameter 
@@ -3601,29 +3770,24 @@ class ReportController extends Controller
     public function getStockValue()
     {
         $business_id = request()->session()->get('user.business_id');
-        $end_date = \Carbon::now()->format('Y-m-d');
         $location_id = request()->input('location_id');
-        $filters = request()->only(['category_id', 'sub_category_id', 'brand_id', 'unit_id']);
+        $filters = request()->only(['category_id', 'sub_category_id', 'brand_id', 'unit_id', 'product_id']);
 
         $permitted_locations = auth()->user()->permitted_locations();
         //Get Closing stock
-        $closing_stock_by_pp = $this->transactionUtil->getOpeningClosingStock(
+        $closing_stock_by_pp = $this->transactionUtil->getCurrentStockValueByVariationPrice(
             $business_id,
-            $end_date,
             $location_id,
-            false,
-            false,
             $filters,
-            $permitted_locations
+            $permitted_locations,
+            false
         );
-        $closing_stock_by_sp = $this->transactionUtil->getOpeningClosingStock(
+        $closing_stock_by_sp = $this->transactionUtil->getCurrentStockValueByVariationPrice(
             $business_id,
-            $end_date,
             $location_id,
-            false,
-            true,
             $filters,
-            $permitted_locations
+            $permitted_locations,
+            true
         );
         $potential_profit = $closing_stock_by_sp - $closing_stock_by_pp;
         $profit_margin = empty($closing_stock_by_sp) ? 0 : ($potential_profit / $closing_stock_by_sp) * 100;

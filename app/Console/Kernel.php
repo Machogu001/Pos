@@ -23,6 +23,8 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\SendSubscriptionReminders::class,
         \App\Console\Commands\BackfillDefaultAccountTransactions::class,
         \App\Console\Commands\AuditSellPostings::class,
+        \App\Console\Commands\FixNegativeStockMismatches::class,
+        \App\Console\Commands\BackfillStockCostingLayers::class,
         \App\Console\Commands\RealignPaymentAccountMappings::class,
         \App\Console\Commands\AutoCloseRegister::class,
         \App\Console\Commands\FetchRemoteVersion::class,
@@ -80,6 +82,80 @@ class Kernel extends ConsoleKernel
 
         // Generate subscription pre-expiry invoice notices and reminders (14d & 7d)
         $schedule->command('subscriptions:send_reminders')->dailyAt('09:00');
+
+        // Backfill missing account transactions based on superadmin-configured schedule.
+        try {
+            $adminSettings = \App\AdminSetting::first();
+            if (! empty($adminSettings) && (bool) $adminSettings->accounting_backfill_enabled) {
+                $frequency = (string) ($adminSettings->accounting_backfill_frequency ?? 'hourly');
+                $time = (string) ($adminSettings->accounting_backfill_time ?? '02:00');
+                if (! preg_match('/^\d{2}:\d{2}$/', $time)) {
+                    $time = '02:00';
+                }
+
+                $backfillCommand = $schedule->command('accounting:backfill-default-accounts')->withoutOverlapping();
+
+                switch ($frequency) {
+                    case 'every_fifteen_minutes':
+                        $backfillCommand->everyFifteenMinutes();
+                        break;
+                    case 'every_thirty_minutes':
+                        $backfillCommand->everyThirtyMinutes();
+                        break;
+                    case 'daily':
+                        $backfillCommand->dailyAt($time);
+                        break;
+                    case 'hourly':
+                    default:
+                        $backfillCommand->hourly();
+                        break;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Avoid failing the full scheduler because of setting lookup issues.
+        }
+
+        // Backfill missing stock costing layers (no qty_available change) on admin-configured schedule.
+        try {
+            $adminSettings = \App\AdminSetting::first();
+            if (! empty($adminSettings) && (bool) $adminSettings->stock_costing_backfill_enabled) {
+                $frequency = (string) ($adminSettings->stock_costing_backfill_frequency ?? 'daily');
+                $time = (string) ($adminSettings->stock_costing_backfill_time ?? '01:30');
+                if (! preg_match('/^\d{2}:\d{2}$/', $time)) {
+                    $time = '01:30';
+                }
+
+                $businessId = (int) ($adminSettings->stock_costing_backfill_business_id ?? 0);
+                $locationId = (int) ($adminSettings->stock_costing_backfill_location_id ?? 0);
+                if ($businessId > 0 && $locationId > 0) {
+                    $commandString = sprintf(
+                        'stock:backfill-costing-layers --business-id=%d --location-id=%d',
+                        $businessId,
+                        $locationId
+                    );
+
+                    $stockBackfillCommand = $schedule->command($commandString)->withoutOverlapping();
+
+                    switch ($frequency) {
+                        case 'every_fifteen_minutes':
+                            $stockBackfillCommand->everyFifteenMinutes();
+                            break;
+                        case 'every_thirty_minutes':
+                            $stockBackfillCommand->everyThirtyMinutes();
+                            break;
+                        case 'daily':
+                            $stockBackfillCommand->dailyAt($time);
+                            break;
+                        case 'hourly':
+                        default:
+                            $stockBackfillCommand->hourly();
+                            break;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Avoid failing the full scheduler because of setting lookup issues.
+        }
 
         // Audit finalized item sells and auto-backfill any missing COGS/inventory postings.
         $schedule->command('accounting:audit-sell-postings --fix')->hourly()->withoutOverlapping();

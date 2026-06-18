@@ -22,6 +22,7 @@ use App\VariationLocationDetails;
 use App\VariationTemplate;
 use App\VariationValueTemplate;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ProductUtil extends Util
 {
@@ -2455,8 +2456,8 @@ class ProductUtil extends Util
             $query->where('p.type', $filters['type']);
         }
 
-        if (isset($filters['only_mfg_products']) && $filters['only_mfg_products'] == 1) {
-            $query->join('mfg_recipes as mr', 'mr.variation_id', '=', 'variations.id');
+        if (isset($filters['only_mfg_products']) && $filters['only_mfg_products'] == 1 && Schema::hasTable('manufacturing_recipes')) {
+            $query->join('manufacturing_recipes as mr', 'mr.variation_id', '=', 'variations.id');
         }
 
         if (isset($filters['active_state']) && $filters['active_state'] == 'active') {
@@ -2495,11 +2496,10 @@ class ProductUtil extends Util
                   JOIN stock_adjustment_lines AS SAL ON transactions.id=SAL.transaction_id
                   WHERE transactions.type='stock_adjustment' AND transactions.location_id=vld.location_id 
                     AND (SAL.variation_id=variations.id)) as total_adjusted"),
-            DB::raw("(SELECT SUM( COALESCE(pl.quantity - ($pl_query_string), 0) * purchase_price_inc_tax) FROM transactions 
-                  JOIN purchase_lines AS pl ON transactions.id=pl.transaction_id
-                  WHERE (transactions.status='received' OR transactions.type='purchase_return')  AND transactions.location_id=vld.location_id 
-                  AND (pl.variation_id=variations.id)) as stock_price"),
-            DB::raw('SUM(vld.qty_available) as stock'),
+                DB::raw('SUM(vld.qty_available) as stock'),
+                                DB::raw('(GREATEST(COALESCE(SUM(vld.qty_available), 0), 0) * COALESCE(NULLIF(variations.dpp_inc_tax, 0), NULLIF(variations.default_purchase_price, 0), 0)) as stock_price'),
+                DB::raw('(GREATEST(COALESCE(SUM(vld.qty_available), 0), 0) * variations.sell_price_inc_tax) as stock_value_by_sale_price'),
+                                DB::raw('((GREATEST(COALESCE(SUM(vld.qty_available), 0), 0) * variations.sell_price_inc_tax) - (GREATEST(COALESCE(SUM(vld.qty_available), 0), 0) * COALESCE(NULLIF(variations.dpp_inc_tax, 0), NULLIF(variations.default_purchase_price, 0), 0))) as potential_profit'),
             'variations.sub_sku as sku',
             'p.name as product',
             'p.type',
