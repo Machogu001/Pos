@@ -179,7 +179,7 @@ class PurchasePostingAuditService
                     ->count('t.id'),
                 'missing_inventory_count' => (int) (clone $base)
                     ->leftJoin('account_transactions as ati', function ($join) {
-                        $this->applyPostingJoin($join, 'ati', 'purchase_inventory');
+                        $this->applyPostingJoin($join, 'ati', ['purchase_inventory', 'purchase_invoice_inventory']);
                     })
                     ->whereNull('ati.id')
                     ->distinct()
@@ -195,7 +195,7 @@ class PurchasePostingAuditService
                 $this->applyPostingJoin($join, 'atp', 'purchase_invoice');
             })
             ->leftJoin('account_transactions as ati', function ($join) {
-                $this->applyPostingJoin($join, 'ati', 'purchase_inventory');
+                $this->applyPostingJoin($join, 'ati', ['purchase_inventory', 'purchase_invoice_inventory']);
             })
             ->where(function ($query) {
                 $query->whereNull('atp.id')
@@ -217,7 +217,7 @@ class PurchasePostingAuditService
                 $this->applyPostingJoin($join, 'atp', 'purchase_invoice');
             })
             ->leftJoin('account_transactions as ati', function ($join) {
-                $this->applyPostingJoin($join, 'ati', 'purchase_inventory');
+                $this->applyPostingJoin($join, 'ati', ['purchase_inventory', 'purchase_invoice_inventory']);
             })
             ->where(function ($query) {
                 $query->whereNull('atp.id')
@@ -243,11 +243,16 @@ class PurchasePostingAuditService
         return $query;
     }
 
-    protected function applyPostingJoin($join, string $alias, string $reffNo): void
+    protected function applyPostingJoin($join, string $alias, $reffNo): void
     {
         $join->on($alias . '.transaction_id', '=', 't.id')
-            ->where($alias . '.reff_no', $reffNo)
             ->whereNull($alias . '.transaction_payment_id');
+
+        if (is_array($reffNo)) {
+            $join->whereIn($alias . '.reff_no', $reffNo);
+        } else {
+            $join->where($alias . '.reff_no', $reffNo);
+        }
 
         if ($this->accountTransactionsHasDeletedAt()) {
             $join->whereNull($alias . '.deleted_at');

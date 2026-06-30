@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Modules\Accounting\Entities\ChartOfAccount;
 use Modules\Accounting\Entities\JournalEntry;
 use Modules\Accounting\Entities\PaymentType;
@@ -35,7 +36,7 @@ class AccountingController extends Controller
         $end_date = $request->end_date;
         $location_id = $request->location_id;
         $data = [];
-        $business_locations = BusinessLocation::getDropdownCollection(session('business.id'));
+        $business_locations = BusinessLocation::getDropdownCollection($this->resolveBusinessId());
         if (!empty($start_date)) {
             $data = DB::table("chart_of_accounts")->join("journal_entries", "journal_entries.chart_of_account_id", "chart_of_accounts.id")->join("business_locations", "journal_entries.location_id", "business_locations.id")->when($start_date, function ($query) use ($start_date, $end_date) {
                 $query->whereBetween('journal_entries.date', [$start_date, $end_date]);
@@ -94,7 +95,7 @@ class AccountingController extends Controller
         $end_date = $request->end_date;
         $location_id = $request->location_id;
         $data = [];
-        $business_locations = BusinessLocation::getDropdownCollection(session('business.id'));
+        $business_locations = BusinessLocation::getDropdownCollection($this->resolveBusinessId());
         if (!empty($start_date)) {
             $data = DB::table("chart_of_accounts")->join("journal_entries", "journal_entries.chart_of_account_id", "chart_of_accounts.id")->join("business_locations", "journal_entries.location_id", "business_locations.id")->when($start_date, function ($query) use ($start_date, $end_date) {
                 $query->whereBetween('journal_entries.date', [$start_date, $end_date]);
@@ -152,7 +153,7 @@ class AccountingController extends Controller
         $end_date = $request->end_date;
         $location_id = $request->location_id;
         $data = [];
-        $business_locations = BusinessLocation::getDropdownCollection(session('business.id'));
+        $business_locations = BusinessLocation::getDropdownCollection($this->resolveBusinessId());
         if (!empty($end_date)) {
             $data = DB::table("chart_of_accounts")->leftJoin('journal_entries', function ($join) use ($end_date) {
                 $join->on('journal_entries.chart_of_account_id', '=', 'chart_of_accounts.id')
@@ -239,12 +240,42 @@ class AccountingController extends Controller
 
     public function create_transfer()
     {
-        $chart_of_accounts = ChartOfAccount::forBusiness()->where('active', 1)->orderBy('gl_code')->get();
+        $businessId = $this->resolveBusinessId();
+        $chart_of_accounts = ChartOfAccount::query()
+            ->where('business_id', $businessId)
+            ->where('active', 1)
+            ->orderBy('gl_code')
+            ->get();
         $currencies = Currency::all();
         $payment_types = PaymentType::getTypesCollection();
-        $business_locations = BusinessLocation::getDropdownCollection(session('business.id'));
+
+        // Always load active locations directly for transfer UI defaults.
+        $business_locations = \App\BusinessLocation::query()
+            ->where('business_id', $businessId)
+            ->where('is_active', 1)
+            ->orderBy('name')
+            ->select([
+                'id',
+                DB::raw("IF(location_id IS NULL OR location_id='', name, CONCAT(name, ' (', location_id, ')')) AS name"),
+            ])
+            ->get();
+
+        Log::info('AccountingController::create_transfer options loaded', [
+            'business_id' => $businessId,
+            'locations_count' => $business_locations->count(),
+            'chart_of_accounts_count' => $chart_of_accounts->count(),
+        ]);
 
         return view('accounting::transfers.create', compact('chart_of_accounts', 'currencies', 'payment_types', 'business_locations'));
+    }
+
+    private function resolveBusinessId(): ?int
+    {
+        $businessId = session('business.id')
+            ?? session('user.business_id')
+            ?? optional(auth()->user())->business_id;
+
+        return ! empty($businessId) ? (int) $businessId : null;
     }
 
     public function store_transfer(Request $request)

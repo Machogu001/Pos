@@ -37,6 +37,8 @@ class Product extends Model
         'sub_unit_ids' => 'array',
         'is_inactive' => 'boolean',
         'not_for_selling' => 'boolean',
+        'bonus_trigger_quantity' => 'float',
+        'bonus_free_quantity' => 'float',
     ];
 
     /**
@@ -253,6 +255,22 @@ class Product extends Model
     public function scopeProductForSales($query)
     {
         return $query->where('not_for_selling', false);
+    }
+
+    public function calculateBonusQuantity(float $chargedQuantity): float
+    {
+        if ($this->type === 'combo') {
+            return 0.0;
+        }
+
+        $triggerQuantity = (float) ($this->bonus_trigger_quantity ?? 0);
+        $freeQuantity = (float) ($this->bonus_free_quantity ?? 0);
+
+        if ($triggerQuantity <= 0 || $freeQuantity <= 0 || $chargedQuantity < $triggerQuantity) {
+            return 0.0;
+        }
+
+        return floor($chargedQuantity / $triggerQuantity) * $freeQuantity;
     }
 
     /**

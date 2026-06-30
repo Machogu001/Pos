@@ -1485,12 +1485,13 @@ class ProductUtil extends Util
         } elseif ($status_before == 'draft' && $transaction->status == 'final') {
             foreach ($input['products'] as $product) {
                 $uf_quantity = $uf_data ? $this->num_uf($product['quantity']) : $product['quantity'];
+                $bonus_quantity = $this->calculateBonusQuantityForSellProduct($product, $uf_quantity);
 
                 $this->decreaseProductQuantity(
                     $product['product_id'],
                     $product['variation_id'],
                     $input['location_id'],
-                    $uf_quantity
+                    $uf_quantity + $bonus_quantity
                 );
 
                 //Adjust quantity for combo items.
@@ -1504,11 +1505,12 @@ class ProductUtil extends Util
             foreach ($input['products'] as $product) {
                 if (empty($product['transaction_sell_lines_id'])) {
                     $uf_quantity = $uf_data ? $this->num_uf($product['quantity']) : $product['quantity'];
+                    $bonus_quantity = $this->calculateBonusQuantityForSellProduct($product, $uf_quantity);
                     $this->decreaseProductQuantity(
                         $product['product_id'],
                         $product['variation_id'],
                         $input['location_id'],
-                        $uf_quantity
+                        $uf_quantity + $bonus_quantity
                     );
 
                     //Adjust quantity for combo items.
@@ -1520,6 +1522,43 @@ class ProductUtil extends Util
                 }
             }
         }
+    }
+
+    public function calculateBonusQuantityForSellProduct(array $product, float $chargedQuantity): float
+    {
+        if (! empty($product['product_type']) && $product['product_type'] === 'combo') {
+            return 0.0;
+        }
+
+        $multiplier = ! empty($product['base_unit_multiplier']) ? (float) $product['base_unit_multiplier'] : 1.0;
+        $chargedBaseQuantity = $chargedQuantity * $multiplier;
+
+        $triggerQuantity = isset($product['bonus_trigger_quantity']) && $product['bonus_trigger_quantity'] !== ''
+            ? (float) $product['bonus_trigger_quantity']
+            : null;
+        $freeQuantity = isset($product['bonus_free_quantity']) && $product['bonus_free_quantity'] !== ''
+            ? (float) $product['bonus_free_quantity']
+            : null;
+
+        if ($triggerQuantity === null || $freeQuantity === null) {
+            $productModel = Product::select('type', 'bonus_trigger_quantity', 'bonus_free_quantity')->find($product['product_id']);
+            if (empty($productModel)) {
+                return 0.0;
+            }
+
+            if ($productModel->type === 'combo') {
+                return 0.0;
+            }
+
+            $triggerQuantity = (float) ($productModel->bonus_trigger_quantity ?? 0);
+            $freeQuantity = (float) ($productModel->bonus_free_quantity ?? 0);
+        }
+
+        if ($triggerQuantity <= 0 || $freeQuantity <= 0 || $chargedBaseQuantity < $triggerQuantity) {
+            return 0.0;
+        }
+
+        return floor($chargedBaseQuantity / $triggerQuantity) * $freeQuantity;
     }
 
     /**
@@ -2378,6 +2417,8 @@ class ProductUtil extends Util
                 'products.name',
                 'products.type',
                 'products.enable_stock',
+            'products.bonus_trigger_quantity',
+            'products.bonus_free_quantity',
                 'variations.id as variation_id',
                 'variations.name as variation',
                 'VLD.qty_available',

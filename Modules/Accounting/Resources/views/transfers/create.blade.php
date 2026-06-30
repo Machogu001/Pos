@@ -18,7 +18,7 @@
                         <label for="location_id" class="control-label">{{ trans_choice('accounting::lang.business_location', 1) }}</label>
                         <select class="form-control @error('location_id') is-invalid @enderror" name="location_id" id="location_id"
                             v-model="location_id" required>
-                            <option value="" disabled selected>{{ trans_choice('accounting::lang.select', 1) }}</option>
+                            <option value="" disabled>{{ trans_choice('accounting::lang.select', 1) }}</option>
                             @foreach ($business_locations as $key)
                                 <option value="{{ $key->id }}">{{ $key->name }}</option>
                             @endforeach
@@ -67,7 +67,7 @@
                         <label for="debit" class="control-label">{{ trans_choice('accounting::general.transfer_from', 1) }}</label>
                         <select class="form-control @error('debit') is-invalid @enderror" name="debit" id="debit" v-model="debit"
                             required>
-                            <option value="" disabled selected>{{ trans_choice('accounting::lang.select', 1) }}</option>
+                            <option value="" disabled>{{ trans_choice('accounting::lang.select', 1) }}</option>
                             @foreach ($chart_of_accounts as $key)
                                 <option value="{{ $key->id }}">{{ $key->name }}</option>
                             @endforeach
@@ -85,7 +85,7 @@
                         <label for="credit" class="control-label">{{ trans_choice('accounting::general.transfer_to', 1) }}</label>
                         <select class="form-control @error('credit') is-invalid @enderror" name="credit" id="credit" v-model="credit"
                             required>
-                            <option value="" disabled selected>{{ trans_choice('accounting::lang.select', 1) }}</option>
+                            <option value="" disabled>{{ trans_choice('accounting::lang.select', 1) }}</option>
                             @foreach ($chart_of_accounts as $key)
                                 <option value="{{ $key->id }}">{{ $key->name }}</option>
                             @endforeach
@@ -195,15 +195,22 @@
 </div><!-- /.modal-dialog -->
 
 <script>
+    const transferFormDefaults = {
+        locationId: "{{ old('location_id', optional($business_locations->first())->id) }}",
+        debitId: "{{ old('debit', optional($chart_of_accounts->first())->id) }}",
+        creditId: "{{ old('credit', optional($chart_of_accounts->skip(1)->first())->id ?? optional($chart_of_accounts->first())->id) }}",
+        currencyId: "{{ old('currency_id', optional($currencies->first())->id) }}"
+    };
+
     new Vue({
         el: '#fund_transfer_form',
         data() {
             return {
                 currencies: {!! json_encode($currencies) !!},
-                location_id: "{{ old('location_id') }}",
-                currency_id: "{{ old('currency_id') }}",
-                debit: "{{ old('debit') }}",
-                credit: "{{ old('credit') }}",
+                location_id: transferFormDefaults.locationId,
+                currency_id: transferFormDefaults.currencyId,
+                debit: transferFormDefaults.debitId,
+                credit: transferFormDefaults.creditId,
                 amount: "{{ old('amount') }}",
                 reference: "{{ old('reference') }}",
                 date: "{{ old('date', date('Y-m-d')) }}",
@@ -219,10 +226,29 @@
             },
 
             credit_equal_debit() {
-                return (this.debit.trim() && this.credit.trim()) &&
+                return (String(this.debit || '').trim() && String(this.credit || '').trim()) &&
                     this.debit == this.credit
             }
 
+        },
+
+        mounted() {
+            if (!this.location_id) {
+                const firstLocation = $('#location_id option[value!=""]').first().val();
+                this.location_id = firstLocation ? String(firstLocation) : '';
+            }
+
+            if (!this.debit) {
+                const firstDebit = $('#debit option[value!=""]').first().val();
+                this.debit = firstDebit ? String(firstDebit) : '';
+            }
+
+            if (!this.credit) {
+                const firstCredit = $('#credit option[value!=""]').not(function () {
+                    return String($(this).val()) === String(this.debit);
+                }.bind(this)).first().val() || $('#credit option[value!=""]').first().val();
+                this.credit = firstCredit ? String(firstCredit) : '';
+            }
         }
     });
 

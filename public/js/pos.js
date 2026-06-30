@@ -310,6 +310,7 @@ $(document).ready(function() {
         pos_total_row();
 
         adjustComboQty(tr);
+        updateBonusInfo(tr);
     });
 
     //If change in unit price update price including tax and line total
@@ -335,6 +336,7 @@ $(document).ready(function() {
         pos_each_row(tr);
         pos_total_row();
         round_row_to_iraqi_dinnar(tr);
+        updateBonusInfo(tr);
     });
 
     //If change in tax rate then update unit price according to it.
@@ -380,6 +382,7 @@ $(document).ready(function() {
 
         pos_each_row(tr);
         pos_total_row();
+        updateBonusInfo(tr);
     });
 
     //Change max quantity rule if lot number changes
@@ -470,8 +473,36 @@ $(document).ready(function() {
             pos_each_row(tr);
             pos_total_row();
             round_row_to_iraqi_dinnar(tr);
+            updateBonusInfo(tr);
         }
     );
+
+    function updateBonusInfo(tr) {
+        var triggerQty = __read_number(tr.find('input.bonus_trigger_quantity'));
+        var freeQty = __read_number(tr.find('input.bonus_free_quantity'));
+        var enteredQty = __read_number(tr.find('input.pos_quantity'));
+        var multiplier = __read_number(tr.find('input.base_unit_multiplier')) || 1;
+        var baseQty = enteredQty * multiplier;
+        var bonusQty = 0;
+
+        if (triggerQty > 0 && freeQty > 0 && baseQty >= triggerQty) {
+            bonusQty = Math.floor(baseQty / triggerQty) * freeQty;
+        }
+
+        var help = tr.find('.bonus-help');
+        var helpText = tr.find('.bonus-help-text');
+        if (!help.length || !helpText.length) {
+            return;
+        }
+
+        if (bonusQty > 0) {
+            help.show();
+            helpText.text('Bonus: ' + __currency_trans_from_en(bonusQty, false) + ' free');
+        } else {
+            help.hide();
+            helpText.text('');
+        }
+    }
 
     //Remove row on click on remove row
     $('table#pos_table tbody').on('click', 'i.pos_remove_row', function() {

@@ -290,6 +290,20 @@
         @endif
 
 		<input type="hidden" class="base_unit_multiplier" name="products[{{$row_count}}][base_unit_multiplier]" value="{{$multiplier}}">
+		<input type="hidden" class="bonus_trigger_quantity" name="products[{{$row_count}}][bonus_trigger_quantity]" value="{{$product->bonus_trigger_quantity ?? ''}}">
+		<input type="hidden" class="bonus_free_quantity" name="products[{{$row_count}}][bonus_free_quantity]" value="{{$product->bonus_free_quantity ?? ''}}">
+		@php
+			$initial_bonus_qty = 0;
+			if (!empty($product->bonus_trigger_quantity) && !empty($product->bonus_free_quantity)) {
+				$bonus_base_qty = (float) $product->quantity_ordered * (float) $multiplier;
+				if ($bonus_base_qty >= (float) $product->bonus_trigger_quantity) {
+					$initial_bonus_qty = floor($bonus_base_qty / (float) $product->bonus_trigger_quantity) * (float) $product->bonus_free_quantity;
+				}
+			}
+		@endphp
+		<small class="text-success bonus-help" @if($initial_bonus_qty <= 0) style="display:none;" @endif>
+			<span class="bonus-help-text">@if($initial_bonus_qty > 0)Bonus: {{@format_quantity($initial_bonus_qty)}} free @endif</span>
+		</small>
 
 		<input type="hidden" class="hidden_base_unit_sell_price" value="{{$product->default_sell_price / $multiplier}}">
 		

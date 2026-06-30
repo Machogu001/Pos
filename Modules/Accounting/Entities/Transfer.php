@@ -32,8 +32,16 @@ class Transfer extends Model
 
     public function scopeForBusiness($query)
     {
-        return $query->whereHas('transfer_by', function ($q) {
-            $q->where('business_id', session('business.id'));
+        $businessId = session('business.id')
+            ?? session('user.business_id')
+            ?? optional(auth()->user())->business_id;
+
+        if (empty($businessId)) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereHas('transfer_by', function ($q) use ($businessId) {
+            $q->where('business_id', (int) $businessId);
         });
     }
 }

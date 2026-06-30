@@ -27,7 +27,7 @@ class DashboardController extends Controller
      */
     public function index()
     {
-        $business_id = session('business.id');
+        $business_id = $this->resolveBusinessId();
         $chart_of_accounts = ChartOfAccount::with('parent')
             ->forBusiness()
             ->with('currency')
@@ -37,7 +37,7 @@ class DashboardController extends Controller
         $account_type_balances = $this->getAccountTypeBalances($business_id, $account_types);
         $total_account_balance = collect($account_type_balances)->sum();
 
-        $expense_chart = $this->expense_chart();
+        $expense_chart = $this->expense_chart($business_id);
         $current_financial_year_chart = $this->current_financial_year_chart();
         $last_30_days_financial_year_chart = $this->last_30_days_financial_year_chart();
 
@@ -57,9 +57,10 @@ class DashboardController extends Controller
     }
 
 
-    public function expense_chart()
+    public function expense_chart(?int $businessId = null)
     {
-        $expenses = $this->transactionUtil->getExpenseReport(session('business.id'));
+        $businessId = $businessId ?: $this->resolveBusinessId();
+        $expenses = $this->transactionUtil->getExpenseReport($businessId);
 
         $values = [];
         $labels = [];
@@ -120,7 +121,7 @@ class DashboardController extends Controller
     public function get_totals()
     {
         if (request()->ajax()) {
-            $business_id = request()->session()->get('user.business_id');
+            $business_id = $this->resolveBusinessId();
             $account_types = AccountType::getTypes()->pluck('id');
             $account_type_balances = $this->getAccountTypeBalances($business_id, $account_types);
 
@@ -138,6 +139,15 @@ class DashboardController extends Controller
 
             return $output;
         }
+    }
+
+    protected function resolveBusinessId(): ?int
+    {
+        $businessId = session('business.id')
+            ?? session('user.business_id')
+            ?? optional(auth()->user())->business_id;
+
+        return ! empty($businessId) ? (int) $businessId : null;
     }
 
     protected function getAccountTypeBalances($business_id, $account_types)

@@ -307,6 +307,22 @@
           </div>
         </div>
 
+          <div class="col-sm-4">
+            <div class="form-group">
+              {!! Form::label('bonus_trigger_quantity', 'Bonus trigger qty:') !!}
+              {!! Form::text('bonus_trigger_quantity', !is_null($product->bonus_trigger_quantity) ? @num_format($product->bonus_trigger_quantity) : null, ['class' => 'form-control input_number', 'placeholder' => 'e.g. 100']); !!}
+              <p class="help-block">Customer buys this quantity to qualify for free units.</p>
+            </div>
+          </div>
+
+          <div class="col-sm-4">
+            <div class="form-group">
+              {!! Form::label('bonus_free_quantity', 'Bonus free qty:') !!}
+              {!! Form::text('bonus_free_quantity', !is_null($product->bonus_free_quantity) ? @num_format($product->bonus_free_quantity) : null, ['class' => 'form-control input_number', 'placeholder' => 'e.g. 2']); !!}
+              <p class="help-block">Free quantity issued without charging the customer.</p>
+            </div>
+          </div>
+
         <div class="clearfix"></div>
 
         <!-- Rack, Row & position number -->

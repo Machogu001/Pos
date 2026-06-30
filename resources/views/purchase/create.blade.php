@@ -31,7 +31,7 @@
 	{!! Form::open(['url' => action([\App\Http\Controllers\PurchaseController::class, 'store']), 'method' => 'post', 'id' => 'add_purchase_form', 'files' => true ]) !!}
 	@component('components.widget', ['class' => 'box-primary'])
 		<div class="row">
-			<div class="@if(!empty($default_purchase_status)) col-sm-4 @else col-sm-3 @endif">
+			<div class="col-sm-3">
 				<div class="form-group">
 					{!! Form::label('supplier_id', __('purchase.supplier') . ':*') !!}
 					<div class="input-group">
@@ -49,14 +49,14 @@
 				</strong>
 				<div id="supplier_address_div"></div>
 			</div>
-			<div class="@if(!empty($default_purchase_status)) col-sm-4 @else col-sm-3 @endif">
+			<div class="col-sm-3">
 				<div class="form-group">
 					{!! Form::label('ref_no', __('purchase.ref_no').':') !!}
 					@show_tooltip(__('lang_v1.leave_empty_to_autogenerate'))
 					{!! Form::text('ref_no', null, ['class' => 'form-control']); !!}
 				</div>
 			</div>
-			<div class="@if(!empty($default_purchase_status)) col-sm-4 @else col-sm-3 @endif">
+			<div class="col-sm-3">
 				<div class="form-group">
 					{!! Form::label('transaction_date', __('purchase.purchase_date') . ':*') !!}
 					<div class="input-group">
@@ -67,7 +67,7 @@
 					</div>
 				</div>
 			</div>
-			<div class="col-sm-3 @if(!empty($default_purchase_status)) hide @endif">
+			<div class="col-sm-3">
 				<div class="form-group">
 					{!! Form::label('status', __('purchase.purchase_status') . ':*') !!} @show_tooltip(__('tooltip.order_status'))
 					{!! Form::select('status', $orderStatuses, $default_purchase_status, ['class' => 'form-control select2', 'placeholder' => __('messages.please_select'), 'required']); !!}
@@ -598,7 +598,159 @@
 	<script src="{{ asset('js/purchase.js?v=' . $asset_v) }}"></script>
 	<script src="{{ asset('js/product.js?v=' . $asset_v) }}"></script>
 	<script type="text/javascript">
+		const purchaseDraftStorageKey = 'purchase_draft:' + window.location.pathname;
+
+		function getPurchaseDraftPayload() {
+			const form = $('#add_purchase_form');
+			const supplierOption = $('#supplier_id').find('option:selected');
+			const serializedFields = form.serializeArray().filter(function(field) {
+				return field.name !== 'search_product';
+			});
+
+			return {
+				saved_at: new Date().toISOString(),
+				fields: serializedFields,
+				table_html: $('#purchase_entry_table tbody').html(),
+				supplier_option: supplierOption.length ? {
+					id: supplierOption.val(),
+					text: supplierOption.text()
+				} : null
+			};
+		}
+
+		function savePurchaseDraft() {
+			if (!$('#add_purchase_form').length) {
+				return;
+			}
+
+			localStorage.setItem(purchaseDraftStorageKey, JSON.stringify(getPurchaseDraftPayload()));
+		}
+
+		function restorePurchaseDraftField(field) {
+			const elements = $('[name="' + field.name.replace(/"/g, '\\"') + '"]');
+			if (!elements.length) {
+				return;
+			}
+
+			const first = elements.first();
+			if (first.is(':radio') || first.is(':checkbox')) {
+				elements.each(function() {
+					$(this).prop('checked', $(this).val() === field.value);
+				});
+			} else {
+				elements.val(field.value);
+			}
+		}
+
+		function applyPurchaseDraft(draft) {
+			if (draft.table_html !== undefined) {
+				$('#purchase_entry_table tbody').html(draft.table_html || '');
+			}
+
+			draft.fields.forEach(function(field) {
+				restorePurchaseDraftField(field);
+			});
+
+			if (draft.supplier_option && draft.supplier_option.id) {
+				if (!$('#supplier_id option[value="' + draft.supplier_option.id + '"]').length) {
+					const option = new Option(draft.supplier_option.text, draft.supplier_option.id, true, true);
+					$('#supplier_id').append(option);
+				}
+				$('#supplier_id').val(draft.supplier_option.id).trigger('change');
+			}
+
+			$('#location_id, #pay_term_type, .payment_types_dropdown, .account-dropdown, .sub_unit, .purchase_line_tax_id').trigger('change');
+			update_table_total();
+			update_grand_total();
+			update_table_sr_number();
+			toggle_search();
+		}
+
+		function requestPurchaseDraftRestore() {
+			if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+				return Swal.fire({
+					toast: true,
+					position: 'top-end',
+					icon: 'question',
+					title: 'Restore your last unsaved purchase draft?',
+					showConfirmButton: true,
+					showCancelButton: true,
+					confirmButtonText: 'Restore',
+					cancelButtonText: 'Discard',
+					timer: 15000,
+					timerProgressBar: true,
+					customClass: {
+						popup: 'swal2-toast-custom'
+					},
+					didOpen: function(toast) {
+						toast.addEventListener('mouseenter', Swal.stopTimer);
+						toast.addEventListener('mouseleave', Swal.resumeTimer);
+					}
+				}).then(function(result) {
+					if (result.isConfirmed) {
+						return 'restore';
+					}
+
+					if (result.dismiss === Swal.DismissReason.cancel) {
+						return 'discard';
+					}
+
+					return 'skip';
+				});
+			}
+
+			if (typeof swal === 'function') {
+				return swal({
+					title: 'Restore your last unsaved purchase draft?',
+					icon: 'warning',
+					buttons: {
+						cancel: 'Discard',
+						confirm: 'Restore'
+					}
+				}).then(function(confirmed) {
+					return confirmed ? 'restore' : 'discard';
+				});
+			}
+
+			return Promise.resolve(window.confirm('Restore your last unsaved purchase draft?') ? 'restore' : 'discard');
+		}
+
+		function restorePurchaseDraft() {
+			const savedDraft = localStorage.getItem(purchaseDraftStorageKey);
+			if (!savedDraft) {
+				return Promise.resolve();
+			}
+
+			let draft;
+			try {
+				draft = JSON.parse(savedDraft);
+			} catch (error) {
+				localStorage.removeItem(purchaseDraftStorageKey);
+				return Promise.resolve();
+			}
+
+			if (!draft || !Array.isArray(draft.fields)) {
+				return Promise.resolve();
+			}
+
+			return requestPurchaseDraftRestore().then(function(action) {
+				if (action === 'restore') {
+					applyPurchaseDraft(draft);
+					if (typeof window.showToast === 'function') {
+						window.showToast('success', 'Purchase draft restored.');
+					}
+				} else if (action === 'discard') {
+					localStorage.removeItem(purchaseDraftStorageKey);
+					if (typeof window.showToast === 'function') {
+						window.showToast('info', 'Saved purchase draft discarded.');
+					}
+				}
+			});
+		}
+
 		$(document).ready( function(){
+			restorePurchaseDraft();
+
       		__page_leave_confirmation('#add_purchase_form');
       		$('.paid_on').datetimepicker({
                 format: moment_date_format + ' ' + moment_time_format,
@@ -611,6 +763,18 @@
 			set_payment_type_dropdown();
 			$('select#location_id').change(function() {
 				set_payment_type_dropdown();
+			});
+
+			let purchaseDraftSaveTimer = null;
+			$('#add_purchase_form').on('input change', 'input, textarea, select', function() {
+				clearTimeout(purchaseDraftSaveTimer);
+				purchaseDraftSaveTimer = setTimeout(savePurchaseDraft, 500);
+			});
+
+			setInterval(savePurchaseDraft, 15000);
+
+			$('#add_purchase_form').on('submit', function() {
+				localStorage.removeItem(purchaseDraftStorageKey);
 			});
     	});
     	$(document).on('change', '.payment_types_dropdown, #location_id', function(e) {

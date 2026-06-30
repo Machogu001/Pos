@@ -253,6 +253,10 @@
                                                             <br>
                                                             <small>{{ $sell_line->sell_line_note }}</small>
                                                         @endif
+                                                        @if(!empty($sell_line->bonus_quantity))
+                                                            <br>
+                                                            <small>Bonus: {{ @format_quantity($sell_line->bonus_quantity) }} free</small>
+                                                        @endif
                                                         @if($sell_line->modifiers->count() > 0)
                                                             <br>
                                                             <small>
@@ -280,6 +284,7 @@
                                                         @endif
                                                     </td>
                                                     <td>{{ @format_quantity($sell_line->quantity) }}</td>
+                                                    
                                                     <td>
                                                         @php
                                                             $unit_price_inc_tax = $sell_line->unit_price_inc_tax;
@@ -291,6 +296,9 @@
 
                                                         @if(!empty($sell_line->sell_line_note))
                                                             <br>
+                                                        @endif
+                                                        @if(!empty($sell_line->bonus_quantity))
+                                                            <br><small>Charged qty only</small>
                                                         @endif
                                                     </td>
                                                     <td>

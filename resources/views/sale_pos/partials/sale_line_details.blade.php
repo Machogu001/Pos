@@ -40,6 +40,9 @@
                 @if(!empty($sell_line->sell_line_note))
                 <br> {{$sell_line->sell_line_note}}
                 @endif
+                @if(!empty($sell_line->bonus_quantity))
+                <br><small>Bonus: {{ @format_quantity($sell_line->bonus_quantity) }} free</small>
+                @endif
                 @if($is_warranty_enabled && !empty($sell_line->warranties->first()) )
                     <br><small>{{$sell_line->warranties->first()->display_name ?? ''}} - {{ @format_date($sell_line->warranties->first()->getEndDate($sell->transaction_date))}}</small>
                     @if(!empty($sell_line->warranties->first()->description))
@@ -68,6 +71,10 @@
                     <span class="display_currency" data-currency_symbol="false" data-is_quantity="true">{{ $sell_line->quantity }}</span> 
                 @endif
                     @if(!empty($sell_line->sub_unit)) {{$sell_line->sub_unit->short_name}} @else {{$sell_line->product->unit->short_name}} @endif
+
+                @if(!empty($sell_line->bonus_quantity))
+                    <br><small>+ <span class="display_currency" data-currency_symbol="false" data-is_quantity="true">{{ $sell_line->bonus_quantity }}</span> @if(!empty($sell_line->sub_unit)) {{$sell_line->sub_unit->short_name}} @else {{$sell_line->product->unit->short_name}} @endif free</small>
+                @endif
 
                 @if(!empty($sell_line->product->second_unit) && $sell_line->secondary_unit_quantity != 0)
                     <br>

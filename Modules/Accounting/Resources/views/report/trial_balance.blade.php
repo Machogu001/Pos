@@ -49,6 +49,9 @@
                                 </h4>
                             </div>
                             <div class="card-body">
+                                @php
+                                    $selected_location_id = !empty($location_id) ? $location_id : optional($business_locations->first())->id;
+                                @endphp
                                 <form method="get" action="{{ Request::url() }}" class="___class_+?23___">
                                     <div class="row">
                                         <div class="col-md-4">
@@ -56,9 +59,9 @@
                                                 <label class="control-label"
                                                     for="location_id">{{ trans_choice('accounting::lang.business_location', 1) }}</label>
                                                 <select class="form-control select2" name="location_id" id="location_id" required>
-                                                    <option value="" disabled selected>{{ trans_choice('accounting::lang.select', 1) }}</option>
+                                                    <option value="" disabled>{{ trans_choice('accounting::lang.select', 1) }}</option>
                                                     @foreach ($business_locations as $key)
-                                                        <option value="{{ $key->id }}" @if ($location_id == $key->id) selected @endif>
+                                                        <option value="{{ $key->id }}" @if ((string) $selected_location_id === (string) $key->id) selected @endif>
                                                             {{ $key->name }}</option>
                                                     @endforeach
                                                 </select>

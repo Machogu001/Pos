@@ -808,6 +808,11 @@ class SellPosController extends Controller
                         if (!empty($product['base_unit_multiplier'])) {
                             $decrease_qty = $decrease_qty * $product['base_unit_multiplier'];
                         }
+                        $decrease_qty += $this->transactionUtil->calculateBonusQuantityForSellProduct(
+                            $product,
+                            $this->productUtil->num_uf($product['quantity']),
+                            !empty($product['base_unit_multiplier']) ? (float) $product['base_unit_multiplier'] : 1.0
+                        );
 
                         if ($product['enable_stock']) {
                             $this->productUtil->decreaseProductQuantity(

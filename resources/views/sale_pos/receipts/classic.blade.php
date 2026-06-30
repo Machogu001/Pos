@@ -242,6 +242,64 @@
 	.receipt-summary .table-slim {
 		width: 100%;
 	}
+	.receipt-line-items {
+		width: 100%;
+		table-layout: fixed;
+		border-collapse: collapse;
+	}
+	.receipt-line-items > thead > tr > th,
+	.receipt-line-items > tbody > tr > td {
+		padding: 6px 6px;
+		vertical-align: top;
+	}
+	.receipt-line-items .col-product {
+		width: 35%;
+		word-break: break-word;
+	}
+	.receipt-line-items .col-qty {
+		width: 9%;
+	}
+	.receipt-line-items .col-bonus {
+		width: 8%;
+	}
+	.receipt-line-items .col-lot {
+		width: 10%;
+	}
+	.receipt-line-items .col-expiry {
+		width: 9%;
+	}
+	.receipt-line-items .col-unit-price {
+		width: 9%;
+	}
+	.receipt-line-items .col-tax {
+		width: 8%;
+	}
+	.receipt-line-items .col-discount {
+		width: 6%;
+	}
+	.receipt-line-items .col-subtotal {
+		width: 6%;
+	}
+	.receipt-line-items .col-qty,
+	.receipt-line-items .col-bonus,
+	.receipt-line-items .col-lot,
+	.receipt-line-items .col-expiry,
+	.receipt-line-items .col-unit-price,
+	.receipt-line-items .col-tax,
+	.receipt-line-items .col-discount,
+	.receipt-line-items .col-subtotal {
+		white-space: nowrap;
+		font-variant-numeric: tabular-nums;
+	}
+	@media (max-width: 1024px) {
+		.receipt-line-items {
+			font-size: 11px;
+		}
+		.receipt-line-items > thead > tr > th,
+		.receipt-line-items > tbody > tr > td {
+			padding: 5px 4px;
+		}
+	}
 	.receipt-summary {
 		padding-top: 0;
 	}
@@ -384,38 +442,24 @@
 <div class="row" style="color: #000000 !important;">
 	<div class="col-xs-12">
 		<br/>
-		@php
-			$p_width = 45;
-		@endphp
-		@if(!empty($receipt_details->item_discount_label))
-			@php
-				$p_width -= 10;
-			@endphp
-		@endif
-		@if(!empty($receipt_details->discounted_unit_price_label))
-			@php
-				$p_width -= 10;
-			@endphp
-		@endif
-		<table class="table table-responsive table-slim">
+		<table class="table table-slim receipt-line-items">
 			<thead>
 				<tr>
-					<th width="{{$p_width}}%">{{$receipt_details->table_product_label}}</th>
-					<th class="text-right" width="15%">{{$receipt_details->table_qty_label}}</th>
-					<th class="text-right" width="15%">{{$receipt_details->table_unit_price_label}}</th>
-					@if(!empty($receipt_details->discounted_unit_price_label))
-						<th class="text-right" width="10%">{{$receipt_details->discounted_unit_price_label}}</th>
-					@endif
-					@if(!empty($receipt_details->item_discount_label))
-						<th class="text-right" width="10%">{{$receipt_details->item_discount_label}}</th>
-					@endif
-					<th class="text-right" width="15%">{{$receipt_details->table_subtotal_label}}</th>
+					<th class="col-product">{{$receipt_details->table_product_label}}</th>
+					<th class="text-right col-qty">{{$receipt_details->table_qty_label}}</th>
+					<th class="text-right col-bonus">Bonus</th>
+					<th class="text-right col-lot">Batch No.</th>
+					<th class="text-center col-expiry">{{ $receipt_details->product_expiry_label ?? __('lang_v1.expiry') }}</th>
+					<th class="text-right col-unit-price">{{$receipt_details->table_unit_price_label}}</th>
+					<th class="text-right col-tax">{{ $receipt_details->line_tax_label ?? __('sale.tax') }}</th>
+					<th class="text-right col-discount">Disc</th>
+					<th class="text-right col-subtotal">{{$receipt_details->table_subtotal_label}}</th>
 				</tr>
 			</thead>
 			<tbody>
 				@forelse($receipt_details->lines as $line)
 					<tr>
-						<td>
+						<td class="col-product">
 							@if(!empty($line['image']))
 								<img src="{{$line['image']}}" alt="{{ __('ui.image') }}" width="50" style="float: left; margin-right: 8px;">
 							@endif
@@ -433,8 +477,6 @@
                             	{!!$line['sell_line_note']!!}
                             </small>
                             @endif 
-                            @if(!empty($line['lot_number']))<br> {{$line['lot_number_label']}}:  {{$line['lot_number']}} @endif 
-                            @if(!empty($line['product_expiry'])), {{$line['product_expiry_label']}}:  {{$line['product_expiry']}} @endif
 
                             @if(!empty($line['warranty_name'])) <br><small>{{$line['warranty_name']}} </small>@endif @if(!empty($line['warranty_exp_date'])) <small>- {{@format_date($line['warranty_exp_date'])}} </small>@endif
                             @if(!empty($line['warranty_description'])) <small> {{$line['warranty_description'] ?? ''}}</small>@endif
@@ -446,7 +488,7 @@
                             </small>
                             @endif
                         </td>
-						<td class="text-right">
+						<td class="text-right col-qty">
 							{{$line['quantity']}} {{$line['units']}} 
 
 							@if($receipt_details->show_base_unit_details && $line['quantity'] && $line['base_unit_multiplier'] !== 1)
@@ -455,52 +497,41 @@
                             </small>
                             @endif
 						</td>
-						<td class="text-right">{{$line['unit_price_before_discount']}}</td>
-						@if(!empty($receipt_details->discounted_unit_price_label))
-							<td class="text-right">
-								{{$line['unit_price_inc_tax']}} 
-							</td>
-						@endif
-						@if(!empty($receipt_details->item_discount_label))
-							<td class="text-right">
-								{{$line['total_line_discount'] ?? '0.00'}}
-
-								@if(!empty($line['line_discount_percent']))
-								 	({{$line['line_discount_percent']}}%)
-								@endif
-							</td>
-						@endif
-						<td class="text-right">{{$line['line_total']}}</td>
+						<td class="text-right col-bonus">{{ !empty($line['bonus_quantity']) ? $line['bonus_quantity'] : '-' }}</td>
+						<td class="text-right col-lot">{{ !empty($line['lot_number']) ? $line['lot_number'] : '-' }}</td>
+						<td class="text-center col-expiry">{{ !empty($line['product_expiry']) ? $line['product_expiry'] : '-' }}</td>
+						<td class="text-right col-unit-price">{{$line['unit_price_before_discount']}}</td>
+						<td class="text-right col-tax">{{ $line['tax'] ?? '0.00' }}{{ !empty($line['tax_name']) ? ' '.$line['tax_name'] : '' }}</td>
+						<td class="text-right col-discount">
+							{{$line['total_line_discount'] ?? '0.00'}}
+							@if(!empty($line['line_discount_percent']))
+							 	({{$line['line_discount_percent']}}%)
+							@endif
+						</td>
+						<td class="text-right col-subtotal">{{$line['line_total']}}</td>
 					</tr>
 					@if(!empty($line['modifiers']))
 						@foreach($line['modifiers'] as $modifier)
 							<tr>
-								<td>
+								<td class="col-product">
 		                            {{$modifier['name']}} {{$modifier['variation']}} 
 		                            @if(!empty($modifier['sub_sku'])), {{$modifier['sub_sku']}} @endif @if(!empty($modifier['cat_code'])), {{$modifier['cat_code']}}@endif
 		                            @if(!empty($modifier['sell_line_note']))({!!$modifier['sell_line_note']!!}) @endif 
 		                        </td>
-								<td class="text-right">{{$modifier['quantity']}} {{$modifier['units']}} </td>
-								<td class="text-right">{{$modifier['unit_price_inc_tax']}}</td>
-								@if(!empty($receipt_details->discounted_unit_price_label))
-									<td class="text-right">{{$modifier['unit_price_exc_tax']}}</td>
-								@endif
-								@if(!empty($receipt_details->item_discount_label))
-									<td class="text-right">0.00</td>
-								@endif
-								<td class="text-right">{{$modifier['line_total']}}</td>
+								<td class="text-right col-qty">{{$modifier['quantity']}} {{$modifier['units']}} </td>
+								<td class="text-right col-bonus">-</td>
+								<td class="text-right col-lot">-</td>
+								<td class="text-center col-expiry">-</td>
+								<td class="text-right col-unit-price">{{$modifier['unit_price_inc_tax']}}</td>
+								<td class="text-right col-tax">0.00</td>
+								<td class="text-right col-discount">0.00</td>
+								<td class="text-right col-subtotal">{{$modifier['line_total']}}</td>
 							</tr>
 						@endforeach
 					@endif
 				@empty
 					<tr>
-						<td colspan="4">&nbsp;</td>
-						@if(!empty($receipt_details->discounted_unit_price_label))
-    					<td></td>
-    					@endif
-    					@if(!empty($receipt_details->item_discount_label))
-    					<td></td>
-    					@endif
+						<td colspan="8">&nbsp;</td>
 					</tr>
 				@endforelse
 			</tbody>

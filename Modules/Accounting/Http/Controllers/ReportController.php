@@ -10,6 +10,7 @@ use PDF;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Modules\Accounting\Services\AccountingReportService;
 use Modules\Accounting\Entities\AccountSubtype;
 use Modules\Accounting\Entities\ChartOfAccount;
@@ -40,11 +41,14 @@ class ReportController extends Controller
         $start_date = $request->start_date ?: $this->default_start_date;
         $end_date = $request->end_date ?: $this->default_end_date;
         $location_id = $request->location_id;
+        $business_id = $this->resolveBusinessId();
         $data = [];
         $currency_code = currency_code();
-        $business_locations = BusinessLocation::getDropdownCollection(session('business.id'));
+        $business_locations = BusinessLocation::getDropdownCollection($business_id);
+        if (empty($location_id) && $business_locations->isNotEmpty()) {
+            $location_id = $business_locations->first()->id;
+        }
         $account_types = ChartOfAccount::getAccountTypes();
-        $business_id = session('business.id');
         $data = DB::table('chart_of_accounts')
             ->leftJoin('accounts', function ($join) use ($business_id) {
                 $join->on('accounts.account_number', '=', 'chart_of_accounts.gl_code')
@@ -108,11 +112,14 @@ class ReportController extends Controller
         $start_date = $request->start_date ?: $this->default_start_date;
         $end_date = $request->end_date ?: $this->default_end_date;
         $location_id = $request->location_id;
+        $business_id = $this->resolveBusinessId();
         $data = [];
-        $business_locations = BusinessLocation::getDropdownCollection(session('business.id'));
+        $business_locations = BusinessLocation::getDropdownCollection($business_id);
+        if (empty($location_id) && $business_locations->isNotEmpty()) {
+            $location_id = $business_locations->first()->id;
+        }
         $currency_code = currency_code();
         $account_types = ChartOfAccount::getAccountTypes();
-        $business_id = session('business.id');
 
         $data = DB::table('chart_of_accounts')
             ->leftJoin('accounts', function ($join) use ($business_id) {
@@ -171,7 +178,11 @@ class ReportController extends Controller
         $end_date = $request->end_date ?: $this->default_end_date;
         $location_id = $request->location_id;
         $account_types = ['income', 'expense'];
-        $business_id = session('business.id');
+        $business_id = $this->resolveBusinessId();
+        $business_locations = BusinessLocation::getDropdownCollection($business_id);
+        if (empty($location_id) && $business_locations->isNotEmpty()) {
+            $location_id = $business_locations->first()->id;
+        }
         $data = DB::table('chart_of_accounts')
             ->leftJoin('accounts', function ($join) use ($business_id) {
                 $join->on('accounts.account_number', '=', 'chart_of_accounts.gl_code')
@@ -197,7 +208,6 @@ class ReportController extends Controller
             ->groupBy('chart_of_accounts.id')
             ->orderBy('account_type')
             ->get();
-        $business_locations = BusinessLocation::getDropdownCollection(session('business.id'));
         $currency_code = currency_code();
         $compact_data = compact(
             'start_date',
@@ -233,13 +243,16 @@ class ReportController extends Controller
     {
         $end_date = $request->end_date ?: $this->default_end_date;
         $location_id = $request->location_id;
+        $business_id = $this->resolveBusinessId();
         $data = [];
-        $business_locations = BusinessLocation::getDropdownCollection(session('business.id'));
+        $business_locations = BusinessLocation::getDropdownCollection($business_id);
+        if (empty($location_id) && $business_locations->isNotEmpty()) {
+            $location_id = $business_locations->first()->id;
+        }
         $currency_code = currency_code();
         $account_types = ['asset', 'equity', 'liability'];
 
         if (!empty($end_date)) {
-            $business_id = session('business.id');
             $data = DB::table('chart_of_accounts')
                 ->leftJoin('accounts', function ($join) use ($business_id) {
                     $join->on('accounts.account_number', '=', 'chart_of_accounts.gl_code')
@@ -298,12 +311,12 @@ class ReportController extends Controller
         $start_date = $request->start_date ?: $this->default_start_date;
         $end_date = $request->end_date ?: $this->default_end_date;
         $location_id = $request->location_id;
+        $business_id = $this->resolveBusinessId();
         $data = [];
-        $business_locations = BusinessLocation::getDropdownCollection(session('business.id'));
+        $business_locations = BusinessLocation::getDropdownCollection($business_id);
         $currency_code = currency_code();
         $account_types = ChartOfAccount::getAccountTypes();
 
-        $business_id = session('business.id');
         $data = DB::table('chart_of_accounts')
             ->leftJoin('accounts', function ($join) use ($business_id) {
                 $join->on('accounts.account_number', '=', 'chart_of_accounts.gl_code')
@@ -359,10 +372,12 @@ class ReportController extends Controller
         $start_date = $request->start_date ?: $this->default_start_date;
         $end_date = $request->end_date ?: $this->default_end_date;
         $location_id = $request->location_id;
-        $business_id = session('business.id');
+        $business_id = $this->resolveBusinessId();
+        $paymentTotalsSubquery = DB::raw('(' . $this->paymentTotalsSubquerySql() . ') as tp');
+
         $data = DB::table('transactions')
             ->leftJoin('contacts', 'contacts.id', '=', 'transactions.contact_id')
-            ->leftJoin(DB::raw('(SELECT transaction_id, SUM(amount) as paid_amount FROM transaction_payments WHERE deleted_at IS NULL GROUP BY transaction_id) as tp'), 'tp.transaction_id', '=', 'transactions.id')
+            ->leftJoin($paymentTotalsSubquery, 'tp.transaction_id', '=', 'transactions.id')
             ->where('transactions.type', 'sell')
             ->where('transactions.payment_status', '!=', 'paid')
             ->where('transactions.business_id', $business_id)
@@ -413,10 +428,12 @@ class ReportController extends Controller
         $start_date = $request->start_date ?: $this->default_start_date;
         $end_date = $request->end_date ?: $this->default_end_date;
         $location_id = $request->location_id;
-        $business_id = session('business.id');
+        $business_id = $this->resolveBusinessId();
+        $paymentTotalsSubquery = DB::raw('(' . $this->paymentTotalsSubquerySql() . ') as tp');
+
         $data = DB::table('transactions')
             ->leftJoin('contacts', 'contacts.id', '=', 'transactions.contact_id')
-            ->leftJoin(DB::raw('(SELECT transaction_id, SUM(amount) as paid_amount FROM transaction_payments WHERE deleted_at IS NULL GROUP BY transaction_id) as tp'), 'tp.transaction_id', '=', 'transactions.id')
+            ->leftJoin($paymentTotalsSubquery, 'tp.transaction_id', '=', 'transactions.id')
             ->where('transactions.type', 'sell')
             ->where('transactions.payment_status', '!=', 'paid')
             ->where('transactions.business_id', $business_id)
@@ -477,10 +494,12 @@ class ReportController extends Controller
         $start_date = $request->start_date ?: $this->default_start_date;
         $end_date = $request->end_date ?: $this->default_end_date;
         $location_id = $request->location_id;
-        $business_id = session('business.id');
+        $business_id = $this->resolveBusinessId();
+        $paymentTotalsSubquery = DB::raw('(' . $this->paymentTotalsSubquerySql() . ') as tp');
+
         $data = DB::table('transactions')
             ->leftJoin('contacts', 'contacts.id', '=', 'transactions.contact_id')
-            ->leftJoin(DB::raw('(SELECT transaction_id, SUM(amount) as paid_amount FROM transaction_payments WHERE deleted_at IS NULL GROUP BY transaction_id) as tp'), 'tp.transaction_id', '=', 'transactions.id')
+            ->leftJoin($paymentTotalsSubquery, 'tp.transaction_id', '=', 'transactions.id')
             ->where('transactions.type', 'purchase')
             ->where('transactions.payment_status', '!=', 'paid')
             ->where('transactions.business_id', $business_id)
@@ -531,10 +550,12 @@ class ReportController extends Controller
         $start_date = $request->start_date ?: $this->default_start_date;
         $end_date = $request->end_date ?: $this->default_end_date;
         $location_id = $request->location_id;
-        $business_id = session('business.id');
+        $business_id = $this->resolveBusinessId();
+        $paymentTotalsSubquery = DB::raw('(' . $this->paymentTotalsSubquerySql() . ') as tp');
+
         $data = DB::table('transactions')
             ->leftJoin('contacts', 'contacts.id', '=', 'transactions.contact_id')
-            ->leftJoin(DB::raw('(SELECT transaction_id, SUM(amount) as paid_amount FROM transaction_payments WHERE deleted_at IS NULL GROUP BY transaction_id) as tp'), 'tp.transaction_id', '=', 'transactions.id')
+            ->leftJoin($paymentTotalsSubquery, 'tp.transaction_id', '=', 'transactions.id')
             ->where('transactions.type', 'purchase')
             ->where('transactions.payment_status', '!=', 'paid')
             ->where('transactions.business_id', $business_id)
@@ -649,7 +670,7 @@ class ReportController extends Controller
 
     private function resolveBusinessContext(): ?Business
     {
-        $business_id = session('business.id') ?? session('user.business_id') ?? optional(auth()->user())->business_id;
+        $business_id = $this->resolveBusinessId();
 
         if (empty($business_id)) {
             return null;
@@ -663,8 +684,9 @@ class ReportController extends Controller
         $start_date = $request->start_date ?: $this->default_start_date;
         $end_date = $request->end_date ?: $this->default_end_date;
         $location_id = $request->location_id;
+        $business_id = $this->resolveBusinessId();
         $data = [];
-        $business_locations = BusinessLocation::getDropdownCollection(session('business.id'));
+        $business_locations = BusinessLocation::getDropdownCollection($business_id);
         $currency_code = currency_code();
         $chart_of_account_id = $request->chart_of_account_id;
         $account_types = ChartOfAccount::getAccountTypes();
@@ -683,7 +705,7 @@ class ReportController extends Controller
             ->when($chart_of_account_id, function ($query) use ($chart_of_account_id) {
                 $query->where("journal_entries.chart_of_account_id", $chart_of_account_id);
             })
-            ->where('business_locations.business_id', session('business.id'))
+            ->where('business_locations.business_id', $business_id)
             ->selectRaw("journal_entries.id,journal_entries.created_by_id,journal_entries.location_id,journal_entries.date,journal_entries.debit,journal_entries.credit,journal_entries.transaction_number,business_locations.name business_location,chart_of_accounts.account_type,chart_of_accounts.name account_name,concat(users.first_name,' ',users.last_name) created_by, account_subtypes.name account_subtype, account_detail_types.name account_detail_type")
             ->get();
 
@@ -706,5 +728,21 @@ class ReportController extends Controller
         }
 
         return view('accounting::report.journal', $compact_data);
+    }
+
+    private function resolveBusinessId(): ?int
+    {
+        $business_id = session('business.id') ?? session('user.business_id') ?? optional(auth()->user())->business_id;
+
+        return !empty($business_id) ? (int) $business_id : null;
+    }
+
+    private function paymentTotalsSubquerySql(): string
+    {
+        if (Schema::hasColumn('transaction_payments', 'deleted_at')) {
+            return 'SELECT transaction_id, SUM(amount) as paid_amount FROM transaction_payments WHERE deleted_at IS NULL GROUP BY transaction_id';
+        }
+
+        return 'SELECT transaction_id, SUM(amount) as paid_amount FROM transaction_payments GROUP BY transaction_id';
     }
 }

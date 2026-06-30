@@ -366,6 +366,7 @@ class TransactionUtil extends Util
                     }
                 }
                 $uf_quantity = $uf_data ? $this->num_uf($product['quantity']) : $product['quantity'];
+                $bonus_quantity = $this->calculateBonusQuantityForSellProduct($product, $uf_quantity, $multiplier);
                 $uf_item_tax = $uf_data ? $this->num_uf($product['item_tax']) : $product['item_tax'];
                 $uf_unit_price_inc_tax = $uf_data ? $this->num_uf($product['unit_price_inc_tax']) : $product['unit_price_inc_tax'];
 
@@ -382,6 +383,7 @@ class TransactionUtil extends Util
                     'product_id' => $product['product_id'],
                     'variation_id' => $product['variation_id'],
                     'quantity' => $uf_quantity * $multiplier,
+                    'bonus_quantity' => $bonus_quantity,
                     'unit_price_before_discount' => $unit_price_before_discount,
                     'unit_price' => $unit_price,
                     'line_discount_type' => ! empty($product['line_discount_type']) ? $product['line_discount_type'] : null,
@@ -577,11 +579,13 @@ class TransactionUtil extends Util
                     ->find($product['transaction_sell_lines_id']);
 
         $old_qty = $sell_line->quantity;
+        $old_bonus_qty = (float) ($sell_line->bonus_quantity ?? 0);
         $edit_ids[] = $product['transaction_sell_lines_id'];
         //Adjust quanity
+        $new_qty = ($uf_data ? $this->num_uf($product['quantity']) : $product['quantity']) * $multiplier;
+        $new_bonus_qty = $this->calculateBonusQuantityForSellProduct($product, $uf_data ? $this->num_uf($product['quantity']) : $product['quantity'], $multiplier);
         if ($status_before != 'draft') {
-            $new_qty = $this->num_uf($product['quantity']) * $multiplier;
-            $difference = $sell_line->quantity - $new_qty;
+            $difference = ($sell_line->quantity + $old_bonus_qty) - ($new_qty + $new_bonus_qty);
             $this->adjustQuantity($location_id, $product['product_id'], $product['variation_id'], $difference);
         }
 
@@ -608,7 +612,8 @@ class TransactionUtil extends Util
         //Update sell lines.
         $sell_line->fill(['product_id' => $product['product_id'],
             'variation_id' => $product['variation_id'],
-            'quantity' => $uf_data ? $this->num_uf($product['quantity']) * $multiplier : $product['quantity'] * $multiplier,
+            'quantity' => $new_qty,
+            'bonus_quantity' => $new_bonus_qty,
             'unit_price_before_discount' => $unit_price_before_discount,
             'unit_price' => $unit_price,
             'line_discount_type' => ! empty($product['line_discount_type']) ? $product['line_discount_type'] : null,
@@ -669,7 +674,7 @@ class TransactionUtil extends Util
 
             foreach ($sell_lines as $line) {
                 if ($adjust_qty) {
-                    $this->adjustQuantity($location_id, $line->product_id, $line->variation_id, $line->quantity);
+                    $this->adjustQuantity($location_id, $line->product_id, $line->variation_id, $line->quantity + (float) ($line->bonus_quantity ?? 0));
                 }
 
                 //Update purchase order line quantity received
@@ -2380,6 +2385,11 @@ class TransactionUtil extends Util
             $line_array['line_discount'] = method_exists($line, 'get_discount_amount') ? $this->num_f($line->get_discount_amount(), false, $business_details) : 0;
             $line_array['line_discount_uf'] = method_exists($line, 'get_discount_amount') ? $line->get_discount_amount() : 0;
 
+            if (! empty($line->bonus_quantity)) {
+                $line_array['bonus_quantity'] = $this->num_f($line->bonus_quantity, false, $business_details, true);
+                $line_array['bonus_details'] = 'Bonus: '.$line_array['bonus_quantity'].' free';
+            }
+
             if ($line->line_discount_type == 'percentage') {
                 $line_array['line_discount'] .= ' ('.$this->num_f($line->line_discount_amount, false, $business_details).'%)';
 
@@ -2411,7 +2421,7 @@ class TransactionUtil extends Util
             }
             if ($is_lot_number_enabled == 1 && $il->show_lot == 1) {
                 $line_array['lot_number'] = ! empty($line->lot_details->lot_number) ? $line->lot_details->lot_number : null;
-                $line_array['lot_number_label'] = __('lang_v1.lot');
+                $line_array['lot_number_label'] = 'Batch No.';
             }
 
             if ($is_product_expiry_enabled == 1 && $il->show_expiry == 1) {
@@ -3615,7 +3625,7 @@ public function mapPurchaseSell(
         $purchase_adjustment_map = [];
 
         // Iterate over the rows, assign the purchase line to sell lines.
-        $qty_selling = $line->quantity;
+        $qty_selling = $line->quantity + (float) ($line->bonus_quantity ?? 0);
         foreach ($rows as $k => $row) {
             $qty_allocated = 0;
 
@@ -3734,6 +3744,42 @@ public function mapPurchaseSell(
         }
     }
 }
+
+    public function calculateBonusQuantityForSellProduct(array $product, float $chargedQuantity, float $multiplier = 1.0): float
+    {
+        if (! empty($product['product_type']) && $product['product_type'] === 'combo') {
+            return 0.0;
+        }
+
+        $chargedBaseQuantity = $chargedQuantity * $multiplier;
+
+        $triggerQuantity = isset($product['bonus_trigger_quantity']) && $product['bonus_trigger_quantity'] !== ''
+            ? (float) $product['bonus_trigger_quantity']
+            : null;
+        $freeQuantity = isset($product['bonus_free_quantity']) && $product['bonus_free_quantity'] !== ''
+            ? (float) $product['bonus_free_quantity']
+            : null;
+
+        if ($triggerQuantity === null || $freeQuantity === null) {
+            $productModel = Product::select('type', 'bonus_trigger_quantity', 'bonus_free_quantity')->find($product['product_id']);
+            if (empty($productModel)) {
+                return 0.0;
+            }
+
+            if ($productModel->type === 'combo') {
+                return 0.0;
+            }
+
+            $triggerQuantity = (float) ($productModel->bonus_trigger_quantity ?? 0);
+            $freeQuantity = (float) ($productModel->bonus_free_quantity ?? 0);
+        }
+
+        if ($triggerQuantity <= 0 || $freeQuantity <= 0 || $chargedBaseQuantity < $triggerQuantity) {
+            return 0.0;
+        }
+
+        return floor($chargedBaseQuantity / $triggerQuantity) * $freeQuantity;
+    }
 
 /**
  * Process stocktake reduction (when actual counted quantity is LESS than system quantity)

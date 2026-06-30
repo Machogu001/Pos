@@ -196,10 +196,14 @@ class Util
      */
     public function allModulesEnabled($business_id = null)
     {
-        $enabled_modules = session()->has('business') ? session('business')['enabled_modules'] : null;
+        $enabled_modules = null;
 
-        if (! session()->has('business') && ! empty($business_id)) {
-            $enabled_modules = Business::find($business_id)->enabled_modules;
+        // When a specific business is requested, prefer DB values over session to avoid stale module toggles.
+        if (! empty($business_id)) {
+            $business = Business::find($business_id);
+            $enabled_modules = ! empty($business) ? $business->enabled_modules : null;
+        } elseif (session()->has('business')) {
+            $enabled_modules = session('business')['enabled_modules'] ?? null;
         }
         $enabled_modules = (! empty($enabled_modules) && $enabled_modules != 'null') ? $enabled_modules : [];
 

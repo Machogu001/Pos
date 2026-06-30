@@ -516,6 +516,7 @@
                             <br>
                             <small>{!!$line['sell_line_note']!!}</small>
                             @endif
+
                             @if(!empty($line['lot_number']))<br> {{$line['lot_number_label']}}:  {{$line['lot_number']}} @endif 
                             @if(!empty($line['product_expiry'])), {{$line['product_expiry_label']}}:  {{$line['product_expiry']}} @endif 
 

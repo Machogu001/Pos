@@ -87,10 +87,15 @@ class LoginController extends Controller
     {
         if (auth()->check()) {
             $this->businessUtil->activityLog(auth()->user(), 'logout');
+
+            // Clear the remember_me token from DB so the remember cookie cannot re-authenticate the user.
+            auth()->user()->forceFill(['remember_token' => null])->save();
         }
 
-        request()->session()->flush();
         Auth::logout();
+
+        request()->session()->invalidate();
+        request()->session()->regenerateToken();
 
         return redirect('/login');
     }
