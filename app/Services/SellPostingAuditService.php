@@ -23,12 +23,6 @@ class SellPostingAuditService
             || $transaction->status !== 'final'
             || $transaction->sub_type === 'subscription_invoice'
         ) {
-            Log::debug('SellPostingAuditService::reconcileTransaction - transaction does not meet criteria', [
-                'transaction_id' => $transaction->id ?? null,
-                'type' => $transaction->type ?? null,
-                'status' => $transaction->status ?? null,
-                'sub_type' => $transaction->sub_type ?? null,
-            ]);
             return ['attempted' => false, 'fixed' => false, 'still_missing' => false];
         }
 
@@ -36,24 +30,12 @@ class SellPostingAuditService
         $businessId = (int) ($transaction->business_id ?? 0);
 
         if (! $this->isAccountModuleEnabledForBusiness($businessId)) {
-            Log::debug('SellPostingAuditService::reconcileTransaction - skipped because account module is disabled', [
-                'transaction_id' => $transactionId,
-                'business_id' => $businessId,
-            ]);
-
             return ['attempted' => false, 'fixed' => false, 'still_missing' => false];
         }
         
-        // First check: are postings missing?
         $wasMissing = $this->isTransactionMissingPostings($transactionId);
 
-        Log::debug('SellPostingAuditService::reconcileTransaction - first check', [
-            'transaction_id' => $transactionId,
-            'was_missing' => $wasMissing,
-        ]);
-
         if (! $wasMissing) {
-            // Postings already exist - no need for reconciliation
             return ['attempted' => false, 'fixed' => false, 'still_missing' => false];
         }
 
@@ -98,13 +80,20 @@ class SellPostingAuditService
         $missingAfterRepair = $this->getMissingPostingTypes($transactionId);
         $diagnosticsAfterRepair = $this->diagnoseMissingReason($transaction->fresh() ?? $transaction, $missingAfterRepair);
 
-        Log::info('SellPostingAuditService::reconcileTransaction - repair attempt completed', [
-            'transaction_id' => $transactionId,
-            'was_missing_initially' => true,
-            'still_missing_after_retry' => $stillMissing,
-            'missing_postings_after_retry' => $missingAfterRepair,
-            'diagnostics' => $diagnosticsAfterRepair,
-        ]);
+        if ($stillMissing) {
+            Log::error('SellPostingAuditService::reconcileTransaction - missing postings remain after repair attempt', [
+                'transaction_id' => $transactionId,
+                'missing_postings_before_retry' => $missingBeforeRepair,
+                'missing_postings_after_retry' => $missingAfterRepair,
+                'diagnostics' => $diagnosticsAfterRepair,
+            ]);
+        } else {
+            Log::info('SellPostingAuditService::reconcileTransaction - missing postings repaired', [
+                'transaction_id' => $transactionId,
+                'missing_postings_before_retry' => $missingBeforeRepair,
+                'diagnostics' => $diagnosticsBeforeRepair,
+            ]);
+        }
 
         return [
             'attempted' => true,

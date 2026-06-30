@@ -14,6 +14,8 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Modules\Accounting\Entities\ChartOfAccount;
 use Yajra\DataTables\Facades\DataTables;
@@ -276,19 +278,40 @@ class ChartOfAccountController extends Controller
         $chart_of_account = ChartOfAccount::with('journal_entries')->forBusiness($business_id)->findOrFail($id);
         $ledger_balances = $this->getLedgerBalancesByGlCode($business_id);
         $chart_of_account->ledger_current_balance = $ledger_balances[(string) $chart_of_account->gl_code] ?? $chart_of_account->current_balance;
+        $account_ledger_entries = $this->getAccountLedgerEntries($chart_of_account, $business_id);
 
-        return view('accounting::chart_of_account.show', compact('chart_of_account'));
+        // Keep older account-detail templates working by hydrating the legacy
+        // journal_entries relation from the same ledger rows used by the new view.
+        $chart_of_account->setRelation('journal_entries', collect($account_ledger_entries)->map(function ($entry) {
+            return (object) [
+                'date' => $entry->entry_date,
+                'reference' => $entry->reference,
+                'notes' => $entry->note,
+                'debit' => (float) $entry->debit,
+                'credit' => (float) $entry->credit,
+            ];
+        }));
+
+        return response()
+            ->view('accounting::chart_of_account.show', compact('chart_of_account', 'account_ledger_entries'))
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', 'Sat, 01 Jan 2000 00:00:00 GMT');
     }
 
     private function getLedgerBalancesByGlCode($business_id)
     {
+        $accountTransactionsHasDeletedAt = $this->accountTransactionsHasDeletedAt();
+
         $rows = Account::leftJoin('account_transactions as AT', function ($join) {
-                $join->on('AT.account_id', '=', 'accounts.id')
-                    ->whereNull('AT.deleted_at');
+                $join->on('AT.account_id', '=', 'accounts.id');
             })
             ->leftJoin('account_types as ats', 'accounts.account_type_id', '=', 'ats.id')
             ->leftJoin('account_types as pat', 'ats.parent_account_type_id', '=', 'pat.id')
             ->where('accounts.business_id', $business_id)
+            ->when($accountTransactionsHasDeletedAt, function ($query) {
+                $query->whereNull('AT.deleted_at');
+            })
             ->select([
                 'accounts.account_number',
                 DB::raw(Account::typeAwareBalanceExpression('COALESCE(pat.name, ats.name)', 'AT.type', 'AT.amount', 'AT.sub_type').' as balance'),
@@ -311,6 +334,72 @@ class ChartOfAccountController extends Controller
         }
 
         return $balances;
+    }
+
+    private function getAccountLedgerEntries(ChartOfAccount $chart_of_account, int $business_id): Collection
+    {
+        $account = Account::where('business_id', $business_id)
+            ->where('account_number', $chart_of_account->gl_code)
+            ->first();
+
+        if (! empty($account)) {
+            $entriesQuery = DB::table('account_transactions as at')
+                ->where('at.account_id', $account->id)
+                ->select([
+                    'at.id',
+                    'at.operation_date',
+                    'at.reff_no',
+                    'at.note',
+                    'at.type',
+                    'at.amount',
+                ])
+                ->orderBy('at.operation_date')
+                ->orderBy('at.id');
+
+            if ($this->accountTransactionsHasDeletedAt()) {
+                $entriesQuery->whereNull('at.deleted_at');
+            }
+
+            $entries = $entriesQuery->get()
+                ->map(function ($entry) {
+                    return (object) [
+                        'entry_date' => $entry->operation_date,
+                        'reference' => $entry->reff_no,
+                        'note' => $entry->note,
+                        'debit' => $entry->type === 'debit' ? (float) $entry->amount : 0.0,
+                        'credit' => $entry->type === 'credit' ? (float) $entry->amount : 0.0,
+                    ];
+                });
+
+            if ($entries->isNotEmpty()) {
+                return $entries;
+            }
+        }
+
+        return $chart_of_account->journal_entries
+            ->sortBy([['date', 'asc'], ['id', 'asc']])
+            ->map(function ($entry) {
+                return (object) [
+                    'entry_date' => $entry->date,
+                    'reference' => $entry->reference,
+                    'note' => $entry->notes,
+                    'debit' => (float) $entry->debit,
+                    'credit' => (float) $entry->credit,
+                ];
+            })
+            ->values();
+    }
+
+    private function accountTransactionsHasDeletedAt(): bool
+    {
+        static $hasDeletedAt;
+
+        if ($hasDeletedAt === null) {
+            $hasDeletedAt = Schema::hasTable('account_transactions')
+                && Schema::hasColumn('account_transactions', 'deleted_at');
+        }
+
+        return $hasDeletedAt;
     }
 
     /**

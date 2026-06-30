@@ -148,17 +148,6 @@ class SyncSellDefaultAccountTransaction
         $amount = round((float) $amount, 4);
 
         if (empty($accountId) || $amount <= 0) {
-            Log::debug('SyncSellDefaultAccountTransaction::syncEntry skipped', [
-                'transaction_id' => $transaction->id,
-                'business_id' => $transaction->business_id,
-                'posting' => $subType,
-                'mapping_key' => $mappingKey,
-                'reason' => empty($accountId) ? 'missing_mapping' : 'zero_amount',
-                'account_id' => $accountId,
-                'amount' => $amount,
-                'deleted_existing' => ! empty($accountTransaction),
-            ]);
-
             if (! empty($accountTransaction)) {
                 $accountTransaction->delete();
             }

@@ -154,6 +154,9 @@
                                             <table id="journal_entries_table" class="table table-bordered table-hover">
                                                 <thead>
                                                     <tr>
+                                                        <th>{{ trans_choice('accounting::lang.date', 1) }}</th>
+                                                        <th>{{ trans_choice('accounting::lang.reference', 1) }}</th>
+                                                        <th>{{ trans_choice('accounting::lang.note', 1) }}</th>
                                                         <th>{{ trans_choice('accounting::general.gl_code', 1) }}</th>
                                                         <th style="text-align:right">{{ trans_choice('accounting::general.debit', 1) }}</th>
                                                         <th style="text-align:right">{{ trans_choice('accounting::general.credit', 1) }}</th>
@@ -162,17 +165,23 @@
                                                 </thead>
                                                 <tbody>
                                                     @php
-                                                        //group the results
                                                         $total_debit = 0;
                                                         $total_credit = 0;
+                                                        $running_balance = 0;
+                                                        $is_debit_normal = in_array($chart_of_account->account_type, ['asset', 'expense'], true);
                                                     @endphp
-                                                    @foreach ($chart_of_account->journal_entries as $key)
+                                                    @foreach ($account_ledger_entries as $key)
                                                         @php
-                                                            //group the results
                                                             $total_debit = $total_debit + $key->debit;
                                                             $total_credit = $total_credit + $key->credit;
+                                                            $running_balance += $is_debit_normal
+                                                                ? ($key->debit - $key->credit)
+                                                                : ($key->credit - $key->debit);
                                                         @endphp
                                                         <tr>
+                                                            <td>{{ !empty($key->entry_date) ? \Carbon\Carbon::parse($key->entry_date)->format('d/m/Y H:i') : '' }}</td>
+                                                            <td>{{ $key->reference }}</td>
+                                                            <td>{{ $key->note }}</td>
                                                             <td>{{ $chart_of_account->gl_code }}</td>
                                                             <td style="text-align:right">
                                                                 {{ number_format($key->debit, 2) }}
@@ -181,17 +190,17 @@
                                                                 {{ number_format($key->credit, 2) }}
                                                             </td>
                                                             <td style="text-align:right">
-                                                                {{ number_format($total_credit - $total_debit, 2) }}
+                                                                {{ number_format($running_balance, 2) }}
                                                             </td>
                                                         </tr>
                                                     @endforeach
                                                 </tbody>
                                                 <tfoot>
                                                     <tr>
-                                                        <td><b>{{ trans_choice('accounting::lang.total', 1) }}</b></td>
+                                                        <td colspan="4"><b>{{ trans_choice('accounting::lang.total', 1) }}</b></td>
                                                         <td style="text-align:right"><b>{{ number_format($total_debit, 2) }}</b></td>
                                                         <td style="text-align:right"><b>{{ number_format($total_credit, 2) }}</b></td>
-                                                        <td style="text-align:right"><b>{{ number_format($total_credit - $total_debit, 2) }}</b></td>
+                                                        <td style="text-align:right"><b>{{ number_format($running_balance, 2) }}</b></td>
                                                     </tr>
                                                 </tfoot>
                                             </table>
@@ -211,8 +220,15 @@
 @stop
 @section('javascript')
     <script>
+        try {
+            localStorage.removeItem('DataTables_journal_entries_table_/accounting/chart_of_account');
+            sessionStorage.removeItem('DataTables_journal_entries_table_/accounting/chart_of_account');
+        } catch (e) {}
+
         $('#journal_entries_table').DataTable({
-            'ordering': false
+            'ordering': false,
+            'destroy': true,
+            'stateSave': false
         });
     </script>
 @endsection

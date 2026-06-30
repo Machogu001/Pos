@@ -880,19 +880,7 @@ class SellPosController extends Controller
                 SellCreatedOrModified::dispatch($transaction);
 
                 if (($input['status'] ?? null) === 'final') {
-                                       \Log::debug('SellPosController::store - about to reconcile', [
-                                           'transaction_id' => $transaction->id,
-                                           'input_status' => $input['status'] ?? null,
-                                           'transaction_status' => $transaction->status,
-                                       ]);
                     $reconcileResult = $this->sellPostingAuditService->reconcileTransaction($transaction->fresh() ?? $transaction);
-                    if (! empty($reconcileResult['attempted'])) {
-                        \Log::info('Immediate sell posting reconciliation executed after finalize.', [
-                            'transaction_id' => $transaction->id,
-                            'fixed' => (bool) ($reconcileResult['fixed'] ?? false),
-                            'still_missing' => (bool) ($reconcileResult['still_missing'] ?? false),
-                        ]);
-                    }
                 }
 
                 // Transmit invoice to eTIMS if enabled and transaction is final (products only)
