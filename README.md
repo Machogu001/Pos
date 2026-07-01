@@ -76,6 +76,10 @@ If you use an external CI/CD runner (GitHub Actions, GitLab, Jenkins, Forge, etc
 call this same script in your deploy job to guarantee identical behavior in every
 production release.
 
+Deploy, update, and install flows also handle permission-cache reset failures more
+gracefully so releases do not abort unnecessarily on environments with stricter
+filesystem or cache permissions.
+
 ## MPESA Integrations
 
 This project adds support for using separate MPESA credentials for subscription payments versus regular POS/sell payments.
@@ -112,6 +116,10 @@ The system supports mapping individual payments (including Sell and Purchase pay
 
 - Payments can be linked to accounts like `Sales/Revenue - 5426425` or `Cost of Goods - 5426425`
 - Use the "Link Account" action in the Payment Account Report to assign or change the account for a payment
+- Chart of Account detail pages now render ledger rows from `account_transactions` by matching the chart `gl_code` to the operational account `account_number`
+- Account detail responses disable browser caching and reset stale DataTables state to avoid empty Journal Entries tables after deploys or upgrades
+- Ledger queries are schema-safe for installs where `account_transactions.deleted_at` does not exist
+- Sell posting audit logs were reduced to actionable cases only: missing postings, successful repair, and repair failure
 
 Any future schema or accounting-related changes should be accompanied by a brief note in this section or in a dedicated Markdown file.
 
@@ -136,6 +144,22 @@ Every installation can poll a central update server for new releases:
 Run a manual check: `php artisan pos:fetchRemoteVersion`
 
 ## Changelog (Highlights)
+
+### July 2026
+- Stabilized Accounting account detail pages so Journal Entries reflect live ledger data from `account_transactions`, including deployment-safe handling for schemas without `deleted_at`.
+- Cleared stale account-detail table state on the frontend to prevent empty tables caused by cached DataTables metadata after upgrades.
+- Reduced sell-accounting reconciliation logs to actionable events only.
+
+### June 2026
+- Added POS bonus-item support for promotions such as buy X get Y free, with free quantities reducing stock and COGS without increasing the charged sell quantity.
+- Removed redundant bonus-note receipt output and tightened accounting/reporting fixes around sell and purchase posting flows.
+- Added purchase draft autosave and recovery, exposed Purchase Status on add/edit purchase screens, and switched draft-restore confirmation to a cleaner SweetAlert prompt.
+- Fixed logout/session handling so users are fully signed out instead of remaining effectively authenticated in the browser.
+- Added stock-costing backfill controls, scheduler settings, and operational repair commands for missing accounting or costing layers.
+
+### May 2026
+- Added bank reconciliation audit logging plus PDF/Excel export support for reconciliation reporting.
+- Hardened deploy, update, and installer flows so permission-cache reset problems are handled gracefully instead of breaking the release path.
 
 ### May 2026 — v12.5
 - **Version bump to 12.5.** `config/author.php` updated; `released_at` and `update_check_url` config keys added.
