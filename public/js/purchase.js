@@ -757,8 +757,42 @@ $(document).ready(function() {
     toggle_search();
 });
 
+var pending_purchase_line_requests = {};
+
+function get_purchase_identity_key(variation_id, product_id) {
+    var normalizedVariationId = variation_id !== undefined && variation_id !== null ? variation_id.toString() : '';
+    var normalizedProductId = product_id !== undefined && product_id !== null ? product_id.toString() : '';
+
+    if (normalizedVariationId) {
+        return 'variation:' + normalizedVariationId;
+    }
+
+    if (normalizedProductId) {
+        return 'product:' + normalizedProductId;
+    }
+
+    return '';
+}
+
 function get_purchase_entry_row(product_id, variation_id) {
     if (product_id) {
+        var purchaseIdentityKey = get_purchase_identity_key(variation_id, product_id);
+        var existing_row = find_existing_purchase_row(variation_id, product_id);
+        if (existing_row.length) {
+            focus_existing_purchase_row(existing_row);
+            toastr.warning('Item already exists in the purchase lines.');
+            return;
+        }
+
+        if (purchaseIdentityKey && pending_purchase_line_requests[purchaseIdentityKey]) {
+            toastr.warning('Item is already being added to the purchase lines.');
+            return;
+        }
+
+        if (purchaseIdentityKey) {
+            pending_purchase_line_requests[purchaseIdentityKey] = true;
+        }
+
         var row_count = $('#row_count').val();
         var location_id = $('#location_id').val();
         var supplier_id = $('#supplier_id').val();
@@ -781,15 +815,137 @@ function get_purchase_entry_row(product_id, variation_id) {
             success: function(result) {
                 append_purchase_lines(result, row_count);
             },
+            complete: function() {
+                if (purchaseIdentityKey) {
+                    delete pending_purchase_line_requests[purchaseIdentityKey];
+                }
+            }
         });
     }
 }
 
+function find_existing_purchase_row(variation_id, product_id) {
+    var normalizedVariationId = variation_id !== undefined && variation_id !== null ? variation_id.toString() : '';
+    var normalizedProductId = product_id !== undefined && product_id !== null ? product_id.toString() : '';
+
+    return $('#purchase_entry_table tbody tr').filter(function() {
+        var row = $(this);
+        var rowVariationId = row.find('input[name*="[variation_id]"]').val();
+        var rowProductId = row.find('input[name*="[product_id]"]').val();
+
+        return (rowVariationId && rowVariationId.toString() === normalizedVariationId) ||
+            (!normalizedVariationId && rowProductId && rowProductId.toString() === normalizedProductId);
+    }).first();
+}
+
+function focus_existing_purchase_row(row) {
+    if (!row || !row.length) {
+        return;
+    }
+
+    $('#purchase_entry_table tbody tr').removeClass('purchase-line-highlight').css({
+        backgroundColor: '',
+        boxShadow: '',
+        transition: ''
+    });
+    row.addClass('purchase-line-highlight').css({
+        backgroundColor: '#fff7d6',
+        boxShadow: 'inset 0 0 0 2px #f59e0b',
+        transition: 'background-color 0.25s ease, box-shadow 0.25s ease'
+    });
+
+    var container = $('.table-responsive').first();
+    if (container.length) {
+        container.animate({
+            scrollTop: Math.max(row.position().top + container.scrollTop() - 80, 0)
+        }, 200);
+    } else {
+        $('html, body').animate({
+            scrollTop: row.offset().top - 120
+        }, 200);
+    }
+
+    var focusTarget = row.find('.purchase_quantity').first();
+    if (focusTarget.length) {
+        focusTarget.focus().select();
+    }
+
+    setTimeout(function() {
+        row.removeClass('purchase-line-highlight').css({
+            backgroundColor: '',
+            boxShadow: '',
+            transition: ''
+        });
+    }, 2200);
+}
+
+    function get_purchase_row_identity(row) {
+        if (!row || !row.length) {
+            return {
+                variation_id: '',
+                product_id: ''
+            };
+        }
+
+        return {
+            variation_id: row.find('input[name*="[variation_id]"]').val() || '',
+            product_id: row.find('input[name*="[product_id]"]').val() || ''
+        };
+    }
+
+    function get_purchase_row_identity_key(row) {
+        var identity = get_purchase_row_identity(row);
+        return get_purchase_identity_key(identity.variation_id, identity.product_id);
+    }
+
+    function remove_duplicate_purchase_rows() {
+        var seenKeys = {};
+        var removedDuplicate = false;
+        var focusRow = $();
+
+        $($('#purchase_entry_table tbody tr').get().reverse()).each(function() {
+            var row = $(this);
+            var identityKey = get_purchase_row_identity_key(row);
+
+            if (!identityKey) {
+                return;
+            }
+
+            if (seenKeys[identityKey]) {
+                if (!focusRow.length) {
+                    focusRow = seenKeys[identityKey];
+                }
+                row.remove();
+                removedDuplicate = true;
+                return;
+            }
+
+            seenKeys[identityKey] = row;
+        });
+
+        return {
+            removedDuplicate: removedDuplicate,
+            focusRow: focusRow
+        };
+    }
+
 function append_purchase_lines(data, row_count, trigger_change = false) {
+    var skippedDuplicate = false;
+        var duplicateFocusRow = $();
+
     $(data)
         .find('.purchase_quantity')
         .each(function() {
             row = $(this).closest('tr');
+
+            var identity = get_purchase_row_identity(row);
+            var existingRow = find_existing_purchase_row(identity.variation_id, identity.product_id);
+
+            if (existingRow.length) {
+                skippedDuplicate = true;
+                duplicateFocusRow = duplicateFocusRow.length ? duplicateFocusRow : existingRow;
+                return;
+            }
 
             $('#purchase_entry_table tbody').prepend(
                 update_purchase_entry_row_values(row)
@@ -811,10 +967,27 @@ function append_purchase_lines(data, row_count, trigger_change = false) {
                 row.find('.purchase_unit_cost_without_discount').trigger('change');
             }
         });
+
+    var duplicateCleanupResult = remove_duplicate_purchase_rows();
+    if (duplicateCleanupResult.removedDuplicate) {
+        skippedDuplicate = true;
+        duplicateFocusRow = duplicateFocusRow.length ? duplicateFocusRow : duplicateCleanupResult.focusRow;
+    }
+
     if ($(data).find('.purchase_quantity').length) {
         $('#row_count').val(
-            $(data).find('.purchase_quantity').length + parseInt(row_count)
+            $('#purchase_entry_table tbody').find('.purchase_quantity').length
         );
+    }
+
+    if (skippedDuplicate) {
+        if (duplicateFocusRow.length) {
+            focus_existing_purchase_row(duplicateFocusRow);
+        }
+        update_table_total();
+        update_grand_total();
+        update_table_sr_number();
+        toastr.warning('Item already exists in the purchase lines. The existing line has been highlighted.');
     }
 }
 

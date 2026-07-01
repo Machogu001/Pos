@@ -188,10 +188,12 @@ $(document).ready(function() {
     // Initialize select2 dropdowns
     $('.select2').select2();
 
+    const stocktakeDraftStorageKey = 'stocktake_draft:' + window.location.pathname;
     let row_index = 1; // Start from 1 since we have initial row at index 0
     let added_products = [];
     let current_autocomplete_index = -1;
     let current_row_index = 0;
+    let stocktakeDraftSaveTimer = null;
 
     // Initialize datepicker
     function initDatepicker(element) {
@@ -209,10 +211,322 @@ $(document).ready(function() {
         initDatepicker($(this));
     });
 
-    // Add blank row function
-    function addBlankRow() {
-        const newRow = `
-            <tr class="editable-row tw-transition-colors" data-index="${row_index}">
+    function updateProductCountBadge() {
+        $('#product_count_badge').text(added_products.length + ' added');
+    }
+
+    function normalizeVariationId(value) {
+        return value === undefined || value === null ? '' : String(value);
+    }
+
+    function getRowDraftData($row) {
+        const unitOptions = [];
+        $row.find('.counted-unit-input option').each(function() {
+            unitOptions.push({
+                value: $(this).val() || '',
+                text: $(this).text() || '',
+                multiplier: $(this).data('multiplier') || '',
+                selected: $(this).is(':selected')
+            });
+        });
+
+        return {
+            data_index: parseInt($row.attr('data-index'), 10) || 0,
+            hasProduct: !!$row.find('input[name*="[variation_id]"]').val(),
+            search: $row.find('.search-input').val() || '',
+            lot: $row.find('.lot-input').val() || '',
+            expiry: $row.find('.expiry-input').val() || '',
+            counted: $row.find('.counted-input').val() || '',
+            current_stock: $row.find('.current-stock').text() || '-',
+            product_id: $row.find('input[name*="[product_id]"]').val() || '',
+            variation_id: $row.find('input[name*="[variation_id]"]').val() || '',
+            product_variation_id: $row.find('input[name*="[product_variation_id]"]').val() || '',
+            counted_unit_id: $row.find('.counted-unit-input').val() || '',
+            unit_options: unitOptions
+        };
+    }
+
+    function hasMeaningfulDraft() {
+        const additionalNotes = $.trim($('[name="additional_notes"]').val() || '');
+        const locationId = $('#location_id').val();
+
+        if (additionalNotes !== '') {
+            return true;
+        }
+
+        if (locationId && locationId !== @json((string) $default_location)) {
+            return true;
+        }
+
+        let hasRows = false;
+        $('#items_table tbody tr').each(function() {
+            const rowData = getRowDraftData($(this));
+            if (rowData.hasProduct || rowData.search || rowData.lot || rowData.expiry || rowData.counted) {
+                hasRows = true;
+                return false;
+            }
+        });
+
+        return hasRows;
+    }
+
+    function getStocktakeDraftPayload() {
+        return {
+            saved_at: new Date().toISOString(),
+            location_id: $('#location_id').val() || '',
+            additional_notes: $('[name="additional_notes"]').val() || '',
+            table_html: $('#items_table tbody').html(),
+            rows: $('#items_table tbody tr').map(function() {
+                return getRowDraftData($(this));
+            }).get()
+        };
+    }
+
+    function syncRowHiddenInput($row, rowIndex, field, value) {
+        const inputName = `items[${rowIndex}][${field}]`;
+        let $input = $row.find(`input[name="${inputName}"]`);
+
+        if (!value) {
+            $input.remove();
+            return;
+        }
+
+        if (!$input.length) {
+            $input = $('<input>', {
+                type: 'hidden',
+                name: inputName
+            }).appendTo($row);
+        }
+
+        $input.val(value);
+    }
+
+    function applyRowDraftData($row, rowData) {
+        const rowIndex = rowData.data_index || 0;
+        const hasProduct = !!rowData.variation_id;
+        const $unitSelect = $row.find('.counted-unit-input');
+
+        $row.attr('data-index', rowIndex);
+        $row.find('.search-input').val(rowData.search || '');
+        $row.find('.lot-input').val(rowData.lot || '').attr('name', `items[${rowIndex}][lot_number]`);
+        $row.find('.expiry-input').val(rowData.expiry || '').attr('name', `items[${rowIndex}][expiry_date]`);
+        $row.find('.current-stock').text(rowData.current_stock || '-');
+        $row.find('.counted-input')
+            .val(rowData.counted || '')
+            .attr('name', `items[${rowIndex}][counted_quantity]`)
+            .prop('disabled', !hasProduct);
+
+        $unitSelect.empty();
+        if (Array.isArray(rowData.unit_options) && rowData.unit_options.length) {
+            rowData.unit_options.forEach(function(option) {
+                const $option = $('<option></option>')
+                    .val(option.value || '')
+                    .text(option.text || '');
+
+                if (option.multiplier !== '') {
+                    $option.attr('data-multiplier', option.multiplier);
+                }
+
+                if ((option.value || '') === (rowData.counted_unit_id || '') || option.selected) {
+                    $option.prop('selected', true);
+                }
+
+                $unitSelect.append($option);
+            });
+        } else {
+            $unitSelect.append(`<option value="">@lang('messages.please_select')</option>`);
+        }
+
+        $unitSelect.attr('name', `items[${rowIndex}][counted_unit_id]`).prop('disabled', !hasProduct);
+        $row.find('.remove-row').prop('disabled', !hasProduct);
+
+        syncRowHiddenInput($row, rowIndex, 'product_id', rowData.product_id || '');
+        syncRowHiddenInput($row, rowIndex, 'variation_id', rowData.variation_id || '');
+        syncRowHiddenInput($row, rowIndex, 'product_variation_id', rowData.product_variation_id || '');
+    }
+
+    function saveStocktakeDraft() {
+        if (!$('#stocktake_form').length) {
+            return;
+        }
+
+        if (!hasMeaningfulDraft()) {
+            localStorage.removeItem(stocktakeDraftStorageKey);
+            return;
+        }
+
+        localStorage.setItem(stocktakeDraftStorageKey, JSON.stringify(getStocktakeDraftPayload()));
+    }
+
+    function requestStocktakeDraftRestore() {
+        if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+            return Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'question',
+                title: 'Restore your last unsaved stocktake draft?',
+                showConfirmButton: true,
+                showCancelButton: true,
+                confirmButtonText: 'Restore',
+                cancelButtonText: 'Discard',
+                timer: 15000,
+                timerProgressBar: true,
+                customClass: {
+                    popup: 'swal2-toast-custom'
+                },
+                didOpen: function(toast) {
+                    toast.addEventListener('mouseenter', Swal.stopTimer);
+                    toast.addEventListener('mouseleave', Swal.resumeTimer);
+                }
+            }).then(function(result) {
+                if (result.isConfirmed) {
+                    return 'restore';
+                }
+
+                if (result.dismiss === Swal.DismissReason.cancel) {
+                    return 'discard';
+                }
+
+                return 'skip';
+            });
+        }
+
+        if (typeof swal === 'function') {
+            return swal({
+                title: 'Restore your last unsaved stocktake draft?',
+                icon: 'warning',
+                buttons: {
+                    cancel: 'Discard',
+                    confirm: 'Restore'
+                }
+            }).then(function(confirmed) {
+                return confirmed ? 'restore' : 'discard';
+            });
+        }
+
+        return Promise.resolve(window.confirm('Restore your last unsaved stocktake draft?') ? 'restore' : 'discard');
+    }
+
+    function rebuildStocktakeStateFromDom() {
+        added_products = [];
+        let maxRowIndex = -1;
+
+        $('#items_table tbody tr').each(function() {
+            const $row = $(this);
+            const index = parseInt($row.attr('data-index'), 10);
+            const variationId = $row.find('input[name*="[variation_id]"]').val();
+
+            if (!Number.isNaN(index)) {
+                maxRowIndex = Math.max(maxRowIndex, index);
+            }
+
+            $row.find('.expiry-input').each(function() {
+                if ($(this).hasClass('hasDatepicker')) {
+                    $(this).datepicker('destroy');
+                }
+                initDatepicker($(this));
+            });
+
+            if (variationId) {
+                added_products.push(normalizeVariationId(variationId));
+                $row.find('.counted-input, .counted-unit-input, .remove-row').prop('disabled', false);
+            } else {
+                $row.find('.remove-row').prop('disabled', true);
+            }
+
+            recalculateVariance($row);
+        });
+
+        row_index = Math.max(maxRowIndex + 1, $('#items_table tbody tr').length);
+        current_row_index = $('#items_table tbody tr').last().data('index') || 0;
+        updateProductCountBadge();
+    }
+
+    function applyStocktakeDraft(draft) {
+        $('#location_id').val(draft.location_id || '').trigger('change.select2');
+        $('[name="additional_notes"]').val(draft.additional_notes || '');
+
+        if (Array.isArray(draft.rows) && draft.rows.length) {
+            const meaningfulRows = draft.rows.filter(function(row) {
+                return row && (row.hasProduct || row.search || row.lot || row.expiry || row.counted);
+            });
+
+            if (meaningfulRows.length) {
+                $('#items_table tbody').html(meaningfulRows.map(function(row, index) {
+                    const rowIndex = row.data_index !== undefined ? row.data_index : index;
+                    return getBlankRowHtml(rowIndex);
+                }).join(''));
+
+                $('#items_table tbody tr').each(function(index) {
+                    if (meaningfulRows[index]) {
+                        applyRowDraftData($(this), meaningfulRows[index]);
+                    }
+                });
+            } else {
+                $('#items_table tbody').html('');
+            }
+        } else if (draft.table_html !== undefined) {
+            $('#items_table tbody').html(draft.table_html || '');
+        }
+
+        if (!$('#items_table tbody tr').length) {
+            addBlankRow();
+        } else {
+            const lastRow = $('#items_table tbody tr').last();
+            if (lastRow.find('input[name*="[variation_id]"]').val() || lastRow.find('.search-input').val()) {
+                addBlankRow();
+            }
+        }
+
+        rebuildStocktakeStateFromDom();
+    }
+
+    function restoreStocktakeDraft() {
+        const savedDraft = localStorage.getItem(stocktakeDraftStorageKey);
+        if (!savedDraft) {
+            return Promise.resolve();
+        }
+
+        let draft;
+        try {
+            draft = JSON.parse(savedDraft);
+        } catch (error) {
+            localStorage.removeItem(stocktakeDraftStorageKey);
+            return Promise.resolve();
+        }
+
+        if (!draft || (draft.location_id === undefined && draft.additional_notes === undefined && draft.table_html === undefined && draft.rows === undefined)) {
+            localStorage.removeItem(stocktakeDraftStorageKey);
+            return Promise.resolve();
+        }
+
+        return requestStocktakeDraftRestore().then(function(action) {
+            if (action === 'restore') {
+                applyStocktakeDraft(draft);
+                if (typeof window.showToast === 'function') {
+                    window.showToast('success', 'Stocktake draft restored.');
+                } else if (typeof toastr !== 'undefined') {
+                    toastr.success('Stocktake draft restored.');
+                }
+            } else if (action === 'discard') {
+                localStorage.removeItem(stocktakeDraftStorageKey);
+                if (typeof window.showToast === 'function') {
+                    window.showToast('info', 'Saved stocktake draft discarded.');
+                } else if (typeof toastr !== 'undefined') {
+                    toastr.info('Saved stocktake draft discarded.');
+                }
+            }
+        });
+    }
+
+    function queueStocktakeDraftSave() {
+        clearTimeout(stocktakeDraftSaveTimer);
+        stocktakeDraftSaveTimer = setTimeout(saveStocktakeDraft, 400);
+    }
+
+    function getBlankRowHtml(index) {
+        return `
+            <tr class="editable-row tw-transition-colors" data-index="${index}">
                 <td class="product-search tw-px-3 tw-py-2">
                     <input type="text" class="form-control search-input tw-text-sm" 
                            placeholder="@lang('stocktake.search_product')" autocomplete="off">
@@ -244,8 +558,11 @@ $(document).ready(function() {
                 </td>
             </tr>
         `;
-        
-        $('#items_table tbody').append(newRow);
+    }
+
+    // Add blank row function
+    function addBlankRow() {
+        $('#items_table tbody').append(getBlankRowHtml(row_index));
         
         // Initialize datepicker for the new expiry input
         initDatepicker($(`#items_table tbody tr[data-index="${row_index}"] .expiry-input`));
@@ -258,6 +575,7 @@ $(document).ready(function() {
         }, 100);
         
         row_index++;
+        queueStocktakeDraftSave();
     }
 
     // Add blank row button
@@ -322,7 +640,7 @@ $(document).ready(function() {
         
         products.forEach((product, index) => {
             const variation_name = product.variation_name ? ` (${product.variation_name})` : '';
-            const isAdded = added_products.includes(product.variation_id);
+            const isAdded = added_products.includes(normalizeVariationId(product.variation_id));
             const addClass = isAdded ? 'text-muted' : '';
             const addIcon = isAdded ? 'fa-check' : 'fa-plus';
             
@@ -405,12 +723,14 @@ $(document).ready(function() {
 
     // Populate product row with data - UPDATED to include product_variation_id
     function populateProductRow(row, product) {
-        if (added_products.includes(product.variation_id)) {
+        const normalizedVariationId = normalizeVariationId(product.variation_id);
+
+        if (added_products.includes(normalizedVariationId)) {
             toastr.error('@lang("stocktake.already_added")');
             return;
         }
 
-        added_products.push(product.variation_id);
+        added_products.push(normalizedVariationId);
         
         // Populate row data
         row.find('.search-input').val(product.name);
@@ -451,6 +771,7 @@ $(document).ready(function() {
         
         // Recalculate variance
         recalculateVariance(row);
+        queueStocktakeDraftSave();
     }
 
     // Keyboard navigation in autocomplete
@@ -609,6 +930,9 @@ $(document).ready(function() {
         if ($('#items_table tbody tr').length === 0) {
             addBlankRow();
         }
+
+        updateProductCountBadge();
+        queueStocktakeDraftSave();
     });
 
     // Recalculate variance function
@@ -631,8 +955,7 @@ $(document).ready(function() {
             $varianceCell.addClass('variance-zero');
         }
 
-        // Update product count badge
-        $('#product_count_badge').text(added_products.length + ' added');
+        updateProductCountBadge();
     }
 
     // When counted quantity changes
@@ -644,6 +967,10 @@ $(document).ready(function() {
     $(document).on('change', '.counted-unit-input', function() {
         const $row = $(this).closest('tr');
         recalculateVariance($row);
+    });
+
+    $('#stocktake_form').on('input change', 'input, textarea, select', function() {
+        queueStocktakeDraftSave();
     });
 
     // Validate form before submitting - UPDATED to match controller validation
@@ -706,6 +1033,8 @@ $(document).ready(function() {
         // Show loading state
         $('#submit_btn').prop('disabled', true)
             .html('<i class="fa fa-spinner fa-spin"></i> @lang("stocktake.saving")...');
+
+        localStorage.removeItem(stocktakeDraftStorageKey);
         
         // Form will submit normally
     });
@@ -756,9 +1085,18 @@ $(document).ready(function() {
             
             row_index = 1;
             current_row_index = 0;
+            updateProductCountBadge();
+            queueStocktakeDraftSave();
             
             toastr.info('@lang("stocktake.location_changed_cleared_products")');
         }
+    });
+
+    restoreStocktakeDraft();
+    setInterval(saveStocktakeDraft, 15000);
+
+    $(window).on('beforeunload pagehide', function() {
+        saveStocktakeDraft();
     });
 });
 </script>

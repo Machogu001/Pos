@@ -543,10 +543,83 @@
 @endsection
 
 @section('javascript')
-  <script src="{{ asset('js/purchase.js?v=' . $asset_v) }}"></script>
+  <script src="{{ asset('js/purchase.js?v=' . $asset_v . '&m=' . filemtime(public_path('js/purchase.js'))) }}"></script>
   <script src="{{ asset('js/product.js?v=' . $asset_v) }}"></script>
   <script type="text/javascript">
     const purchaseDraftStorageKey = 'purchase_draft:' + window.location.pathname;
+
+    function getPurchaseDraftTableHtml() {
+      const $tbodyClone = $('#purchase_entry_table tbody').clone();
+
+      $tbodyClone.find('.select2-container').remove();
+      $tbodyClone.find('select.select2-hidden-accessible').each(function() {
+        $(this)
+          .removeClass('select2-hidden-accessible')
+          .addClass('select2')
+          .removeAttr('data-select2-id')
+          .removeAttr('tabindex')
+          .removeAttr('aria-hidden');
+      });
+
+      $tbodyClone.find('input, textarea, select').each(function() {
+        const $element = $(this);
+        const tagName = (this.tagName || '').toLowerCase();
+
+        if ($element.is(':checkbox') || $element.is(':radio')) {
+          $element.prop('checked', $element.is(':checked'));
+          if ($element.is(':checked')) {
+            $element.attr('checked', 'checked');
+          } else {
+            $element.removeAttr('checked');
+          }
+          return;
+        }
+
+        if (tagName === 'select') {
+          $element.find('option').each(function() {
+            const $option = $(this);
+            if ($option.is(':selected')) {
+              $option.attr('selected', 'selected');
+            } else {
+              $option.removeAttr('selected');
+            }
+          });
+          return;
+        }
+
+        $element.attr('value', $element.val() || '');
+        if (tagName === 'textarea') {
+          $element.text($element.val() || '');
+        }
+      });
+
+      return $('<div>').append($tbodyClone).html();
+    }
+
+    function normalizeRestoredPurchaseRows() {
+      $('#purchase_entry_table tbody').find('.select2-container').remove();
+      $('#purchase_entry_table tbody').find('select.purchase_line_tax_id').each(function() {
+        $(this)
+          .removeClass('select2-hidden-accessible')
+          .addClass('select2')
+          .removeAttr('data-select2-id')
+          .removeAttr('tabindex')
+          .removeAttr('aria-hidden');
+      });
+
+      $('#purchase_entry_table tbody').find('tr').each(function() {
+        const $row = $(this);
+        if (!$row.find('.purchase_quantity').length) {
+          return;
+        }
+
+        update_purchase_entry_row_values($row);
+        update_row_price_for_exchange_rate($row);
+        update_inline_profit_percentage($row);
+      });
+
+      $('#row_count').val($('#purchase_entry_table tbody').find('.purchase_quantity').length);
+    }
 
     function getPurchaseDraftPayload() {
       const form = $('#add_purchase_form');
@@ -558,12 +631,62 @@
       return {
         saved_at: new Date().toISOString(),
         fields: serializedFields,
-        table_html: $('#purchase_entry_table tbody').html(),
+        table_html: getPurchaseDraftTableHtml(),
         supplier_option: supplierOption.length ? {
           id: supplierOption.val(),
           text: supplierOption.text()
         } : null
       };
+    }
+
+    function extractPurchaseDraftLines(fields) {
+      const purchaseLines = {};
+      const fieldPattern = /^purchases\[(\d+)\]\[([^\]]+)\]$/;
+
+      (fields || []).forEach(function(field) {
+        const match = field.name.match(fieldPattern);
+        if (!match) {
+          return;
+        }
+
+        const rowIndex = parseInt(match[1], 10);
+        const key = match[2];
+        if (!purchaseLines[rowIndex]) {
+          purchaseLines[rowIndex] = {
+            rowIndex: rowIndex
+          };
+        }
+
+        purchaseLines[rowIndex][key] = field.value;
+      });
+
+      return Object.keys(purchaseLines)
+        .map(function(index) {
+          return purchaseLines[index];
+        })
+        .filter(function(line) {
+          return line.product_id && line.variation_id;
+        })
+        .sort(function(a, b) {
+          return a.rowIndex - b.rowIndex;
+        });
+    }
+
+    function hasRestorablePurchaseDraftLines(draft) {
+      const purchaseLines = extractPurchaseDraftLines((draft && draft.fields) || []);
+      if (purchaseLines.length) {
+        return true;
+      }
+
+      if (typeof draft?.table_html !== 'string' || !draft.table_html.trim()) {
+        return false;
+      }
+
+      const $draftTable = $('<tbody>').html(draft.table_html);
+      return $draftTable.find('.purchase_quantity').filter(function() {
+        const $row = $(this).closest('tr');
+        return !!($row.find('input[name*="[product_id]"]').val() && $row.find('input[name*="[variation_id]"]').val());
+      }).length > 0;
     }
 
     function savePurchaseDraft() {
@@ -591,13 +714,14 @@
     }
 
     function applyPurchaseDraft(draft) {
-      if (draft.table_html !== undefined) {
-        $('#purchase_entry_table tbody').html(draft.table_html || '');
-      }
-
-      draft.fields.forEach(function(field) {
-        restorePurchaseDraftField(field);
+      const locationField = draft.fields.find(function(field) {
+        return field.name === 'location_id';
       });
+
+      if (locationField) {
+        restorePurchaseDraftField(locationField);
+        $('#location_id').trigger('change');
+      }
 
       if (draft.supplier_option && draft.supplier_option.id) {
         if (!$('#supplier_id option[value="' + draft.supplier_option.id + '"]').length) {
@@ -607,7 +731,20 @@
         $('#supplier_id').val(draft.supplier_option.id).trigger('change');
       }
 
-      $('#location_id, #pay_term_type, .payment_types_dropdown, .account-dropdown, .sub_unit, .purchase_line_tax_id').trigger('change');
+      if (draft.table_html !== undefined) {
+        $('#purchase_entry_table tbody').html(draft.table_html || '');
+      }
+
+      draft.fields.forEach(function(field) {
+        if (field.name === 'location_id') {
+          return;
+        }
+        restorePurchaseDraftField(field);
+      });
+
+      normalizeRestoredPurchaseRows();
+
+      $('#pay_term_type, .payment_types_dropdown, .account-dropdown, .sub_unit, .purchase_line_tax_id').trigger('change');
       update_table_total();
       update_grand_total();
       update_table_sr_number();
@@ -678,6 +815,10 @@
       }
 
       if (!draft || !Array.isArray(draft.fields)) {
+        return Promise.resolve();
+      }
+
+      if (!hasRestorablePurchaseDraftLines(draft)) {
         return Promise.resolve();
       }
 

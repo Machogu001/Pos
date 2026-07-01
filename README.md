@@ -153,7 +153,8 @@ Run a manual check: `php artisan pos:fetchRemoteVersion`
 ### June 2026
 - Added POS bonus-item support for promotions such as buy X get Y free, with free quantities reducing stock and COGS without increasing the charged sell quantity.
 - Removed redundant bonus-note receipt output and tightened accounting/reporting fixes around sell and purchase posting flows.
-- Added purchase draft autosave and recovery, exposed Purchase Status on add/edit purchase screens, and switched draft-restore confirmation to a cleaner SweetAlert prompt.
+- Added purchase draft autosave and recovery, tightened restore so prompts only appear when real lines exist, and blocked duplicate purchase lines during keyed entry and draft restore while highlighting the existing row.
+- Added stocktake autosave and restore so keyed stocktake lines can be recovered without losing entered values.
 - Fixed logout/session handling so users are fully signed out instead of remaining effectively authenticated in the browser.
 - Added stock-costing backfill controls, scheduler settings, and operational repair commands for missing accounting or costing layers.
 
