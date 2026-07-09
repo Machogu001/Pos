@@ -1,4 +1,17 @@
 $(document).ready(function() {
+    function refreshDashboardStatisticsSilently() {
+        if ($('#dashboard_date_filter').length !== 1 || !$('#dashboard_date_filter').data('daterangepicker')) {
+            return;
+        }
+
+        var picker = $('#dashboard_date_filter').data('daterangepicker');
+        update_statistics(
+            picker.startDate.format('YYYY-MM-DD'),
+            picker.endDate.format('YYYY-MM-DD'),
+            true
+        );
+    }
+
     if ($('#dashboard_date_filter').length == 1) {
         dateRangeSettings.startDate = moment();
         dateRangeSettings.endDate = moment();
@@ -16,15 +29,16 @@ $(document).ready(function() {
 
         // ── Auto-refresh stats cards every 30 seconds (silent — no spinner) ──
         setInterval(function () {
-            if ($('#dashboard_date_filter').length && $('#dashboard_date_filter').data('daterangepicker')) {
-                var picker = $('#dashboard_date_filter').data('daterangepicker');
-                update_statistics(
-                    picker.startDate.format('YYYY-MM-DD'),
-                    picker.endDate.format('YYYY-MM-DD'),
-                    true
-                );
-            }
+            refreshDashboardStatisticsSilently();
         }, 30000);
+
+        window.addEventListener('storage', function(event) {
+            if (event.key !== 'pos-dashboard-sale-update' || !event.newValue) {
+                return;
+            }
+
+            refreshDashboardStatisticsSilently();
+        });
     }
 
     $('#dashboard_location').change( function(e) {
@@ -186,7 +200,7 @@ function update_statistics(start, end, silent) {
     if ($('#dashboard_location').length > 0) {
         location_id = $('#dashboard_location').val();
     }
-    var data = { start: start, end: end, location_id: location_id };
+    var data = { start: start, end: end, location_id: location_id, _ts: Date.now() };
     //get purchase details
     var loader = '<i class="fas fa-sync fa-spin fa-fw margin-bottom"></i>';
     if (!silent) {
@@ -203,6 +217,7 @@ function update_statistics(start, end, silent) {
         method: 'get',
         url: '/home/get-totals',
         dataType: 'json',
+        cache: false,
         data: data,
         success: function(data) {
             //purchase details

@@ -750,6 +750,12 @@ $(document).ready(function() {
         var sp_element = tr.find('input.default_sell_price');
         __write_number(sp_element, unit_sp);
 
+        var qty_element = tr.find('input.purchase_quantity');
+        qty_element.attr('data-decimal', 0);
+        qty_element.rules('add', {
+            abs_digit: true,
+        });
+
         var cp_element = tr.find('input.purchase_unit_cost_without_discount');
         __write_number(cp_element, unit_cost);
         cp_element.change();

@@ -338,7 +338,7 @@ class DataController extends Controller
 
         if ($is_essentials_enabled && $user_can_access_essentials) {
             $menu = Menu::instance('admin-sidebar-menu');
-            $group_title = 'Modules & Apps';
+            $group_title = __('ui.modules_apps_menu');
             $statusesRaw = @file_get_contents(base_path('modules_statuses.json'));
             $statuses = $statusesRaw ? (json_decode($statusesRaw, true) ?? []) : [];
             $hrm_module_active = \Module::has('Hrm') && !empty($statuses['Hrm'] ?? null);

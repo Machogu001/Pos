@@ -13,6 +13,7 @@ use App\ProductUnitConversion;
 use App\ProductVariation;
 use App\PurchaseLine;
 use App\SellingPriceGroup;
+use App\StocktakeItem;
 use App\TaxRate;
 use App\Unit;
 use App\Utils\ModuleUtil;
@@ -512,6 +513,80 @@ class ProductController extends Controller
             }
         }
 
+        $existing_unit_ids = ProductUnitConversion::where('business_id', $business_id)
+            ->where('product_id', $product->id)
+            ->pluck('unit_id')
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->toArray();
+
+        $removed_unit_ids = array_values(array_diff($existing_unit_ids, array_keys($conversions)));
+        if (! empty($removed_unit_ids)) {
+            $blocked_unit_ids = [];
+
+            if (Schema::hasTable('purchase_lines') && Schema::hasColumn('purchase_lines', 'sub_unit_id')) {
+                $blocked_unit_ids = array_merge(
+                    $blocked_unit_ids,
+                    PurchaseLine::where('product_id', $product->id)
+                        ->whereIn('sub_unit_id', $removed_unit_ids)
+                        ->distinct()
+                        ->pluck('sub_unit_id')
+                        ->map(function ($id) {
+                            return (int) $id;
+                        })
+                        ->toArray()
+                );
+            }
+
+            if (Schema::hasTable('transaction_sell_lines') && Schema::hasColumn('transaction_sell_lines', 'sub_unit_id')) {
+                $blocked_unit_ids = array_merge(
+                    $blocked_unit_ids,
+                    TransactionSellLine::where('product_id', $product->id)
+                        ->whereIn('sub_unit_id', $removed_unit_ids)
+                        ->distinct()
+                        ->pluck('sub_unit_id')
+                        ->map(function ($id) {
+                            return (int) $id;
+                        })
+                        ->toArray()
+                );
+            }
+
+            if (Schema::hasTable('stocktake_items') && Schema::hasColumn('stocktake_items', 'counted_unit_id')) {
+                $blocked_unit_ids = array_merge(
+                    $blocked_unit_ids,
+                    StocktakeItem::where('product_id', $product->id)
+                        ->whereIn('counted_unit_id', $removed_unit_ids)
+                        ->distinct()
+                        ->pluck('counted_unit_id')
+                        ->map(function ($id) {
+                            return (int) $id;
+                        })
+                        ->toArray()
+                );
+            }
+
+            $blocked_unit_ids = array_values(array_unique(array_filter($blocked_unit_ids)));
+            if (! empty($blocked_unit_ids)) {
+                $blocked_unit_names = Unit::where('business_id', $business_id)
+                    ->whereIn('id', $blocked_unit_ids)
+                    ->pluck('short_name')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                $unit_label = ! empty($blocked_unit_names)
+                    ? implode(', ', $blocked_unit_names)
+                    : implode(', ', $blocked_unit_ids);
+
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'unit_conversions' => 'You cannot remove Item Units of Measure already used in transactions or stocktakes: '.$unit_label.'.',
+                ]);
+            }
+        }
+
         ProductUnitConversion::where('business_id', $business_id)
             ->where('product_id', $product->id)
             ->delete();
@@ -539,6 +614,106 @@ class ProductController extends Controller
         $product->save();
     }
 
+    private function validateSecondaryUnitChange(Request $request, Product $product, int $business_id): void
+    {
+        $current_secondary_unit_id = ! empty($product->secondary_unit_id) ? (int) $product->secondary_unit_id : null;
+        $requested_secondary_unit_id = $request->filled('secondary_unit_id') ? (int) $request->input('secondary_unit_id') : null;
+
+        if (empty($current_secondary_unit_id) || $current_secondary_unit_id === $requested_secondary_unit_id) {
+            return;
+        }
+
+        $has_secondary_unit_history = false;
+
+        if (Schema::hasTable('purchase_lines') && Schema::hasColumn('purchase_lines', 'secondary_unit_quantity')) {
+            $has_secondary_unit_history = PurchaseLine::where('product_id', $product->id)
+                ->where('secondary_unit_quantity', '!=', 0)
+                ->exists();
+        }
+
+        if (! $has_secondary_unit_history && Schema::hasTable('transaction_sell_lines') && Schema::hasColumn('transaction_sell_lines', 'secondary_unit_quantity')) {
+            $has_secondary_unit_history = TransactionSellLine::where('product_id', $product->id)
+                ->where('secondary_unit_quantity', '!=', 0)
+                ->exists();
+        }
+
+        if (! $has_secondary_unit_history && Schema::hasTable('stock_adjustment_lines') && Schema::hasColumn('stock_adjustment_lines', 'secondary_unit_quantity') && Schema::hasTable('variations')) {
+            $has_secondary_unit_history = DB::table('stock_adjustment_lines')
+                ->join('variations', 'stock_adjustment_lines.variation_id', '=', 'variations.id')
+                ->where('variations.product_id', $product->id)
+                ->where('stock_adjustment_lines.secondary_unit_quantity', '!=', 0)
+                ->exists();
+        }
+
+        if (! $has_secondary_unit_history) {
+            return;
+        }
+
+        $current_secondary_unit_label = Unit::where('business_id', $business_id)
+            ->where('id', $current_secondary_unit_id)
+            ->value('short_name');
+
+        $current_secondary_unit_label = ! empty($current_secondary_unit_label)
+            ? $current_secondary_unit_label
+            : $current_secondary_unit_id;
+
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'secondary_unit_id' => 'You cannot change or remove the secondary unit because secondary-unit quantities already exist in history for '.$current_secondary_unit_label.'.',
+        ]);
+    }
+
+    protected function validateBaseUnitConversionInput(Request $request, int $business_id)
+    {
+        if (! Schema::hasTable('product_unit_conversions')) {
+            return null;
+        }
+
+        $base_unit_id = (int) $request->input('unit_id');
+        if (empty($base_unit_id)) {
+            return null;
+        }
+
+        foreach ((array) $request->input('unit_conversions', []) as $row) {
+            $unit_id = ! empty($row['unit_id']) ? (int) $row['unit_id'] : 0;
+            if ($unit_id !== $base_unit_id) {
+                continue;
+            }
+
+            if (! isset($row['qty_per_base']) || $row['qty_per_base'] === '') {
+                continue;
+            }
+
+            $qty_per_base = (float) $this->productUtil->num_uf($row['qty_per_base']);
+            if ((float) $qty_per_base === 1.0) {
+                continue;
+            }
+
+            $units = Unit::where('business_id', $business_id)
+                ->whereIn('id', array_filter([
+                    $base_unit_id,
+                    (int) $request->input('purchase_default_unit_id'),
+                    (int) $request->input('sale_default_unit_id'),
+                ]))
+                ->pluck('short_name', 'id');
+
+            $base_unit_name = $units[$base_unit_id] ?? 'base unit';
+            $purchase_unit_id = (int) $request->input('purchase_default_unit_id');
+            $sale_unit_id = (int) $request->input('sale_default_unit_id');
+            $alternate_unit_id = $purchase_unit_id !== $base_unit_id && ! empty($units[$purchase_unit_id])
+                ? $purchase_unit_id
+                : ($sale_unit_id !== $base_unit_id && ! empty($units[$sale_unit_id]) ? $sale_unit_id : 0);
+
+            $message = 'The base unit '.$base_unit_name.' must always stay at 1.';
+            if (! empty($alternate_unit_id)) {
+                $message .= ' If you mean 1 '.$base_unit_name.' = '.$qty_per_base.' '.$units[$alternate_unit_id].', change the product base unit to '.$units[$alternate_unit_id].' and save '.$base_unit_name.' = '.$qty_per_base.' under Item Units of Measure.';
+            }
+
+            return $message;
+        }
+
+        return null;
+    }
+
     /**
      * Store a newly created resource in storage.
      *
@@ -550,8 +725,15 @@ class ProductController extends Controller
         if (! auth()->user()->can('product.create')) {
             abort(403, 'Unauthorized action.');
         }
+        $business_id = $request->session()->get('user.business_id');
+        $invalid_base_unit_conversion_message = $this->validateBaseUnitConversionInput($request, $business_id);
+        if (! empty($invalid_base_unit_conversion_message)) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['unit_conversions' => $invalid_base_unit_conversion_message]);
+        }
+
         try {
-            $business_id = $request->session()->get('user.business_id');
             $form_fields = ['name', 'brand_id', 'unit_id', 'category_id', 'tax', 'type', 'barcode_type', 'sku', 'alert_quantity', 'tax_type', 'weight', 'product_description', 'sub_unit_ids', 'preparation_time_in_minutes', 'bonus_trigger_quantity', 'bonus_free_quantity', 'product_custom_field1', 'product_custom_field2', 'product_custom_field3', 'product_custom_field4', 'product_custom_field5', 'product_custom_field6', 'product_custom_field7', 'product_custom_field8', 'product_custom_field9', 'product_custom_field10', 'product_custom_field11', 'product_custom_field12', 'product_custom_field13', 'product_custom_field14', 'product_custom_field15', 'product_custom_field16', 'product_custom_field17', 'product_custom_field18', 'product_custom_field19', 'product_custom_field20',];
 
             $module_form_fields = $this->moduleUtil->getModuleFormField('product_form_fields');
@@ -671,6 +853,10 @@ class ProductController extends Controller
             $output = ['success' => 1,
                 'msg' => __('Product_added_success'),
             ];
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+
+            throw $e;
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::emergency('File:'.$e->getFile().'Line:'.$e->getLine().'Message:'.$e->getMessage());
@@ -801,8 +987,15 @@ class ProductController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
+        $business_id = $request->session()->get('user.business_id');
+        $invalid_base_unit_conversion_message = $this->validateBaseUnitConversionInput($request, $business_id);
+        if (! empty($invalid_base_unit_conversion_message)) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['unit_conversions' => $invalid_base_unit_conversion_message]);
+        }
+
         try {
-            $business_id = $request->session()->get('user.business_id');
             $product_details = $request->only(['name', 'brand_id', 'unit_id', 'category_id', 'tax', 'barcode_type', 'sku', 'alert_quantity', 'tax_type', 'weight', 'product_description', 'sub_unit_ids', 'preparation_time_in_minutes', 'bonus_trigger_quantity', 'bonus_free_quantity', 'product_custom_field1', 'product_custom_field2', 'product_custom_field3', 'product_custom_field4', 'product_custom_field5', 'product_custom_field6', 'product_custom_field7', 'product_custom_field8', 'product_custom_field9', 'product_custom_field10', 'product_custom_field11', 'product_custom_field12', 'product_custom_field13', 'product_custom_field14', 'product_custom_field15', 'product_custom_field16', 'product_custom_field17', 'product_custom_field18', 'product_custom_field19', 'product_custom_field20',]);
 
             DB::beginTransaction();
@@ -811,6 +1004,8 @@ class ProductController extends Controller
                                 ->where('id', $id)
                                 ->with(['product_variations'])
                                 ->first();
+
+            $this->validateSecondaryUnitChange($request, $product, $business_id);
 
             $module_form_fields = $this->moduleUtil->getModuleFormField('product_form_fields');
             if (! empty($module_form_fields)) {
@@ -1149,6 +1344,10 @@ if ($product->type == 'single') {
             $output = ['success' => 1,
                 'msg' => __('Product_updated_success'),
             ];
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+
+            throw $e;
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::emergency('File:'.$e->getFile().'Line:'.$e->getLine().'Message:'.$e->getMessage());
@@ -1845,7 +2044,7 @@ if ($product->type == 'single') {
             $business_id = request()->session()->get('user.business_id');
 
             $product = Product::where('business_id', $business_id)
-                        ->with(['brand', 'unit', 'category', 'sub_category', 'product_tax', 'variations', 'variations.product_variation', 'variations.group_prices', 'variations.media', 'product_locations', 'warranty', 'media'])
+                        ->with(['brand', 'unit', 'category', 'sub_category', 'product_tax', 'variations', 'variations.product_variation', 'variations.group_prices', 'variations.media', 'product_locations', 'warranty', 'media', 'unit_conversions.unit'])
                         ->findOrFail($id);
 
             $price_groups = SellingPriceGroup::where('business_id', $business_id)->active()->pluck('name', 'id');

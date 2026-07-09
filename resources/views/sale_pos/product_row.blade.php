@@ -14,7 +14,7 @@
 @endforeach
 
 <tr class="product_row" data-row_index="{{$row_count}}" @if(!empty($so_line)) data-so_id="{{$so_line->transaction_id}}" @endif>
-	<td>
+	<td class="pos-product-cell">
 		@if(!empty($so_line))
 			<input type="hidden" 
 			name="products[{{$row_count}}][so_line_id]" 
@@ -25,23 +25,29 @@
 			if(!empty($product->brand)){ $product_name .= ' ' . $product->brand ;}
 		@endphp
 
-		@if( ($edit_price || $edit_discount) && empty($is_direct_sell) )
-		<div title="@lang('lang_v1.pos_edit_product_price_help')" style="display: inline">
-		<span class="text-link text-info cursor-pointer" data-toggle="modal" data-target="#row_edit_product_price_modal_{{$row_count}}">
-			{!! $product_name !!}
-			&nbsp;<i class="fa fa-info-circle"></i>
-		</span>
-		</div>
-		@else
-			{!! $product_name !!}
-		@endif
-		<img src="@if(count($product->media) > 0)
-						{{$product->media->first()->display_url}}
-					@elseif(!empty($product->product_image))
-						{{asset('/uploads/img/' . rawurlencode($product->product_image))}}
+		<div class="pos-product-summary">
+			<div class="pos-product-main">
+				<div class="pos-product-name-wrap">
+				@if( ($edit_price || $edit_discount) && empty($is_direct_sell) )
+				<div title="@lang('lang_v1.pos_edit_product_price_help')">
+				<span class="text-link text-info cursor-pointer pos-product-name" data-toggle="modal" data-target="#row_edit_product_price_modal_{{$row_count}}">
+					{!! $product_name !!}
+					&nbsp;<i class="fa fa-info-circle"></i>
+				</span>
+				</div>
+				@else
+					<div class="pos-product-name">{!! $product_name !!}</div>
+				@endif
+				<small class="text-muted pos-product-stock">
+					@if($product->enable_stock)
+					{{ @num_format($product->qty_available) }} {{$product->unit}} @lang('lang_v1.in_stock')
 					@else
-						{{asset('/img/default.png')}}
-					@endif" alt="product-img" loading="lazy"style="height: 100%;display: inline;margin-left: 3px; border: black;border-radius: 5px; margin-top: 5px; width: 50px;object-fit: cover;">
+						--
+					@endif
+				</small>
+				</div>
+			</div>
+		</div>
 
 
 		<input type="hidden" class="enable_sr_no" value="{{$product->enable_sr_no}}">
@@ -110,14 +116,6 @@
 			@include('sale_pos.partials.row_edit_product_price_modal')
 		</div> 
 		@endif
-<br>
-		<small class="text-muted p-1">
-			@if($product->enable_stock)
-			{{ @num_format($product->qty_available) }} {{$product->unit}} @lang('lang_v1.in_stock')
-			@else
-				--
-			@endif
-		</small>
 
 		<!-- Description modal end -->
 		@if(in_array('modifiers' , $enabled_modules))
@@ -192,14 +190,15 @@
 			</select>
 		@endif
 	@endif
-	@if(!empty($is_direct_sell))
-  		<br>
-  		<textarea class="form-control" name="products[{{$row_count}}][sell_line_note]" rows="2">{{$sell_line_note}}</textarea>
+		@if(!empty($is_direct_sell))
+	 		<div class="pos-product-note">
+	 		<textarea class="form-control" name="products[{{$row_count}}][sell_line_note]" rows="2">{{$sell_line_note}}</textarea>
   		<p class="help-block"><small>@lang('lang_v1.sell_line_description_help')</small></p>
+	 		</div>
 	@endif
 	</td>
 
-	<td>
+	<td class="pos-qty-cell">
 		{{-- If edit then transaction sell lines will be present --}}
 		@if(!empty($product->transaction_sell_lines_id))
 			<input type="hidden" name="products[{{$row_count}}][transaction_sell_lines_id]" class="form-control" value="{{$product->transaction_sell_lines_id}}">
@@ -220,10 +219,7 @@
 		@endif
 
 		@php
-			$allow_decimal = true;
-			if($product->unit_allow_decimal != 1) {
-				$allow_decimal = false;
-			}
+			$allow_decimal = false;
 		@endphp
 		@foreach($sub_units as $key => $value)
         	@if(!empty($product->sub_unit_id) && $product->sub_unit_id == $key)
@@ -236,9 +232,6 @@
         				$max_qty_msg = __('lang_v1.quantity_error_msg_in_lot', ['qty'=> $max_qty_rule, 'unit' => $unit_name  ]);
         			}
 
-        			if($value['allow_decimal']) {
-        				$allow_decimal = true;
-        			}
         		@endphp
         	@endif
         @endforeach
@@ -266,7 +259,7 @@
 		
 		<input type="hidden" name="products[{{$row_count}}][product_unit_id]" value="{{$product->unit_id}}">
 		@if(count($sub_units) > 0)
-			<br>
+			<div class="pos-subunit-wrap">
 			<select name="products[{{$row_count}}][sub_unit_id]" class="form-control input-sm sub_unit">
                 @foreach($sub_units as $key => $value)
                     <option value="{{$key}}" data-multiplier="{{$value['multiplier']}}" data-unit_name="{{$value['name']}}" data-allow_decimal="{{$value['allow_decimal']}}" @if(!empty($product->sub_unit_id) && $product->sub_unit_id == $key) selected @endif>
@@ -274,8 +267,9 @@
                     </option>
                 @endforeach
            </select>
+			</div>
 		@else
-			{{$product->unit}}
+			<div class="pos-subunit-label">{{$product->unit}}</div>
 		@endif
 
 		@if(!empty($product->second_unit))
@@ -301,7 +295,7 @@
 				}
 			}
 		@endphp
-		<small class="text-success bonus-help" @if($initial_bonus_qty <= 0) style="display:none;" @endif>
+		<small class="text-success bonus-help pos-bonus-help" @if($initial_bonus_qty <= 0) style="display:none;" @endif>
 			<span class="bonus-help-text">@if($initial_bonus_qty > 0)Bonus: {{@format_quantity($initial_bonus_qty)}} free @endif</span>
 		</small>
 
@@ -364,15 +358,14 @@
 				$pos_unit_price = $so_line->unit_price_before_discount;
 			}
 		@endphp
-		<td class="@if(!auth()->user()->can('edit_product_price_from_sale_screen')) hide @endif">
+		<td class="pos-price-cell @if(!auth()->user()->can('edit_product_price_from_sale_screen')) hide @endif">
 			<input type="text" name="products[{{$row_count}}][unit_price]" class="form-control pos_unit_price input_number mousetrap" value="{{@num_format($pos_unit_price)}}" @if(!empty($pos_settings['enable_msp'])) data-rule-min-value="{{$pos_unit_price}}" data-msg-min-value="{{__('lang_v1.minimum_selling_price_error_msg', ['price' => @num_format($pos_unit_price)])}}" @endif> 
 
 			@if(!empty($last_sell_line))
-				<br>
-				<small class="text-muted">@lang('lang_v1.prev_unit_price'): @format_currency($last_sell_line->unit_price_before_discount)</small>
+				<small class="text-muted pos-inline-meta">@lang('lang_v1.prev_unit_price'): @format_currency($last_sell_line->unit_price_before_discount)</small>
 			@endif
 		</td>
-		<td @if(!$edit_discount) class="hide" @endif>
+		<td class="pos-discount-cell @if(!$edit_discount) hide @endif">
 			{!! Form::text("products[$row_count][line_discount_amount]", @num_format($discount_amount), ['class' => 'form-control input_number row_discount_amount']); !!}<br>
 			{!! Form::select("products[$row_count][line_discount_type]", ['fixed' => __('lang_v1.fixed'), 'percentage' => __('lang_v1.percentage')], $discount_type , ['class' => 'form-control row_discount_type']); !!}
 			@if(!empty($discount))
@@ -380,8 +373,7 @@
 			@endif
 
 			@if(!empty($last_sell_line))
-				<br>
-				<small class="text-muted">
+				<small class="text-muted pos-inline-meta">
 					@lang('lang_v1.prev_discount'): 
 					@if($last_sell_line->line_discount_type == 'percentage')
 						{{@num_format($last_sell_line->line_discount_amount)}}%
@@ -408,7 +400,7 @@
 			</td>
 		@endif
 	@endif
-	<td class="{{$hide_tax}}">
+	<td class="pos-price-inc-tax-cell {{$hide_tax}}">
 		<input type="text" name="products[{{$row_count}}][unit_price_inc_tax]" class="form-control pos_unit_price_inc_tax input_number" value="{{@num_format($unit_price_inc_tax)}}" @if(!$edit_price) readonly @endif @if(!empty($pos_settings['enable_msp'])) data-rule-min-value="{{$unit_price_inc_tax}}" data-msg-min-value="{{__('lang_v1.minimum_selling_price_error_msg', ['price' => @num_format($unit_price_inc_tax)])}}" @endif>
 	</td>
 	@if(!empty($common_settings['enable_product_warranty']) && !empty($is_direct_sell))
@@ -416,7 +408,7 @@
 			{!! Form::select("products[$row_count][warranty_id]", $warranties, $warranty_id, ['placeholder' => __('messages.please_select'), 'class' => 'form-control']); !!}
 		</td>
 	@endif
-	<td class="text-center">
+	<td class="text-center pos-subtotal-cell">
 		@php
 			$subtotal_type = !empty($pos_settings['is_pos_subtotal_editable']) ? 'text' : 'hidden';
 

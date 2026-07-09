@@ -1,5 +1,5 @@
 @can('superadmin')
-	<li class="bg-red treeview {{ in_array($request->segment(1), ['superadmin']) ? 'active active-sub' : '' }}">
+	<li class="bg-red treeview {{ in_array($request->segment(1), ['superadmin']) || request()->routeIs('superadmin.admin.dashboard') ? 'active active-sub' : '' }}">
 	    <a href="#">
 	        <i class="fa fa-bank"></i>
 	        <span class="title">@lang('superadmin::lang.superadmin')</span>
@@ -14,6 +14,15 @@
 					<i class="fa fa-bank"></i>
 					<span class="title">
 						@lang('superadmin::lang.superadmin')
+					</span>
+			  	</a>
+			</li>
+
+			<li class="{{ request()->routeIs('superadmin.admin.dashboard') ? 'active active-sub' : '' }}">
+				<a href="{{ route('superadmin.admin.dashboard') }}">
+					<i class="fa fa-tachometer"></i>
+					<span class="title">
+						@lang('hrm.admin_panel')
 					</span>
 			  	</a>
 			</li>

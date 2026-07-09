@@ -15,6 +15,14 @@ class MpesaPaymentController extends Controller
 
     public function show(MpesaPayment $mpesaPayment)
     {
+        $user = auth()->user();
+        if (! request()->routeIs('superadmin.admin.mpesa_payments.show')
+            && ! empty($user)
+            && $user->role === 'admin'
+            && empty($user->business_id)) {
+            return redirect()->route('superadmin.admin.mpesa_payments.show', ['mpesaPayment' => $mpesaPayment->id]);
+        }
+
         // Load relations useful for admin inspection
         $mpesaPayment->load(['user', 'subscription']);
 

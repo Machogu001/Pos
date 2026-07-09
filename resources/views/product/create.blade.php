@@ -98,14 +98,14 @@
         <div class="col-sm-4">
             <div class="form-group">
                 {!! Form::label('purchase_default_unit_id', 'Purchase Unit:') !!}
-                {!! Form::select('purchase_default_unit_id', $all_units, $default_purchase_unit_id, ['placeholder' => __('messages.please_select'), 'class' => 'form-control select2']); !!}
+                {!! Form::select('purchase_default_unit_id', $all_units, $default_purchase_unit_id, ['class' => 'form-control select2']); !!}
             </div>
         </div>
 
         <div class="col-sm-4">
             <div class="form-group">
                 {!! Form::label('sale_default_unit_id', 'Sales Unit:') !!}
-                {!! Form::select('sale_default_unit_id', $all_units, $default_sale_unit_id, ['placeholder' => __('messages.please_select'), 'class' => 'form-control select2']); !!}
+                {!! Form::select('sale_default_unit_id', $all_units, $default_sale_unit_id, ['class' => 'form-control select2']); !!}
             </div>
         </div>
 
@@ -128,7 +128,7 @@
                             @foreach($unit_conversions as $index => $row)
                                 <tr class="unit-conversion-row">
                                     <td>
-                                        {!! Form::select('unit_conversions[' . $index . '][unit_id]', $all_units, $row['unit_id'] ?? null, ['placeholder' => __('messages.please_select'), 'class' => 'form-control select2 unit-conversion-unit']) !!}
+                                        {!! Form::select('unit_conversions[' . $index . '][unit_id]', $all_units, $row['unit_id'] ?? null, ['class' => 'form-control select2 unit-conversion-unit']) !!}
                                     </td>
                                     <td>
                                         {!! Form::text('unit_conversions[' . $index . '][qty_per_base]', $row['qty_per_base'] ?? null, ['class' => 'form-control input_number', 'placeholder' => __('product.qty_per_base_placeholder')]) !!}
@@ -472,6 +472,11 @@
 
 <script type="text/javascript">
     $(document).ready(function() {
+            function resetUnitConversionRow($row) {
+                $row.find('select.unit-conversion-unit').val('').trigger('change');
+                $row.find('input.input_number').val('');
+            }
+
         function reindexUnitConversions() {
             $('#unit-conversions-body .unit-conversion-row').each(function(index) {
                 $(this).find('select.unit-conversion-unit').attr('name', 'unit_conversions[' + index + '][unit_id]');
@@ -500,10 +505,15 @@
         });
 
         $(document).on('click', '.remove-unit-conversion-row', function() {
-            if ($('#unit-conversions-body .unit-conversion-row').length > 1) {
-                $(this).closest('tr').remove();
-                reindexUnitConversions();
-            }
+                const $row = $(this).closest('tr');
+                if ($('#unit-conversions-body .unit-conversion-row').length > 1) {
+                    $row.remove();
+                    reindexUnitConversions();
+
+                    return;
+                }
+
+                resetUnitConversionRow($row);
         });
 
         __page_leave_confirmation('#product_add_form');

@@ -1070,7 +1070,7 @@
 @endsection
 
 @section('javascript')
-    <script src="{{ asset('js/home.js?v=' . $asset_v) }}"></script>
+    <script src="{{ asset('js/home.js?v=' . filemtime(public_path('js/home.js'))) }}"></script>
     <script src="{{ asset('js/payment.js?v=' . filemtime(public_path('js/payment.js'))) }}"></script>
     @includeIf('sales_order.common_js')
     @includeIf('purchase_order.common_js')

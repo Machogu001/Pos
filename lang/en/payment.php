@@ -309,7 +309,7 @@ return [
     'delete' => 'Delete',
 
     // Admin dashboard translations:
-    'admin_dashboard' => 'Admin Dashboard',
+    'admin_dashboard' => 'Operations Hub',
     'total_businesses' => 'Total Businesses',
     'active' => 'Active',
     'inactive' => 'Inactive',

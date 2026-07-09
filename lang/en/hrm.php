@@ -3,7 +3,7 @@
 return [
     'to_do_list' => 'To Do List',
     'account_billing' => 'Account & Billing',
-    'admin_panel' => 'Admin Panel',
+    'admin_panel' => 'Operations Hub',
     'my_subscription' => 'My Subscription',
     'hrm' => 'HRM',
     'dashboard' => 'Dashboard',

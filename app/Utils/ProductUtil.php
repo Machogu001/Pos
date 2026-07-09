@@ -2437,8 +2437,15 @@ class ProductUtil extends Util
 
         $query->groupBy('variations.id');
 
-        return $query->orderBy('VLD.qty_available', 'desc')
+        $products = $query->orderBy('VLD.qty_available', 'desc')
                         ->get();
+
+        foreach ($products as $product) {
+            $formattedQty = $this->num_f($product->qty_available, false, null, true);
+            $product->stock_label = trim($formattedQty.' '.($product->unit ?? ''));
+        }
+
+        return $products;
     }
 
     public function getProductStockDetails($business_id, $filters, $for)

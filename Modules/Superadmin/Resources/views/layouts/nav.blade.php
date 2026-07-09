@@ -15,6 +15,8 @@
             <!-- Collect the nav links, forms, and other content for toggling -->
             <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
                 <ul class="nav navbar-nav">
+                    <li @if(request()->routeIs('superadmin.admin.dashboard')) class="active" @endif><a href="{{ route('superadmin.admin.dashboard') }}">@lang('hrm.admin_panel')</a></li>
+
                     <li @if(request()->segment(1) == 'superadmin' && request()->segment(2) == 'business') class="active" @endif><a href="{{action([Modules\Superadmin\Http\Controllers\BusinessController::class, 'index'])}}">@lang('superadmin::lang.all_business')</a></li>
 
                     <li @if(request()->segment(1) == 'superadmin' && request()->segment(2) == 'superadmin-subscription') class="active" @endif><a href="{{action([\Modules\Superadmin\Http\Controllers\SuperadminSubscriptionsController::class, 'index'])}}">@lang('superadmin::lang.subscription')</a></li>

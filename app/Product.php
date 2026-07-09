@@ -138,6 +138,76 @@ class Product extends Model
         return $this->hasOne(ProductUnitConversion::class)->where('is_sale_default', true);
     }
 
+    public function getPackSizeSummaryAttribute()
+    {
+        $baseUnit = optional($this->unit)->short_name;
+        if (empty($baseUnit)) {
+            return null;
+        }
+
+        $conversions = $this->relationLoaded('unit_conversions')
+            ? $this->unit_conversions
+            : $this->unit_conversions()->with('unit')->get();
+
+        $parts = [];
+        foreach ($conversions as $conversion) {
+            if ((int) $conversion->unit_id === (int) $this->unit_id) {
+                continue;
+            }
+
+            $unitShortName = optional($conversion->unit)->short_name;
+            if (empty($unitShortName) || (float) $conversion->qty_per_base <= 0) {
+                continue;
+            }
+
+            $qty = rtrim(rtrim(number_format((float) $conversion->qty_per_base, 4, '.', ''), '0'), '.');
+            $parts[] = $unitShortName.' = '.$qty.' '.$baseUnit;
+        }
+
+        return ! empty($parts) ? implode(' | ', $parts) : null;
+    }
+
+    public function getPurchaseUnitLabelAttribute()
+    {
+        $conversions = $this->relationLoaded('unit_conversions')
+            ? $this->unit_conversions
+            : $this->unit_conversions()->with('unit')->get();
+
+        $conversion = $conversions->firstWhere('is_purchase_default', true);
+
+        return optional(optional($conversion)->unit)->short_name;
+    }
+
+    public function getSaleUnitLabelAttribute()
+    {
+        $conversions = $this->relationLoaded('unit_conversions')
+            ? $this->unit_conversions
+            : $this->unit_conversions()->with('unit')->get();
+
+        $conversion = $conversions->firstWhere('is_sale_default', true);
+
+        return optional(optional($conversion)->unit)->short_name;
+    }
+
+    public function getPackSizeDisplayAttribute()
+    {
+        $parts = [];
+
+        if (! empty($this->pack_size_summary)) {
+            $parts[] = 'Pack size: '.$this->pack_size_summary;
+        }
+
+        if (! empty($this->purchase_unit_label)) {
+            $parts[] = 'Purchase unit: '.$this->purchase_unit_label;
+        }
+
+        if (! empty($this->sale_unit_label)) {
+            $parts[] = 'Sales unit: '.$this->sale_unit_label;
+        }
+
+        return ! empty($parts) ? implode(' | ', $parts) : null;
+    }
+
     /**
      * Get the category associated with the product.
      */

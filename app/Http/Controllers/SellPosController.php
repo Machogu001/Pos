@@ -55,6 +55,7 @@ use App\Utils\TransactionUtil;
 use App\Variation;
 use App\Warranty;
 use App\Services\SellPostingAuditService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -68,6 +69,42 @@ use App\Events\SellCreatedOrModified;
 
 class SellPosController extends Controller
 {
+    protected function getMissingSubmittedVariationIds(array $products, int $business_id): array
+    {
+        $variation_ids = [];
+
+        foreach ($products as $product) {
+            if (! empty($product['variation_id'])) {
+                $variation_ids[] = (int) $product['variation_id'];
+            }
+
+            if (! empty($product['combo']) && is_array($product['combo'])) {
+                foreach ($product['combo'] as $combo_item) {
+                    if (! empty($combo_item['variation_id'])) {
+                        $variation_ids[] = (int) $combo_item['variation_id'];
+                    }
+                }
+            }
+        }
+
+        $variation_ids = array_values(array_unique(array_filter($variation_ids)));
+
+        if (empty($variation_ids)) {
+            return [];
+        }
+
+        $existing_variation_ids = Variation::join('products as p', 'variations.product_id', '=', 'p.id')
+            ->where('p.business_id', $business_id)
+            ->whereIn('variations.id', $variation_ids)
+            ->pluck('variations.id')
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->all();
+
+        return array_values(array_diff($variation_ids, $existing_variation_ids));
+    }
+
     /**
      * Resolve permissions with a DB fallback when permission cache is stale.
      */
@@ -447,6 +484,29 @@ class SellPosController extends Controller
 
             if (!empty($input['products'])) {
                 $business_id = $request->session()->get('user.business_id');
+
+                $missing_variation_ids = $this->getMissingSubmittedVariationIds($input['products'], $business_id);
+                if (! empty($missing_variation_ids)) {
+                    $user_id = $request->session()->get('user.id');
+                    \Log::warning('SellPosController::store rejected missing variation ids', [
+                        'user_id' => $user_id,
+                        'business_id' => $business_id,
+                        'missing_variation_ids' => $missing_variation_ids,
+                    ]);
+
+                    $output = [
+                        'success' => 0,
+                        'msg' => __('lang_v1.some_error_in_input_field') ?: 'One or more selected products are no longer available. Refresh the product list and try again.',
+                    ];
+
+                    if (! $is_direct_sale) {
+                        return $output;
+                    }
+
+                    return redirect()
+                        ->back()
+                        ->with('status', $output);
+                }
 
                 //Check if subscribed or not, then check for users quota
                 if (!$this->moduleUtil->isSubscribed($business_id)) {
@@ -2246,6 +2306,15 @@ class SellPosController extends Controller
                         ->with(compact('product_ms', 'row_count'))->render();
                 }
             }
+        } catch (ModelNotFoundException $e) {
+            \Log::warning('SellPosController::getProductRow missing variation', [
+                'variation_id' => $variation_id,
+                'location_id' => $location_id,
+                'message' => $e->getMessage(),
+            ]);
+
+            $output['success'] = false;
+            $output['msg'] = __('lang_v1.some_error_in_input_field') ?: 'The selected product is no longer available. Refresh and try again.';
         } catch (\Exception $e) {
             \Log::emergency('File:' . $e->getFile() . 'Line:' . $e->getLine() . 'Message:' . $e->getMessage());
 

@@ -3,23 +3,73 @@
 @section('title', __('payment.subscription_management'))
 
 @section('content')
+@php
+    $isSuperadminAdminPanel = request()->routeIs('superadmin.admin.*');
+    $dashboardRoute = $isSuperadminAdminPanel ? 'superadmin.admin.dashboard' : 'admin.dashboard';
+    $subscriptionsIndexRoute = $isSuperadminAdminPanel ? 'superadmin.admin.subscriptions' : 'admin.subscriptions';
+    $subscriptionManualRoute = $isSuperadminAdminPanel ? 'superadmin.admin.subscriptions.manual' : 'admin.subscriptions.manual';
+    $subscriptionRenewRoute = $isSuperadminAdminPanel ? 'superadmin.admin.subscriptions.renew' : 'admin.subscriptions.renew';
+    $subscriptionActivateRoute = $isSuperadminAdminPanel ? 'superadmin.admin.subscriptions.activate' : 'admin.subscriptions.activate';
+    $subscriptionDestroyRoute = $isSuperadminAdminPanel ? 'superadmin.admin.subscriptions.destroy' : 'admin.subscriptions.destroy';
+    $subscriptionShowRoute = $isSuperadminAdminPanel ? 'superadmin.admin.subscriptions.show' : 'admin.subscriptions.show';
+    $subscriptionDownloadStatementsRoute = $isSuperadminAdminPanel ? 'superadmin.admin.subscriptions.download_statements' : 'admin.subscriptions.download_statements';
+@endphp
+
+@if($isSuperadminAdminPanel)
+    @include('superadmin::layouts.nav')
+
+    <section class="content-header">
+        <div class="tw-flex tw-items-center tw-gap-3 tw-text-sm tw-text-gray-600">
+            <span class="tw-inline-flex tw-items-center tw-gap-2 tw-rounded-full tw-bg-white tw-px-3 tw-py-1 tw-shadow-sm tw-ring-1 tw-ring-gray-200">
+                <i class="fas fa-user-shield tw-text-primary-600"></i>
+                <span>{{ __('superadmin::lang.superadmin') }}</span>
+            </span>
+            <span class="tw-text-gray-400">/</span>
+            <span class="tw-font-medium tw-text-gray-700">{{ __('payment.subscription_management') }}</span>
+        </div>
+    </section>
+
+    <section class="content">
+@endif
+
 <div class="dashboard-wrapper" style="max-width: 100%; overflow-x: hidden; padding: 1.5rem; margin: 0 auto;">
 
-    <!-- Header Banner -->
-    <div class="tw-mb-5 tw-rounded-xl tw-bg-gradient-to-r tw-from-primary-800 tw-to-primary-900 tw-text-white">
-        <div class="tw-p-5">
-            <div class="sm:tw-flex sm:tw-items-center sm:tw-justify-between sm:tw-gap-6">
-                <div>
-                    <h1 class="tw-text-2xl md:tw-text-3xl tw-font-semibold tw-tracking-tight tw-text-white tw-mb-1">
-                        <i class="fas fa-users-cog me-2"></i>{{ __('payment.subscription_management') }}
-                    </h1>
-                    <p class="tw-mb-0 tw-text-white/80">Monitor and manage all user subscriptions and payments</p>
+    <div class="tw-mb-5 tw-overflow-hidden tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-white" style="box-shadow: 0 20px 46px rgba(15, 23, 42, 0.10);">
+        <div class="tw-grid tw-grid-cols-1 lg:tw-grid-cols-[minmax(0,1fr)_220px]">
+            <div class="tw-p-5 md:tw-p-6" style="background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 52%, #2563eb 100%);">
+                <div class="sm:tw-flex sm:tw-items-start sm:tw-justify-between sm:tw-gap-6">
+                    <div class="tw-max-w-2xl">
+                        <span class="tw-inline-flex tw-items-center tw-gap-2 tw-rounded-full tw-px-3 tw-py-1 tw-text-xs tw-font-semibold tw-uppercase tw-tracking-[0.18em] tw-text-white" style="background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.20);">
+                            <i class="fas fa-receipt"></i>
+                            Billing overview
+                        </span>
+                        <h1 class="tw-mt-3 tw-text-2xl tw-font-semibold tw-tracking-tight tw-text-white md:tw-text-3xl">
+                            {{ __('payment.subscription_management') }}
+                        </h1>
+                        <p class="tw-mt-2 tw-max-w-2xl tw-text-sm tw-leading-6 tw-text-white" style="opacity: 0.94;">
+                            Monitor subscription status, pending renewals, receipts, and current revenue signals in one place.
+                        </p>
+                    </div>
+                    <div class="tw-mt-4 sm:tw-mt-0">
+                        <a href="{{ route($dashboardRoute) }}"
+                           class="tw-inline-flex tw-items-center tw-justify-center tw-gap-2 tw-rounded-xl tw-bg-white tw-px-4 tw-py-2.5 tw-text-sm tw-font-semibold tw-text-slate-900 tw-shadow-sm hover:tw-bg-slate-100">
+                            <i class="fas fa-arrow-left"></i> {{ __('payment.back_to_dashboard') }}
+                        </a>
+                    </div>
                 </div>
-                <div class="tw-mt-3 sm:tw-mt-0 tw-flex tw-flex-wrap tw-gap-2 sm:tw-justify-end">
-                    <a href="{{ route('admin.dashboard') }}"
-                       class="tw-inline-flex tw-items-center tw-justify-center tw-gap-1 tw-px-4 tw-py-2 tw-text-sm tw-font-medium tw-text-gray-900 tw-transition-all tw-duration-200 tw-bg-white tw-rounded-lg hover:tw-bg-primary-50">
-                        <i class="fas fa-arrow-left me-1"></i> {{ __('payment.back_to_dashboard') }}
-                    </a>
+            </div>
+            <div class="tw-flex tw-bg-slate-50 tw-p-4 tw-gap-3">
+                <div class="tw-flex tw-flex-1 tw-items-center tw-justify-center tw-rounded-xl tw-bg-white tw-px-4 tw-py-3 tw-ring-1 tw-ring-slate-200">
+                    <span class="tw-inline-flex tw-items-center tw-gap-2">
+                        <span class="tw-text-xs tw-font-semibold tw-uppercase tw-tracking-[0.16em] tw-text-slate-500">{{ __('payment.active') }}</span>
+                        <span class="tw-text-lg tw-font-semibold tw-leading-none tw-text-slate-900">{{ $subscriptionSummary['active'] ?? 0 }}</span>
+                    </span>
+                </div>
+                <div class="tw-flex tw-flex-1 tw-items-center tw-justify-center tw-rounded-xl tw-bg-white tw-px-4 tw-py-3 tw-ring-1 tw-ring-slate-200">
+                    <span class="tw-inline-flex tw-items-center tw-gap-2">
+                        <span class="tw-text-xs tw-font-semibold tw-uppercase tw-tracking-[0.16em] tw-text-slate-500">{{ __('payment.pending') }}</span>
+                        <span class="tw-text-lg tw-font-semibold tw-leading-none tw-text-slate-900">{{ $subscriptionSummary['pending'] ?? 0 }}</span>
+                    </span>
                 </div>
             </div>
         </div>
@@ -40,7 +90,7 @@
     <div class="modal fade" id="downloadRangeModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <form id="downloadRangeForm" method="POST" action="{{ route('admin.subscriptions.download_statements') }}">
+                <form id="downloadRangeForm" method="POST" action="{{ route($subscriptionDownloadStatementsRoute) }}">
                     @csrf
                     <div class="modal-header">
                         <h5 class="modal-title">Download Statements (Selected)</h5>
@@ -78,7 +128,7 @@
                     <div class="tw-flex-1 tw-min-w-0">
                         <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">Active Subscriptions</p>
                         <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
-                            {{ $subscriptions->where('status', 'active')->count() }}
+                            {{ $subscriptionSummary['active'] ?? 0 }}
                         </p>
                     </div>
                 </div>
@@ -94,7 +144,7 @@
                     <div class="tw-flex-1 tw-min-w-0">
                         <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">Pending Payments</p>
                         <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
-                            {{ $subscriptions->where('status', 'pending')->count() }}
+                            {{ $subscriptionSummary['pending'] ?? 0 }}
                         </p>
                     </div>
                 </div>
@@ -110,7 +160,7 @@
                     <div class="tw-flex-1 tw-min-w-0">
                         <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">Expired</p>
                         <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
-                            {{ $subscriptions->where('status', 'expired')->count() }}
+                            {{ $subscriptionSummary['expired'] ?? 0 }}
                         </p>
                     </div>
                 </div>
@@ -126,7 +176,7 @@
                     <div class="tw-flex-1 tw-min-w-0">
                         <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">Monthly Revenue</p>
                         <p class="tw-mt-0.5 tw-text-gray-900 tw-text-2xl tw-truncate tw-font-semibold tw-tracking-tight tw-font-mono">
-                            Ksh {{ number_format($subscriptions->where('status', 'active')->sum('amount'), 0) }}
+                            Ksh {{ number_format($subscriptionSummary['monthly_revenue'] ?? 0, 0) }}
                         </p>
                     </div>
                 </div>
@@ -134,60 +184,90 @@
         </div>
     </div>
 
-    <div class="card shadow-sm border-0 rounded-3">
-        <div class="card-header bg-white py-4 border-bottom">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h5 class="mb-1 fw-bold">{{ __('payment.all_payments') }}</h5>
-                    <p class="text-muted mb-0">{{ __('payment.showing_x_of_y', ['count' => $subscriptions->count(), 'total' => $subscriptions->total() ?? $subscriptions->count()]) }}</p>
-                </div>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#bulkActionModal">
-                        <i class="fas fa-tasks me-1"></i>Bulk Actions
-                    </button>
-                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createManualModal">
-                        <i class="fas fa-plus me-1"></i>Create Manual
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div class="card-body">
-            <!-- Filters -->
-            <form id="filterForm" method="GET" action="{{ route('admin.subscriptions') }}">
-                <div class="row mb-3">
-                    <div class="col-md-3">
-                        <label class="form-label">{{ __('payment.status_filter') }}</label>
-                        <select class="form-select" name="status" id="statusFilter">
-                            <option value="">{{ __('payment.all_statuses') }}</option>
-                            <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>{{ __('payment.active') }}</option>
-                            <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>{{ __('payment.pending') }}</option>
-                            <option value="expired" {{ request('status') == 'expired' ? 'selected' : '' }}>{{ __('payment.expired') }}</option>
-                            <option value="canceled" {{ request('status') == 'canceled' ? 'selected' : '' }}>{{ __('payment.canceled') }}</option>
-                        </select>
+    <div class="tw-overflow-hidden tw-rounded-3xl tw-border tw-border-slate-200 tw-bg-white tw-shadow-sm">
+        <div class="tw-border-b tw-border-slate-200 tw-bg-slate-50/70 tw-p-4 sm:tw-p-5">
+            <div class="tw-rounded-2xl tw-bg-white tw-p-4 sm:tw-p-5 tw-shadow-sm tw-ring-1 tw-ring-slate-200">
+                <div class="row g-4 align-items-center">
+                    <div class="col-lg-8">
+                        <div class="tw-flex tw-flex-wrap tw-items-center tw-gap-3">
+                            <span class="tw-inline-flex tw-items-center tw-gap-2 tw-rounded-full tw-bg-slate-900 tw-px-3 tw-py-1 tw-text-[10px] tw-font-semibold tw-uppercase tw-tracking-[0.18em] tw-text-white">
+                                <i class="fas fa-wallet"></i>
+                                Subscription ledger
+                            </span>
+                            <div class="tw-flex tw-items-center tw-gap-2 tw-text-xs tw-font-semibold tw-uppercase tw-tracking-[0.16em] tw-text-slate-500">
+                                <span class="tw-inline-flex tw-items-center tw-gap-2 tw-rounded-xl tw-bg-slate-100 tw-px-3 tw-py-2">
+                                    <span>Visible</span>
+                                    <span class="tw-text-base tw-font-semibold tw-normal-case tw-tracking-normal tw-text-slate-900">{{ $subscriptions->count() }}</span>
+                                </span>
+                                <span class="tw-inline-flex tw-items-center tw-gap-2 tw-rounded-xl tw-bg-slate-100 tw-px-3 tw-py-2">
+                                    <span>Total</span>
+                                    <span class="tw-text-base tw-font-semibold tw-normal-case tw-tracking-normal tw-text-slate-900">{{ $subscriptions->total() ?? $subscriptions->count() }}</span>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="tw-mt-3">
+                            <h2 class="tw-mb-1 tw-text-xl tw-font-semibold tw-tracking-tight tw-text-slate-900">{{ __('payment.all_payments') }}</h2>
+                            <p class="tw-mb-0 tw-text-sm tw-leading-6 tw-text-slate-600">
+                                {{ __('payment.showing_x_of_y', ['count' => $subscriptions->count(), 'total' => $subscriptions->total() ?? $subscriptions->count()]) }}. Review payment status, billing cycles, receipts, and pending invoice links from one workspace.
+                            </p>
+                        </div>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label">{{ __('payment.billing_cycle_filter') }}</label>
-                        <select class="form-select" name="billing_cycle" id="billingCycleFilter">
-                            <option value="">{{ __('payment.all_cycles') }}</option>
-                            <option value="monthly" {{ request('billing_cycle') == 'monthly' ? 'selected' : '' }}>{{ __('payment.monthly') }}</option>
-                            <option value="quarterly" {{ request('billing_cycle') == 'quarterly' ? 'selected' : '' }}>{{ __('payment.quarterly') }}</option>
-                            <option value="yearly" {{ request('billing_cycle') == 'yearly' ? 'selected' : '' }}>{{ __('payment.yearly') }}</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6 d-flex align-items-end">
-                        <button type="button" class="btn btn-outline-secondary me-2" id="resetFilters">
-                            <i class="fas fa-refresh me-1"></i> {{ __('payment.reset_filters') }}
-                        </button>
-                        <div class="input-group">
-                            <input type="text" class="form-control" name="search" placeholder="{{ __('payment.search_placeholder') }}" 
-                                   id="searchInput" value="{{ request('search') }}">
-                            <button class="btn btn-outline-primary" type="submit" id="searchButton">
-                                <i class="fas fa-search"></i>
+
+                    <div class="col-lg-4">
+                        <div class="tw-flex tw-flex-wrap tw-gap-2 lg:tw-justify-end">
+                            <button type="button" id="openBulkActionModal" class="btn tw-inline-flex tw-items-center tw-justify-center tw-gap-2 tw-rounded-xl tw-border-0 tw-px-4 tw-py-2.5 tw-text-sm tw-font-semibold tw-text-white" style="background: linear-gradient(135deg, #334155 0%, #0f172a 100%); box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);">
+                                <i class="fas fa-tasks"></i> Bulk Actions
+                            </button>
+                            <button type="button" id="openCreateManualModal" class="btn tw-inline-flex tw-items-center tw-justify-center tw-gap-2 tw-rounded-xl tw-border-0 tw-px-4 tw-py-2.5 tw-text-sm tw-font-semibold tw-text-white" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); box-shadow: 0 10px 24px rgba(16, 185, 129, 0.22);">
+                                <i class="fas fa-plus"></i> Create Manual
                             </button>
                         </div>
                     </div>
                 </div>
-            </form>
+
+                <form id="filterForm" method="GET" action="{{ route($subscriptionsIndexRoute) }}" class="tw-mt-4">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3 col-lg-3">
+                            <label class="tw-mb-1.5 tw-block tw-text-[11px] tw-font-semibold tw-uppercase tw-tracking-[0.16em] tw-text-slate-500">{{ __('payment.status_filter') }}</label>
+                            <select class="form-select tw-h-[44px] tw-rounded-xl tw-border-slate-300 tw-bg-white" name="status" id="statusFilter">
+                                <option value="">{{ __('payment.all_statuses') }}</option>
+                                <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>{{ __('payment.active') }}</option>
+                                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>{{ __('payment.pending') }}</option>
+                                <option value="expired" {{ request('status') == 'expired' ? 'selected' : '' }}>{{ __('payment.expired') }}</option>
+                                <option value="canceled" {{ request('status') == 'canceled' ? 'selected' : '' }}>{{ __('payment.canceled') }}</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 col-lg-3">
+                            <label class="tw-mb-1.5 tw-block tw-text-[11px] tw-font-semibold tw-uppercase tw-tracking-[0.16em] tw-text-slate-500">{{ __('payment.billing_cycle_filter') }}</label>
+                            <select class="form-select tw-h-[44px] tw-rounded-xl tw-border-slate-300 tw-bg-white" name="billing_cycle" id="billingCycleFilter">
+                                <option value="">{{ __('payment.all_cycles') }}</option>
+                                <option value="monthly" {{ request('billing_cycle') == 'monthly' ? 'selected' : '' }}>{{ __('payment.monthly') }}</option>
+                                <option value="quarterly" {{ request('billing_cycle') == 'quarterly' ? 'selected' : '' }}>{{ __('payment.quarterly') }}</option>
+                                <option value="yearly" {{ request('billing_cycle') == 'yearly' ? 'selected' : '' }}>{{ __('payment.yearly') }}</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 col-lg-4">
+                            <div class="input-group">
+                                <span class="input-group-text tw-h-[44px] tw-rounded-l-xl tw-border-slate-300 tw-bg-slate-100 tw-pe-3 tw-text-[11px] tw-font-semibold tw-uppercase tw-tracking-[0.16em] tw-text-slate-500">Search</span>
+                                <span class="input-group-text tw-h-[44px] tw-border-slate-300 tw-bg-white tw-px-3 tw-text-slate-400"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control tw-h-[44px] tw-rounded-r-xl tw-border-slate-300 tw-bg-white" name="search" placeholder="{{ __('payment.search_placeholder') }}" id="searchInput" value="{{ request('search') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-12 col-lg-2">
+                            <div class="tw-flex tw-flex-wrap tw-gap-2 lg:tw-justify-end">
+                                <button class="btn btn-primary tw-inline-flex tw-h-[44px] tw-items-center tw-justify-center tw-gap-2 tw-rounded-xl tw-border-0 tw-px-4 tw-text-sm tw-font-semibold tw-text-white" style="background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%); box-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);" type="submit" id="searchButton">
+                                    <i class="fas fa-sliders-h"></i> Apply
+                                </button>
+                                <button type="button" class="btn tw-inline-flex tw-h-[44px] tw-items-center tw-justify-center tw-gap-2 tw-rounded-xl tw-border-0 tw-px-4 tw-text-sm tw-font-semibold tw-text-slate-900" style="background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%); box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.45);" id="resetFilters">
+                                    <i class="fas fa-rotate-left"></i> Reset
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="tw-p-5 sm:tw-p-6">
 
             <div class="table-responsive">
                 <table class="table table-hover align-middle">
@@ -263,7 +343,7 @@
                                 <td>
                                     <div class="d-flex flex-wrap gap-1">
                                     @if($subscription->status === 'active' || $subscription->status === 'expired')
-                                        <form action="{{ route('admin.subscriptions.renew', $subscription) }}" method="POST" class="ajax-form d-inline">
+                                        <form action="{{ route($subscriptionRenewRoute, $subscription) }}" method="POST" class="ajax-form d-inline">
                                             @csrf
                                             @method('PATCH')
                                             <button type="submit" class="btn btn-sm btn-success">
@@ -278,12 +358,25 @@
                                     @endif
 
                                     @if($subscription->status === 'pending')
-                                        <form action="{{ route('admin.subscriptions.activate', $subscription) }}" method="POST" class="ajax-form d-inline">
+                                        <form action="{{ route($subscriptionActivateRoute, $subscription) }}" method="POST" class="ajax-form d-inline">
                                             @csrf
                                             @method('PATCH')
                                             <button type="submit" class="btn btn-sm btn-primary">
                                                 <span class="btn-text">
                                                     <i class="fas fa-check me-1"></i> {{ __('payment.activate') }}
+                                                </span>
+                                                <span class="btn-loading d-none">
+                                                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                                                </span>
+                                            </button>
+                                        </form>
+
+                                        <form action="{{ route($subscriptionDestroyRoute, $subscription) }}" method="POST" class="delete-subscription-form d-inline">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <span class="btn-text">
+                                                    <i class="fas fa-trash-alt me-1"></i> {{ __('messages.delete') }}
                                                 </span>
                                                 <span class="btn-loading d-none">
                                                     <span class="spinner-border spinner-border-sm" role="status"></span>
@@ -297,7 +390,7 @@
                                     @endif
                                     
                     <!-- View Details Button -->
-                                    <a href="{{ route('admin.subscriptions.show', $subscription->id) }}" class="btn btn-sm btn-info" title="{{ __('payment.view_details') }}">
+                                    <a href="{{ route($subscriptionShowRoute, $subscription->id) }}" class="btn btn-sm btn-info" title="{{ __('payment.view_details') }}">
                                         <i class="fas fa-eye"></i>
                                     </a>
 
@@ -341,6 +434,69 @@
     </div>
 </div>
 
+<div class="modal fade" id="bulkActionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-semibold">Bulk Actions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">Run an action against the subscriptions you have selected in the table.</p>
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-primary" id="openBulkDownloadFromModal">
+                        <i class="fas fa-file-download me-2"></i>Download statements for selected
+                    </button>
+                </div>
+                <small class="text-muted d-block mt-3">Select one or more subscriptions first, then choose an action.</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createManualModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{{ route($subscriptionManualRoute) }}">
+                @csrf
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-semibold">Create Manual Subscription</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">User</label>
+                        <select name="user_id" class="form-select" required>
+                            <option value="">Select user</option>
+                            @foreach(($manualSubscriptionUsers ?? []) as $manualUser)
+                                <option value="{{ $manualUser->id }}">
+                                    {{ $manualUser->name }}@if(!empty($manualUser->business?->name)) - {{ $manualUser->business->name }}@endif
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Billing Cycle</label>
+                        <select name="billing_cycle" class="form-select" required>
+                            <option value="monthly">{{ __('payment.monthly') }}</option>
+                            <option value="quarterly">{{ __('payment.quarterly') }}</option>
+                            <option value="yearly">{{ __('payment.yearly') }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label fw-semibold">Custom Amount</label>
+                        <input type="number" step="0.01" min="0" name="custom_amount" class="form-control" placeholder="Optional override amount">
+                    </div>
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Create Subscription</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Subscription Details Modal -->
 <div class="modal fade" id="subscriptionDetailsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -358,6 +514,9 @@
         </div>
     </div>
 </div>
+@if($isSuperadminAdminPanel)
+    </section>
+@endif
 @endsection
 
 @push('styles')
@@ -953,7 +1112,75 @@ document.addEventListener("DOMContentLoaded", function () {
             return $(this).val();
         }).get();
         
-        $('#selectedSubscriptionIds').val(selectedIds.join(','));
+        $('#download_subscription_ids').val(selectedIds.join(','));
+    });
+
+    $('#openBulkDownloadFromModal').on('click', function() {
+        var selectedIds = $('.subscription-checkbox:checked').map(function() {
+            return $(this).val();
+        }).get();
+
+        if (selectedIds.length === 0) {
+            showAlert('warning', '{{ __('payment.please_select_subscriptions') }}');
+            return;
+        }
+
+        $('#bulkActionModal').modal('hide');
+        $('#download_subscription_ids').val(selectedIds.join(','));
+        $('#downloadRangeModal').modal('show');
+    });
+
+    $('#openBulkActionModal').on('click', function(e) {
+        e.preventDefault();
+        $('#bulkActionModal').modal('show');
+    });
+
+    $('#openCreateManualModal').on('click', function(e) {
+        e.preventDefault();
+        $('#createManualModal').modal('show');
+    });
+
+    $('.delete-subscription-form').on('submit', function(e) {
+        e.preventDefault();
+
+        const form = this;
+
+        if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+            Swal.fire({
+                title: 'Delete pending subscription?',
+                text: 'This will permanently remove the pending subscription record.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, delete it',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    HTMLFormElement.prototype.submit.call(form);
+                }
+            });
+            return;
+        }
+
+        if (typeof swal === 'function') {
+            swal({
+                title: 'Delete pending subscription?',
+                text: 'This will permanently remove the pending subscription record.',
+                icon: 'warning',
+                buttons: true,
+                dangerMode: true,
+            }).then((confirmed) => {
+                if (confirmed) {
+                    HTMLFormElement.prototype.submit.call(form);
+                }
+            });
+            return;
+        }
+
+        if (confirm('Delete this pending subscription?')) {
+            HTMLFormElement.prototype.submit.call(form);
+        }
     });
 });
 </script>

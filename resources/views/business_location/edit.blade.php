@@ -1,7 +1,7 @@
 <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
 
-        {!! Form::open(['url' => action([\App\Http\Controllers\BusinessLocationController::class, 'update'], [$location->id]), 'method' => 'PUT', 'id' => 'business_location_add_form' ]) !!}
+        {!! Form::open(['url' => action([\App\Http\Controllers\BusinessLocationController::class, 'update'], [$location->id]), 'method' => 'PUT', 'id' => 'business_location_add_form', 'autocomplete' => 'off' ]) !!}
 
         {!! Form::hidden('hidden_id', $location->id, ['id' => 'hidden_id']); !!}
         <div class="modal-header">
@@ -191,6 +191,7 @@
                                 @foreach($payment_types as $key => $value)
                                 <tr>
                                     <td class="text-center">{{$value}}</td>
+                                    {!! Form::hidden('default_payment_accounts[' . $key . '][is_enabled]', 0) !!}
                                     <td class="text-center">{!! Form::checkbox('default_payment_accounts[' . $key . '][is_enabled]', 1, !empty($default_payment_accounts[$key]['is_enabled'])); !!}</td>
                                     <td class="text-center @if(empty($accounts)) hide @endif">
                                         {!! Form::select('default_payment_accounts[' . $key . '][account]', $accounts, !empty($default_payment_accounts[$key]['account']) ? $default_payment_accounts[$key]['account'] : null, ['class' => 'form-control input-sm']); !!}
@@ -210,6 +211,22 @@
         </div>
 
         {!! Form::close() !!}
+
+        <script>
+            (function () {
+                var form = document.getElementById('business_location_add_form');
+                if (!form) {
+                    return;
+                }
+
+                var paymentCheckboxes = form.querySelectorAll('input[type="checkbox"][name^="default_payment_accounts["]');
+                paymentCheckboxes.forEach(function (checkbox) {
+                    var shouldBeChecked = checkbox.hasAttribute('checked');
+                    checkbox.checked = shouldBeChecked;
+                    checkbox.defaultChecked = shouldBeChecked;
+                });
+            })();
+        </script>
 
     </div><!-- /.modal-content -->
 </div><!-- /.modal-dialog -->

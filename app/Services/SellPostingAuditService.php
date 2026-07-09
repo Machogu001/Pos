@@ -213,27 +213,35 @@ class SellPostingAuditService
             })
             ->values();
 
-        return $businesses->map(function ($business) {
-            $base = $this->baseSellQuery((int) $business->id);
+        if ($businesses->isEmpty()) {
+            return collect();
+        }
+
+        $summaryRows = $this->baseSellQuery($businessId)
+            ->whereIn('t.business_id', $businesses->pluck('id')->all())
+            ->leftJoin('account_transactions as atc', function ($join) {
+                $this->applyPostingJoin($join, 'atc', 'sell_invoice_cogs');
+            })
+            ->leftJoin('account_transactions as ati', function ($join) {
+                $this->applyPostingJoin($join, 'ati', 'sell_invoice_inventory');
+            })
+            ->selectRaw('t.business_id')
+            ->selectRaw('COUNT(DISTINCT t.id) as final_non_subscription_sell_count')
+            ->selectRaw('COUNT(DISTINCT CASE WHEN atc.id IS NULL THEN t.id END) as missing_cogs_count')
+            ->selectRaw('COUNT(DISTINCT CASE WHEN ati.id IS NULL THEN t.id END) as missing_inventory_count')
+            ->groupBy('t.business_id')
+            ->get()
+            ->keyBy('business_id');
+
+        return $businesses->map(function ($business) use ($summaryRows) {
+            $summary = $summaryRows->get($business->id);
 
             return [
                 'business_id' => (int) $business->id,
                 'business_name' => $business->name,
-                'final_non_subscription_sell_count' => (int) (clone $base)->count('t.id'),
-                'missing_cogs_count' => (int) (clone $base)
-                    ->leftJoin('account_transactions as atc', function ($join) {
-                        $this->applyPostingJoin($join, 'atc', 'sell_invoice_cogs');
-                    })
-                    ->whereNull('atc.id')
-                    ->distinct()
-                    ->count('t.id'),
-                'missing_inventory_count' => (int) (clone $base)
-                    ->leftJoin('account_transactions as ati', function ($join) {
-                        $this->applyPostingJoin($join, 'ati', 'sell_invoice_inventory');
-                    })
-                    ->whereNull('ati.id')
-                    ->distinct()
-                    ->count('t.id'),
+                'final_non_subscription_sell_count' => (int) ($summary->final_non_subscription_sell_count ?? 0),
+                'missing_cogs_count' => (int) ($summary->missing_cogs_count ?? 0),
+                'missing_inventory_count' => (int) ($summary->missing_inventory_count ?? 0),
             ];
         });
     }
@@ -436,14 +444,22 @@ class SellPostingAuditService
 
     protected function isAccountModuleEnabledForBusiness(int $businessId): bool
     {
+        static $moduleEnabledByBusiness = [];
+
         if ($businessId <= 0) {
             return false;
         }
 
-        try {
-            return app(ModuleUtil::class)->isModuleEnabled('account', $businessId);
-        } catch (\Throwable $e) {
-            return false;
+        if (array_key_exists($businessId, $moduleEnabledByBusiness)) {
+            return $moduleEnabledByBusiness[$businessId];
         }
+
+        try {
+            $moduleEnabledByBusiness[$businessId] = app(ModuleUtil::class)->isModuleEnabled('account', $businessId);
+        } catch (\Throwable $e) {
+            $moduleEnabledByBusiness[$businessId] = false;
+        }
+
+        return $moduleEnabledByBusiness[$businessId];
     }
 }

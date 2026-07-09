@@ -220,18 +220,28 @@ class DataController extends Controller
 
         if ($is_hms_enabled && $user_can_access_hms) {
             $menu = Menu::instance('admin-sidebar-menu');
-            $group_title = 'Modules & Apps';
+            $group_title = __('ui.modules_apps_menu');
+            $group_titles = array_values(array_unique([$group_title, 'Modules & Apps']));
             $added_to_group = false;
 
-            $menu->whereTitle($group_title, function ($sub) use (&$added_to_group) {
-                                if ($sub === null) { return; }
-                $added_to_group = true;
-                $sub->url(
-                    action([\Modules\Hms\Http\Controllers\HmsController::class, 'index']),
-                    __('hms::lang.hms'),
-                    ['icon' => '', 'active' => request()->segment(1) == 'hms']
-                );
-            });
+            foreach ($group_titles as $menu_title) {
+                if ($added_to_group) {
+                    break;
+                }
+
+                $menu->whereTitle($menu_title, function ($sub) use (&$added_to_group) {
+                    if ($sub === null) {
+                        return;
+                    }
+
+                    $added_to_group = true;
+                    $sub->url(
+                        action([\Modules\Hms\Http\Controllers\HmsController::class, 'index']),
+                        __('hms::lang.hms'),
+                        ['icon' => '', 'active' => request()->segment(1) == 'hms']
+                    );
+                });
+            }
 
             if (! $added_to_group) {
                 $menu->dropdown($group_title, function ($sub) {

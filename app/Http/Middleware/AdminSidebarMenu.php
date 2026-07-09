@@ -131,23 +131,11 @@ class AdminSidebarMenu
                 $menu->url(action([\Modules\Essentials\Http\Controllers\ToDoController::class, 'index']), __('hrm.to_do_list'), ['icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="tw-size-5 tw-shrink-0" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24V0z" fill="none"/><path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" /><path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" /><path d="M9 12l2 2l4 -4" /></svg>', 'active' => request()->segment(1) == 'essentials' && request()->segment(2) == 'todos'])->order(6);
             }
 
-            // Management dropdown (Admin + Subscription) - moved into main menu
+            // Management dropdown (subscription only)
             if (auth()->check()) {
                 $menu->dropdown(
                     __('hrm.account_billing'),
                     function ($sub) use ($is_admin) {
-                        // Admin Dashboard (only for business admin role)
-                        try {
-                            if ($is_admin) {
-                                $sub->url(
-                                    route('admin.dashboard'),
-                                    __('hrm.admin_panel'),
-                                    ['icon' => '', 'active' => request()->routeIs('admin.dashboard')]
-                                );
-                            }
-                        } catch (\Exception $e) {
-                        }
-
                         // Subscription Management (available to authenticated users)
                         try {
                             $sub->url(

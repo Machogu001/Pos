@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use App\Rules\ReCaptcha;
 use App\User;
 
@@ -83,10 +84,10 @@ class LoginController extends Controller
         return 'username';
     }
 
-    public function logout()
+    public function logout(Request $request)
     {
         if (auth()->check()) {
-            $this->businessUtil->activityLog(auth()->user(), 'logout');
+            $this->logAuthenticationEvent($request, auth()->user(), 'logout');
 
             // Clear the remember_me token from DB so the remember cookie cannot re-authenticate the user.
             auth()->user()->forceFill(['remember_token' => null])->save();
@@ -115,7 +116,7 @@ class LoginController extends Controller
         }
 
         if (empty($user->otp_login_enabled)) {
-            $this->businessUtil->activityLog($user, 'login', null, [], false, $user->business_id);
+            $this->logAuthenticationEvent($request, $user, 'login');
 
             return null;
         }
@@ -303,9 +304,47 @@ class LoginController extends Controller
         $request->session()->forget('login_otp');
         Auth::login($user, $remember);
         $request->session()->regenerate();
-        $this->businessUtil->activityLog($user, 'login', null, [], false, $user->business_id);
+        $this->logAuthenticationEvent($request, $user, 'login');
 
         return redirect()->intended($this->redirectPath());
+    }
+
+    private function logAuthenticationEvent(Request $request, User $user, string $action): void
+    {
+        if ($action === 'login') {
+            $this->updateLastLoginDetails($user, $request);
+        }
+
+        $this->businessUtil->activityLog(
+            $user,
+            $action,
+            null,
+            $this->businessUtil->getAuthActivityProperties($request),
+            false,
+            $user->business_id
+        );
+    }
+
+    private function updateLastLoginDetails(User $user, Request $request): void
+    {
+        if (! Schema::hasTable('users')) {
+            return;
+        }
+
+        $updates = [];
+        if (Schema::hasColumn('users', 'last_login_at')) {
+            $updates['last_login_at'] = now();
+        }
+        if (Schema::hasColumn('users', 'last_login_ip')) {
+            $updates['last_login_ip'] = $this->businessUtil->resolveClientIp($request);
+        }
+        if (Schema::hasColumn('users', 'last_login_user_agent')) {
+            $updates['last_login_user_agent'] = substr((string) ($request->userAgent() ?? ''), 0, 1000);
+        }
+
+        if (! empty($updates)) {
+            $user->forceFill($updates)->saveQuietly();
+        }
     }
 
     public function resendOtp(Request $request)

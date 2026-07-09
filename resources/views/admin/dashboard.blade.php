@@ -3,26 +3,89 @@
 @section('title', __('payment.admin_dashboard'))
 
 @section('content')
+@php
+    $isSuperadminAdminPanel = request()->routeIs('superadmin.admin.*');
+    $usersIndexRoute = $isSuperadminAdminPanel ? 'superadmin.admin.users' : 'admin.users';
+    $subscriptionsIndexRoute = $isSuperadminAdminPanel ? 'superadmin.admin.subscriptions' : 'admin.subscriptions';
+    $userStatusRoute = $isSuperadminAdminPanel ? 'superadmin.admin.users.update-status' : 'admin.users.update-status';
+    $subscriptionStatusRoute = $isSuperadminAdminPanel ? 'superadmin.admin.subscriptions.update-status' : 'admin.subscriptions.update-status';
+    $manualSubscriptionRoute = $isSuperadminAdminPanel ? 'superadmin.admin.subscriptions.manual' : 'admin.subscriptions.manual';
+@endphp
+
+@if($isSuperadminAdminPanel)
+    @include('superadmin::layouts.nav')
+
+    <section class="content-header">
+        <div class="tw-flex tw-items-center tw-gap-3 tw-text-sm tw-text-gray-600">
+            <span class="tw-inline-flex tw-items-center tw-gap-2 tw-rounded-full tw-bg-white tw-px-3 tw-py-1 tw-shadow-sm tw-ring-1 tw-ring-gray-200">
+                <i class="fas fa-user-shield tw-text-primary-600"></i>
+                <span>{{ __('superadmin::lang.superadmin') }}</span>
+            </span>
+            <span class="tw-text-gray-400">/</span>
+            <span class="tw-font-medium tw-text-gray-700">{{ __('payment.admin_dashboard') }}</span>
+        </div>
+    </section>
+
+    <section class="content">
+@endif
+
 <div class="dashboard-wrapper" style="max-width: 100%; overflow-x: hidden; padding: 1.5rem; margin: 0 auto;">
 
-    <!-- Header Banner (match Home dashboard styling) -->
-    <div class="tw-mb-5 tw-rounded-xl tw-bg-gradient-to-r tw-from-primary-800 tw-to-primary-900 tw-text-white">
-        <div class="tw-p-5">
-            <div class="sm:tw-flex sm:tw-items-center sm:tw-justify-between sm:tw-gap-6">
-                <div>
-                    <h1 class="tw-text-2xl md:tw-text-3xl tw-font-semibold tw-tracking-tight tw-text-white tw-mb-1">
-                        <i class="fas fa-tachometer-alt me-2"></i> {{ __('payment.admin_dashboard') }}
+    <div class="tw-mb-5 tw-overflow-hidden tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-white" style="box-shadow: 0 20px 46px rgba(15, 23, 42, 0.10);">
+        <div class="tw-grid tw-grid-cols-1 lg:tw-grid-cols-[minmax(0,1fr)_300px]">
+            <div class="tw-px-5 tw-py-5 md:tw-px-6 md:tw-py-6" style="background: linear-gradient(135deg, #0f172a 0%, #0b3b66 45%, #0f766e 100%);">
+                <div class="tw-max-w-3xl">
+                    <span class="tw-inline-flex tw-items-center tw-gap-2 tw-rounded-full tw-px-3 tw-py-1 tw-text-xs tw-font-semibold tw-uppercase tw-tracking-[0.18em] tw-text-white" style="background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.20);">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Operations Hub
+                    </span>
+                    <h1 class="tw-mt-3 tw-text-2xl tw-font-semibold tw-tracking-tight tw-text-white md:tw-text-3xl">
+                        {{ __('payment.admin_dashboard') }}
                     </h1>
-                    <p class="tw-mb-0 tw-text-white/80">{{ __('payment.overview_text') }}</p>
+                    <p class="tw-mt-2 tw-max-w-2xl tw-text-sm tw-leading-6 tw-text-white" style="opacity: 0.94;">
+                        {{ __('payment.overview_text') }}. Review users, subscription health, and key admin activity in one place.
+                    </p>
+                    <div class="tw-mt-4 tw-flex tw-flex-wrap tw-gap-2">
+                        <span class="tw-inline-flex tw-items-center tw-gap-2 tw-rounded-full tw-px-3 tw-py-1.5 tw-text-xs tw-font-medium tw-text-white" style="background: rgba(15, 23, 42, 0.24); border: 1px solid rgba(255,255,255,0.12);">
+                            <i class="fas fa-users" style="color: #fbbf24;"></i>
+                            User oversight
+                        </span>
+                        <span class="tw-inline-flex tw-items-center tw-gap-2 tw-rounded-full tw-px-3 tw-py-1.5 tw-text-xs tw-font-medium tw-text-white" style="background: rgba(15, 23, 42, 0.24); border: 1px solid rgba(255,255,255,0.12);">
+                            <i class="fas fa-receipt" style="color: #fbbf24;"></i>
+                            Subscription controls
+                        </span>
+                    </div>
                 </div>
-                <div class="tw-mt-3 sm:tw-mt-0 tw-flex tw-flex-wrap tw-gap-2 sm:tw-justify-end">
-                    <a href="{{ route('admin.subscriptions') }}"
-                       class="tw-inline-flex tw-items-center tw-justify-center tw-gap-1 tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-text-gray-900 tw-transition-all tw-duration-200 tw-bg-white tw-rounded-lg hover:tw-bg-primary-50">
-                        <i class="fas fa-receipt me-1"></i> {{ __('payment.view_subscriptions') }}
+            </div>
+            <div class="tw-p-4" style="background: linear-gradient(180deg, #f8fafc 0%, #eef6ff 100%);">
+                <div class="tw-grid tw-h-full tw-grid-cols-1 tw-gap-2.5 sm:tw-grid-cols-2 lg:tw-grid-cols-1 xl:tw-grid-cols-2">
+                    <a href="{{ route($subscriptionsIndexRoute) }}"
+                       class="tw-group tw-flex tw-items-start tw-gap-3 tw-rounded-xl tw-px-3.5 tw-py-3 tw-text-left tw-transition" style="background: linear-gradient(180deg, #fff8e8 0%, #ffffff 100%); border: 1px solid #f3d28b; box-shadow: 0 10px 24px rgba(217, 119, 6, 0.10);">
+                        <span class="tw-inline-flex tw-h-9 tw-w-9 tw-items-center tw-justify-center tw-rounded-lg tw-text-white tw-shrink-0" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                            <i class="fas fa-receipt"></i>
+                        </span>
+                        <span class="tw-flex tw-min-w-0 tw-flex-1 tw-flex-col">
+                            <span class="tw-text-sm tw-font-semibold tw-leading-5 tw-text-slate-900">
+                                {{ __('payment.view_subscriptions') }}
+                            </span>
+                            <span class="tw-mt-0.5 tw-text-xs tw-leading-4" style="color: #6b4f1d;">
+                                Review plans, renewals, and pending payments.
+                            </span>
+                        </span>
                     </a>
-                    <a href="{{ route('admin.users') }}"
-                       class="tw-inline-flex tw-items-center tw-justify-center tw-gap-1 tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-text-gray-900 tw-transition-all tw-duration-200 tw-bg-white tw-rounded-lg hover:tw-bg-primary-50">
-                        <i class="fas fa-users me-1"></i> {{ __('payment.view_users') }}
+                    <a href="{{ route($usersIndexRoute) }}"
+                       class="tw-group tw-flex tw-items-start tw-gap-3 tw-rounded-xl tw-px-3.5 tw-py-3 tw-text-left tw-transition" style="background: linear-gradient(135deg, #0f172a 0%, #0f4c5c 100%); border: 1px solid rgba(15, 118, 110, 0.24); box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);">
+                        <span class="tw-inline-flex tw-h-9 tw-w-9 tw-items-center tw-justify-center tw-rounded-lg tw-text-white tw-shrink-0" style="background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.12);">
+                            <i class="fas fa-users"></i>
+                        </span>
+                        <span class="tw-flex tw-min-w-0 tw-flex-1 tw-flex-col">
+                            <span class="tw-text-sm tw-font-semibold tw-leading-5 tw-text-white">
+                                {{ __('payment.view_users') }}
+                            </span>
+                            <span class="tw-mt-0.5 tw-text-xs tw-leading-4" style="color: #c9f7ef;">
+                                Open user status, business mapping, and account management.
+                            </span>
+                        </span>
                     </a>
                 </div>
             </div>
@@ -74,7 +137,7 @@
                         </span>
                     </div>
                 </div>
-                <form method="POST" action="{{ route('admin.dashboard.fix-sell-postings') }}" class="tw-mt-4 lg:tw-mt-0">
+                <form method="POST" action="{{ request()->routeIs('superadmin.admin.dashboard') ? route('superadmin.admin.dashboard.fix-sell-postings') : route('admin.dashboard.fix-sell-postings') }}" class="tw-mt-4 lg:tw-mt-0">
                     @csrf
                     <button type="submit" class="tw-inline-flex tw-items-center tw-justify-center tw-gap-2 tw-rounded-lg tw-bg-amber-600 tw-px-4 tw-py-2.5 tw-text-sm tw-font-semibold tw-text-white tw-transition hover:tw-bg-amber-700">
                         <i class="fas fa-wrench"></i>
@@ -437,7 +500,7 @@
                                             <span class="fw-medium">{{ $user->phone ?? __('payment.na') }}</span>
                                         </td>
                                         <td>
-                                            <form action="{{ route('admin.users.update-status', $user) }}" 
+                                            <form action="{{ route($userStatusRoute, $user) }}" 
                                                   method="POST" class="ajax-form user-status-form d-flex align-items-center">
                                                 @csrf
                                                 @method('PATCH')
@@ -468,7 +531,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <a href="{{ route('admin.users') }}" class="btn btn-primary">
+                    <a href="{{ route($usersIndexRoute) }}" class="btn btn-primary">
                         {{ __('payment.view_all') }} <i class="fas fa-arrow-right ms-1"></i>
                     </a>
                     <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="$('#userManagementModal').modal('hide')">{{ __('payment.close') }}</button>
@@ -527,7 +590,7 @@
                                             </span>
                                         </td>
                                         <td class="pe-3">
-                                            <form action="{{ route('admin.subscriptions.update-status', $subscription) }}" 
+                                            <form action="{{ route($subscriptionStatusRoute, $subscription) }}" 
                                                   method="POST" class="ajax-form d-flex align-items-center">
                                                 @csrf
                                                 @method('PATCH')
@@ -559,7 +622,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <a href="{{ route('admin.subscriptions') }}" class="btn btn-success">
+                    <a href="{{ route($subscriptionsIndexRoute) }}" class="btn btn-success">
                         {{ __('payment.view_all') }} <i class="fas fa-arrow-right ms-1"></i>
                     </a>
                     <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="$('#subscriptionsModal').modal('hide')">{{ __('payment.close') }}</button>
@@ -1415,7 +1478,7 @@
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                <form action="{{ route('admin.subscriptions.manual') }}" method="POST" class="ajax-form" id="manual-subscription-form">
+                <form action="{{ route($manualSubscriptionRoute) }}" method="POST" class="ajax-form" id="manual-subscription-form">
                     @csrf
                     <div class="modal-body">
                         <div class="alert alert-info">
@@ -1431,7 +1494,7 @@
                                 </label>
                                 <select class="form-select" name="user_id" required>
                                     <option value="">{{ __('payment.select_user') }}</option>
-                                    @foreach($users ?? [] as $user)
+                                    @foreach($manualSubscriptionUsers ?? [] as $user)
                                     <option value="{{ $user->id }}">
                                         {{ optional($user->business)->name ?? $user->name }} ({{ $user->email }})
                                     </option>
@@ -1486,6 +1549,10 @@
     </div>
 
 </div>
+
+@if($isSuperadminAdminPanel)
+    </section>
+@endif
 @endsection
 
 @section('styles')

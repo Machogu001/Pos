@@ -739,6 +739,7 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
     Route::get('edit-sales-orders/{id}/status', [SalesOrderController::class, 'getEditSalesOrderStatus']);
     Route::put('update-sales-orders/{id}/status', [SalesOrderController::class, 'postEditSalesOrderStatus']);
     Route::get('reports/activity-log', [ReportController::class, 'activityLog']);
+    Route::get('reports/active-user-sessions', [ReportController::class, 'activeUserSessions']);
     Route::get('user-location/{latlng}', [HomeController::class, 'getUserLocation']);
 });
 

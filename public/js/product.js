@@ -548,6 +548,7 @@ $(document).ready(function() {
         e.preventDefault();
         $.ajax({
             url: $(this).attr('href'),
+            cache: false,
             dataType: 'html',
             success: function(result) {
                 $('#view_product_modal')

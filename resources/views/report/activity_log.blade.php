@@ -11,6 +11,12 @@
 <!-- Main content -->
 <section class="content">
 
+    @if(empty($live_session_tracking_available))
+        <div class="alert alert-warning">
+            Live active-session tracking requires <strong>SESSION_DRIVER=database</strong>. The current session driver is <strong>{{ $session_driver }}</strong>. Login history below will still capture IP, device, location, and network details.
+        </div>
+    @endif
+
     <div class="row">
         <div class="col-md-12">
             @component('components.filters', ['title' => __('report.filters')])
@@ -52,6 +58,27 @@
                             <th>@lang('messages.action')</th>
                             <th>@lang('lang_v1.by')</th>
                             <th>@lang('brand.note')</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+            @endcomponent
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            @component('components.widget', ['class' => 'box-primary', 'title' => 'Active Sessions'])
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="active_sessions_table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>IP Address</th>
+                            <th>Device</th>
+                            <th>Location</th>
+                            <th>Network</th>
+                            <th>Last Activity</th>
                         </tr>
                     </thead>
                 </table>
@@ -108,7 +135,23 @@
                 { data: 'created_by', name: 'created_by'},
                 { data: 'note', name: 'note'}
             ]
-        });  
+        });
+
+        active_sessions_table = $('#active_sessions_table').DataTable({
+            processing: true,
+            serverSide: true,
+            fixedHeader:false,
+            aaSorting: [[5, 'desc']],
+            ajax: '{{action([\App\Http\Controllers\ReportController::class, 'activeUserSessions'])}}',
+            columns: [
+                { data: 'user_name', name: 'user_name' },
+                { data: 'ip_address', name: 'ip_address' },
+                { data: 'device', name: 'device', orderable: false, searchable: false },
+                { data: 'location', name: 'location', orderable: false, searchable: false },
+                { data: 'network', name: 'network', orderable: false, searchable: false },
+                { data: 'last_activity', name: 'last_activity' }
+            ]
+        });
 
         $(document).on('change', '#al_users_filter, #subject_type', function(){
             activity_log_table.ajax.reload();

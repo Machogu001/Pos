@@ -75,10 +75,7 @@
                 $purchase_line->id); !!}
 
                 @php
-                    $check_decimal = 'false';
-                    if($purchase_line->product->unit->allow_decimal == 0){
-                        $check_decimal = 'true';
-                    }
+                    $check_decimal = 'true';
                     $max_quantity = 0;
 
                     if(!empty($purchase_line->purchase_order_line_id) && !empty($common_settings['enable_purchase_order'])){

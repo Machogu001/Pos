@@ -44,6 +44,24 @@ Route::middleware('web', 'auth', 'language', 'AdminSidebarMenu', 'superadmin')->
     Route::get('/install/update', [Modules\Superadmin\Http\Controllers\InstallController::class, 'update']);
     Route::get('/install/uninstall', [Modules\Superadmin\Http\Controllers\InstallController::class, 'uninstall']);
 
+    Route::get('/admin-panel', [\App\Http\Controllers\AdminController::class, 'index'])->name('superadmin.admin.dashboard');
+    Route::post('/admin-panel/fix-sell-postings', [\App\Http\Controllers\AdminController::class, 'fixSellPostings'])->name('superadmin.admin.dashboard.fix-sell-postings');
+    Route::get('/admin-panel/users', [\App\Http\Controllers\AdminController::class, 'users'])->name('superadmin.admin.users');
+    Route::patch('/admin-panel/users/{user}/status', [\App\Http\Controllers\AdminController::class, 'updateUserStatus'])->name('superadmin.admin.users.update-status');
+    Route::get('/admin-panel/users/{user}', [\App\Http\Controllers\AdminController::class, 'showUser'])->name('superadmin.admin.users.show');
+    Route::delete('/admin-panel/users/{user}', [\App\Http\Controllers\AdminController::class, 'destroy'])->name('superadmin.admin.users.destroy');
+    Route::post('/admin-panel/users/bulk-action', [\App\Http\Controllers\AdminController::class, 'bulkAction'])->name('superadmin.admin.users.bulk-action');
+    Route::get('/admin-panel/subscriptions', [\App\Http\Controllers\AdminController::class, 'subscriptions'])->name('superadmin.admin.subscriptions');
+    Route::get('/admin-panel/subscriptions/{subscription}', [\App\Http\Controllers\AdminController::class, 'showSubscription'])->name('superadmin.admin.subscriptions.show');
+    Route::post('/admin-panel/subscriptions/manual', [\App\Http\Controllers\AdminController::class, 'createManualSubscription'])->name('superadmin.admin.subscriptions.manual');
+    Route::patch('/admin-panel/subscriptions/{subscription}/renew', [\App\Http\Controllers\AdminController::class, 'renewSubscription'])->name('superadmin.admin.subscriptions.renew');
+    Route::patch('/admin-panel/subscriptions/{subscription}/activate', [\App\Http\Controllers\AdminController::class, 'activateSubscription'])->name('superadmin.admin.subscriptions.activate');
+    Route::patch('/admin-panel/subscriptions/{subscription}/update-status', [\App\Http\Controllers\AdminController::class, 'updateSubscriptionStatus'])->name('superadmin.admin.subscriptions.update-status');
+    Route::delete('/admin-panel/subscriptions/{subscription}', [\App\Http\Controllers\AdminController::class, 'destroySubscription'])->name('superadmin.admin.subscriptions.destroy');
+    Route::post('/admin-panel/subscriptions/download-statements', [\App\Http\Controllers\SubscriptionInvoiceController::class, 'downloadBulkStatements'])->name('superadmin.admin.subscriptions.download_statements');
+    Route::post('/admin-panel/subscriptions/{subscription}/cancel', [\App\Http\Controllers\SubscriptionController::class, 'cancel'])->name('superadmin.admin.subscriptions.cancel');
+    Route::get('/admin-panel/mpesa-payments/{mpesaPayment}', [\App\Http\Controllers\Admin\MpesaPaymentController::class, 'show'])->name('superadmin.admin.mpesa_payments.show');
+
     Route::get('/', [Modules\Superadmin\Http\Controllers\SuperadminController::class, 'index']);
     Route::get('/stats', [Modules\Superadmin\Http\Controllers\SuperadminController::class, 'stats']);
 

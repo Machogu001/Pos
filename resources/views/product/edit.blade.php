@@ -12,14 +12,17 @@
   $default_purchase_unit_id = old('purchase_default_unit_id', optional($purchase_default_conversion)->unit_id ?: $system_default_purchase_unit_id);
   $default_sale_unit_id = old('sale_default_unit_id', optional($sale_default_conversion)->unit_id ?: $system_default_sale_unit_id);
   $unit_conversions_old = old('unit_conversions');
+  $has_old_unit_conversions = is_array($unit_conversions_old);
   $item_unit_conversions = [];
-  if (is_array($unit_conversions_old)) {
+  $has_saved_item_unit_conversions = false;
+  if ($has_old_unit_conversions) {
     $item_unit_conversions = $unit_conversions_old;
   } else {
     foreach ($product->unit_conversions as $conversion) {
       if ((int) $conversion->unit_id === (int) $product->unit_id) {
         continue;
       }
+      $has_saved_item_unit_conversions = true;
       $item_unit_conversions[] = [
         'unit_id' => $conversion->unit_id,
         'qty_per_base' => (float) $conversion->qty_per_base,
@@ -42,8 +45,8 @@
 
 <!-- Main content -->
 <section class="content">
-{!! Form::open(['url' => action([\App\Http\Controllers\ProductController::class, 'update'] , [$product->id] ), 'method' => 'PUT', 'id' => 'product_add_form',
-        'class' => 'product_form', 'files' => true ]) !!}
+ {!! Form::open(['url' => action([\App\Http\Controllers\ProductController::class, 'update'] , [$product->id] ), 'method' => 'PUT', 'id' => 'product_add_form',
+   'class' => 'product_form', 'files' => true, 'autocomplete' => 'off' ]) !!}
     <input type="hidden" id="product_id" value="{{ $product->id }}">
 
     @component('components.widget', ['class' => 'box-primary'])
@@ -77,7 +80,7 @@
               <div class="form-group">
                 {!! Form::label('unit_id', __('product.unit') . ':*') !!}
                 <div class="input-group">
-                  {!! Form::select('unit_id', $units, $product->unit_id, ['placeholder' => __('messages.please_select'), 'class' => 'form-control select2', 'required']); !!}
+                  {!! Form::select('unit_id', $units, $product->unit_id, ['class' => 'form-control select2', 'required']); !!}
                   <span class="input-group-btn">
                     <button type="button" @if(!auth()->user()->can('unit.create')) disabled @endif class="btn btn-default bg-white btn-flat quick_add_unit btn-modal" data-href="{{action([\App\Http\Controllers\UnitController::class, 'create'], ['quick_add' => true])}}" title="@lang('unit.add_unit')" data-container=".view_modal"><i class="fa fa-plus-circle text-primary fa-lg"></i></button>
                   </span>
@@ -102,14 +105,14 @@
             <div class="col-sm-4">
               <div class="form-group">
                 {!! Form::label('purchase_default_unit_id', 'Purchase Unit:') !!}
-                {!! Form::select('purchase_default_unit_id', $all_units, $default_purchase_unit_id, ['placeholder' => __('messages.please_select'), 'class' => 'form-control select2']); !!}
+                {!! Form::select('purchase_default_unit_id', $all_units, $default_purchase_unit_id, ['class' => 'form-control select2']); !!}
               </div>
             </div>
 
             <div class="col-sm-4">
               <div class="form-group">
                 {!! Form::label('sale_default_unit_id', 'Sales Unit:') !!}
-                {!! Form::select('sale_default_unit_id', $all_units, $default_sale_unit_id, ['placeholder' => __('messages.please_select'), 'class' => 'form-control select2']); !!}
+                {!! Form::select('sale_default_unit_id', $all_units, $default_sale_unit_id, ['class' => 'form-control select2']); !!}
               </div>
             </div>
 
@@ -132,7 +135,7 @@
                       @foreach($item_unit_conversions as $index => $row)
                       <tr class="unit-conversion-row">
                         <td>
-                          {!! Form::select('unit_conversions[' . $index . '][unit_id]', $all_units, $row['unit_id'] ?? null, ['placeholder' => __('messages.please_select'), 'class' => 'form-control select2 unit-conversion-unit']) !!}
+                          {!! Form::select('unit_conversions[' . $index . '][unit_id]', $all_units, $row['unit_id'] ?? null, ['class' => 'form-control select2 unit-conversion-unit']) !!}
                         </td>
                         <td>
                           {!! Form::text('unit_conversions[' . $index . '][qty_per_base]', $row['qty_per_base'] ?? null, ['class' => 'form-control input_number', 'placeholder' => __('product.qty_per_base_placeholder')]) !!}
@@ -474,6 +477,20 @@
   <script src="{{ asset('js/product.js?v=' . $asset_v) }}"></script>
   <script type="text/javascript">
     $(document).ready( function(){
+      const shouldResetEmptyConversionRow = @json(!$has_old_unit_conversions && !$has_saved_item_unit_conversions);
+
+      function resetUnitConversionRow($row) {
+        $row.find('select.unit-conversion-unit').val('').trigger('change');
+        $row.find('input.input_number').val('');
+      }
+
+      if (shouldResetEmptyConversionRow) {
+        const $firstRow = $('#unit-conversions-body .unit-conversion-row').first();
+        if ($firstRow.length) {
+          resetUnitConversionRow($firstRow);
+        }
+      }
+
       function reindexUnitConversions() {
         $('#unit-conversions-body .unit-conversion-row').each(function(index) {
           $(this).find('select.unit-conversion-unit').attr('name', 'unit_conversions[' + index + '][unit_id]');
@@ -502,10 +519,15 @@
       });
 
       $(document).on('click', '.remove-unit-conversion-row', function() {
+        const $row = $(this).closest('tr');
         if ($('#unit-conversions-body .unit-conversion-row').length > 1) {
-          $(this).closest('tr').remove();
+          $row.remove();
           reindexUnitConversions();
+
+          return;
         }
+
+        resetUnitConversionRow($row);
       });
 
       __page_leave_confirmation('#product_add_form');

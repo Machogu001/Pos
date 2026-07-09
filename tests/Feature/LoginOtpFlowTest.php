@@ -93,6 +93,7 @@ class LoginOtpFlowTest extends TestCase
 
         $businessUtil = \Mockery::mock(BusinessUtil::class);
         $businessUtil->shouldReceive('activityLog')->zeroOrMoreTimes();
+        $businessUtil->shouldReceive('getAuthActivityProperties')->zeroOrMoreTimes()->andReturn([]);
         $this->app->instance(BusinessUtil::class, $businessUtil);
 
         $moduleUtil = \Mockery::mock(ModuleUtil::class);

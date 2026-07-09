@@ -51,7 +51,7 @@ class DataController extends Controller
 
         if (auth()->user()->can('aiassistance.access_aiassistance_module') && $is_aiassistance_enabled) {
             $menu = Menu::instance('admin-sidebar-menu');
-            $group_title = 'Modules & Apps';
+            $group_title = __('ui.modules_apps_menu');
             $added_to_group = false;
 
             $menu->whereTitle($group_title, function ($sub) use (&$added_to_group) {

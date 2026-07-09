@@ -926,18 +926,125 @@
 		padding: 8px 12px;
 		cursor: pointer;
 		border-bottom: 1px solid #eee;
+		color: #0f172a;
+		transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+	}
+
+	.ui-menu .ui-menu-item-wrapper > div {
+		color: inherit;
+		font-weight: 500;
+		line-height: 1.45;
 	}
 
 	.ui-menu .ui-menu-item-wrapper.ui-state-active,
 	.ui-menu .ui-menu-item-wrapper.ui-state-focus {
-		background-color: #f0f8ff;
+		background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+		border-color: #0f766e;
+		box-shadow: inset 4px 0 0 #0f172a;
+		color: #ffffff;
 		margin: 0;
+	}
+
+	.ui-menu .ui-menu-item-wrapper.ui-state-active > div,
+	.ui-menu .ui-menu-item-wrapper.ui-state-focus > div {
+		color: #ffffff;
+	}
+
+	#pos_table > tbody > tr > td {
+		vertical-align: top;
+	}
+
+	#pos_table .pos-product-cell {
+		min-width: 290px;
+	}
+
+	#pos_table .pos-product-summary {
+		min-width: 0;
+	}
+
+	#pos_table .pos-product-main {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	#pos_table .pos-product-name-wrap {
+		min-width: 0;
+		flex: 1 1 auto;
+	}
+
+	#pos_table .pos-product-name {
+		display: block;
+		font-weight: 600;
+		line-height: 1.45;
+		word-break: break-word;
+	}
+
+	#pos_table .pos-product-stock {
+		display: block;
+		margin-top: 6px;
+		line-height: 1.4;
+	}
+
+	#pos_table .pos-product-cell img[alt="product-img"] {
+		display: none !important;
+	}
+
+	#pos_table .pos-product-note {
+		margin-top: 12px;
+	}
+
+	#pos_table .pos-qty-cell,
+	#pos_table .pos-price-cell,
+	#pos_table .pos-discount-cell,
+	#pos_table .pos-price-inc-tax-cell,
+	#pos_table .pos-subtotal-cell {
+		min-width: 120px;
+	}
+
+	#pos_table .pos-qty-cell .input-group,
+	#pos_table .pos-price-cell .form-control,
+	#pos_table .pos-discount-cell .form-control,
+	#pos_table .pos-price-inc-tax-cell .form-control,
+	#pos_table .pos-subtotal-cell .form-control {
+		min-width: 0;
+	}
+
+	#pos_table .pos-subunit-wrap,
+	#pos_table .pos-subunit-label,
+	#pos_table .pos-bonus-help,
+	#pos_table .pos-inline-meta {
+		display: block;
+		margin-top: 8px;
+		line-height: 1.4;
+	}
+
+	#pos_table .pos-discount-cell .help-block {
+		margin-bottom: 0;
+	}
+
+	#pos_table .pos-subtotal-cell {
+		white-space: nowrap;
 	}
 </style>
 
 @stop
 
 @section('javascript')
+	@if(session('status') && (session('status.success') === true || session('status.success') === 1))
+		<script>
+			try {
+				localStorage.setItem('pos-dashboard-sale-update', JSON.stringify({
+					event: 'sale-finalized',
+					timestamp: Date.now(),
+					location_id: $('input#location_id').val() || null
+				}));
+			} catch (error) {
+				console.warn('Unable to notify dashboard about finalized sale.', error);
+			}
+		</script>
+	@endif
 	<script src="{{ asset('js/pos.js?v=' . filemtime(public_path('js/pos.js'))) }}"></script>
 	<script src="{{ asset('js/product.js?v=' . $asset_v) }}"></script>
 	<script src="{{ asset('js/opening_stock.js?v=' . $asset_v) }}"></script>

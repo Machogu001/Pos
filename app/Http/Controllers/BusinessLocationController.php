@@ -184,7 +184,12 @@ class BusinessLocationController extends Controller
 
             $input['business_id'] = $business_id;
 
-            $input['default_payment_accounts'] = ! empty($input['default_payment_accounts']) ? json_encode($input['default_payment_accounts']) : null;
+            $input['default_payment_accounts'] = json_encode(
+                $this->normalizeDefaultPaymentAccounts(
+                    $business_id,
+                    $input['default_payment_accounts'] ?? []
+                )
+            );
 
             //Update reference count
             $ref_count = $this->moduleUtil->setAndGetReferenceCount('business_location');
@@ -348,7 +353,12 @@ class BusinessLocationController extends Controller
 
             $business_id = $request->session()->get('user.business_id');
 
-            $input['default_payment_accounts'] = ! empty($input['default_payment_accounts']) ? json_encode($input['default_payment_accounts']) : null;
+            $input['default_payment_accounts'] = json_encode(
+                $this->normalizeDefaultPaymentAccounts(
+                    $business_id,
+                    $input['default_payment_accounts'] ?? []
+                )
+            );
 
             $input['featured_products'] = ! empty($input['featured_products']) ? json_encode($input['featured_products']) : null;
 
@@ -368,6 +378,22 @@ class BusinessLocationController extends Controller
         }
 
         return $output;
+    }
+
+    private function normalizeDefaultPaymentAccounts(int $business_id, array $submitted_accounts): array
+    {
+        $payment_types = $this->commonUtil->payment_types(null, false, $business_id);
+        $normalized_accounts = [];
+
+        foreach ($payment_types as $key => $value) {
+            $account_settings = $submitted_accounts[$key] ?? [];
+            $normalized_accounts[$key] = [
+                'is_enabled' => ! empty($account_settings['is_enabled']) ? 1 : 0,
+                'account' => ! empty($account_settings['account']) ? $account_settings['account'] : null,
+            ];
+        }
+
+        return $normalized_accounts;
     }
 
     /**

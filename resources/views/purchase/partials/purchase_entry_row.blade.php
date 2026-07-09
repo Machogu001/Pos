@@ -36,10 +36,7 @@
             {!! Form::hidden('purchases[' . $row_count . '][variation_id]', $variation->id , ['class' => 'hidden_variation_id']); !!}
 
             @php
-                $check_decimal = 'false';
-                if($product->unit->allow_decimal == 0){
-                    $check_decimal = 'true';
-                }
+                $check_decimal = 'true';
                 $currency_precision = session('business.currency_precision', 2);
                 $quantity_precision = session('business.quantity_precision', 2);
 

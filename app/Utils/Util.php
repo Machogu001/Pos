@@ -18,7 +18,9 @@ use Config;
 use DB;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 
@@ -1570,6 +1572,222 @@ class Util
 
         $activity->business_id = $business_id;
         $activity->save();
+    }
+
+    public function getAuthActivityProperties($request = null): array
+    {
+        $request = $request ?: request();
+        $user_agent = substr((string) ($request->userAgent() ?? ''), 0, 1000);
+        $device_details = $this->parseUserAgentDetails($user_agent);
+        $resolved_ip = $this->resolveClientIp($request);
+
+        return array_filter([
+            'ip_address' => $resolved_ip,
+            'proxy_ip_address' => $request->ip(),
+            'forwarded_for' => $request->headers->get('x-forwarded-for'),
+            'cf_connecting_ip' => $request->headers->get('cf-connecting-ip'),
+            'user_agent' => $user_agent,
+            'session_id' => method_exists($request, 'session') ? optional($request->session())->getId() : null,
+            'device_type' => $device_details['device_type'] ?? null,
+            'platform' => $device_details['platform'] ?? null,
+            'browser' => $device_details['browser'] ?? null,
+        ], function ($value) {
+            return $value !== null && $value !== '';
+        });
+    }
+
+    public function resolveClientIp($request = null): ?string
+    {
+        $request = $request ?: request();
+        $direct_ip = $request->ip();
+
+        if ($this->isPublicIp($direct_ip)) {
+            return $direct_ip;
+        }
+
+        $candidate_headers = [
+            $request->headers->get('cf-connecting-ip'),
+            $request->headers->get('true-client-ip'),
+            $request->headers->get('x-real-ip'),
+            $request->headers->get('x-forwarded-for'),
+            $request->headers->get('forwarded'),
+        ];
+
+        foreach ($candidate_headers as $header_value) {
+            $resolved_ip = $this->extractClientIpFromHeader($header_value);
+            if (! empty($resolved_ip)) {
+                return $resolved_ip;
+            }
+        }
+
+        return $direct_ip;
+    }
+
+    public function getIpAddressAuditMetadata(?string $ip_address): array
+    {
+        if (empty($ip_address) || ! filter_var($ip_address, FILTER_VALIDATE_IP)) {
+            return [];
+        }
+
+        if (! filter_var($ip_address, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+            return [
+                'network_name' => 'Private / local network',
+                'connection_type' => 'private',
+            ];
+        }
+
+        return Cache::remember('ip_audit_metadata_'.md5($ip_address), now()->addHours(12), function () use ($ip_address) {
+            try {
+                $response = Http::timeout(3)
+                    ->acceptJson()
+                    ->get('https://ipwho.is/'.$ip_address, [
+                        'fields' => 'success,city,region,country,connection,security',
+                    ]);
+
+                if (! $response->successful()) {
+                    return [];
+                }
+
+                $payload = $response->json();
+                if (empty($payload['success'])) {
+                    return [];
+                }
+
+                $connection = is_array($payload['connection'] ?? null) ? $payload['connection'] : [];
+                $security = is_array($payload['security'] ?? null) ? $payload['security'] : [];
+
+                return array_filter([
+                    'city' => $payload['city'] ?? null,
+                    'region' => $payload['region'] ?? null,
+                    'country' => $payload['country'] ?? null,
+                    'network_name' => $connection['isp'] ?? ($connection['org'] ?? null),
+                    'organization' => $connection['org'] ?? null,
+                    'asn' => isset($connection['asn']) ? (string) $connection['asn'] : null,
+                    'connection_type' => ! empty($security['vpn']) ? 'vpn' : (! empty($security['proxy']) ? 'proxy' : (! empty($security['tor']) ? 'tor' : null)),
+                    'is_proxy' => ! empty($security['proxy']) || ! empty($security['vpn']) || ! empty($security['tor']),
+                    'is_hosting' => ! empty($security['hosting']),
+                ], function ($value) {
+                    return $value !== null && $value !== '';
+                });
+            } catch (\Throwable $e) {
+                return [];
+            }
+        });
+    }
+
+    public function formatUserAgentSummary(?string $user_agent, array $details = []): string
+    {
+        $user_agent = (string) $user_agent;
+        if (empty($details)) {
+            $details = $this->parseUserAgentDetails($user_agent);
+        }
+
+        $parts = array_filter([
+            $details['browser'] ?? null,
+            $details['platform'] ?? null,
+            $details['device_type'] ?? null,
+        ]);
+
+        if (! empty($parts)) {
+            return implode(' / ', array_unique($parts));
+        }
+
+        return ! empty($user_agent) ? substr($user_agent, 0, 120) : 'Unknown device';
+    }
+
+    private function extractClientIpFromHeader($header_value): ?string
+    {
+        if (empty($header_value)) {
+            return null;
+        }
+
+        $parts = preg_split('/\s*,\s*/', (string) $header_value);
+        foreach ($parts as $part) {
+            $candidate = trim((string) $part, " \t\n\r\0\x0B\"");
+
+            if (stripos($candidate, 'for=') === 0) {
+                $candidate = trim(substr($candidate, 4), " \t\n\r\0\x0B\"");
+            }
+
+            if (! filter_var($candidate, FILTER_VALIDATE_IP)) {
+                continue;
+            }
+
+            if ($this->isPublicIp($candidate)) {
+                return $candidate;
+            }
+        }
+
+        foreach ($parts as $part) {
+            $candidate = trim((string) $part, " \t\n\r\0\x0B\"");
+            if (stripos($candidate, 'for=') === 0) {
+                $candidate = trim(substr($candidate, 4), " \t\n\r\0\x0B\"");
+            }
+
+            if (filter_var($candidate, FILTER_VALIDATE_IP)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function isPublicIp(?string $ip_address): bool
+    {
+        if (empty($ip_address)) {
+            return false;
+        }
+
+        return (bool) filter_var($ip_address, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+    }
+
+    private function parseUserAgentDetails(?string $user_agent): array
+    {
+        $user_agent = strtolower((string) $user_agent);
+        if ($user_agent === '') {
+            return [];
+        }
+
+        $browser = 'Unknown browser';
+        if (str_contains($user_agent, 'edg/')) {
+            $browser = 'Edge';
+        } elseif (str_contains($user_agent, 'opr/') || str_contains($user_agent, 'opera')) {
+            $browser = 'Opera';
+        } elseif (str_contains($user_agent, 'chrome/')) {
+            $browser = 'Chrome';
+        } elseif (str_contains($user_agent, 'safari/') && ! str_contains($user_agent, 'chrome/')) {
+            $browser = 'Safari';
+        } elseif (str_contains($user_agent, 'firefox/')) {
+            $browser = 'Firefox';
+        } elseif (str_contains($user_agent, 'msie') || str_contains($user_agent, 'trident/')) {
+            $browser = 'Internet Explorer';
+        }
+
+        $platform = 'Unknown OS';
+        if (str_contains($user_agent, 'windows')) {
+            $platform = 'Windows';
+        } elseif (str_contains($user_agent, 'android')) {
+            $platform = 'Android';
+        } elseif (str_contains($user_agent, 'iphone') || str_contains($user_agent, 'ipad') || str_contains($user_agent, 'ios')) {
+            $platform = 'iOS';
+        } elseif (str_contains($user_agent, 'mac os') || str_contains($user_agent, 'macintosh')) {
+            $platform = 'macOS';
+        } elseif (str_contains($user_agent, 'linux')) {
+            $platform = 'Linux';
+        }
+
+        $device_type = 'Desktop';
+        if (str_contains($user_agent, 'tablet') || str_contains($user_agent, 'ipad')) {
+            $device_type = 'Tablet';
+        } elseif (str_contains($user_agent, 'mobile') || str_contains($user_agent, 'android') || str_contains($user_agent, 'iphone')) {
+            $device_type = 'Mobile';
+        }
+
+        return [
+            'browser' => $browser,
+            'platform' => $platform,
+            'device_type' => $device_type,
+        ];
     }
 
     public function getBackupCleanCronJobCommand()

@@ -33,6 +33,9 @@ class User extends Authenticatable
 
     protected $casts = [
         'otp_login_enabled' => 'boolean',
+        'has_active_subscription' => 'boolean',
+        'subscription_expires_at' => 'datetime',
+        'last_login_at' => 'datetime',
     ];
 
     // change api guard to web

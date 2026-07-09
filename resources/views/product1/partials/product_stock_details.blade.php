@@ -6,6 +6,7 @@
 					<tr class="bg-green">
 						<th>SKU</th>
 		                <th>@lang('business.product')</th>
+		                <th>Pack size</th>
 		                <th>@lang('business.location')</th>
 		                <th>@lang('sale.unit_price')</th>
 		                <th>@lang('report.current_stock')</th>
@@ -28,6 +29,7 @@
 			                    @endphp
 			                    {{$name}}
 	            			</td>
+	            			<td>{{ $viewed_product->pack_size_display ?? '--' }}</td>
 	            			<td>{{$product->location_name}}</td>
 	            			<td>
                         		<span class="display_currency"data-currency_symbol=true >{{$product->unit_price ?? 0}}</span>

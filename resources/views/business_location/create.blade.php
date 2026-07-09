@@ -1,7 +1,7 @@
 <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
 
-        {!! Form::open(['url' => action([\App\Http\Controllers\BusinessLocationController::class, 'store']), 'method' => 'post', 'id' => 'business_location_add_form' ]) !!}
+        {!! Form::open(['url' => action([\App\Http\Controllers\BusinessLocationController::class, 'store']), 'method' => 'post', 'id' => 'business_location_add_form', 'autocomplete' => 'off' ]) !!}
 
         <div class="modal-header">
             <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
@@ -199,6 +199,7 @@
                                 @foreach($payment_types as $key => $value)
                                 <tr>
                                     <td class="text-center">{{$value}}</td>
+                                    {!! Form::hidden('default_payment_accounts[' . $key . '][is_enabled]', 0) !!}
                                     <td class="text-center">{!! Form::checkbox('default_payment_accounts[' . $key . '][is_enabled]', 1, true); !!}</td>
                                     <td class="text-center @if(empty($accounts)) hide @endif">
                                         {!! Form::select('default_payment_accounts[' . $key . '][account]', $accounts, null, ['class' => 'form-control input-sm']); !!}

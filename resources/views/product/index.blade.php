@@ -606,6 +606,7 @@
                     $.ajax({
                         url: "{{ action([\App\Http\Controllers\ReportController::class, 'getStockReport']) }}" +
                             '?for=view_product&product_id=' + div.data('product_id'),
+                        cache: false,
                         dataType: 'html',
                         success: function(result) {
                             div.html(result);

@@ -376,8 +376,11 @@ class ReportController extends Controller
             //To show stock details on view product modal
             if ($for == 'view_product' && ! empty(request()->input('product_id'))) {
                 $product_stock_details = $products;
+                $viewed_product = Product::where('business_id', $business_id)
+                    ->with(['unit', 'unit_conversions.unit'])
+                    ->find(request()->input('product_id'));
 
-                return view('product.partials.product_stock_details')->with(compact('product_stock_details'));
+                return view('product.partials.product_stock_details')->with(compact('product_stock_details', 'viewed_product'));
             }
 
             $datatable = Datatables::of($products)
@@ -819,6 +822,9 @@ class ReportController extends Controller
         if ($request->ajax()) {
             $business_id = $request->session()->get('user.business_id');
             $product_id = $request->input('product_id');
+            $product = Product::where('business_id', $business_id)
+                ->with(['unit', 'unit_conversions.unit'])
+                ->findOrFail($product_id);
             $query = Product::leftjoin('units as u', 'products.unit_id', '=', 'u.id')
                 ->join('variations as v', 'products.id', '=', 'v.product_id')
                 ->join('product_variations as pv', 'pv.id', '=', 'v.product_variation_id')
@@ -873,7 +879,7 @@ class ReportController extends Controller
                         ->get();
 
             return view('report.stock_details')
-                        ->with(compact('product_details'));
+                        ->with(compact('product_details', 'product'));
         }
     }
 
@@ -3803,6 +3809,8 @@ class ReportController extends Controller
     public function activityLog()
     {
         $business_id = request()->session()->get('user.business_id');
+        $session_driver = config('session.driver');
+        $live_session_tracking_available = $session_driver === 'database' && Schema::hasTable(config('session.table', 'sessions'));
         $transaction_types = [
             'contact' => __('report.contact'),
             'user' => __('report.user'),
@@ -3916,6 +3924,46 @@ class ReportController extends Controller
                                     $html .= __('purchase.ref_no').': '.$row->getExtraProperty('ref_no');
                                 }
 
+                                if (in_array($row->description, ['login', 'logout'])) {
+                                    $ip_address = $row->getExtraProperty('ip_address');
+                                    $user_agent_summary = $this->businessUtil->formatUserAgentSummary(
+                                        $row->getExtraProperty('user_agent'),
+                                        [
+                                            'browser' => $row->getExtraProperty('browser'),
+                                            'platform' => $row->getExtraProperty('platform'),
+                                            'device_type' => $row->getExtraProperty('device_type'),
+                                        ]
+                                    );
+                                    $ip_metadata = $this->businessUtil->getIpAddressAuditMetadata($ip_address);
+                                    $location = implode(', ', array_filter([
+                                        $ip_metadata['city'] ?? null,
+                                        $ip_metadata['region'] ?? null,
+                                        $ip_metadata['country'] ?? null,
+                                    ]));
+
+                                    if (! empty($ip_address)) {
+                                        $html .= 'IP: '.e($ip_address).'<br>';
+                                    }
+                                    if (! empty($user_agent_summary)) {
+                                        $html .= 'Device: '.e($user_agent_summary).'<br>';
+                                    }
+                                    if (! empty($location)) {
+                                        $html .= 'Location: '.e($location).'<br>';
+                                    }
+                                    if (! empty($ip_metadata['network_name'])) {
+                                        $html .= 'Network: '.e($ip_metadata['network_name']).'<br>';
+                                    }
+                                    if (! empty($ip_metadata['organization']) && $ip_metadata['organization'] !== ($ip_metadata['network_name'] ?? null)) {
+                                        $html .= 'Organization: '.e($ip_metadata['organization']).'<br>';
+                                    }
+                                    if (! empty($ip_metadata['asn'])) {
+                                        $html .= 'ASN: '.e($ip_metadata['asn']).'<br>';
+                                    }
+                                    if (! empty($ip_metadata['connection_type'])) {
+                                        $html .= 'Connection: '.e(ucfirst((string) $ip_metadata['connection_type'])).'<br>';
+                                    }
+                                }
+
                                 return $html;
                             })
                             ->filterColumn('created_by', function ($query, $keyword) {
@@ -3930,7 +3978,66 @@ class ReportController extends Controller
 
         $users = User::allUsersDropdown($business_id, false);
 
-        return view('report.activity_log')->with(compact('users', 'transaction_types'));
+        return view('report.activity_log')->with(compact('users', 'transaction_types', 'live_session_tracking_available', 'session_driver'));
+    }
+
+    public function activeUserSessions(Request $request)
+    {
+        $business_id = $request->session()->get('user.business_id');
+        $session_table = config('session.table', 'sessions');
+
+        if (config('session.driver') !== 'database' || ! Schema::hasTable($session_table)) {
+            return Datatables::of(collect())->make(true);
+        }
+
+        $sessions = DB::table($session_table.' as sessions')
+            ->join('users as u', 'u.id', '=', 'sessions.user_id')
+            ->where('u.business_id', $business_id)
+            ->select(
+                'sessions.id',
+                'sessions.ip_address',
+                'sessions.user_agent',
+                'sessions.last_activity',
+                DB::raw("CONCAT(COALESCE(u.surname, ''), ' ', COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) as user_name")
+            );
+
+        return Datatables::of($sessions)
+            ->editColumn('user_name', function ($row) {
+                return trim((string) $row->user_name) ?: '-';
+            })
+            ->editColumn('ip_address', function ($row) {
+                return $row->ip_address ?: '-';
+            })
+            ->addColumn('device', function ($row) {
+                return e($this->businessUtil->formatUserAgentSummary($row->user_agent));
+            })
+            ->addColumn('location', function ($row) {
+                $ip_metadata = $this->businessUtil->getIpAddressAuditMetadata($row->ip_address);
+                $location = implode(', ', array_filter([
+                    $ip_metadata['city'] ?? null,
+                    $ip_metadata['region'] ?? null,
+                    $ip_metadata['country'] ?? null,
+                ]));
+
+                return ! empty($location) ? e($location) : '-';
+            })
+            ->addColumn('network', function ($row) {
+                $ip_metadata = $this->businessUtil->getIpAddressAuditMetadata($row->ip_address);
+                $parts = array_filter([
+                    $ip_metadata['network_name'] ?? null,
+                    ! empty($ip_metadata['asn']) ? 'ASN '.$ip_metadata['asn'] : null,
+                    ! empty($ip_metadata['connection_type']) ? ucfirst((string) $ip_metadata['connection_type']) : null,
+                ]);
+
+                return ! empty($parts) ? e(implode(' | ', $parts)) : '-';
+            })
+            ->editColumn('last_activity', function ($row) {
+                return ! empty($row->last_activity)
+                    ? date('d m Y H:i:s', (int) $row->last_activity)
+                    : '-';
+            })
+            ->rawColumns(['device', 'location', 'network'])
+            ->make(true);
     }
 
     public function gstSalesReport(Request $request)

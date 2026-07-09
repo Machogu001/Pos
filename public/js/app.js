@@ -37,10 +37,15 @@ $(document).ready(function() {
     $(document).on('click', '.btn-modal', function(e) {
         e.preventDefault();
         var container = $(this).data('container');
+        var href = $(this).data('href');
 
         $.ajax({
-            url: $(this).data('href'),
+            url: href,
             dataType: 'html',
+            cache: false,
+            data: {
+                _ts: Date.now(),
+            },
             success: function(result) {
                 $(container)
                     .html(result)
@@ -1269,6 +1274,50 @@ $(document).ready(function() {
         ],
     });
     $('.location_add_modal, .location_edit_modal').on('shown.bs.modal', function(e) {
+        var formElement = $(this).find('form#business_location_add_form').get(0);
+        var resetLocationFormFields = function() {
+            if (!formElement) {
+                return;
+            }
+
+            $(formElement)
+                .find('input, select, textarea')
+                .each(function() {
+                    var field = this;
+                    if (field.type === 'hidden') {
+                        return;
+                    }
+
+                    if (field.type === 'checkbox' || field.type === 'radio') {
+                        field.checked = field.hasAttribute('checked');
+                        field.defaultChecked = field.checked;
+                        return;
+                    }
+
+                    if (field.tagName === 'SELECT') {
+                        Array.prototype.forEach.call(field.options, function(option) {
+                            option.selected = option.hasAttribute('selected');
+                            option.defaultSelected = option.selected;
+                        });
+                        $(field).trigger('change.select2');
+                        return;
+                    }
+
+                    if (field.tagName === 'TEXTAREA') {
+                        field.value = field.textContent || '';
+                        field.defaultValue = field.value;
+                        return;
+                    }
+
+                    field.value = field.getAttribute('value') || '';
+                    field.defaultValue = field.value;
+                });
+        };
+
+        resetLocationFormFields();
+        setTimeout(resetLocationFormFields, 50);
+        setTimeout(resetLocationFormFields, 250);
+
         $('form#business_location_add_form')
             .submit(function(e) {
                 e.preventDefault();

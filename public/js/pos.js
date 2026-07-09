@@ -1,5 +1,20 @@
 var global_brand_id = null;
 var global_p_category_id = null;
+
+function notifyDashboardSaleFinalized(payload) {
+    try {
+        var updatePayload = Object.assign(
+            {
+                timestamp: Date.now(),
+                event: 'sale-finalized'
+            },
+            payload || {}
+        );
+        localStorage.setItem('pos-dashboard-sale-update', JSON.stringify(updatePayload));
+    } catch (error) {
+        console.warn('Unable to notify dashboard about finalized sale.', error);
+    }
+}
 $(document).ready(function() {
     customer_set = false;
     //Prevent enter key function except texarea
@@ -266,10 +281,18 @@ $(document).ready(function() {
                     selling_price = item.variation_group_price;
                 }
 
-                string += ' (' + item.sub_sku + ')' + '<br> Price: ' + __currency_trans_from_en(selling_price, false, false, __currency_precision, true);
+                string += ' (' + item.sub_sku + ') Price: ' + __currency_trans_from_en(selling_price, false, false, __currency_precision, true);
                 if (item.enable_stock == 1) {
-                    var qty_available = __currency_trans_from_en(item.qty_available, false, false, __currency_precision, true);
-                    string += ' - ' + qty_available + item.unit;
+                    var stockLabel = (item.stock_label || '').trim();
+                    var normalizedUnit = (item.unit || '').trim();
+                    if (!stockLabel) {
+                        var qty_available = __currency_trans_from_en(item.qty_available, false, false, __currency_precision, true);
+                        var unitLabel = normalizedUnit ? ' ' + normalizedUnit : '';
+                        stockLabel = qty_available + unitLabel;
+                    } else if (normalizedUnit && !stockLabel.endsWith(normalizedUnit)) {
+                        stockLabel += ' ' + normalizedUnit;
+                    }
+                    string += '<br> Stock: ' + stockLabel;
                 }
                 string += '</div>';
 
@@ -868,6 +891,14 @@ $(document).ready(function() {
                             if (result.whatsapp_link) {
                                 window.open(result.whatsapp_link);
                             }
+                            notifyDashboardSaleFinalized({
+                                location_id: $('input#location_id').val() || null,
+                                redirect_url: result.redirect_url || null
+                            });
+                            notifyDashboardSaleFinalized({
+                                location_id: $('input#location_id').val() || null,
+                                redirect_url: result.redirect_url || null
+                            });
                             $('#modal_payment').modal('hide');
                             toastr.success(result.msg);
 
@@ -1402,8 +1433,6 @@ $(document).ready(function() {
 
         var multiplier = parseFloat(selected_option.data('multiplier'));
 
-        var allow_decimal = parseInt(selected_option.data('allow_decimal'));
-
         tr.find('input.base_unit_multiplier').val(multiplier);
 
         var unit_sp = base_unit_selling_price * multiplier;
@@ -1425,13 +1454,9 @@ $(document).ready(function() {
             }
         }
 
-        qty_element.attr('data-decimal', allow_decimal);
-        var abs_digit = true;
-        if (allow_decimal) {
-            abs_digit = false;
-        }
+        qty_element.attr('data-decimal', 0);
         qty_element.rules('add', {
-            abs_digit: abs_digit,
+            abs_digit: true,
         });
 
         if (base_max_avlbl) {

@@ -350,7 +350,11 @@ class HomeController extends Controller
             //NET = TOTAL SALES - INVOICE DUE - EXPENSE
             $output['net'] = $output['total_sell'] - $output['invoice_due'] - $output['total_expense'];
 
-            return $output;
+            return response()
+                ->json($output)
+                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                ->header('Pragma', 'no-cache')
+                ->header('Expires', 'Fri, 01 Jan 1990 00:00:00 GMT');
         }
     }
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use App\User;
 use App\Subscription;
 use App\AdminSetting;
@@ -24,29 +25,50 @@ class AdminController extends Controller
     // ============================
     public function index()
 {
+    if ($redirect = $this->redirectToSuperadminAdminRouteIfNeeded('superadmin.admin.dashboard')) {
+        return $redirect;
+    }
+
     $user = auth()->user();
     $settings = AdminSetting::first() ?? new AdminSetting();
         $accountingBackfillStatus = $this->buildAccountingBackfillStatus($settings);
         $stockCostingBackfillStatus = $this->buildStockCostingBackfillStatus($settings);
     $auditBusinessId = $user->role === 'admin' ? null : optional($user->business)->id;
-    $sellPostingAuditSummary = app(SellPostingAuditService::class)->summarize($auditBusinessId);
+    $sellPostingAuditSummary = $this->getCachedSellPostingAuditSummary($auditBusinessId);
 
     // Configurable limits (default 5)
     $subscriptionsLimit = $settings->recent_subscriptions_limit ?? 5;
     $usersLimit = $settings->recent_users_limit ?? 5;
 
     if ($user->role === 'admin') {
-        // Fetch users with their business and latest successful M-Pesa payment
-        $users = User::with(['business', 'mpesaPayments' => function($query) {
+        $userBaseQuery = User::query()->where('role', '!=', 'admin');
+
+        $recentUsers = User::with(['business', 'mpesaPayments' => function($query) {
             $query->where('result_code', 0) // Successful M-Pesa transaction (result_code 0 means success)
-                  ->orderBy('created_at', 'desc')
-                  ->limit(1000);
+                ->orderBy('created_at', 'desc')
+                ->limit(1);
         }])
-        ->where('role', '!=', 'admin')
-        ->get();
+            ->where('role', '!=', 'admin')
+            ->latest()
+            ->take($usersLimit)
+            ->get();
+
+        $manualSubscriptionUsers = User::with('business:id,name')
+            ->select('id', 'business_id', 'username', 'email', 'surname', 'first_name', 'last_name')
+            ->where('role', '!=', 'admin')
+            ->orderBy('username')
+            ->get()
+            ->map(function ($user) {
+                return (object) [
+                    'id' => $user->id,
+                    'business' => $user->business,
+                    'name' => $this->dashboardUserDisplayName($user),
+                    'email' => $user->email,
+                ];
+            });
 
         // Process each user to get their phone number from M-Pesa payments
-        $users->each(function($user) {
+        $recentUsers->each(function($user) {
             $user->phone = optional($user->mpesaPayments->first())->phone_number ?? 'N/A';
         });
 
@@ -55,14 +77,10 @@ class AdminController extends Controller
             ->take($subscriptionsLimit)
             ->get();
 
-        $recentUsers = $users
-            ->sortByDesc('created_at')
-            ->take($usersLimit);
-
-        $totalUsers = $users->count();
-        $activeUsers = $users->where('status', 'active')->count();
-        $inactiveUsers = $users->where('status', 'inactive')->count();
-        $terminatedUsers = $users->where('status', 'terminated')->count();
+        $totalUsers = (clone $userBaseQuery)->count();
+        $activeUsers = (clone $userBaseQuery)->where('status', 'active')->count();
+        $inactiveUsers = (clone $userBaseQuery)->where('status', 'inactive')->count();
+        $terminatedUsers = (clone $userBaseQuery)->where('status', 'terminated')->count();
 
         $activeSubscriptions = Subscription::where('status', 'active')->count();
         $pendingSubscriptions = Subscription::where('status', 'pending')->count();
@@ -74,7 +92,7 @@ class AdminController extends Controller
         $schedulerLocations = BusinessLocation::select('id', 'business_id', 'name')->orderBy('name')->get();
 
         return view('admin.dashboard', compact(
-            'users', 'recentSubscriptions', 'recentUsers', 'settings',
+            'manualSubscriptionUsers', 'recentSubscriptions', 'recentUsers', 'settings',
             'totalUsers', 'activeUsers', 'inactiveUsers', 'terminatedUsers',
             'activeSubscriptions', 'pendingSubscriptions', 'monthlyRevenue',
             'sellPostingAuditSummary', 'accountingBackfillStatus', 'stockCostingBackfillStatus',
@@ -95,6 +113,15 @@ class AdminController extends Controller
             ->where('role', '!=', 'admin')
             ->get()
         : collect();
+
+    $manualSubscriptionUsers = $users->map(function ($user) {
+        return (object) [
+            'id' => $user->id,
+            'business' => $user->business,
+            'name' => $this->dashboardUserDisplayName($user),
+            'email' => $user->email,
+        ];
+    });
 
     // Process each user to get their phone number from M-Pesa payments
     $users->each(function($user) {
@@ -127,7 +154,7 @@ class AdminController extends Controller
     $schedulerLocations = BusinessLocation::select('id', 'business_id', 'name')->orderBy('name')->get();
 
     return view('admin.dashboard', compact(
-        'users', 'recentSubscriptions', 'recentUsers', 'settings',
+        'manualSubscriptionUsers', 'recentSubscriptions', 'recentUsers', 'settings',
         'totalUsers', 'activeUsers', 'inactiveUsers', 'terminatedUsers',
         'activeSubscriptions', 'pendingSubscriptions', 'monthlyRevenue',
         'sellPostingAuditSummary', 'accountingBackfillStatus', 'stockCostingBackfillStatus',
@@ -217,6 +244,11 @@ class AdminController extends Controller
         $businessId = $user->role === 'admin' ? null : optional($user->business)->id;
         $result = app(SellPostingAuditService::class)->backfill($businessId);
 
+        $this->forgetSellPostingAuditSummaryCache();
+        if (! empty($businessId)) {
+            $this->forgetSellPostingAuditSummaryCache((int) $businessId);
+        }
+
         if ($result['initial_missing_count'] === 0) {
             return back()->with('success', 'No missing item-sell accounting transactions were found.');
         }
@@ -236,23 +268,96 @@ class AdminController extends Controller
         );
     }
 
+    protected function getCachedSellPostingAuditSummary(?int $businessId = null): array
+    {
+        $cacheKey = $this->sellPostingAuditSummaryCacheKey($businessId);
+
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey, $this->emptySellPostingAuditSummary($businessId));
+        }
+
+        return $this->emptySellPostingAuditSummary($businessId);
+    }
+
+    protected function forgetSellPostingAuditSummaryCache(?int $businessId = null): void
+    {
+        Cache::forget($this->sellPostingAuditSummaryCacheKey($businessId));
+    }
+
+    protected function sellPostingAuditSummaryCacheKey(?int $businessId = null): string
+    {
+        return 'admin_dashboard.sell_posting_audit_summary.' . ($businessId ?: 'all');
+    }
+
+    protected function emptySellPostingAuditSummary(?int $businessId = null): array
+    {
+        return [
+            'scope_business_id' => $businessId,
+            'final_non_subscription_sell_count' => 0,
+            'missing_cogs_count' => 0,
+            'missing_inventory_count' => 0,
+            'affected_businesses' => [],
+        ];
+    }
+
+    protected function dashboardUserDisplayName(User $user): string
+    {
+        $fullName = trim(implode(' ', array_filter([
+            $user->surname,
+            $user->first_name,
+            $user->last_name,
+        ])));
+
+        return $fullName !== ''
+            ? $fullName
+            : ($user->username ?: ($user->email ?: 'N/A'));
+    }
+
+    protected function redirectToSuperadminAdminRouteIfNeeded(string $routeName, array $routeParameters = [])
+    {
+        if (! $this->shouldForceSuperadminAdminShell()) {
+            return null;
+        }
+
+        return redirect()->route($routeName, array_merge($routeParameters, request()->query()));
+    }
+
+    protected function shouldForceSuperadminAdminShell(): bool
+    {
+        return $this->isGlobalSuperadmin()
+            && ! request()->routeIs('superadmin.admin.*');
+    }
+
+    protected function isGlobalSuperadmin(): bool
+    {
+        $user = auth()->user();
+
+        return ! empty($user)
+            && $user->role === 'admin'
+            && empty($user->business_id);
+    }
+
     // ============================
     // USERS MANAGEMENT
     // ============================
     public function users(Request $request)
     {
+        if ($redirect = $this->redirectToSuperadminAdminRouteIfNeeded('superadmin.admin.users')) {
+            return $redirect;
+        }
+
         $this->authorize('admin');
 
+        $baseUserQuery = User::query()->where('role', '!=', 'admin');
+
         // Build query with filters
-        $query = User::where('role', '!=', 'admin')
+        $query = (clone $baseUserQuery)
             ->withCount('subscriptions')
             ->with('business');
 
         // Apply status filter
         if ($request->has('status') && $request->status) {
-            $query->where('transaction_status', 'completed') // Use transaction_status instead of result_code
-      ->orderBy('created_at', 'desc')
-      ->limit(1);
+            $query->where('status', $request->status);
         }
 
         // Apply business filter
@@ -266,7 +371,7 @@ class AdminController extends Controller
                 $query->orderBy('created_at', 'asc');
                 break;
             case 'name':
-                $query->orderBy('name', 'asc');
+                $query->orderByRaw('COALESCE(username, email) asc');
                 break;
             case 'newest':
             default:
@@ -283,11 +388,16 @@ class AdminController extends Controller
             $user->latest_subscription = $user->subscriptions()->latest()->first();
         });
 
+        $statsQuery = clone $baseUserQuery;
+        if ($request->filled('business_id')) {
+            $statsQuery->where('business_id', $request->business_id);
+        }
+
         $stats = [
-            'total' => User::where('role', '!=', 'admin')->count(),
-            'active' => User::where('status', 'active')->count(),
-            'inactive' => User::where('status', 'inactive')->count(),
-            'terminated' => User::where('status', 'terminated')->count(),
+            'total' => (clone $statsQuery)->count(),
+            'active' => (clone $statsQuery)->where('status', 'active')->count(),
+            'inactive' => (clone $statsQuery)->where('status', 'inactive')->count(),
+            'terminated' => (clone $statsQuery)->where('status', 'terminated')->count(),
         ];
 
         $businesses = Business::all();
@@ -398,11 +508,44 @@ class AdminController extends Controller
     // ============================
     public function subscriptions()
     {
+        if ($redirect = $this->redirectToSuperadminAdminRouteIfNeeded('superadmin.admin.subscriptions')) {
+            return $redirect;
+        }
+
         $user = auth()->user();
 
         if ($user->role === 'admin') {
-            $subscriptions = Subscription::with(['user', 'user.business'])
-                ->latest()
+            $subscriptionQuery = Subscription::with(['user', 'user.business'])
+                ->latest();
+
+            if (request()->filled('status')) {
+                $subscriptionQuery->where('status', request('status'));
+            }
+
+            if (request()->filled('billing_cycle')) {
+                $subscriptionQuery->where('billing_cycle', request('billing_cycle'));
+            }
+
+            if (request()->filled('search')) {
+                $search = trim((string) request('search'));
+                $subscriptionQuery->where(function ($query) use ($search) {
+                    $query->where('plan_name', 'like', '%'.$search.'%')
+                        ->orWhere('mpesa_receipt', 'like', '%'.$search.'%')
+                        ->orWhereHas('user', function ($userQuery) use ($search) {
+                            $userQuery->where('username', 'like', '%'.$search.'%')
+                                ->orWhere('email', 'like', '%'.$search.'%')
+                                ->orWhere('first_name', 'like', '%'.$search.'%')
+                                ->orWhere('surname', 'like', '%'.$search.'%')
+                                ->orWhereHas('business', function ($businessQuery) use ($search) {
+                                    $businessQuery->where('name', 'like', '%'.$search.'%');
+                                });
+                        });
+                });
+            }
+
+            $subscriptionSummaryQuery = clone $subscriptionQuery;
+
+            $subscriptions = $subscriptionQuery
                 ->paginate(10);
 
             // Eager-load any pending MpesaPayment records referenced by subscriptions
@@ -423,7 +566,28 @@ class AdminController extends Controller
                 }
             });
 
-            return view('admin.subscriptions', compact('subscriptions'));
+            $subscriptionSummary = [
+                'active' => (clone $subscriptionSummaryQuery)->where('status', 'active')->count(),
+                'pending' => (clone $subscriptionSummaryQuery)->where('status', 'pending')->count(),
+                'expired' => (clone $subscriptionSummaryQuery)->where('status', 'expired')->count(),
+                'monthly_revenue' => (clone $subscriptionSummaryQuery)->where('status', 'active')->sum('amount'),
+            ];
+
+            $manualSubscriptionUsers = User::with('business:id,name')
+                ->select('id', 'business_id', 'username', 'email', 'surname', 'first_name', 'last_name')
+                ->where('role', '!=', 'admin')
+                ->orderBy('username')
+                ->get()
+                ->map(function ($user) {
+                    return (object) [
+                        'id' => $user->id,
+                        'business' => $user->business,
+                        'name' => $this->dashboardUserDisplayName($user),
+                        'email' => $user->email,
+                    ];
+                });
+
+            return view('admin.subscriptions', compact('subscriptions', 'subscriptionSummary', 'manualSubscriptionUsers'));
         }
 
         $subscriptions = $user->subscriptions()->latest()->paginate(10);
@@ -723,8 +887,6 @@ public function updateUserStatus(Request $request, User $user)
     $oldStatus = $user->status;
     $newStatus = $request->status;
 
-    $user->update(['status' => $newStatus]);
-
     // 🔥 If status changed to active, trigger STK Push + mark subscription pending
     if ($newStatus === 'active' && $oldStatus !== 'active') {
         // Get the phone number from the latest successful M-Pesa payment
@@ -736,25 +898,21 @@ public function updateUserStatus(Request $request, User $user)
         $phoneNumber = $latestPayment->phone_number ?? null;
 
         if (!$phoneNumber) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User activated but no phone number found for payment.',
-            ], 400);
+                    $message = 'User could not be activated because no payment phone number was found.';
+
+                    if ($request->ajax()) {
+                        return response()->json([
+                            'success' => false,
+                            'status' => $oldStatus,
+                            'message' => $message,
+                        ], 400);
+                    }
+
+                    return back()->with('error', $message);
         }
 
-        // Create pending subscription
         $settings = AdminSetting::first();
         $amount = $settings->monthly_price ?? 0;
-
-        Subscription::create([
-            'user_id' => $user->id,
-            'plan_name' => 'Monthly Plan',
-            'billing_cycle' => 'monthly',
-            'amount' => $amount,
-            'start_date' => now(),
-            'end_date' => now()->addMonth(),
-            'status' => 'pending',
-        ]);
 
         // STK Push
         $mpesaController = app(\App\Http\Controllers\MpesaController::class);
@@ -762,16 +920,57 @@ public function updateUserStatus(Request $request, User $user)
             'first_name'  => $user->first_name ?? $user->name,
             'middle_name' => $user->middle_name ?? '',
             'last_name'   => $user->last_name ?? '',
-            'phone'       => $phoneNumber->phone_number ?? '',// Use the phone from M-Pesa payment
+                    'phone'       => $phoneNumber,
+                    'amount'      => $amount,
+                    'payment_type' => \App\MpesaPayment::TYPE_SUBSCRIPTION,
         ]);
         $paymentResponse = $mpesaController->initiatePayment($mpesaRequest);
 
+                $paymentStatusCode = method_exists($paymentResponse, 'getStatusCode')
+                    ? $paymentResponse->getStatusCode()
+                    : 200;
+                $paymentPayload = method_exists($paymentResponse, 'getData')
+                    ? $paymentResponse->getData(true)
+                    : [];
+
+                if ($paymentStatusCode >= 400 || ($paymentPayload['transaction_status'] ?? null) !== 'success') {
+                    $message = $paymentPayload['message'] ?? 'Unable to initiate subscription payment.';
+
+                    if ($request->ajax()) {
+                        return response()->json([
+                            'success' => false,
+                            'status' => $oldStatus,
+                            'message' => $message,
+                        ], $paymentStatusCode >= 400 ? $paymentStatusCode : 400);
+                    }
+
+                    return back()->with('error', $message);
+                }
+
+                $user->update(['status' => $newStatus]);
+
+                Subscription::create([
+                    'user_id' => $user->id,
+                    'plan_name' => 'Monthly Plan',
+                    'billing_cycle' => 'monthly',
+                    'amount' => $amount,
+                    'start_date' => now(),
+                    'end_date' => now()->addMonth(),
+                    'status' => 'pending',
+                ]);
+
         if ($request->ajax()) {
-            return $paymentResponse;
+                    return response()->json([
+                        'success' => true,
+                        'status' => $user->status,
+                        'message' => $paymentPayload['message'] ?? 'User activated and payment initiated (pending).',
+                    ]);
         }
 
         return back()->with('success', 'User activated and payment initiated (pending).');
     }
+
+            $user->update(['status' => $newStatus]);
 
     if ($request->ajax()) {
         return response()->json([
@@ -929,6 +1128,10 @@ public function updateUserStatus(Request $request, User $user)
     // ============================
     public function showSubscription(Subscription $subscription)
     {
+        if ($redirect = $this->redirectToSuperadminAdminRouteIfNeeded('superadmin.admin.subscriptions.show', ['subscription' => $subscription->id])) {
+            return $redirect;
+        }
+
         $this->authorize('admin');
         
         // Removed 'payments' from the load method to fix the error
@@ -942,6 +1145,10 @@ public function updateUserStatus(Request $request, User $user)
     // ============================
     public function showUser(User $user)
     {
+        if ($redirect = $this->redirectToSuperadminAdminRouteIfNeeded('superadmin.admin.users.show', ['user' => $user->id])) {
+            return $redirect;
+        }
+
         $this->authorize('admin');
 
         $user->load('subscriptions', 'business');

@@ -14,6 +14,10 @@
 						{{$product->brand->name ?? '--' }}<br>
 						<b>@lang('product.unit'): </b>
 						{{$product->unit->short_name ?? '--' }}<br>
+						@if(!empty($product->pack_size_display))
+							<b>Pack size: </b>
+							{{$product->pack_size_display}}<br>
+						@endif
 						<b>@lang('product.barcode_type'): </b>
 						{{$product->barcode_type ?? '--' }}
 						@php 
