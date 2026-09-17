@@ -21,7 +21,7 @@
 
               <ol>
                 <li>
-                  <b>{{ __('ui.step_by_step_document') }}</b> - <a href="https://ultimatefosters.com/docs/ultimatepos/getting-started/installing-ultimatepos/" target="_blank">{{ __('ui.documentation') }}</a>
+                  <b>{{ __('ui.step_by_step_document') }}</b> - <a href="https://github.com/Machogu001/Pos/blob/main/INSTALLATION.md" target="_blank">{{ __('ui.documentation') }}</a>
                 </li>
                 <li>
                   <b>{{ __('ui.application_name_2') }}</b> - {{ __('ui.something_short_meaningful') }}

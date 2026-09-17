@@ -1,16 +1,15 @@
-nulled raz0r - nullcave.pro
-## About Ultimate POS
+## About BreMac360
 
-Ultimate POS is a POS application by [Ultimate Fosters](http://ultimatefosters.com), a brand of [The Web Fosters](http://thewebfosters.com).
+BreMac360 is the branded POS deployment maintained by BreMac Consultant Limited.
 
 ## Installation & Documentation
-You will find installation guide and documentation in the downloaded zip file.
-Also, For complete updated documentation of the ultimate pos please visit online [documentation guide](http://ultimatefosters.com/ultimate-pos/).
 
-## Security Vulnerabilities
+Use [README.md](README.md) for the primary project overview and [INSTALLATION.md](INSTALLATION.md) for the current BreMac installation and maintenance runbook.
 
-If you discover a security vulnerability within ultimate POS, please send an e-mail to support at thewebfosters@gmail.com. All security vulnerabilities will be promptly addressed.
+## Security & Support
+
+For maintenance and support of this deployment, contact BreMac Consultant Limited through the project's configured support channels.
 
 ## License
 
-The Ultimate POS software is licensed under the [Codecanyon license](https://codecanyon.net/licenses/standard).
+This deployment remains subject to the applicable upstream licensing terms and any project-specific commercial agreements in force for BreMac Consultant Limited.

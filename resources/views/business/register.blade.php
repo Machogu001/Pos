@@ -282,7 +282,7 @@ function showFloatingAlert(message, type = 'success', duration = 5000) {
 
                 {{-- Header --}}
                 <div class="text-center">
-                    <h1 class="header-title">{{ config('app.name', 'ultimatePOS') }}</h1>
+                    <h1 class="header-title">{{ config('app.name', 'BreMac360') }}</h1>
                     <h2 class="header-subtitle">
                         @lang('business.register_and_get_started_in_minutes')
                     </h2>

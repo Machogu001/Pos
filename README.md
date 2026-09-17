@@ -1,6 +1,6 @@
 # Pos
 
-Enhanced POS system based on Ultimate POS, with additional features for MPESA integrations, PWA install support, and accounting/reporting refinements.
+Enhanced POS system branded as BreMac360, with additional features for MPESA integrations, PWA install support, and accounting/reporting refinements.
 
 This deployment is owned and maintained by BreMac Consultant Limited.
 

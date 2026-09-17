@@ -274,7 +274,7 @@ exit;
                             echo "<span class='text-danger'>Some setting are incorrect. Correct it and then refresh this page</span>";
                         }
 
-                        echo "<br/><small style='font-size:13px'><a href='https://ultimatefosters.com/docs/ultimatepos/getting-started/installing-ultimatepos/' target='_blank'>Installation Document</a></small>";
+                        echo "<br/><small style='font-size:13px'><a href='https://github.com/Machogu001/Pos/blob/main/INSTALLATION.md' target='_blank'>Installation Document</a></small>";
                         ?>
                     </p>
                 </center>

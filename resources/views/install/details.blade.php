@@ -141,7 +141,7 @@
                   <div class="col-md-6">
                     <div class="form-group">
                         <label for="MAIL_FROM_ADDRESS">{{ __('ui.default_from_address') }}</label>
-                        <input type="email" class="form-control" id="MAIL_FROM_ADDRESS" name="MAIL_FROM_ADDRESS" placeholder="{{ __('ui.hello_ultimatepos_com') }}" required>
+                        <input type="email" class="form-control" id="MAIL_FROM_ADDRESS" name="MAIL_FROM_ADDRESS" placeholder="{{ __('ui.hello_bremac360_com') }}" required>
                     </div>
                   </div>
 
