@@ -43,11 +43,10 @@ If the web server cannot write `.env`, the wizard shows the exact `.env` content
 After either install path succeeds, run the required server-level production steps that the application cannot do for you:
 
 ```bash
-echo "* * * * * www-data /usr/bin/php $(pwd)/artisan schedule:run >> $(pwd)/storage/logs/scheduler.log 2>&1" | sudo tee /etc/cron.d/pos-scheduler
-sudo chmod 644 /etc/cron.d/pos-scheduler
+sudo bash scripts/post_install_server_setup.sh
 ```
 
-Enable PHP OPcache in production as documented on the installer success page for the active PHP-FPM version.
+This helper script registers the scheduler cron entry, prepares the scheduler log file, and enables PHP OPcache for PHP-FPM when the system path exists.
 
 The browser wizard still performs its final health checks and then redirects to login when installation is complete.
 

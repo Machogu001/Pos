@@ -72,11 +72,12 @@ The application cannot safely perform privileged server changes for you. Run the
 ### 1. Register the Laravel scheduler
 
 ```bash
-echo "* * * * * www-data /usr/bin/php $(pwd)/artisan schedule:run >> $(pwd)/storage/logs/scheduler.log 2>&1" | sudo tee /etc/cron.d/pos-scheduler
-sudo chmod 644 /etc/cron.d/pos-scheduler
+sudo bash scripts/post_install_server_setup.sh
 ```
 
 ### 2. Enable PHP OPcache for production
+
+The helper script above also enables PHP OPcache for PHP-FPM when the expected system config path exists. If your server layout is non-standard, use the manual fallback below.
 
 ```bash
 PHP_VER=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")

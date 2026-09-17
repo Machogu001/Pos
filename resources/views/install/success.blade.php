@@ -76,24 +76,13 @@
                   <div class="panel-body">
                     <p>{{ __('ui.the_following_two_steps') }} <strong>{{ __('ui.cannot_be_done_by_the_web_installer') }}</strong> {{ __('ui.they_require_server_access_run_them_now_to_ensure_all_features_work_correctly') }}</p>
 
+                    <pre style="background:#f5f5f5;padding:10px;">sudo bash {{ base_path('scripts/post_install_server_setup.sh') }}</pre>
+
                     <p><strong>{{ __('ui.1_register_the_laravel_scheduler_required_for_subscriptions_m_pesa_checks_reminders') }}</strong></p>
-                    <pre style="background:#f5f5f5;padding:10px;">echo "* * * * * www-data /usr/bin/php {{ base_path() }}/artisan schedule:run >> {{ storage_path() }}/logs/scheduler.log 2>&1" | sudo tee /etc/cron.d/pos-scheduler
-sudo chmod 644 /etc/cron.d/pos-scheduler</pre>
+                    <pre style="background:#f5f5f5;padding:10px;"># Included in the helper script above.</pre>
 
                     <p><strong>{{ __('ui.2_enable_php_opcache_required_for_production_performance') }}</strong></p>
-                    <pre style="background:#f5f5f5;padding:10px;">PHP_VER=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")
-sudo tee /etc/php/${PHP_VER}/fpm/conf.d/10-opcache.ini > /dev/null << 'EOF'
-zend_extension=opcache.so
-opcache.enable=1
-opcache.enable_cli=0
-opcache.memory_consumption=256
-opcache.interned_strings_buffer=16
-opcache.max_accelerated_files=20000
-opcache.validate_timestamps=0
-opcache.save_comments=1
-opcache.jit=off
-EOF
-sudo systemctl reload php${PHP_VER}-fpm</pre>
+                    <pre style="background:#f5f5f5;padding:10px;"># Included in the helper script above.</pre>
                   </div>
                 </div>
               @else
