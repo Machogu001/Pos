@@ -46,4 +46,5 @@ return [
     'price' => 'ລາຄາ',
     'activate' => 'ໃຊ້ງານ',
     'deactivate' => 'ບໍ່ໃຊ້ງານ',
+    'clear' => 'ລ້າງ',
 ];

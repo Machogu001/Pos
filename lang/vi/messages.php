@@ -46,4 +46,5 @@ return [
     'price' => 'Giá',
     'activate' => 'Kích hoạt',
     'deactivate' => 'hủy kích hoạt',
+    'clear' => 'Xóa',
 ];

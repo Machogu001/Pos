@@ -32,4 +32,5 @@
      'purchase_sell_mismatch_exception' => 'ERRO: NÃO PERMITIDO: incompatibilidade entre a quantidade vendida e a compra Produto: :product',
      'purchase_stock_adjustment_mismatch_exception' => 'ERRO: NÃO PERMITIDO: incompatibilidade entre o ajuste de estoque e a quantidade de compra Produto: :product',
      'transaction_edit_not_allowed' => 'A edição de transações não é permitida após: days days.',
+     'clear' => 'Limpar',
  ];

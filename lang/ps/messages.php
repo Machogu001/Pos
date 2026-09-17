@@ -46,4 +46,5 @@ return [
     'price' => 'بیه',
     'activate' => 'فعال کړئ',
     'deactivate' => 'غیر فعاله کړئ',
+    'clear' => 'پاکول',
 ];

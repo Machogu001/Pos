@@ -46,4 +46,5 @@ return [
     'price' => 'Harga',
     'activate' => 'Aktif',
     'deactivate' => 'Non Aktif',
+    'clear' => 'Bersihkan',
 ];

@@ -32,4 +32,5 @@
      'purchase_sell_mismatch_exception' => 'FEHLER: NICHT ZULÄSSIG: Unstimmigkeit zwischen Kauf- und Verkaufsmenge. Produkt: :product',
      'purchase_stock_adjustment_mismatch_exception' => 'FEHLER: NICHT ZULÄSSIG: Abweichung zwischen Bestandsanpassung und Bestellmenge. Produkt: :product',
      'transaction_edit_not_allowed' => 'Transaktion bearbeiten nicht erlaubt :days Tage Tage.',
+     'clear' => 'Leeren',
  ];

@@ -46,4 +46,5 @@ return [
     'price' => 'Fiyat',
     'activate' => 'Etkinleştir',
     'deactivate' => 'Devre Dışı Bırak',
+    'clear' => 'Temizle',
 ];

@@ -249,7 +249,7 @@ return [
     'expiry_date_ins' => "Date d'expiration du stock <br><b>Format: mm-dd-yyyy; Ex: 11-25-2018</b>",
     'enable_lot_number' => 'Activer le numéro de lot',
     'tooltip_enable_lot_number' => "Cela vous permettra d'entrer le numéro de lot alors que pour chaque ligne d'achat dans l'écran d'achat",
-    'lot_number' => 'Batch No.',
+    'lot_number' => 'N° de lot',
     'enable_racks' => 'Activer les racks',
     'tooltip_enable_racks' => "Activez cette option pour ajouter des détails de rack d'un produit pour différents sites commerciaux tout en ajoutant des produits",
     'rack_details' => 'Détails du rack',
@@ -1392,4 +1392,14 @@ return [
     // System settings sections
     'general' => 'General',
     'scheduled_tasks' => 'Taches planifiees',
+    'mark_all_as_read' => 'Tout marquer comme lu',
+    'delete_notification' => 'Supprimer la notification',
+    'clear_all_notifications' => 'Effacer toutes les notifications',
+    'mobilesasa' => 'Mobile Sasa',
+    'mobilesasa_token' => 'Jeton API Mobile Sasa',
+    'mobilesasa_sender_id' => 'ID expéditeur Mobile Sasa',
+    'mobilesasa_base_url' => 'URL de base Mobile Sasa',
+    'mobilesasa_settings_help' => 'Utilisez votre jeton API Mobile Sasa, l\'identifiant d\'expéditeur approuvé et l\'URL de base. L\'URL de base par défaut est https://api.mobilesasa.com/v1.',
+    'manufacturing_stock' => 'Stock de fabrication',
+    'manufacturing_stock_tooltip' => 'Quantité actuellement allouée aux articles de stock fabriqués.',
 ];

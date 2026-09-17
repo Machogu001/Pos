@@ -252,7 +252,7 @@ return [
     'expiry_date_ins' => 'Son kullanma tarihi <br><b>Formatı: mm-dd-yyyy; Örnek: 11-25-2018</b>',
     'enable_lot_number' => 'Lot numarasını etkinleştir',
     'tooltip_enable_lot_number' => 'Bu, Satınalma ekranında her satınalma satırı için Lot numarası girmenize olanak sağlar',
-    'lot_number' => 'Batch No.',
+    'lot_number' => 'Parti No.',
     'enable_racks' => 'Raf Etkinleştir',
     'tooltip_enable_racks' => 'Farklı şubelere Ürün eklerken  raf detaylarını eklemek için bunu etkinleştirin',
     'rack_details' => 'Raf / Sıra / Pozisyon Detayları',
@@ -1396,4 +1396,14 @@ return [
     // System settings sections
     'general' => 'Genel',
     'scheduled_tasks' => 'Zamanlanmis Gorevler',
+    'mark_all_as_read' => 'Tümünü okundu olarak işaretle',
+    'delete_notification' => 'Bildirimi sil',
+    'clear_all_notifications' => 'Tüm bildirimleri temizle',
+    'mobilesasa' => 'Mobile Sasa',
+    'mobilesasa_token' => 'Mobile Sasa API belirteci',
+    'mobilesasa_sender_id' => 'Mobile Sasa gönderen kimliği',
+    'mobilesasa_base_url' => 'Mobile Sasa temel URL',
+    'mobilesasa_settings_help' => 'Mobile Sasa API belirtecinizi, onaylı gönderen kimliğini ve temel URL\'yi kullanın. Varsayılan temel URL https://api.mobilesasa.com/v1 adresidir.',
+    'manufacturing_stock' => 'Üretim stoğu',
+    'manufacturing_stock_tooltip' => 'Şu anda üretilmiş stok kalemlerine ayrılmış miktar.',
 ];

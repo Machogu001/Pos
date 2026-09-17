@@ -252,7 +252,7 @@ return [
     'expiry_date_ins' => 'Tanggal Kedaluwarsa Stok <br> <b> Format: mm-dd-yyyy; Mis: 11-25-2018 </b>',
     'enable_lot_number' => 'Aktifkan nomor Lot',
     'tooltip_enable_lot_number' => 'Ini akan memungkinkan Anda untuk memasukkan nomor Lot untuk setiap baris pembelian di layar pembelian',
-    'lot_number' => 'Batch No.',
+    'lot_number' => 'No. batch',
     'enable_racks' => 'Aktifkan Rak',
     'tooltip_enable_racks' => 'Aktifkan ini untuk menambahkan detail rak produk untuk lokasi bisnis yang berbeda sambil menambahkan produk',
     'rack_details' => 'Rak/Baris/Rincian Posisi',
@@ -1394,4 +1394,14 @@ return [
     // System settings sections
     'general' => 'Umum',
     'scheduled_tasks' => 'Tugas Terjadwal',
+    'mark_all_as_read' => 'Tandai semua sebagai dibaca',
+    'delete_notification' => 'Hapus notifikasi',
+    'clear_all_notifications' => 'Bersihkan semua notifikasi',
+    'mobilesasa' => 'Mobile Sasa',
+    'mobilesasa_token' => 'Token API Mobile Sasa',
+    'mobilesasa_sender_id' => 'ID pengirim Mobile Sasa',
+    'mobilesasa_base_url' => 'URL dasar Mobile Sasa',
+    'mobilesasa_settings_help' => 'Gunakan token API Mobile Sasa, ID pengirim yang disetujui, dan URL dasar Anda. URL dasar bawaan adalah https://api.mobilesasa.com/v1.',
+    'manufacturing_stock' => 'Stok manufaktur',
+    'manufacturing_stock_tooltip' => 'Jumlah yang saat ini dialokasikan ke item stok manufaktur.',
 ];

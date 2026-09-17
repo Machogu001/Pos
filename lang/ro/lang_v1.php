@@ -1430,4 +1430,14 @@ return [
     // System settings sections
     'general' => 'General',
     'scheduled_tasks' => 'Sarcini programate',
+    'mark_all_as_read' => 'Marchează toate ca citite',
+    'delete_notification' => 'Șterge notificarea',
+    'clear_all_notifications' => 'Șterge toate notificările',
+    'mobilesasa' => 'Mobile Sasa',
+    'mobilesasa_token' => 'Token API Mobile Sasa',
+    'mobilesasa_sender_id' => 'ID expeditor Mobile Sasa',
+    'mobilesasa_base_url' => 'URL de bază Mobile Sasa',
+    'mobilesasa_settings_help' => 'Folosește tokenul tău API Mobile Sasa, ID-ul de expeditor aprobat și URL-ul de bază. URL-ul de bază implicit este https://api.mobilesasa.com/v1.',
+    'manufacturing_stock' => 'Stoc de producție',
+    'manufacturing_stock_tooltip' => 'Cantitatea alocată în prezent articolelor din stocul de producție.',
 ];

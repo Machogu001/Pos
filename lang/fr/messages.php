@@ -32,4 +32,5 @@
      'purchase_sell_mismatch_exception' => 'ERREUR: NON AUTORISÉ: Incompatibilité entre la quantité vendue et la quantité achetée Produit: :product',
      'purchase_stock_adjustment_mismatch_exception' => "ERREUR: NON ADMIS: Non-concordance entre l'ajustement du stock et la quantité achetée Produit: :product",
      'transaction_edit_not_allowed' => "L'édition de la transaction n'est pas autorisée après :days days.",
+     'clear' => 'Effacer',
  ];

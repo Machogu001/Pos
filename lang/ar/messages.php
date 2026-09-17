@@ -32,4 +32,5 @@
      'purchase_sell_mismatch_exception' => 'خطأ: غير مصرح به: عدم التوافق بين الكمية المباعة والكمية التي تم شراؤها المنتج : product:',
      'purchase_stock_adjustment_mismatch_exception' => 'خطأ: غير مسموح: عدم التوافق بين تعديل المخزون والكمية التي تم شراؤها المنتج : product:',
      'transaction_edit_not_allowed' => 'لا يُسمح بإصدار المعاملة بعد days: الأيام.',
+     'clear' => 'مسح',
  ];

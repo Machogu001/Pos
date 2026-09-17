@@ -114,7 +114,7 @@ class AuditTranslations extends Command
                     }
 
                     $targetValue = $targetTranslations[$key];
-                    if ($this->looksUntranslated($baseValue, $targetValue, $locale)) {
+                    if ($this->looksUntranslated($key, $baseValue, $targetValue, $locale)) {
                         $untranslatedKeys++;
                         $issues[] = [
                             'locale' => $locale,
@@ -264,7 +264,7 @@ class AuditTranslations extends Command
         return $result;
     }
 
-    private function looksUntranslated(string $baseValue, string $targetValue, string $locale): bool
+    private function looksUntranslated(string $key, string $baseValue, string $targetValue, string $locale): bool
     {
         if ($locale === 'en') {
             return false;
@@ -277,7 +277,20 @@ class AuditTranslations extends Command
             return false;
         }
 
+        if ($this->isInvariantTranslationKey($key, $normalizedBase, $normalizedTarget)) {
+            return false;
+        }
+
         return $normalizedBase === $normalizedTarget;
+    }
+
+    private function isInvariantTranslationKey(string $key, string $baseValue, string $targetValue): bool
+    {
+        if ($baseValue !== $targetValue) {
+            return false;
+        }
+
+        return in_array($key, ['hello_bremac360_com', 'ultimate_pos', 'ultimate_pos_optional', 'mobilesasa'], true);
     }
 
     /**

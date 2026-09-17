@@ -32,4 +32,5 @@
      'purchase_sell_mismatch_exception' => 'FOUT: NIET TOEGESTAAN: Mismatch tussen verkochte en inkoophoeveelheid. Product: :product',
      'purchase_stock_adjustment_mismatch_exception' => 'FOUT: NIET TOEGESTAAN: Mismatch tussen voorraadcorrectie en inkoophoeveelheid. Product: :product',
      'transaction_edit_not_allowed' => 'Transactiebewerking niet toegestaan na :days dagen.',
+     'clear' => 'Wissen',
  ];

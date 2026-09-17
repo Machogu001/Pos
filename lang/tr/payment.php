@@ -598,7 +598,7 @@ return [
     'business_filter' => 'İşletme filtresi',
     'extra_email_recipients' => 'Ek e-posta alıcıları',
     'extra_phone_recipients' => 'Ek telefon alıcıları',
-    'whatsapp_webhook_url_label' => 'WhatsApp webhook URL',
+    'whatsapp_webhook_url_label' => 'WhatsApp webhook adresi',
     'auth_header' => 'Kimlik doğrulama başlığı',
     'auth_token' => 'Kimlik doğrulama belirteci',
     'phone_key' => 'Telefon anahtarı',
