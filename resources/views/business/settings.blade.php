@@ -171,6 +171,16 @@
             }
 
             var data = {
+                sms_service: $('#sms_service').val(),
+                mobilesasa_token: $('#mobilesasa_token').val(),
+                mobilesasa_sender_id: $('#mobilesasa_sender_id').val(),
+                mobilesasa_base_url: $('#mobilesasa_base_url').val(),
+                nexmo_key: $('#nexmo_key').val(),
+                nexmo_secret: $('#nexmo_secret').val(),
+                nexmo_from: $('#nexmo_from').val(),
+                twilio_sid: $('#twilio_sid').val(),
+                twilio_token: $('#twilio_token').val(),
+                twilio_from: $('#twilio_from').val(),
                 url: $('#sms_settings_url').val(),
                 send_to_param_name: $('#send_to_param_name').val(),
                 msg_param_name: $('#msg_param_name').val(),

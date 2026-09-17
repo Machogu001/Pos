@@ -6,8 +6,31 @@
         <div class="col-xs-3">
             <div class="form-group">
                 {!! Form::label('sms_service', __('lang_v1.sms_service') . ':') !!}
-                {!! Form::select('sms_settings[sms_service]', ['nexmo' => 'Nexmo', 'twilio' => 'Twilio', 'other' => __('lang_v1.other')], $sms_service , ['class' => 'form-control', 'id' => 'sms_service']); !!}
+                {!! Form::select('sms_settings[sms_service]', ['nexmo' => 'Nexmo', 'twilio' => 'Twilio', 'mobilesasa' => __('lang_v1.mobilesasa'), 'other' => __('lang_v1.other')], $sms_service , ['class' => 'form-control', 'id' => 'sms_service']); !!}
             </div>
+        </div>
+    </div>
+    <div class="row sms_service_settings @if($sms_service != 'mobilesasa') hide @endif" data-service="mobilesasa">
+        <div class="col-xs-4">
+            <div class="form-group">
+                {!! Form::label('mobilesasa_token', __('lang_v1.mobilesasa_token') . ':') !!}
+                {!! Form::text('sms_settings[mobilesasa_token]', $sms_settings['mobilesasa_token'] ?? null, ['class' => 'form-control','placeholder' => __('lang_v1.mobilesasa_token'), 'id' => 'mobilesasa_token']); !!}
+            </div>
+        </div>
+        <div class="col-xs-4">
+            <div class="form-group">
+                {!! Form::label('mobilesasa_sender_id', __('lang_v1.mobilesasa_sender_id') . ':') !!}
+                {!! Form::text('sms_settings[mobilesasa_sender_id]', $sms_settings['mobilesasa_sender_id'] ?? null, ['class' => 'form-control','placeholder' => __('lang_v1.mobilesasa_sender_id'), 'id' => 'mobilesasa_sender_id']); !!}
+            </div>
+        </div>
+        <div class="col-xs-4">
+            <div class="form-group">
+                {!! Form::label('mobilesasa_base_url', __('lang_v1.mobilesasa_base_url') . ':') !!}
+                {!! Form::text('sms_settings[mobilesasa_base_url]', $sms_settings['mobilesasa_base_url'] ?? 'https://api.mobilesasa.com/v1', ['class' => 'form-control','placeholder' => __('lang_v1.mobilesasa_base_url'), 'id' => 'mobilesasa_base_url']); !!}
+            </div>
+        </div>
+        <div class="col-xs-12">
+            <p class="help-block mb-0">@lang('lang_v1.mobilesasa_settings_help')</p>
         </div>
     </div>
     <div class="row sms_service_settings @if($sms_service != 'nexmo') hide @endif" data-service="nexmo">

@@ -26,6 +26,7 @@ return [
     'required' => 'This field is required',
     'please_select' => 'Please Select',
     'cancel' => 'Cancel',
+    'clear' => 'Clear',
     'date' => 'Date',
     'filter_by_date' => 'Filter by date',
     'location' => 'Location',

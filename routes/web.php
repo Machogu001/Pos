@@ -772,6 +772,14 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 
 Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone'])->group(function () {
     Route::get('/load-more-notifications', [HomeController::class, 'loadMoreNotifications']);
     Route::get('/get-total-unread', [HomeController::class, 'getTotalUnreadNotifications']);
+    Route::get('/notifications', [HomeController::class, 'clearAllNotifications']);
+    Route::get('/notifications/mark-all-read', [HomeController::class, 'markAllNotificationsAsRead']);
+    Route::get('/notifications/clear-all', [HomeController::class, 'clearAllNotifications']);
+    Route::get('/notifications/delete/{id}', [HomeController::class, 'deleteNotification']);
+    Route::get('/notifications/{id}', [HomeController::class, 'deleteNotification']);
+    Route::post('/notifications/mark-all-read', [HomeController::class, 'markAllNotificationsAsRead']);
+    Route::delete('/notifications/{id}', [HomeController::class, 'deleteNotification']);
+    Route::delete('/notifications', [HomeController::class, 'clearAllNotifications']);
     Route::get('/purchases/print/{id}', [PurchaseController::class, 'printInvoice'])->name('purchases.print');
     Route::get('/purchases/{id}', [PurchaseController::class, 'show'])->name('purchases.show');
     Route::get('/download-purchase-order/{id}/pdf', [PurchaseOrderController::class, 'downloadPdf'])->name('purchaseOrder.downloadPdf');

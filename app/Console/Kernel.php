@@ -83,6 +83,57 @@ class Kernel extends ConsoleKernel
         // Generate subscription pre-expiry invoice notices and reminders (14d & 7d)
         $schedule->command('subscriptions:send_reminders')->dailyAt('09:00');
 
+        // Alert on fast-moving products that are already low or out of stock.
+        try {
+            $adminSettings = \App\AdminSetting::first();
+            if (! empty($adminSettings) && (bool) $adminSettings->top_selling_low_stock_alert_enabled) {
+                $frequency = (string) ($adminSettings->top_selling_low_stock_alert_frequency ?? 'every_thirty_minutes');
+                $time = (string) ($adminSettings->top_selling_low_stock_alert_time ?? '08:00');
+                $weekdayOne = (int) ($adminSettings->top_selling_low_stock_alert_weekday_1 ?? 1);
+                $weekdayTwo = (int) ($adminSettings->top_selling_low_stock_alert_weekday_2 ?? 4);
+                if (! preg_match('/^\d{2}:\d{2}$/', $time)) {
+                    $time = '08:00';
+                }
+
+                switch ($frequency) {
+                    case 'every_fifteen_minutes':
+                        $schedule->command('inventory:notify-top-selling-low-stock')->everyFifteenMinutes()->withoutOverlapping();
+                        break;
+                    case 'hourly':
+                        $schedule->command('inventory:notify-top-selling-low-stock')->hourly()->withoutOverlapping();
+                        break;
+                    case 'daily':
+                        $schedule->command('inventory:notify-top-selling-low-stock')->dailyAt($time)->withoutOverlapping();
+                        break;
+                    case 'twice_weekly':
+                        $weekdays = collect([$weekdayOne, $weekdayTwo])
+                            ->map(function ($day) {
+                                return (int) $day;
+                            })
+                            ->filter(function ($day) {
+                                return $day >= 0 && $day <= 6;
+                            })
+                            ->unique()
+                            ->values();
+
+                        if ($weekdays->isEmpty()) {
+                            $weekdays = collect([1, 4]);
+                        }
+
+                        foreach ($weekdays as $day) {
+                            $schedule->command('inventory:notify-top-selling-low-stock')->weeklyOn($day, $time)->withoutOverlapping();
+                        }
+                        break;
+                    case 'every_thirty_minutes':
+                    default:
+                        $schedule->command('inventory:notify-top-selling-low-stock')->everyThirtyMinutes()->withoutOverlapping();
+                        break;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Avoid failing the full scheduler because of setting lookup issues.
+        }
+
         // Backfill missing account transactions based on superadmin-configured schedule.
         try {
             $adminSettings = \App\AdminSetting::first();

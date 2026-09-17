@@ -62,20 +62,35 @@ class Util
      */
     public function num_f($input_number, $add_symbol = false, $business_details = null, $is_quantity = false)
     {
-        $thousand_separator = ! empty($business_details) ? $business_details->thousand_separator : session('currency')['thousand_separator'];
-        $decimal_separator = ! empty($business_details) ? $business_details->decimal_separator : session('currency')['decimal_separator'];
+        $currencySession = session('currency', []);
+        $businessSession = session('business', []);
 
-        $currency_precision = ! empty($business_details) ? $business_details->currency_precision : session('business.currency_precision', 2);
+        $thousand_separator = ! empty($business_details)
+            ? ($business_details->thousand_separator ?? ',')
+            : ($currencySession['thousand_separator'] ?? ',');
+        $decimal_separator = ! empty($business_details)
+            ? ($business_details->decimal_separator ?? '.')
+            : ($currencySession['decimal_separator'] ?? '.');
+
+        $currency_precision = ! empty($business_details)
+            ? ($business_details->currency_precision ?? 2)
+            : ($businessSession['currency_precision'] ?? 2);
 
         if ($is_quantity) {
-            $currency_precision = ! empty($business_details) ? $business_details->quantity_precision : session('business.quantity_precision', 2);
+            $currency_precision = ! empty($business_details)
+                ? ($business_details->quantity_precision ?? 2)
+                : ($businessSession['quantity_precision'] ?? 2);
         }
 
         $formatted = number_format($input_number, $currency_precision, $decimal_separator, $thousand_separator);
 
         if ($add_symbol) {
-            $currency_symbol_placement = ! empty($business_details) ? $business_details->currency_symbol_placement : session('business.currency_symbol_placement');
-            $symbol = ! empty($business_details) ? $business_details->currency_symbol : session('currency')['symbol'];
+            $currency_symbol_placement = ! empty($business_details)
+                ? ($business_details->currency_symbol_placement ?? 'before')
+                : ($businessSession['currency_symbol_placement'] ?? 'before');
+            $symbol = ! empty($business_details)
+                ? ($business_details->currency_symbol ?? '')
+                : ($currencySession['symbol'] ?? '');
 
             if ($currency_symbol_placement == 'after') {
                 $formatted = $formatted.' '.$symbol;
@@ -198,18 +213,33 @@ class Util
      */
     public function allModulesEnabled($business_id = null)
     {
-        $enabled_modules = null;
+        $normalize_modules = function ($modules) {
+            if (is_string($modules)) {
+                $decoded = json_decode($modules, true);
+                $modules = is_array($decoded) ? $decoded : [];
+            }
+
+            return (! empty($modules) && $modules !== 'null' && is_array($modules)) ? $modules : [];
+        };
 
         // When a specific business is requested, prefer DB values over session to avoid stale module toggles.
         if (! empty($business_id)) {
             $business = Business::find($business_id);
-            $enabled_modules = ! empty($business) ? $business->enabled_modules : null;
-        } elseif (session()->has('business')) {
-            $enabled_modules = session('business')['enabled_modules'] ?? null;
-        }
-        $enabled_modules = (! empty($enabled_modules) && $enabled_modules != 'null') ? $enabled_modules : [];
 
-        return $enabled_modules;
+            return $normalize_modules(! empty($business) ? $business->enabled_modules : null);
+        }
+
+        $session_modules = session()->has('business')
+            ? $normalize_modules(session('business')['enabled_modules'] ?? null)
+            : [];
+
+        $db_modules = [];
+        $current_business_id = session('business.id') ?? optional(auth()->user())->business_id;
+        if (! empty($current_business_id)) {
+            $db_modules = $normalize_modules(Business::where('id', $current_business_id)->value('enabled_modules'));
+        }
+
+        return array_values(array_unique(array_merge($session_modules, $db_modules)));
         //Module::has('Restaurant');
     }
 
@@ -483,6 +513,43 @@ class Util
         }
     }
 
+    private function sendSmsViaMobileSasa($data)
+    {
+        $sms_settings = $data['sms_settings'];
+        $token = trim((string) ($sms_settings['mobilesasa_token'] ?? ''));
+        $senderId = trim((string) ($sms_settings['mobilesasa_sender_id'] ?? ''));
+        $baseUrl = rtrim((string) ($sms_settings['mobilesasa_base_url'] ?? 'https://api.mobilesasa.com/v1'), '/');
+
+        if ($token === '' || $senderId === '') {
+            return false;
+        }
+
+        $client = new Client([
+            'base_uri' => $baseUrl.'/',
+        ]);
+
+        $numbers = explode(',', trim((string) $data['mobile_number']));
+        foreach ($numbers as $number) {
+            $number = trim($number);
+            if ($number === '') {
+                continue;
+            }
+
+            $client->post('send/message', [
+                'headers' => [
+                    'Authorization' => 'Bearer '.$token,
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                ],
+                'json' => [
+                    'senderID' => $senderId,
+                    'phone' => $number,
+                    'message' => $data['sms_body'],
+                ],
+            ]);
+        }
+    }
+
     /**
      * Sends SMS notification.
      *
@@ -500,6 +567,10 @@ class Util
 
         if ($sms_service == 'twilio') {
             return $this->sendSmsViaTwilio($data);
+        }
+
+        if ($sms_service == 'mobilesasa') {
+            return $this->sendSmsViaMobileSasa($data);
         }
 
         $request_data = [
@@ -1390,7 +1461,7 @@ class Util
         $notifications_data = [];
         foreach ($notifications as $notification) {
             $data = $notification->data;
-            if (in_array($notification->type, [\App\Notifications\RecurringInvoiceNotification::class, \App\Notifications\RecurringExpenseNotification::class])) {
+            if (in_array($notification->type, [\App\Notifications\RecurringInvoiceNotification::class, \App\Notifications\RecurringExpenseNotification::class, \App\Notifications\TopSellingLowStockNotification::class])) {
                 $msg = '';
                 $icon_class = '';
                 $link = '';
@@ -1419,9 +1490,50 @@ class Util
                     );
                     $icon_class = 'fas fa-recycle bg-green';
                     $link = action([\App\Http\Controllers\ExpenseController::class, 'index']);
+                } elseif (
+                    $notification->type ==
+                    \App\Notifications\TopSellingLowStockNotification::class
+                ) {
+                    $msg = __(
+                        ! empty($data['stock_status']) && $data['stock_status'] === 'out_of_stock'
+                            ? 'lang_v1.top_selling_product_out_of_stock_message'
+                            : 'lang_v1.top_selling_product_running_low_message',
+                        [
+                            'product_name' => $data['product_display_name'] ?? '',
+                            'location' => $data['location_name'] ?? __('lang_v1.all'),
+                            'stock' => $data['current_stock_label'] ?? '0',
+                            'sold' => $data['total_qty_sold_label'] ?? '0',
+                            'days' => $data['days'] ?? 30,
+                        ]
+                    );
+                    $icon_class = ! empty($data['stock_status']) && $data['stock_status'] === 'out_of_stock'
+                        ? 'fas fa-box-open bg-red'
+                        : 'fas fa-exclamation-triangle bg-yellow';
+                    $link = $data['stock_report_url'] ?? action([
+                        \App\Http\Controllers\ReportController::class,
+                        'getStockReport',
+                    ], array_filter([
+                        'product_id' => $data['product_id'] ?? null,
+                        'variation_id' => $data['variation_id'] ?? null,
+                        'location_id' => $data['location_id'] ?? null,
+                        'highlight_product' => ! empty($data['product_id']) ? 1 : null,
+                    ], function ($value) {
+                        return ! is_null($value) && $value !== '';
+                    }));
+
+                    $linkQuery = [
+                        'alert_stock' => $data['current_stock'] ?? null,
+                        'alert_stock_label' => $data['current_stock_label'] ?? null,
+                        'alerted_at' => optional($notification->created_at)->toDateTimeString(),
+                    ];
+
+                    $link .= (strpos($link, '?') === false ? '?' : '&').http_build_query(array_filter($linkQuery, function ($value) {
+                        return ! is_null($value) && $value !== '';
+                    }));
                 }
 
                 $notifications_data[] = [
+                    'id' => $notification->id,
                     'msg' => $msg,
                     'icon_class' => $icon_class,
                     'link' => $link,
@@ -1900,7 +2012,7 @@ class Util
             'cmmsn_percent', 'max_sales_discount_percent', 'dob', 'gender', 'marital_status', 'blood_group', 'contact_number', 'alt_number', 'family_number', 'fb_link',
             'twitter_link', 'social_media_1', 'social_media_2', 'custom_field_1',
             'custom_field_2', 'custom_field_3', 'custom_field_4', 'guardian_name', 'id_proof_name', 'id_proof_number', 'permanent_address', 'current_address', 'bank_details', 'selected_contacts', 'is_enable_service_staff_pin', 'service_staff_pin',
-            'otp_login_enabled',
+            'otp_login_enabled', 'stock_alert_sms_notification_enabled',
         ]);
 
         $user_details['status'] = ! empty($request->input('is_active')) ? $request->input('is_active') : 'inactive';
@@ -1931,6 +2043,7 @@ class Util
 
         $user_details['selected_contacts'] = isset($user_details['selected_contacts']) ? $user_details['selected_contacts'] : 0;
         $user_details['otp_login_enabled'] = ! empty($request->input('otp_login_enabled'));
+        $user_details['stock_alert_sms_notification_enabled'] = ! empty($request->input('stock_alert_sms_notification_enabled'));
 
         $user_details['bank_details'] = ! empty($user_details['bank_details']) ? json_encode($user_details['bank_details']) : null;
 

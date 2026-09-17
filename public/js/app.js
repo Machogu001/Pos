@@ -2424,9 +2424,10 @@ $(document).on('click', '.load_more_notifications', function(e) {
     this_link.text(LANG.loading + '...');
     this_link.attr('disabled', true);
     var page = parseInt($('input#notification_page').val()) + 1;
-    var href = '/load-more-notifications?page=' + page;
+    var href = '/load-more-notifications?page=' + page + '&_=' + Date.now();
     $.ajax({
         url: href,
+        cache: false,
         dataType: 'html',
         success: function(result) {
             if ($('li.no-notification').length == 0) {
@@ -2446,10 +2447,11 @@ $(document).on('click', 'a.load_notifications', function(e) {
     e.preventDefault();
         $('li.load_more_li').addClass('hide');
         var this_link = $(this);
-        var href = '/load-more-notifications?page=1';
+        var href = '/load-more-notifications?page=1&_=' + Date.now();
         $('span.notifications_count').html(__fa_awesome());
         $.ajax({
             url: href,
+            cache: false,
             dataType: 'html',
             success: function(result) {
                 $('li.notification-li').remove();
@@ -2458,6 +2460,84 @@ $(document).on('click', 'a.load_notifications', function(e) {
                 $('li.load_more_li').removeClass('hide');
             },
         });
+});
+
+function refreshNotificationsList(page)
+{
+    page = page || 1;
+
+    $.ajax({
+        url: '/load-more-notifications?page=' + page + '&_=' + Date.now(),
+        cache: false,
+        dataType: 'html',
+        success: function(result) {
+            $('li.notification-li').remove();
+            $('ul#notifications_list').prepend(result);
+            $('input#notification_page').val(page);
+            $('span.notifications_count').text('');
+            getTotalUnreadNotifications();
+        },
+    });
+}
+
+$(document).on('click', '.js-mark-all-notifications-read', function(e) {
+    e.preventDefault();
+
+    $.ajax({
+        method: 'POST',
+        url: '/notifications/mark-all-read',
+        dataType: 'json',
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(data) {
+            if (data.success) {
+                refreshNotificationsList(1);
+            }
+        },
+    });
+});
+
+$(document).on('click', '.js-delete-notification', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    var notificationId = $(this).data('notification-id');
+    if (!notificationId) {
+        return;
+    }
+
+    $.ajax({
+        method: 'DELETE',
+        url: '/notifications/' + notificationId,
+        dataType: 'json',
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(data) {
+            if (data.success) {
+                refreshNotificationsList(1);
+            }
+        },
+    });
+});
+
+$(document).on('click', '.js-clear-all-notifications', function(e) {
+    e.preventDefault();
+
+    $.ajax({
+        method: 'DELETE',
+        url: '/notifications',
+        dataType: 'json',
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(data) {
+            if (data.success) {
+                refreshNotificationsList(1);
+            }
+        },
+    });
 });
 
 $(document).on('click', 'a.delete_purchase_return', function(e) {
@@ -2720,14 +2800,17 @@ $(document).on('click', 'button.activate-deactivate-location', function(){
 
 function getTotalUnreadNotifications(){
     if ($('span.notifications_count').length) {
-        var href = '/get-total-unread';
+        var href = '/get-total-unread?_=' + Date.now();
         $.ajax({
             url: href,
+            cache: false,
             dataType: 'json',
             global: false,
             success: function(data) {
                 if (data.total_unread != 0 ) {
                     $('span.notifications_count').text(data.total_unread);
+                } else {
+                    $('span.notifications_count').text('');
                 }
                 if (data.notification_html) {
                     $('.view_modal').html(data.notification_html);

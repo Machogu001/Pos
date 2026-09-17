@@ -3,9 +3,35 @@
 
 @section('css')
 <style>
+    .stock-report-alert-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .stock-report-alert-banner__message {
+        flex: 1 1 280px;
+    }
+
+    .stock-report-alert-banner__clear {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+
     .stock-valuation-summary {
         scroll-margin-top: 90px;
         transition: box-shadow 0.35s ease, border-color 0.35s ease, background-color 0.35s ease;
+    }
+
+    #stock_report_table tbody tr.notification-stock-hit {
+        background-color: #fff6da;
+        box-shadow: inset 4px 0 0 #d9a100;
+    }
+
+    #stock_report_table tbody tr.notification-stock-hit td {
+        background-color: transparent;
     }
 
     .stock-valuation-summary.is-highlighted {
@@ -31,6 +57,35 @@
 
 <!-- Main content -->
 <section class="content">
+    @if(request()->filled('product_id') || request()->filled('variation_id'))
+    <div class="row">
+        <div class="col-md-12">
+            <div class="alert alert-info stock-report-alert-banner">
+                <span class="stock-report-alert-banner__message">
+                    {{ __('lang_v1.notifications') }}: {{ __('report.stock_report') }} filtered to the selected alert item.
+                    @if(request()->filled('alert_stock_label'))
+                        <br>
+                        <small>
+                            Alert snapshot: {{ request('alert_stock_label') }} at {{ request('alerted_at') ?: now()->toDateTimeString() }}. Current stock on this page may be higher if the item was restocked after the alert was created.
+                        </small>
+                    @endif
+                    @if(!empty($notification_stock_context))
+                        <br>
+                        <small>
+                            Live stock: {{ $notification_stock_context['current_stock_label'] }}.
+                            Alert quantity: {{ $notification_stock_context['alert_quantity_label'] }}.
+                            {{ $notification_stock_context['status_text'] }}
+                            @if(!empty($notification_stock_context['stock_updated_at']))
+                                Last stock movement: {{ $notification_stock_context['stock_updated_at'] }}.
+                            @endif
+                        </small>
+                    @endif
+                </span>
+                <a href="{{ action([\App\Http\Controllers\ReportController::class, 'getStockReport']) }}" class="btn btn-sm btn-primary stock-report-alert-banner__clear">{{ __('messages.clear') }}</a>
+            </div>
+        </div>
+    </div>
+    @endif
     <div class="row">
         <div class="col-md-12">
             @component('components.filters', ['title' => __('report.filters')])

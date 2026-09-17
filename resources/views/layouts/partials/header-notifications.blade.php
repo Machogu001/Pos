@@ -20,6 +20,12 @@
         <span class="label label-warning notifications_count">@if (!empty($total_unread)){{$total_unread}}@endif</span>
     </a>
     <ul class="dropdown-menu !tw-p-2 !tw-w-80 tw-absolute !tw-right-0 !tw-z-10 !tw-mt-2 !tw-origin-top-right !tw-bg-white !tw-rounded-lg !tw-shadow-lg !tw-ring-1 !tw-ring-gray-200 !focus:tw-outline-none" style="left: auto !important ; height:90vh; overflow-y: scroll;">
+        <li class="tw-px-2 tw-pb-2">
+            <div class="tw-flex tw-flex-wrap tw-gap-2 tw-border-b tw-border-gray-200 tw-pb-2">
+                <a href="{{ url('/notifications/mark-all-read') }}" class="btn btn-xs btn-default">@lang('lang_v1.mark_all_as_read')</a>
+                <a href="{{ url('/notifications/clear-all') }}" class="btn btn-xs btn-danger">@lang('lang_v1.clear_all_notifications')</a>
+            </div>
+        </li>
         <!-- <li class="header">You have 10 unread notifications</li> -->
         <li>
             <!-- inner menu: contains the actual data -->

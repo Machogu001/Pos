@@ -63,6 +63,26 @@ class AdminSetting extends Model
         'stock_costing_backfill_business_id',
         'stock_costing_backfill_location_id',
         'stock_costing_backfill_last_run_at',
+        'top_selling_low_stock_alert_enabled',
+        'top_selling_low_stock_alert_frequency',
+        'top_selling_low_stock_alert_time',
+        'top_selling_low_stock_alert_weekday_1',
+        'top_selling_low_stock_alert_weekday_2',
+        'top_selling_low_stock_alert_days',
+        'top_selling_low_stock_alert_limit',
+        'top_selling_low_stock_alert_business_id',
+        'top_selling_low_stock_alert_send_in_app',
+        'top_selling_low_stock_alert_send_email',
+        'top_selling_low_stock_alert_send_sms',
+        'top_selling_low_stock_alert_send_whatsapp',
+        'top_selling_low_stock_alert_custom_emails',
+        'top_selling_low_stock_alert_custom_phones',
+        'top_selling_low_stock_alert_whatsapp_webhook_url',
+        'top_selling_low_stock_alert_whatsapp_auth_header',
+        'top_selling_low_stock_alert_whatsapp_auth_token',
+        'top_selling_low_stock_alert_whatsapp_phone_param',
+        'top_selling_low_stock_alert_whatsapp_message_param',
+        'top_selling_low_stock_alert_last_run_at',
     ];
 
     protected $casts = [
@@ -75,5 +95,11 @@ class AdminSetting extends Model
         'accounting_backfill_last_run_at' => 'datetime',
         'stock_costing_backfill_enabled' => 'boolean',
         'stock_costing_backfill_last_run_at' => 'datetime',
+        'top_selling_low_stock_alert_enabled' => 'boolean',
+        'top_selling_low_stock_alert_send_in_app' => 'boolean',
+        'top_selling_low_stock_alert_send_email' => 'boolean',
+        'top_selling_low_stock_alert_send_sms' => 'boolean',
+        'top_selling_low_stock_alert_send_whatsapp' => 'boolean',
+        'top_selling_low_stock_alert_last_run_at' => 'datetime',
     ];
 }

@@ -4,6 +4,12 @@
   $product_custom_field2 = !empty($custom_labels['product']['custom_field_2']) ? $custom_labels['product']['custom_field_2'] : __('lang_v1.product_custom_field2');
   $product_custom_field3 = !empty($custom_labels['product']['custom_field_3']) ? $custom_labels['product']['custom_field_3'] : __('lang_v1.product_custom_field3');
   $product_custom_field4 = !empty($custom_labels['product']['custom_field_4']) ? $custom_labels['product']['custom_field_4'] : __('lang_v1.product_custom_field4');
+    $current_stock_mfg_label = \Illuminate\Support\Facades\Lang::has('manufacturing::lang.current_stock_mfg')
+        ? __('manufacturing::lang.current_stock_mfg')
+        : __('lang_v1.manufacturing_stock');
+    $mfg_stock_tooltip = \Illuminate\Support\Facades\Lang::has('manufacturing::lang.mfg_stock_tooltip')
+        ? __('manufacturing::lang.mfg_stock_tooltip')
+        : __('lang_v1.manufacturing_stock_tooltip');
 @endphp
 <table class="table table-bordered table-striped" id="stock_report_table">
     <thead>
@@ -29,7 +35,7 @@
             <th>{{$product_custom_field3}}</th>
             <th>{{$product_custom_field4}}</th>
             @if($show_manufacturing_data)
-                <th class="current_stock_mfg">@lang('manufacturing::lang.current_stock_mfg') @show_tooltip(__('manufacturing::lang.mfg_stock_tooltip'))</th>
+                <th class="current_stock_mfg">{{$current_stock_mfg_label}} @show_tooltip($mfg_stock_tooltip)</th>
             @endif
         </tr>
     </thead>

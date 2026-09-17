@@ -2529,14 +2529,18 @@ class ProductUtil extends Util
             $location_filter = 'AND transactions.location_id=l.id';
         }
 
+        $totalSoldQuery = "(SELECT COALESCE(SUM(TSL.quantity - TSL.quantity_returned), 0) FROM transactions 
+                  JOIN transaction_sell_lines AS TSL ON transactions.id=TSL.transaction_id
+                  WHERE transactions.status='final' AND transactions.type='sell' AND transactions.location_id=vld.location_id
+                  AND TSL.variation_id=variations.id)";
+
+        $stockQuantityExpression = 'GREATEST(COALESCE(SUM(vld.qty_available), 0), 0)';
+
         $products = $query->select(
             // DB::raw("(SELECT SUM(quantity) FROM transaction_sell_lines LEFT JOIN transactions ON transaction_sell_lines.transaction_id=transactions.id WHERE transactions.status='final' $location_filter AND
             //     transaction_sell_lines.product_id=products.id) as total_sold"),
 
-            DB::raw("(SELECT SUM(TSL.quantity - TSL.quantity_returned) FROM transactions 
-                  JOIN transaction_sell_lines AS TSL ON transactions.id=TSL.transaction_id
-                  WHERE transactions.status='final' AND transactions.type='sell' AND transactions.location_id=vld.location_id
-                  AND TSL.variation_id=variations.id) as total_sold"),
+            DB::raw($totalSoldQuery.' as total_sold'),
             DB::raw("(SELECT SUM(IF(transactions.type='sell_transfer', TSL.quantity, 0) ) FROM transactions 
                   JOIN transaction_sell_lines AS TSL ON transactions.id=TSL.transaction_id
                   WHERE transactions.status='final' AND transactions.type='sell_transfer' AND transactions.location_id=vld.location_id AND (TSL.variation_id=variations.id)) as total_transfered"),
@@ -2548,6 +2552,11 @@ class ProductUtil extends Util
                                 DB::raw('(GREATEST(COALESCE(SUM(vld.qty_available), 0), 0) * COALESCE(NULLIF(variations.dpp_inc_tax, 0), NULLIF(variations.default_purchase_price, 0), 0)) as stock_price'),
                 DB::raw('(GREATEST(COALESCE(SUM(vld.qty_available), 0), 0) * variations.sell_price_inc_tax) as stock_value_by_sale_price'),
                                 DB::raw('((GREATEST(COALESCE(SUM(vld.qty_available), 0), 0) * variations.sell_price_inc_tax) - (GREATEST(COALESCE(SUM(vld.qty_available), 0), 0) * COALESCE(NULLIF(variations.dpp_inc_tax, 0), NULLIF(variations.default_purchase_price, 0), 0))) as potential_profit'),
+            DB::raw("CASE
+                WHEN p.enable_stock = 1 AND {$stockQuantityExpression} <= 0 AND {$totalSoldQuery} > 0 THEN 0
+                WHEN p.enable_stock = 1 AND p.alert_quantity IS NOT NULL AND {$stockQuantityExpression} <= p.alert_quantity AND {$totalSoldQuery} > 0 THEN 1
+                ELSE 2
+            END as stock_attention_rank"),
             'variations.sub_sku as sku',
             'p.name as product',
             'p.type',
@@ -2581,6 +2590,10 @@ class ProductUtil extends Util
         if (! empty($filters['product_id'])) {
             $products->where('p.id', $filters['product_id'])
                     ->groupBy('l.id');
+        }
+
+        if (! empty($filters['variation_id'])) {
+            $products->where('variations.id', $filters['variation_id']);
         }
 
         if ($for == 'view_product') {

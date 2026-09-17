@@ -26,6 +26,7 @@ use App\Utils\ModuleUtil;
 use App\Utils\ProductUtil;
 use App\Utils\TransactionUtil;
 use App\Variation;
+use App\VariationLocationDetails;
 use Datatables;
 use DB;
 use Illuminate\Http\Request;
@@ -363,7 +364,7 @@ class ReportController extends Controller
         }
         if ($request->ajax()) {
             $filters = request()->only(['location_id', 'category_id', 'sub_category_id', 'brand_id', 'unit_id', 'tax_id', 'type',
-                'only_mfg_products', 'active_state',  'not_for_selling', 'repair_model_id', 'product_id', 'active_state', ]);
+                'only_mfg_products', 'active_state',  'not_for_selling', 'repair_model_id', 'product_id', 'variation_id', 'active_state', ]);
 
             $filters['not_for_selling'] = isset($filters['not_for_selling']) && $filters['not_for_selling'] == 'true' ? 1 : 0;
 
@@ -384,6 +385,17 @@ class ReportController extends Controller
             }
 
             $datatable = Datatables::of($products)
+                ->order(function ($query) {
+                    $order = request()->input('order', []);
+                    if (! empty($order)) {
+                        return;
+                    }
+
+                    $query->orderBy('stock_attention_rank', 'asc')
+                        ->orderBy('total_sold', 'desc')
+                        ->orderBy('stock', 'asc')
+                        ->orderBy('product', 'asc');
+                })
                 ->editColumn('stock', function ($row) {
                     if ($row->enable_stock) {
                         $stock = $row->stock ? $row->stock : 0;
@@ -504,9 +516,69 @@ class ReportController extends Controller
         $units = Unit::where('business_id', $business_id)
                             ->pluck('short_name', 'id');
         $business_locations = BusinessLocation::forDropdown($business_id, true);
+        $notification_stock_context = $this->getNotificationStockContext($business_id, $request);
 
         return view('report.stock_report')
-            ->with(compact('categories', 'brands', 'units', 'business_locations', 'show_manufacturing_data'));
+            ->with(compact('categories', 'brands', 'units', 'business_locations', 'show_manufacturing_data', 'notification_stock_context'));
+    }
+
+    protected function getNotificationStockContext(int $business_id, Request $request): ?array
+    {
+        if (! $request->filled('product_id')) {
+            return null;
+        }
+
+        $stockRow = VariationLocationDetails::query()
+            ->join('products as p', 'p.id', '=', 'variation_location_details.product_id')
+            ->leftJoin('units as u', 'u.id', '=', 'p.unit_id')
+            ->leftJoin('business_locations as l', 'l.id', '=', 'variation_location_details.location_id')
+            ->where('p.business_id', $business_id)
+            ->where('variation_location_details.product_id', $request->input('product_id'))
+            ->when($request->filled('variation_id'), function ($query) use ($request) {
+                $query->where('variation_location_details.variation_id', $request->input('variation_id'));
+            })
+            ->when($request->filled('location_id'), function ($query) use ($request) {
+                $query->where('variation_location_details.location_id', $request->input('location_id'));
+            })
+            ->select([
+                'variation_location_details.qty_available',
+                'variation_location_details.updated_at as stock_updated_at',
+                'p.alert_quantity',
+                'u.short_name as unit',
+                'l.name as location_name',
+            ])
+            ->first();
+
+        if (empty($stockRow)) {
+            return null;
+        }
+
+        $currentStock = (float) $stockRow->qty_available;
+        $alertQuantity = (float) ($stockRow->alert_quantity ?? 0);
+        $unit = trim((string) ($stockRow->unit ?? ''));
+        $suffix = $unit !== '' ? ' '.$unit : '';
+
+        if ($currentStock <= 0) {
+            $status = 'out_of_stock';
+            $statusText = __('lang_v1.top_selling_low_stock_status_out_of_stock');
+        } elseif ($currentStock <= $alertQuantity) {
+            $status = 'below_alert_qty';
+            $statusText = __('lang_v1.top_selling_low_stock_status_below_alert_qty');
+        } else {
+            $status = 'recovered';
+            $statusText = __('lang_v1.top_selling_low_stock_status_recovered');
+        }
+
+        return [
+            'current_stock' => $currentStock,
+            'current_stock_label' => $this->transactionUtil->num_f($currentStock, false, null, true).$suffix,
+            'alert_quantity' => $alertQuantity,
+            'alert_quantity_label' => $this->transactionUtil->num_f($alertQuantity, false, null, true).$suffix,
+            'status' => $status,
+            'status_text' => $statusText,
+            'location_name' => $stockRow->location_name,
+            'stock_updated_at' => ! empty($stockRow->stock_updated_at) ? (string) $stockRow->stock_updated_at : null,
+        ];
     }
 
     /**

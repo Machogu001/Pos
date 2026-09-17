@@ -99,7 +99,49 @@ $(document).ready(function() {
         });
     }
 
-    var stock_report_cols = [
+        var stockReportFocus = (function() {
+            var query = new URLSearchParams(window.location.search || '');
+            var productId = parseInt(query.get('product_id'), 10);
+            var variationId = parseInt(query.get('variation_id'), 10);
+            var locationId = parseInt(query.get('location_id'), 10);
+            var shouldHighlight = query.get('highlight_product') === '1';
+
+            if (!isNaN(locationId) && $('#location_id').length) {
+                $('#location_id').val(String(locationId));
+            }
+
+            return {
+                productId: isNaN(productId) ? null : productId,
+                variationId: isNaN(variationId) ? null : variationId,
+                locationId: isNaN(locationId) ? null : locationId,
+                shouldHighlight: shouldHighlight,
+                didScroll: false,
+            };
+        })();
+
+        var highlightStockReportRow = function() {
+            if (!stockReportFocus.shouldHighlight || stockReportFocus.didScroll || !stock_report_table) {
+                return;
+            }
+
+            var $tableContainer = $(stock_report_table.table().container());
+            var $scrollBody = $tableContainer.find('.dataTables_scrollBody');
+            var $row = $('#stock_report_table tbody tr.notification-stock-hit').first();
+
+            if (!$row.length) {
+                return;
+            }
+
+            stockReportFocus.didScroll = true;
+
+            if ($scrollBody.length) {
+                $scrollBody.animate({
+                    scrollTop: $scrollBody.scrollTop() + $row.position().top - 40,
+                }, 250);
+            }
+        };
+
+        var stock_report_cols = [
             { data: 'action', name: 'action', searchable: false, orderable: false },
             { data: 'sku', name: 'variations.sub_sku' },
             { data: 'product', name: 'p.name' },
@@ -118,10 +160,10 @@ $(document).ready(function() {
         stock_report_cols.push({ data: 'total_sold', name: 'total_sold', searchable: false });
         stock_report_cols.push({ data: 'total_transfered', name: 'total_transfered', searchable: false });
         stock_report_cols.push({ data: 'total_adjusted', name: 'total_adjusted', searchable: false });
-        stock_report_cols.push({ data: 'product_custom_field1', name: 'p.product_custom_field1'});
-        stock_report_cols.push({ data: 'product_custom_field2', name: 'p.product_custom_field2'});
-        stock_report_cols.push({ data: 'product_custom_field3', name: 'p.product_custom_field3'});
-        stock_report_cols.push({ data: 'product_custom_field4', name: 'p.product_custom_field4'});
+        stock_report_cols.push({ data: 'product_custom_field1', name: 'p.product_custom_field1', visible: false });
+        stock_report_cols.push({ data: 'product_custom_field2', name: 'p.product_custom_field2', visible: false });
+        stock_report_cols.push({ data: 'product_custom_field3', name: 'p.product_custom_field3', visible: false });
+        stock_report_cols.push({ data: 'product_custom_field4', name: 'p.product_custom_field4', visible: false });
 
         if ($('th.current_stock_mfg').length) {
             stock_report_cols.push({ data: 'total_mfg_stock', name: 'total_mfg_stock', searchable: false });
@@ -130,7 +172,7 @@ $(document).ready(function() {
     stock_report_table = $('#stock_report_table').DataTable({
         processing: true,
         fixedHeader:false,
-        order: [[1, 'asc']],
+        order: [],
         serverSide: true,
         scrollY: "75vh",
         scrollX:        true,
@@ -143,13 +185,24 @@ $(document).ready(function() {
                 d.sub_category_id = $('#sub_category_id').val();
                 d.brand_id = $('#brand').val();
                 d.unit_id = $('#unit').val();
+                d.product_id = stockReportFocus.productId;
+                d.variation_id = stockReportFocus.variationId;
 
                 d.only_mfg_products = $('#only_mfg_products').length && $('#only_mfg_products').is(':checked') ? 1 : 0;
             },
         },
         columns: stock_report_cols,
+        createdRow: function(row, data) {
+            var isMatch = stockReportFocus.shouldHighlight &&
+                String(data.product_id || '') === String(stockReportFocus.productId || '') &&
+                String(data.variation_id || '') === String(stockReportFocus.variationId || '') &&
+                String(data.location_id || '') === String(stockReportFocus.locationId || '');
+
+            $(row).toggleClass('notification-stock-hit', isMatch);
+        },
         fnDrawCallback: function(oSettings) {
             __currency_convert_recursively($('#stock_report_table'));
+            highlightStockReportRow();
         },
         "footerCallback": function ( row, data, start, end, display ) {
             var footer_total_stock = 0;

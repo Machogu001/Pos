@@ -555,7 +555,11 @@ class HomeController extends Controller
         }
         $notifications_data = $this->commonUtil->parseNotifications($notifications);
 
-        return view('layouts.partials.notification_list', compact('notifications_data'));
+        return response()
+            ->view('layouts.partials.notification_list', compact('notifications_data'))
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', 'Sat, 01 Jan 1990 00:00:00 GMT');
     }
 
     /**
@@ -580,10 +584,12 @@ class HomeController extends Controller
             $notification_html = view('home.notification_modal')->with(['notifications' => $modal_notifications])->render();
         }
 
-        return [
+        return response()->json([
             'total_unread' => $total_unread,
             'notification_html' => $notification_html,
-        ];
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', 'Sat, 01 Jan 1990 00:00:00 GMT');
     }
 
     private function __chartOptions($title)
@@ -669,6 +675,43 @@ class HomeController extends Controller
         return view('home.notification_modal')->with([
             'notifications' => [$notification],
         ]);
+    }
+
+    public function markAllNotificationsAsRead(Request $request)
+    {
+        auth()->user()->unreadNotifications->markAsRead();
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true])
+                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        }
+
+        return back();
+    }
+
+    public function deleteNotification(Request $request, $id)
+    {
+        $notification = auth()->user()->notifications()->where('id', $id)->firstOrFail();
+        $notification->delete();
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true])
+                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        }
+
+        return back();
+    }
+
+    public function clearAllNotifications(Request $request)
+    {
+        auth()->user()->notifications()->delete();
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true])
+                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        }
+
+        return back();
     }
 
     public function attachMediasToGivenModel(Request $request)

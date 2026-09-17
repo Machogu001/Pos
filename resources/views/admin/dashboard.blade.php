@@ -1033,7 +1033,7 @@
                                         <div class="sched-card__badge {{ ($settings?->stock_costing_backfill_enabled ?? false) ? 'is-on' : 'is-off' }}" id="stockCostingBackfillStatus">
                                             {{ ($settings?->stock_costing_backfill_enabled ?? false) ? __('payment.enabled') : __('payment.disabled') }}
                                         </div>
-                                        <div class="sched-card__note">{{ __('payment.stock_costing_backfill_schedule_note') }}</div>
+                                        <div class="sched-card__note">{{ __('payment.stock_costing_repair_note') }}</div>
                                         <div class="sched-card__runinfo">
                                             <span><i class="far fa-check-circle me-1"></i>{{ __('payment.last_run_at') }}: <strong>{{ !empty($stockCostingBackfillStatus['last_run']) ? \Carbon\Carbon::parse($stockCostingBackfillStatus['last_run'])->format('d M H:i') : __('payment.not_available') }}</strong></span>
                                             <span><i class="far fa-clock me-1"></i>{{ __('payment.next_run_at') }}: <strong>{{ !empty($stockCostingBackfillStatus['next_run']) ? \Carbon\Carbon::parse($stockCostingBackfillStatus['next_run'])->format('d M H:i') : __('payment.not_available') }}</strong></span>
@@ -1081,10 +1081,169 @@
                                         </div>
                                         <div class="sched-card__row mt-1">
                                             <button type="button" class="btn btn-sm btn-outline-secondary" id="runStockCostingBackfillDryRunBtn">
-                                                <i class="fas fa-search me-1"></i>{{ __('payment.run_stock_backfill_dry_run') }}
+                                                <i class="fas fa-search me-1"></i>{{ __('payment.preview_stock_costing_repair') }}
                                             </button>
                                             <button type="button" class="btn btn-sm btn-outline-success" id="runStockCostingBackfillNowBtn">
-                                                <i class="fas fa-play me-1"></i>{{ __('payment.run_stock_backfill_now') }}
+                                                <i class="fas fa-play me-1"></i>{{ __('payment.run_stock_costing_repair_now') }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <input type="hidden" name="top_selling_low_stock_alert_enabled" value="0">
+                                    <input type="hidden" name="top_selling_low_stock_alert_send_in_app" value="0">
+                                    <input type="hidden" name="top_selling_low_stock_alert_send_email" value="0">
+                                    <input type="hidden" name="top_selling_low_stock_alert_send_sms" value="0">
+                                    <input type="hidden" name="top_selling_low_stock_alert_send_whatsapp" value="0">
+                                    <input type="hidden" name="run_top_selling_low_stock_now" id="runTopSellingLowStockNow" value="0">
+                                    <input type="hidden" name="run_top_selling_low_stock_dry_run" id="runTopSellingLowStockDryRun" value="0">
+                                    <div class="sched-card h-100">
+                                        <div class="sched-card__head">
+                                            <div class="sched-card__icon" style="background:#fee2e2;color:#b91c1c;"><i class="fas fa-bell"></i></div>
+                                            <div class="sched-card__title">{{ __('payment.top_selling_low_stock_alerts_title') }}</div>
+                                            <label class="otp-switch ms-auto flex-shrink-0" title="Enable top-selling low-stock alerts">
+                                                <input type="checkbox" name="top_selling_low_stock_alert_enabled" id="topSellingLowStockAlertEnabled" value="1"
+                                                       {{ ($settings?->top_selling_low_stock_alert_enabled ?? false) ? 'checked' : '' }}>
+                                                <span class="otp-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="sched-card__hint">{{ __('payment.top_selling_low_stock_alerts_hint') }}</div>
+                                        <div class="sched-card__badge {{ ($settings?->top_selling_low_stock_alert_enabled ?? false) ? 'is-on' : 'is-off' }}" id="topSellingLowStockAlertStatus">
+                                            {{ ($settings?->top_selling_low_stock_alert_enabled ?? false) ? __('payment.enabled') : __('payment.disabled') }}
+                                        </div>
+                                        <div class="sched-card__note">{{ __('payment.top_selling_low_stock_alerts_note') }}</div>
+                                        <div class="sched-card__runinfo">
+                                            <span><i class="far fa-check-circle me-1"></i>{{ __('payment.last_run_at') }}: <strong>{{ !empty($topSellingLowStockAlertStatus['last_run']) ? \Carbon\Carbon::parse($topSellingLowStockAlertStatus['last_run'])->format('d M H:i') : __('payment.not_available') }}</strong></span>
+                                            <span><i class="far fa-clock me-1"></i>{{ __('payment.next_run_at') }}: <strong>{{ !empty($topSellingLowStockAlertStatus['next_run']) ? \Carbon\Carbon::parse($topSellingLowStockAlertStatus['next_run'])->format('d M H:i') : __('payment.not_available') }}</strong></span>
+                                        </div>
+                                        <div class="row g-3 mt-1">
+                                            <div class="col-lg-3 col-md-6">
+                                                <label class="sched-card__lbl d-block mb-1">Frequency</label>
+                                                @php $topSellingFrequency = $settings?->top_selling_low_stock_alert_frequency ?? 'every_thirty_minutes'; @endphp
+                                                <select class="form-select form-select-sm" name="top_selling_low_stock_alert_frequency" id="topSellingLowStockAlertFrequency">
+                                                    <option value="every_fifteen_minutes" {{ $topSellingFrequency === 'every_fifteen_minutes' ? 'selected' : '' }}>Every 15 minutes</option>
+                                                    <option value="every_thirty_minutes" {{ $topSellingFrequency === 'every_thirty_minutes' ? 'selected' : '' }}>Every 30 minutes</option>
+                                                    <option value="hourly" {{ $topSellingFrequency === 'hourly' ? 'selected' : '' }}>Hourly</option>
+                                                    <option value="daily" {{ $topSellingFrequency === 'daily' ? 'selected' : '' }}>{{ __('payment.once_a_day') }}</option>
+                                                    <option value="twice_weekly" {{ $topSellingFrequency === 'twice_weekly' ? 'selected' : '' }}>{{ __('payment.twice_a_week') }}</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-lg-2 col-md-6" id="topSellingLowStockAlertTimeWrap" style="display:{{ in_array(($settings?->top_selling_low_stock_alert_frequency ?? 'every_thirty_minutes'), ['daily', 'twice_weekly']) ? 'block' : 'none' }};">
+                                                <label class="sched-card__lbl d-block mb-1">Run at</label>
+                                                <input type="time" class="form-control form-control-sm" name="top_selling_low_stock_alert_time" id="topSellingLowStockAlertTime" value="{{ $settings?->top_selling_low_stock_alert_time ?? '08:00' }}">
+                                            </div>
+                                            @php
+                                                $topSellingWeekdays = [
+                                                    0 => __('lang_v1.sunday'),
+                                                    1 => __('lang_v1.monday'),
+                                                    2 => __('lang_v1.tuesday'),
+                                                    3 => __('lang_v1.wednesday'),
+                                                    4 => __('lang_v1.thursday'),
+                                                    5 => __('lang_v1.friday'),
+                                                    6 => __('lang_v1.saturday'),
+                                                ];
+                                                $topSellingWeekdayOne = (int) ($settings?->top_selling_low_stock_alert_weekday_1 ?? 1);
+                                                $topSellingWeekdayTwo = (int) ($settings?->top_selling_low_stock_alert_weekday_2 ?? 4);
+                                            @endphp
+                                            <div class="col-lg-2 col-md-6" id="topSellingLowStockAlertWeekdayOneWrap" style="display:{{ ($settings?->top_selling_low_stock_alert_frequency ?? 'every_thirty_minutes') === 'twice_weekly' ? 'block' : 'none' }};">
+                                                <label class="sched-card__lbl d-block mb-1">{{ __('payment.day_1') }}</label>
+                                                <select class="form-select form-select-sm" name="top_selling_low_stock_alert_weekday_1" id="topSellingLowStockAlertWeekdayOne">
+                                                    @foreach($topSellingWeekdays as $dayValue => $dayLabel)
+                                                        <option value="{{ $dayValue }}" {{ $topSellingWeekdayOne === $dayValue ? 'selected' : '' }}>{{ $dayLabel }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-lg-2 col-md-6" id="topSellingLowStockAlertWeekdayTwoWrap" style="display:{{ ($settings?->top_selling_low_stock_alert_frequency ?? 'every_thirty_minutes') === 'twice_weekly' ? 'block' : 'none' }};">
+                                                <label class="sched-card__lbl d-block mb-1">{{ __('payment.day_2') }}</label>
+                                                <select class="form-select form-select-sm" name="top_selling_low_stock_alert_weekday_2" id="topSellingLowStockAlertWeekdayTwo">
+                                                    @foreach($topSellingWeekdays as $dayValue => $dayLabel)
+                                                        <option value="{{ $dayValue }}" {{ $topSellingWeekdayTwo === $dayValue ? 'selected' : '' }}>{{ $dayLabel }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-lg-2 col-md-6">
+                                                <label class="sched-card__lbl d-block mb-1">Lookback days</label>
+                                                <input type="number" min="1" max="365" class="form-control form-control-sm" name="top_selling_low_stock_alert_days" value="{{ $settings?->top_selling_low_stock_alert_days ?? 30 }}">
+                                            </div>
+                                            <div class="col-lg-2 col-md-6">
+                                                <label class="sched-card__lbl d-block mb-1">Top products</label>
+                                                <input type="number" min="1" max="50" class="form-control form-control-sm" name="top_selling_low_stock_alert_limit" value="{{ $settings?->top_selling_low_stock_alert_limit ?? 5 }}">
+                                            </div>
+                                            <div class="col-lg-3 col-md-6">
+                                                <label class="sched-card__lbl d-block mb-1">{{ __('payment.business_filter') }}</label>
+                                                <select class="form-select form-select-sm" name="top_selling_low_stock_alert_business_id">
+                                                    <option value="">{{ __('business.all') }}</option>
+                                                    @foreach($schedulerBusinesses ?? [] as $sb)
+                                                        <option value="{{ $sb->id }}" {{ (int)($settings?->top_selling_low_stock_alert_business_id) === (int)$sb->id ? 'selected' : '' }}>{{ $sb->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="row g-3 mt-1">
+                                            <div class="col-lg-3 col-md-6">
+                                                <label class="form-check d-flex align-items-center gap-2 mt-2">
+                                                    <input class="form-check-input" type="checkbox" name="top_selling_low_stock_alert_send_in_app" value="1" {{ ($settings?->top_selling_low_stock_alert_send_in_app ?? true) ? 'checked' : '' }}>
+                                                    <span class="small fw-medium">In-app notifications</span>
+                                                </label>
+                                            </div>
+                                            <div class="col-lg-3 col-md-6">
+                                                <label class="form-check d-flex align-items-center gap-2 mt-2">
+                                                    <input class="form-check-input" type="checkbox" name="top_selling_low_stock_alert_send_email" value="1" {{ ($settings?->top_selling_low_stock_alert_send_email ?? false) ? 'checked' : '' }}>
+                                                    <span class="small fw-medium">Email alerts</span>
+                                                </label>
+                                            </div>
+                                            <div class="col-lg-3 col-md-6">
+                                                <label class="form-check d-flex align-items-center gap-2 mt-2">
+                                                    <input class="form-check-input" type="checkbox" name="top_selling_low_stock_alert_send_sms" value="1" {{ ($settings?->top_selling_low_stock_alert_send_sms ?? false) ? 'checked' : '' }}>
+                                                    <span class="small fw-medium">SMS alerts</span>
+                                                </label>
+                                            </div>
+                                            <div class="col-lg-3 col-md-6">
+                                                <label class="form-check d-flex align-items-center gap-2 mt-2">
+                                                    <input class="form-check-input" type="checkbox" name="top_selling_low_stock_alert_send_whatsapp" value="1" {{ ($settings?->top_selling_low_stock_alert_send_whatsapp ?? false) ? 'checked' : '' }}>
+                                                    <span class="small fw-medium">WhatsApp webhook</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="row g-3 mt-1">
+                                            <div class="col-lg-6">
+                                                <label class="sched-card__lbl d-block mb-1">{{ __('payment.extra_email_recipients') }}</label>
+                                                <textarea class="form-control form-control-sm" rows="2" name="top_selling_low_stock_alert_custom_emails" placeholder="ops@example.com, owner@example.com">{{ $settings?->top_selling_low_stock_alert_custom_emails ?? '' }}</textarea>
+                                            </div>
+                                            <div class="col-lg-6">
+                                                <label class="sched-card__lbl d-block mb-1">{{ __('payment.extra_phone_recipients') }}</label>
+                                                <textarea class="form-control form-control-sm" rows="2" name="top_selling_low_stock_alert_custom_phones" placeholder="2547XXXXXXXX, 2547YYYYYYYY">{{ $settings?->top_selling_low_stock_alert_custom_phones ?? '' }}</textarea>
+                                            </div>
+                                        </div>
+                                        <div class="row g-3 mt-1">
+                                            <div class="col-lg-4">
+                                                <label class="sched-card__lbl d-block mb-1">{{ __('payment.whatsapp_webhook_url_label') }}</label>
+                                                <input type="url" class="form-control form-control-sm" name="top_selling_low_stock_alert_whatsapp_webhook_url" value="{{ $settings?->top_selling_low_stock_alert_whatsapp_webhook_url ?? '' }}" placeholder="https://your-whatsapp-gateway/send">
+                                            </div>
+                                            <div class="col-lg-2">
+                                                <label class="sched-card__lbl d-block mb-1">{{ __('payment.auth_header') }}</label>
+                                                <input type="text" class="form-control form-control-sm" name="top_selling_low_stock_alert_whatsapp_auth_header" value="{{ $settings?->top_selling_low_stock_alert_whatsapp_auth_header ?? '' }}" placeholder="Authorization">
+                                            </div>
+                                            <div class="col-lg-3">
+                                                <label class="sched-card__lbl d-block mb-1">{{ __('payment.auth_token') }}</label>
+                                                <input type="text" class="form-control form-control-sm" name="top_selling_low_stock_alert_whatsapp_auth_token" value="{{ $settings?->top_selling_low_stock_alert_whatsapp_auth_token ?? '' }}" placeholder="Bearer ...">
+                                            </div>
+                                            <div class="col-lg-1 col-md-6">
+                                                <label class="sched-card__lbl d-block mb-1">{{ __('payment.phone_key') }}</label>
+                                                <input type="text" class="form-control form-control-sm" name="top_selling_low_stock_alert_whatsapp_phone_param" value="{{ $settings?->top_selling_low_stock_alert_whatsapp_phone_param ?? 'phone' }}">
+                                            </div>
+                                            <div class="col-lg-2 col-md-6">
+                                                <label class="sched-card__lbl d-block mb-1">{{ __('payment.message_key') }}</label>
+                                                <input type="text" class="form-control form-control-sm" name="top_selling_low_stock_alert_whatsapp_message_param" value="{{ $settings?->top_selling_low_stock_alert_whatsapp_message_param ?? 'message' }}">
+                                            </div>
+                                        </div>
+                                        <div class="sched-card__row mt-2">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="runTopSellingLowStockDryRunBtn">
+                                                <i class="fas fa-search me-1"></i>{{ __('payment.preview_low_stock_alerts') }}
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" id="runTopSellingLowStockNowBtn">
+                                                <i class="fas fa-play me-1"></i>{{ __('payment.send_low_stock_alerts_now') }}
                                             </button>
                                         </div>
                                     </div>
@@ -1879,6 +2038,38 @@
             wrap.style.display = this.value === 'daily' ? 'flex' : 'none';
         });
 
+        document.getElementById('topSellingLowStockAlertEnabled')?.addEventListener('change', function () {
+            var badge = document.getElementById('topSellingLowStockAlertStatus');
+            if (!badge) return;
+            if (this.checked) {
+                badge.textContent = '{{ __('payment.enabled') }}';
+                badge.classList.replace('is-off', 'is-on');
+            } else {
+                badge.textContent = '{{ __('payment.disabled') }}';
+                badge.classList.replace('is-on', 'is-off');
+            }
+        });
+
+        document.getElementById('topSellingLowStockAlertFrequency')?.addEventListener('change', function () {
+            var timeWrap = document.getElementById('topSellingLowStockAlertTimeWrap');
+            var weekdayOneWrap = document.getElementById('topSellingLowStockAlertWeekdayOneWrap');
+            var weekdayTwoWrap = document.getElementById('topSellingLowStockAlertWeekdayTwoWrap');
+            var showTime = this.value === 'daily' || this.value === 'twice_weekly';
+            var showWeekdays = this.value === 'twice_weekly';
+
+            if (timeWrap) {
+                timeWrap.style.display = showTime ? 'block' : 'none';
+            }
+
+            if (weekdayOneWrap) {
+                weekdayOneWrap.style.display = showWeekdays ? 'block' : 'none';
+            }
+
+            if (weekdayTwoWrap) {
+                weekdayTwoWrap.style.display = showWeekdays ? 'block' : 'none';
+            }
+        });
+
         (function () {
             var toggle   = document.getElementById('stockCostingBackfillEnabled');
             var bizSel   = document.getElementById('stockCostingBackfillBusinessId');
@@ -1995,6 +2186,56 @@
             }
         })();
 
+        (function () {
+            var runNowInput = document.getElementById('runTopSellingLowStockNow');
+            var dryRunInput = document.getElementById('runTopSellingLowStockDryRun');
+            var runNowBtn = document.getElementById('runTopSellingLowStockNowBtn');
+            var dryRunBtn = document.getElementById('runTopSellingLowStockDryRunBtn');
+            var systemForm = document.querySelector('#systemModal form');
+            if (!systemForm) return;
+
+            systemForm.addEventListener('submit', function () {
+                if ((!runNowBtn || !runNowBtn.dataset.triggered) && runNowInput) {
+                    runNowInput.value = '0';
+                }
+                if ((!dryRunBtn || !dryRunBtn.dataset.triggered) && dryRunInput) {
+                    dryRunInput.value = '0';
+                }
+                if (runNowBtn) {
+                    delete runNowBtn.dataset.triggered;
+                }
+                if (dryRunBtn) {
+                    delete dryRunBtn.dataset.triggered;
+                }
+            });
+
+            if (dryRunBtn) {
+                dryRunBtn.addEventListener('click', function () {
+                    if (runNowInput) {
+                        runNowInput.value = '0';
+                    }
+                    if (dryRunInput) {
+                        dryRunInput.value = '1';
+                    }
+                    dryRunBtn.dataset.triggered = '1';
+                    systemForm.requestSubmit();
+                });
+            }
+
+            if (runNowBtn) {
+                runNowBtn.addEventListener('click', function () {
+                    if (runNowInput) {
+                        runNowInput.value = '1';
+                    }
+                    if (dryRunInput) {
+                        dryRunInput.value = '0';
+                    }
+                    runNowBtn.dataset.triggered = '1';
+                    systemForm.requestSubmit();
+                });
+            }
+        })();
+
         // Small set of translations used in runtime JS. Keep minimal to avoid large inlined objects.
         const DASHBOARD_I18N = {!! json_encode([
             'remove' => __('payment.remove'),
@@ -2083,8 +2324,9 @@
             .then(data => {
                 console.log('✅ Settings response:', data);
                 if (data.success) {
+                    const toastType = data.toast_type || 'success';
                     if (typeof showToast === 'function') {
-                        showToast('success', data.message || 'Settings updated successfully!');
+                        showToast(toastType, data.message || 'Settings updated successfully!');
                     } else {
                         alert(data.message || 'Settings updated successfully!');
                     }
@@ -2468,7 +2710,7 @@
                     Toast.fire({
                         icon: icon,
                         title: title,
-                        background: icon === 'success' ? '#10b981' : '#ef4444',
+                        background: icon === 'success' ? '#10b981' : (icon === 'info' ? '#2563eb' : '#ef4444'),
                         color: '#ffffff',
                         iconColor: '#ffffff'
                     });
@@ -2495,7 +2737,7 @@
             toast.className = `native-toast native-toast-${type}`;
             toast.innerHTML = `
                 <div class="native-toast-content">
-                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : (type === 'info' ? 'info-circle' : 'exclamation-triangle')} me-2"></i>
                     <span>${message}</span>
                     <button type="button" class="native-toast-close" onclick="this.parentElement.parentElement.remove()">
                         <i class="fas fa-times"></i>

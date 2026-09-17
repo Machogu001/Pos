@@ -71,6 +71,27 @@
             @endcan
 
             <div class="col-md-3">
+              <div class="otp-card">
+                <div class="otp-card__header">
+                  <div>
+                    <div class="otp-card__label">{{ __('lang_v1.stock_alert_sms') }}</div>
+                    <div class="otp-card__hint">{{ __('lang_v1.stock_alert_sms_hint') }}</div>
+                  </div>
+                  <label class="otp-switch" title="{{ __('lang_v1.toggle_stock_alert_sms') }}">
+                    <input type="hidden" name="stock_alert_sms_notification_enabled" value="0">
+                    <input type="checkbox" name="stock_alert_sms_notification_enabled" value="1" id="stock_alert_sms_notification_enabled" {{ !empty($user->stock_alert_sms_notification_enabled) ? 'checked' : '' }} {{ empty($user->contact_number) ? 'disabled' : '' }}>
+                    <span class="otp-slider"></span>
+                  </label>
+                </div>
+                <div class="otp-card__status {{ !empty($user->stock_alert_sms_notification_enabled) ? 'is-on' : 'is-off' }}" id="stock_alert_sms_notification_enabled_status">{{ !empty($user->stock_alert_sms_notification_enabled) ? 'Enabled' : 'Disabled' }}</div>
+                <div class="otp-card__phone stock-alert-sms-phone">{{ __('lang_v1.stock_alert_sms_phone', ['phone' => !empty($user->contact_number) ? $user->contact_number : __('lang_v1.not_set')]) }}</div>
+                @if(empty($user->contact_number))
+                  <small class="text-danger d-block" style="margin-top:6px;">{{ __('lang_v1.stock_alert_sms_requires_phone') }}</small>
+                @endif
+              </div>
+            </div>
+
+            <div class="col-md-3">
               <div class="form-group">
                 <div class="checkbox">
                   <br/>
@@ -348,10 +369,23 @@
           .text(enabled ? 'Enabled' : 'Disabled');
       }
 
+      function syncStockAlertSmsStatusLabel() {
+        var enabled = $('#stock_alert_sms_notification_enabled').is(':checked');
+        $('#stock_alert_sms_notification_enabled_status')
+          .toggleClass('is-on', enabled)
+          .toggleClass('is-off', !enabled)
+          .text(enabled ? 'Enabled' : 'Disabled');
+      }
+
       syncOtpStatusLabel();
+      syncStockAlertSmsStatusLabel();
 
       $('#otp_login_enabled').on('change', function() {
         syncOtpStatusLabel();
+      });
+
+      $('#stock_alert_sms_notification_enabled').on('change', function() {
+        syncStockAlertSmsStatusLabel();
       });
     
     $('#selected_contacts').on('ifChecked', function(event){
@@ -375,6 +409,11 @@
     });
     $('#allow_login').on('ifUnchecked', function(event){
       $('div.user_auth_fields').addClass('hide');
+    });
+
+    $('#contact_number').on('input', function() {
+      var value = $(this).val().trim();
+      $('.stock-alert-sms-phone').text(@json(__('lang_v1.stock_alert_sms_phone', ['phone' => '__PHONE__'])).replace('__PHONE__', value !== '' ? value : @json(__('lang_v1.not_set'))));
     });
 
     $('#user_allowed_contacts').select2({

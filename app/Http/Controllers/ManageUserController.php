@@ -134,6 +134,7 @@ class ManageUserController extends Controller
                 'contact_number' => ['required', 'string', 'max:20'],
                 'client_pin' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z][A-Za-z0-9]*[A-Za-z]$/'],
                 'otp_login_enabled' => ['nullable', 'boolean'],
+                'stock_alert_sms_notification_enabled' => ['nullable', 'boolean'],
             ]);
             if (! empty($request->input('dob'))) {
                 $request['dob'] = $this->moduleUtil->uf_date($request->input('dob'));
@@ -286,18 +287,20 @@ class ManageUserController extends Controller
                 'contact_number' => ['required', 'string', 'max:20'],
                 'client_pin' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z][A-Za-z0-9]*[A-Za-z]$/'],
                 'otp_login_enabled' => ['nullable', 'boolean'],
+                'stock_alert_sms_notification_enabled' => ['nullable', 'boolean'],
             ]);
 
             $user_data = $request->only(['surname', 'first_name', 'last_name', 'email', 'selected_contacts', 'marital_status',
                 'blood_group', 'contact_number', 'fb_link', 'twitter_link', 'social_media_1',
                 'social_media_2', 'permanent_address', 'current_address',
                 'guardian_name', 'custom_field_1', 'custom_field_2',
-                'custom_field_3', 'custom_field_4', 'id_proof_name', 'id_proof_number', 'cmmsn_percent', 'gender', 'max_sales_discount_percent', 'family_number', 'alt_number', 'is_enable_service_staff_pin', 'client_pin']);
+                'custom_field_3', 'custom_field_4', 'id_proof_name', 'id_proof_number', 'cmmsn_percent', 'gender', 'max_sales_discount_percent', 'family_number', 'alt_number', 'is_enable_service_staff_pin', 'client_pin', 'stock_alert_sms_notification_enabled']);
 
             $user_data['status'] = ! empty($request->input('is_active')) ? 'active' : 'inactive';
 
             $user_data['is_enable_service_staff_pin'] = ! empty($request->input('is_enable_service_staff_pin')) ? true : false;
             $user_data['otp_login_enabled'] = $request->boolean('otp_login_enabled');
+            $user_data['stock_alert_sms_notification_enabled'] = $request->boolean('stock_alert_sms_notification_enabled');
 
             if (! $canChangeStatus) {
                 unset($user_data['status']);

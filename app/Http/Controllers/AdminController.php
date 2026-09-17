@@ -33,6 +33,7 @@ class AdminController extends Controller
     $settings = AdminSetting::first() ?? new AdminSetting();
         $accountingBackfillStatus = $this->buildAccountingBackfillStatus($settings);
         $stockCostingBackfillStatus = $this->buildStockCostingBackfillStatus($settings);
+        $topSellingLowStockAlertStatus = $this->buildTopSellingLowStockAlertStatus($settings);
     $auditBusinessId = $user->role === 'admin' ? null : optional($user->business)->id;
     $sellPostingAuditSummary = $this->getCachedSellPostingAuditSummary($auditBusinessId);
 
@@ -95,7 +96,7 @@ class AdminController extends Controller
             'manualSubscriptionUsers', 'recentSubscriptions', 'recentUsers', 'settings',
             'totalUsers', 'activeUsers', 'inactiveUsers', 'terminatedUsers',
             'activeSubscriptions', 'pendingSubscriptions', 'monthlyRevenue',
-            'sellPostingAuditSummary', 'accountingBackfillStatus', 'stockCostingBackfillStatus',
+            'sellPostingAuditSummary', 'accountingBackfillStatus', 'stockCostingBackfillStatus', 'topSellingLowStockAlertStatus',
             'schedulerBusinesses', 'schedulerLocations'
         ));
     }
@@ -157,7 +158,7 @@ class AdminController extends Controller
         'manualSubscriptionUsers', 'recentSubscriptions', 'recentUsers', 'settings',
         'totalUsers', 'activeUsers', 'inactiveUsers', 'terminatedUsers',
         'activeSubscriptions', 'pendingSubscriptions', 'monthlyRevenue',
-        'sellPostingAuditSummary', 'accountingBackfillStatus', 'stockCostingBackfillStatus',
+        'sellPostingAuditSummary', 'accountingBackfillStatus', 'stockCostingBackfillStatus', 'topSellingLowStockAlertStatus',
         'schedulerBusinesses', 'schedulerLocations'
     ));
 }
@@ -234,6 +235,78 @@ class AdminController extends Controller
             'last_run' => $settings->stock_costing_backfill_last_run_at,
             'next_run' => $nextRun,
         ];
+    }
+
+    protected function buildTopSellingLowStockAlertStatus(AdminSetting $settings): array
+    {
+        $frequency = $settings->top_selling_low_stock_alert_frequency ?? 'every_thirty_minutes';
+        $time = $settings->top_selling_low_stock_alert_time ?? '08:00';
+        $weekdayOne = (int) ($settings->top_selling_low_stock_alert_weekday_1 ?? 1);
+        $weekdayTwo = (int) ($settings->top_selling_low_stock_alert_weekday_2 ?? 4);
+        $nextRun = null;
+        $now = now();
+
+        switch ($frequency) {
+            case 'every_fifteen_minutes':
+                $nextRun = $now->copy()->addMinutes(15 - ($now->minute % 15))->startOfMinute();
+                break;
+            case 'hourly':
+                $nextRun = $now->copy()->addHour()->startOfHour();
+                break;
+            case 'daily':
+                if (! preg_match('/^\d{2}:\d{2}$/', (string) $time)) {
+                    $time = '08:00';
+                }
+                [$hour, $minute] = array_map('intval', explode(':', $time));
+                $candidate = $now->copy()->setTime($hour, $minute, 0);
+                $nextRun = $candidate->lessThanOrEqualTo($now) ? $candidate->addDay() : $candidate;
+                break;
+            case 'twice_weekly':
+                $nextRun = $this->buildNextWeeklyRun($now, [$weekdayOne, $weekdayTwo], $time, '08:00');
+                break;
+            case 'every_thirty_minutes':
+            default:
+                $nextRun = $now->copy()->addMinutes(30 - ($now->minute % 30))->startOfMinute();
+                break;
+        }
+
+        return [
+            'last_run' => $settings->top_selling_low_stock_alert_last_run_at,
+            'next_run' => $nextRun,
+        ];
+    }
+
+    protected function buildNextWeeklyRun(Carbon $now, array $weekdays, string $time, string $fallbackTime = '08:00'): ?Carbon
+    {
+        if (! preg_match('/^\d{2}:\d{2}$/', (string) $time)) {
+            $time = $fallbackTime;
+        }
+
+        [$hour, $minute] = array_map('intval', explode(':', $time));
+        $days = collect($weekdays)
+            ->map(function ($day) {
+                return (int) $day;
+            })
+            ->filter(function ($day) {
+                return $day >= 0 && $day <= 6;
+            })
+            ->unique()
+            ->values();
+
+        if ($days->isEmpty()) {
+            return null;
+        }
+
+        return $days->map(function ($day) use ($now, $hour, $minute) {
+            $offset = ($day - (int) $now->dayOfWeek + 7) % 7;
+            $candidate = $now->copy()->startOfDay()->addDays($offset)->setTime($hour, $minute, 0);
+
+            if ($candidate->lessThanOrEqualTo($now)) {
+                $candidate->addWeek();
+            }
+
+            return $candidate;
+        })->sort()->first();
     }
 
     public function fixSellPostings()
@@ -689,7 +762,45 @@ class AdminController extends Controller
             ],
             'run_stock_costing_backfill_now' => 'nullable|boolean',
             'run_stock_costing_backfill_dry_run' => 'nullable|boolean',
+            'top_selling_low_stock_alert_enabled' => 'nullable|boolean',
+            'top_selling_low_stock_alert_frequency' => 'nullable|in:every_fifteen_minutes,every_thirty_minutes,hourly,daily,twice_weekly',
+            'top_selling_low_stock_alert_time' => 'nullable|date_format:H:i',
+            'top_selling_low_stock_alert_weekday_1' => 'nullable|integer|min:0|max:6',
+            'top_selling_low_stock_alert_weekday_2' => 'nullable|integer|min:0|max:6',
+            'top_selling_low_stock_alert_days' => 'nullable|integer|min:1|max:365',
+            'top_selling_low_stock_alert_limit' => 'nullable|integer|min:1|max:50',
+            'top_selling_low_stock_alert_business_id' => 'nullable|integer|min:1',
+            'top_selling_low_stock_alert_send_in_app' => 'nullable|boolean',
+            'top_selling_low_stock_alert_send_email' => 'nullable|boolean',
+            'top_selling_low_stock_alert_send_sms' => 'nullable|boolean',
+            'top_selling_low_stock_alert_send_whatsapp' => 'nullable|boolean',
+            'top_selling_low_stock_alert_custom_emails' => 'nullable|string',
+            'top_selling_low_stock_alert_custom_phones' => 'nullable|string',
+            'top_selling_low_stock_alert_whatsapp_webhook_url' => 'nullable|url|max:500',
+            'top_selling_low_stock_alert_whatsapp_auth_header' => 'nullable|string|max:100',
+            'top_selling_low_stock_alert_whatsapp_auth_token' => 'nullable|string|max:500',
+            'top_selling_low_stock_alert_whatsapp_phone_param' => 'nullable|string|max:100',
+            'top_selling_low_stock_alert_whatsapp_message_param' => 'nullable|string|max:100',
+            'run_top_selling_low_stock_now' => 'nullable|boolean',
+            'run_top_selling_low_stock_dry_run' => 'nullable|boolean',
         ]);
+
+        if ($request->input('top_selling_low_stock_alert_frequency') === 'twice_weekly') {
+            $weekdayOne = $request->input('top_selling_low_stock_alert_weekday_1');
+            $weekdayTwo = $request->input('top_selling_low_stock_alert_weekday_2');
+
+            if ($weekdayOne === null || $weekdayTwo === null || $weekdayOne === '' || $weekdayTwo === '') {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'top_selling_low_stock_alert_weekday_1' => __('payment.choose_two_weekdays_for_twice_weekly'),
+                ]);
+            }
+
+            if ((int) $weekdayOne === (int) $weekdayTwo) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'top_selling_low_stock_alert_weekday_2' => __('payment.choose_different_weekdays_for_twice_weekly'),
+                ]);
+            }
+        }
 
         $settings = AdminSetting::firstOrCreate([]);
         // handle logo upload separately
@@ -722,6 +833,25 @@ class AdminController extends Controller
             'stock_costing_backfill_time',
             'stock_costing_backfill_business_id',
             'stock_costing_backfill_location_id',
+            'top_selling_low_stock_alert_enabled',
+            'top_selling_low_stock_alert_frequency',
+            'top_selling_low_stock_alert_time',
+            'top_selling_low_stock_alert_weekday_1',
+            'top_selling_low_stock_alert_weekday_2',
+            'top_selling_low_stock_alert_days',
+            'top_selling_low_stock_alert_limit',
+            'top_selling_low_stock_alert_business_id',
+            'top_selling_low_stock_alert_send_in_app',
+            'top_selling_low_stock_alert_send_email',
+            'top_selling_low_stock_alert_send_sms',
+            'top_selling_low_stock_alert_send_whatsapp',
+            'top_selling_low_stock_alert_custom_emails',
+            'top_selling_low_stock_alert_custom_phones',
+            'top_selling_low_stock_alert_whatsapp_webhook_url',
+            'top_selling_low_stock_alert_whatsapp_auth_header',
+            'top_selling_low_stock_alert_whatsapp_auth_token',
+            'top_selling_low_stock_alert_whatsapp_phone_param',
+            'top_selling_low_stock_alert_whatsapp_message_param',
         ]));
 
         // update payroll-related settings if present
@@ -779,16 +909,66 @@ class AdminController extends Controller
                 $layerQty = $m[1];
             }
 
-            $runSummary = $dryRun
-                ? 'Stock costing backfill dry-run completed.'
-                : 'Manual stock costing backfill completed.';
+            if ($dryRun) {
+                $runSummary = __('payment.stock_costing_repair_preview_completed');
+            } elseif (($needsLayer ?? 0) === 0) {
+                $runSummary = __('payment.stock_costing_repair_no_missing_layers');
+            } else {
+                $runSummary = __('payment.stock_costing_repair_completed');
+            }
+
             if ($needsLayer !== null && $layerQty !== null) {
-                $runSummary .= ' Rows '.($dryRun ? 'needing fix' : 'fixed').': '.$needsLayer.', layer qty: '.$layerQty.'.';
+                $runSummary .= ' '.($dryRun
+                    ? __('payment.stock_costing_repair_rows_needing', ['count' => $needsLayer, 'qty' => $layerQty])
+                    : __('payment.stock_costing_repair_rows_repaired', ['count' => $needsLayer, 'qty' => $layerQty]));
+            }
+
+            if ($dryRun) {
+                $runSummary .= ' '.__('payment.stock_costing_repair_preview_only');
+            } elseif (($needsLayer ?? 0) > 0) {
+                $runSummary .= ' '.__('payment.stock_costing_repair_physical_stock_unchanged');
             }
 
             return response()->json([
                 'success' => true,
                 'message' => $runSummary,
+                'toast_type' => $dryRun ? 'info' : (($needsLayer ?? 0) === 0 ? 'info' : 'success'),
+                'settings' => $settings->fresh(),
+            ]);
+        }
+
+        if ($request->boolean('run_top_selling_low_stock_now') || $request->boolean('run_top_selling_low_stock_dry_run')) {
+            $params = [
+                '--days' => (int) ($settings->top_selling_low_stock_alert_days ?? 30),
+                '--limit' => (int) ($settings->top_selling_low_stock_alert_limit ?? 5),
+            ];
+            if (! empty($settings->top_selling_low_stock_alert_business_id)) {
+                $params['--business-id'] = (int) $settings->top_selling_low_stock_alert_business_id;
+            }
+            if ($request->boolean('run_top_selling_low_stock_dry_run')) {
+                $params['--dry-run'] = true;
+            }
+
+            $exitCode = Artisan::call('inventory:notify-top-selling-low-stock', $params);
+            if ($exitCode !== 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => __('payment.top_selling_low_stock_alert_run_failed'),
+                ], 500);
+            }
+
+            $output = trim((string) Artisan::output());
+            $summary = $request->boolean('run_top_selling_low_stock_dry_run')
+                ? __('payment.low_stock_alert_preview_completed')
+                : __('payment.low_stock_alerts_sent_successfully');
+            if ($output !== '') {
+                $summary .= ' '.preg_replace('/\s+/', ' ', $output);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $summary,
+                'toast_type' => $request->boolean('run_top_selling_low_stock_dry_run') ? 'info' : 'success',
                 'settings' => $settings->fresh(),
             ]);
         }
@@ -796,6 +976,7 @@ class AdminController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Settings updated successfully',
+            'toast_type' => 'success',
             'settings' => $settings->fresh()
         ]);
     }
