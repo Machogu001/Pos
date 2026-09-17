@@ -4,7 +4,7 @@ Enhanced POS system branded as BreMac360, with additional features for MPESA int
 
 This deployment is owned and maintained by BreMac Consultant Limited.
 
-For the full BreMac installation and maintenance runbook, see [INSTALLATION.md](/var/www/pos/INSTALLATION.md).
+For the full BreMac installation and maintenance runbook, see [INSTALLATION.md](INSTALLATION.md).
 
 ## Installation & Setup
 
