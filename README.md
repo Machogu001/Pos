@@ -2,57 +2,58 @@
 
 Enhanced POS system based on Ultimate POS, with additional features for MPESA integrations, PWA install support, and accounting/reporting refinements.
 
+This deployment is owned and maintained by BreMac Consultant Limited.
+
+For the full BreMac installation and maintenance runbook, see [INSTALLATION.md](/var/www/pos/INSTALLATION.md).
+
 ## Installation & Setup
 
-After cloning the repository, run the following commands to set up the system:
+BreMac supports two installation paths that now share the same backend install sequence.
+
+### Command-Line Installation
+
+1. Copy `.env.example` to `.env`.
+2. Fill in at least `APP_NAME`, `ENVATO_PURCHASE_CODE`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, and `DB_USERNAME`.
+3. Run the installer command from the project root:
 
 ```bash
-php artisan migrate
-php artisan db:seed --class=AdminSettingsSeeder
-php artisan cache:clear
-php artisan config:clear
-php artisan view:clear
+php artisan pos:install --force
 ```
 
-These commands will:
-- Create/update database tables (including custom MPESA/eTIMS fields)
-- Initialize admin settings with default values
-- Clear all caches for a fresh start
+Use `php artisan pos:install --fresh --force` only when you intentionally want a full reinstall on an empty or disposable database.
 
-## Browser Installation Wizard
+The CLI installer runs the same supported sequence as the browser wizard:
+- `php artisan pos:setup`
+- core migrations and module migrations
+- module asset publishing
+- full database seeding
+- Passport client installation
+- permission cache reset and package discovery
 
-You can now install the system from the browser in a guided step-by-step flow.
+### Browser Installation Wizard
 
-Open:
+If you prefer a guided setup, open `/install` in the browser and complete the wizard.
 
-```text
-/install
+The browser wizard uses the same backend installer as `php artisan pos:install`, so both paths stay aligned.
+
+If the web server cannot write `.env`, the wizard shows the exact `.env` content to paste manually and then resumes the same install flow after you save the file.
+
+### Post-Install Server Steps
+
+After either install path succeeds, run the required server-level production steps that the application cannot do for you:
+
+```bash
+echo "* * * * * www-data /usr/bin/php $(pwd)/artisan schedule:run >> $(pwd)/storage/logs/scheduler.log 2>&1" | sudo tee /etc/cron.d/pos-scheduler
+sudo chmod 644 /etc/cron.d/pos-scheduler
 ```
 
-If the app is not installed and a user visits the site, they are automatically
-redirected into this installation wizard.
+Enable PHP OPcache in production as documented on the installer success page for the active PHP-FPM version.
 
-Wizard steps:
-1. Instructions
-2. Server Requirements check
-3. Application + Database + Mail details
-4. Automatic install (creates `.env`, runs migrations/seeds)
-5. Final health-check summary step, then automatic redirect to Login
+The browser wizard still performs its final health checks and then redirects to login when installation is complete.
 
-If the web server cannot write `.env` due to file permissions, the wizard
-automatically shows a fallback screen with the exact `.env` content to paste,
-then continues installation.
+Installer routes are locked automatically after successful installation.
 
-After successful installation, users are redirected to Login (with a Home
-button available on the completion page).
-
-After installation is complete, installer routes are automatically locked to
-prevent accidental re-entry. Visiting `/install` or `/install/` again will
-redirect to Login.
-
-Legacy endpoint note: `/public/install/index.php` is kept only as a redirect
-shim and now forwards to Login when installed, or to `/install-start` when not
-installed.
+Legacy endpoint note: `/public/install/index.php` remains only as a redirect shim and forwards to Login when installed, or to `/install-start` when not installed.
 
 ## Production Deploy
 
