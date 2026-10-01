@@ -15,6 +15,7 @@ class Kernel extends HttpKernel
      */
     protected $middleware = [
         \App\Http\Middleware\TrustProxies::class,
+        \App\Http\Middleware\RestoreMobileBearerToken::class,
         \Illuminate\Http\Middleware\HandleCors::class,
         \App\Http\Middleware\NormalizeCspReportOnly::class,
         \App\Http\Middleware\PreventRequestsDuringMaintenance::class,

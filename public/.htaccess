@@ -4,6 +4,10 @@
     </IfModule>
 
     RewriteEngine On
+
+    # Pass the Authorization header to PHP (required for API bearer tokens on Apache/CGI/FPM)
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
