@@ -140,6 +140,11 @@ Route::middleware(['auth'])->group(function () {
 // Public telemetry endpoint: allow anonymous visitors to post telemetry (uses same store method)
 Route::post('/pwa/telemetry-public', [\App\Http\Controllers\PwaTelemetryController::class, 'store']);
 
+// Single-use sign-in link issued by the mobile app (POST api/mobile/v1/web-session).
+Route::get('/mobile/web-login/{token}', [\App\Http\Controllers\Api\Mobile\WebSessionController::class, 'consume'])
+    ->middleware(['setData', 'throttle:20,1'])
+    ->where('token', '[A-Za-z0-9]{64}');
+
 Route::middleware(['setData'])->group(function () {
     Route::get('/', function () {
         return view('welcome');

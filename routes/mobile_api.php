@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Mobile\MpesaController;
 use App\Http\Controllers\Api\Mobile\PaymentMethodController;
 use App\Http\Controllers\Api\Mobile\ProductController;
 use App\Http\Controllers\Api\Mobile\SaleController;
+use App\Http\Controllers\Api\Mobile\WebSessionController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('throttle:10,1')->group(function () {
@@ -34,4 +35,5 @@ Route::middleware(['auth:api', 'mobile.api'])->group(function () {
     Route::get('sales/{id}', [SaleController::class, 'show'])->whereNumber('id');
     Route::post('mpesa/stk-push', [MpesaController::class, 'stkPush']);
     Route::get('mpesa/status/{checkoutRequestId}', [MpesaController::class, 'status']);
+    Route::post('web-session', [WebSessionController::class, 'create'])->middleware('throttle:20,1');
 });

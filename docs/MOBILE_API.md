@@ -50,6 +50,9 @@ Prices use the same rules as the web POS screen: location/customer selling price
 - `POST /mpesa/stk-push` — starts a sell STK push with `{ phone, amount, location_id }`.
 - `GET /mpesa/status/{checkout_request_id}` — returns `pending`, `paid`, `failed`, or `cancelled`.
 
+### Web POS
+- `POST /web-session` with `{ target: "pos" | "home" }` — returns `{ url, expires_in }`, a single-use link (60 s) that signs the same user into the website and redirects to the POS screen. Requires `sell.create` or `direct_sell.access` for `pos`.
+
 ## Setup notes
 
 1. Ensure Laravel Passport is installed and keys/clients exist: `php artisan passport:install` (or `php artisan passport:keys` if clients already exist).

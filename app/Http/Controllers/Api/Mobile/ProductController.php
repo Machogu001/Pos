@@ -103,18 +103,22 @@ class ProductController extends BaseMobileController
             ->leftJoin('variation_location_details as vld', function ($join) use ($locationId) {
                 $join->on('variations.id', '=', 'vld.variation_id')->where('vld.location_id', $locationId);
             })
-            ->leftJoin('product_locations as pl', function ($join) use ($locationId) {
-                $join->on('products.id', '=', 'pl.product_id')->where('pl.location_id', $locationId);
-            })
             ->where('products.business_id', $businessId)
             ->where('products.not_for_selling', 0)
             ->where('products.type', '!=', 'modifier')
             ->whereNull('variations.deleted_at')
             ->whereNull('products.deleted_at')
+            // product_locations is a pivot without an id column: a product is sellable here when it is
+            // assigned to this location, or when it has no location assignments at all.
             ->where(function ($query) use ($locationId) {
-                $query->whereNotExists(function ($sub) {
-                    $sub->select(DB::raw(1))->from('product_locations')->whereColumn('product_locations.product_id', 'products.id');
-                })->orWhereNotNull('pl.id');
+                $query->whereExists(function ($sub) use ($locationId) {
+                    $sub->select(DB::raw(1))->from('product_locations')
+                        ->whereColumn('product_locations.product_id', 'products.id')
+                        ->where('product_locations.location_id', $locationId);
+                })->orWhereNotExists(function ($sub) {
+                    $sub->select(DB::raw(1))->from('product_locations')
+                        ->whereColumn('product_locations.product_id', 'products.id');
+                });
             });
 
         if (! empty($term)) {
