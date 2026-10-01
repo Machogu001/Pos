@@ -28,17 +28,20 @@ class MeController extends BaseMobileController
                 ->values();
 
             $register = CashRegister::where('user_id', $user->id)->where('status', 'open')->latest()->first();
+            $canSell = $user->can('sell.create') || $user->can('direct_sell.access');
 
             return $this->success([
                 'user' => $this->userPayload($user),
                 'business' => $this->businessPayload($business),
                 'locations' => $locations,
                 'permissions' => [
-                    'sell_create' => $user->can('sell.create'),
+                    'sell_create' => $canSell,
                     'view_sales' => $user->can('sell.view') || $user->can('view_own_sell_only'),
                     'view_products' => $user->can('product.view'),
+                    'view_customers' => $user->can('customer.view') || $user->can('customer.view_own'),
                     'create_customer' => $user->can('customer.create'),
                     'view_dashboard' => $user->can('dashboard.data'),
+                    'close_register' => $user->can('close_cash_register'),
                     'edit_price' => $user->can('edit_product_price_from_sale_screen')
                         || $user->can('edit_product_price_from_pos_screen'),
                     'discount' => $user->can('edit_product_discount_from_sale_screen'),

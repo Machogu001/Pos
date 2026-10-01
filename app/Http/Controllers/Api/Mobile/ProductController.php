@@ -33,7 +33,7 @@ class ProductController extends BaseMobileController
 
         try {
             $user = $request->user();
-            if (! $user->can('product.view')) {
+            if (! $this->canSearchProducts($user)) {
                 return $this->error('Forbidden.', 403, 'forbidden');
             }
             $locationId = (int) $data['location_id'];
@@ -66,7 +66,7 @@ class ProductController extends BaseMobileController
 
         try {
             $user = $request->user();
-            if (! $user->can('product.view')) {
+            if (! $this->canSearchProducts($user)) {
                 return $this->error('Forbidden.', 403, 'forbidden');
             }
             $locationId = (int) $data['location_id'];
@@ -86,6 +86,11 @@ class ProductController extends BaseMobileController
         } catch (\Throwable $exception) {
             return $this->serverError($exception, ['action' => 'mobile_product_lookup']);
         }
+    }
+
+    protected function canSearchProducts($user): bool
+    {
+        return $user->can('product.view') || $user->can('sell.create') || $user->can('direct_sell.access');
     }
 
     protected function queryProducts(int $businessId, int $locationId, ?string $term = null, bool $exact = false)

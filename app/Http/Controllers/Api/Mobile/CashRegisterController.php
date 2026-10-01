@@ -70,6 +70,9 @@ class CashRegisterController extends BaseMobileController
         try {
             $user = $request->user();
             $register = CashRegister::where('user_id', $user->id)->where('status', 'open')->latest()->first();
+            if (! $user->can('close_cash_register')) {
+                return $this->error('You do not have permission to close the cash register.', 403, 'forbidden');
+            }
             if (! $register) {
                 return $this->error('No open cash register.', 409, 'register_closed');
             }

@@ -17,6 +17,8 @@ Responses use:
 
 ### Session
 - `GET /me` — current user, business, permitted locations, permissions, and open register.
+  - `permissions` keys used by the app's menu: `sell_create` (sell.create or direct_sell.access), `view_sales`, `view_products`, `view_customers` (customer.view or customer.view_own), `create_customer`, `view_dashboard`, `close_register` (close_cash_register), `edit_price`, `discount`.
+  - Users who can sell may search products and customers even without product.view / customer.view.
 
 ### Dashboard
 - `GET /dashboard?location_id=&period=today|week|month` — sales, paid/due totals, expenses, net, and recent sales.
@@ -37,7 +39,7 @@ Prices use the same rules as the web POS screen: location/customer selling price
 ### Cash register
 - `GET /cash-register` — current open register or `null`.
 - `POST /cash-register/open` — `{ location_id, opening_amount }`.
-- `POST /cash-register/close` — `{ closing_amount, closing_note? }`.
+- `POST /cash-register/close` — `{ closing_amount, closing_note? }`. Requires `close_cash_register` (403 `forbidden` otherwise).
 
 ### Sales
 - `POST /sales` — creates a POS sale from DB-priced variations, payments, and a required `client_reference` idempotency key. Error codes: `register_closed` (409), `insufficient_stock` (422), `subscription_expired` (403).

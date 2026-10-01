@@ -24,7 +24,9 @@ class CustomerController extends BaseMobileController
 
         try {
             $user = $request->user();
-            if (! $user->can('customer.view') && ! $user->can('customer.view_own')) {
+            $canViewAll = $user->can('customer.view');
+            $canSell = $user->can('sell.create') || $user->can('direct_sell.access');
+            if (! $canViewAll && ! $user->can('customer.view_own') && ! $canSell) {
                 return $this->error('Forbidden.', 403, 'forbidden');
             }
 
@@ -39,6 +41,11 @@ class CustomerController extends BaseMobileController
                     DB::raw("SUM(IF(t.type = 'opening_balance', (SELECT SUM(amount) FROM transaction_payments WHERE transaction_payments.transaction_id=t.id), 0)) as opening_balance_paid"),
                     'contacts.*'
                 );
+
+            // Cashiers must pick any customer at the till; otherwise "view own" only lists contacts the user created.
+            if (! $canViewAll && ! $canSell) {
+                $query->where('contacts.created_by', $user->id);
+            }
 
             if (! empty($data['q'])) {
                 $q = '%'.$data['q'].'%';
