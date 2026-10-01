@@ -7,7 +7,6 @@ use App\Http\Middleware\Timezone;
 use App\Services\MobileLoginService;
 use Closure;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Session;
 
 class MobileApiContext
 {
@@ -28,15 +27,7 @@ class MobileApiContext
             return response()->json(['success' => false, 'message' => $message, 'code' => 'unauthenticated'], 401);
         }
 
-        config(['session.driver' => 'array']);
-        $manager = app('session');
-        if (method_exists($manager, 'forgetDrivers')) {
-            $manager->forgetDrivers();
-        }
-        $session = $manager->driver('array');
-        $session->start();
-        $request->setLaravelSession($session);
-        Session::swap($session);
+        $this->loginService->ensureRequestSession($request);
 
         return app(SetSessionData::class)->handle($request, function ($request) use ($next) {
             return app(Timezone::class)->handle($request, $next);

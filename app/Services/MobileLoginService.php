@@ -7,6 +7,7 @@ use App\Services\MobileSasaSmsService;
 use App\User;
 use App\Utils\BusinessUtil;
 use App\Utils\ModuleUtil;
+use Illuminate\Session\SessionManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -116,11 +117,7 @@ class MobileLoginService
     {
         // Auditing must never block sign-in/out, and the public auth routes run without a session.
         try {
-            if (! $request->hasSession()) {
-                $session = app('session')->driver('array');
-                $session->start();
-                $request->setLaravelSession($session);
-            }
+            $this->ensureRequestSession($request);
 
             if ($action === 'login') {
                 $this->updateLastLoginDetails($user, $request);
@@ -140,6 +137,25 @@ class MobileLoginService
                 'message' => $exception->getMessage(),
             ]);
         }
+    }
+
+    public function ensureRequestSession(Request $request): void
+    {
+        if ($request->hasSession()) {
+            return;
+        }
+
+        config(['session.driver' => 'array']);
+
+        /** @var SessionManager $sessionManager */
+        $sessionManager = app('session');
+        if (method_exists($sessionManager, 'forgetDrivers')) {
+            $sessionManager->forgetDrivers();
+        }
+
+        $session = $sessionManager->driver('array');
+        $session->start();
+        $request->setLaravelSession($session);
     }
 
     protected function updateLastLoginDetails(User $user, Request $request): void

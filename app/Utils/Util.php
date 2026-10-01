@@ -1494,7 +1494,18 @@ class Util
                     $notification->type ==
                     \App\Notifications\TopSellingLowStockNotification::class
                 ) {
-                    $msg = __(
+                    $aggregateLink = ! empty($data['items']) && count($data['items']) > 1 ? action([
+                        \App\Http\Controllers\ReportController::class,
+                        'getStockReport',
+                    ], array_filter([
+                        'notification_id' => $notification->id,
+                        'highlight_product' => 1,
+                        'location_id' => $data['location_id'] ?? null,
+                    ], function ($value) {
+                        return ! is_null($value) && $value !== '';
+                    })) : null;
+
+                    $msg = $data['notification_message_html'] ?? __(
                         ! empty($data['stock_status']) && $data['stock_status'] === 'out_of_stock'
                             ? 'lang_v1.top_selling_product_out_of_stock_message'
                             : 'lang_v1.top_selling_product_running_low_message',
@@ -1509,7 +1520,7 @@ class Util
                     $icon_class = ! empty($data['stock_status']) && $data['stock_status'] === 'out_of_stock'
                         ? 'fas fa-box-open bg-red'
                         : 'fas fa-exclamation-triangle bg-yellow';
-                    $link = $data['stock_report_url'] ?? action([
+                    $link = $aggregateLink ?? $data['stock_report_url'] ?? action([
                         \App\Http\Controllers\ReportController::class,
                         'getStockReport',
                     ], array_filter([
@@ -1537,6 +1548,8 @@ class Util
                     'msg' => $msg,
                     'icon_class' => $icon_class,
                     'link' => $link,
+                    'action_link' => $aggregateLink,
+                    'action_label' => ! empty($data['items']) && count($data['items']) > 1 ? __('messages.view').' '.__('messages.all') : null,
                     'read_at' => $notification->read_at,
                     'created_at' => $notification->created_at->diffForHumans(),
                 ];
@@ -1692,6 +1705,11 @@ class Util
         $user_agent = substr((string) ($request->userAgent() ?? ''), 0, 1000);
         $device_details = $this->parseUserAgentDetails($user_agent);
         $resolved_ip = $this->resolveClientIp($request);
+        $session_id = null;
+
+        if (method_exists($request, 'hasSession') && $request->hasSession()) {
+            $session_id = optional($request->session())->getId();
+        }
 
         return array_filter([
             'ip_address' => $resolved_ip,
@@ -1699,7 +1717,7 @@ class Util
             'forwarded_for' => $request->headers->get('x-forwarded-for'),
             'cf_connecting_ip' => $request->headers->get('cf-connecting-ip'),
             'user_agent' => $user_agent,
-            'session_id' => method_exists($request, 'session') ? optional($request->session())->getId() : null,
+            'session_id' => $session_id,
             'device_type' => $device_details['device_type'] ?? null,
             'platform' => $device_details['platform'] ?? null,
             'browser' => $device_details['browser'] ?? null,
@@ -2012,7 +2030,7 @@ class Util
             'cmmsn_percent', 'max_sales_discount_percent', 'dob', 'gender', 'marital_status', 'blood_group', 'contact_number', 'alt_number', 'family_number', 'fb_link',
             'twitter_link', 'social_media_1', 'social_media_2', 'custom_field_1',
             'custom_field_2', 'custom_field_3', 'custom_field_4', 'guardian_name', 'id_proof_name', 'id_proof_number', 'permanent_address', 'current_address', 'bank_details', 'selected_contacts', 'is_enable_service_staff_pin', 'service_staff_pin',
-            'otp_login_enabled', 'stock_alert_sms_notification_enabled',
+            'otp_login_enabled', 'stock_alert_sms_notification_enabled', 'stock_alert_email_notification_enabled',
         ]);
 
         $user_details['status'] = ! empty($request->input('is_active')) ? $request->input('is_active') : 'inactive';
@@ -2044,6 +2062,7 @@ class Util
         $user_details['selected_contacts'] = isset($user_details['selected_contacts']) ? $user_details['selected_contacts'] : 0;
         $user_details['otp_login_enabled'] = ! empty($request->input('otp_login_enabled'));
         $user_details['stock_alert_sms_notification_enabled'] = ! empty($request->input('stock_alert_sms_notification_enabled'));
+        $user_details['stock_alert_email_notification_enabled'] = ! empty($request->input('stock_alert_email_notification_enabled'));
 
         $user_details['bank_details'] = ! empty($user_details['bank_details']) ? json_encode($user_details['bank_details']) : null;
 
