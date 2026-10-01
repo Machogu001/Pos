@@ -7,11 +7,13 @@ use App\BusinessLocation;
 use App\CashRegister;
 use App\Contact;
 use App\Events\SellCreatedOrModified;
-use App\TaxRate;
+use App\Services\MobilePricingService;
 use App\Transaction;
 use App\Utils\CashRegisterUtil;
 use App\Utils\ProductUtil;
 use App\Utils\Util;
+use App\Variation;
+use App\VariationLocationDetails;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
@@ -21,7 +23,8 @@ class SaleController extends BaseMobileController
     public function __construct(
         protected ProductUtil $productUtil,
         protected CashRegisterUtil $cashRegisterUtil,
-        protected Util $util
+        protected Util $util,
+        protected MobilePricingService $pricing
     ) {
     }
 
@@ -190,7 +193,14 @@ class SaleController extends BaseMobileController
                 $posRequest->setUserResolver(fn () => $user);
 
                 $output = app(\App\Http\Controllers\SellPosController::class)->store($posRequest);
-                if (is_array($output) && (int) ($output['success'] ?? 0) === 0) {
+                if (! is_array($output)) {
+                    return $this->error(
+                        'Your subscription has expired or the invoice quota is used up. Please renew to continue selling.',
+                        403,
+                        'subscription_expired'
+                    );
+                }
+                if ((int) ($output['success'] ?? 0) === 0) {
                     return $this->error($output['msg'] ?? 'Sale could not be saved.', 422);
                 }
 
@@ -240,32 +250,43 @@ class SaleController extends BaseMobileController
         $products = [];
         $total = 0.0;
         $posSettings = ! empty($business->pos_settings) ? json_decode($business->pos_settings, true) : [];
-        $allowOverselling = ! empty($posSettings['allow_overselling']);
-        $editPrice = $user->can('edit_product_price_from_sale_screen');
-        $inlineTax = (int) ($business->enable_inline_tax ?? 0) === 1;
+        $allowOverselling = ! empty($posSettings['allow_overselling']) || $data['status'] !== 'final';
+        $editPrice = $user->can('edit_product_price_from_pos_screen');
 
         foreach ($data['items'] as $index => $item) {
-            $product = $this->productUtil->getDetailsFromVariation((int) $item['variation_id'], $user->business_id, (int) $data['location_id'], false);
-            $quantity = (float) $item['quantity'];
-            $available = (float) ($product->qty_available ?? 0);
-
-            if ((int) $product->enable_stock === 1 && ! $allowOverselling && $quantity > $available) {
-                return $this->error('Quantity not available for '.$product->product_name.'. Available: '.$available.' '.$product->unit, 422, null, [
-                    'items.'.$index.'.quantity' => ['Insufficient stock.'],
+            $variationId = (int) $item['variation_id'];
+            if (! Variation::where('id', $variationId)
+                ->whereHas('product', fn ($q) => $q->where('business_id', $user->business_id))
+                ->exists()) {
+                return $this->error('Product not found.', 422, null, [
+                    'items.'.$index.'.variation_id' => ['Product not found.'],
                 ]);
             }
 
-            $taxRate = $product->tax_id ? TaxRate::find($product->tax_id) : null;
-            $rate = (float) ($taxRate->amount ?? 0);
-            $unitPriceIncTax = ($editPrice && isset($item['unit_price_inc_tax'])) ? (float) $item['unit_price_inc_tax'] : (float) $product->sell_price_inc_tax;
-            $taxId = $inlineTax ? $product->tax_id : null;
-            if (! $inlineTax) {
-                $unitPrice = (float) $product->default_sell_price;
-                $unitPriceIncTax = ($editPrice && isset($item['unit_price_inc_tax'])) ? (float) $item['unit_price_inc_tax'] : $unitPrice;
-                $itemTax = 0;
-            } else {
-                $unitPrice = $rate > 0 ? $unitPriceIncTax / (1 + ($rate / 100)) : $unitPriceIncTax;
-                $itemTax = $unitPriceIncTax - $unitPrice;
+            $product = $this->productUtil->getDetailsFromVariation($variationId, $user->business_id, $location->id, false);
+            $quantity = (float) $item['quantity'];
+
+            if ((int) $product->enable_stock === 1 && ! $allowOverselling) {
+                $available = $product->product_type === 'combo'
+                    ? (float) $this->productUtil->calculateComboQuantity($location->id, $product->combo_variations)
+                    : (float) VariationLocationDetails::where('variation_id', $variationId)
+                        ->where('location_id', $location->id)
+                        ->value('qty_available');
+
+                if ($quantity > $available) {
+                    return $this->error(
+                        'Quantity not available for '.$product->product_name.'. Available: '
+                            .$this->money($available).' '.$product->unit,
+                        422,
+                        'insufficient_stock',
+                        ['items.'.$index.'.quantity' => ['Insufficient stock.']]
+                    );
+                }
+            }
+
+            $price = $this->pricing->priceLine($product, $business, $location, (int) $contact->id);
+            if ($editPrice && isset($item['unit_price_inc_tax'])) {
+                $price = $this->pricing->overridePrice($price, (float) $item['unit_price_inc_tax']);
             }
 
             $line = [
@@ -274,12 +295,13 @@ class SaleController extends BaseMobileController
                 'enable_stock' => $product->enable_stock,
                 'product_type' => $product->product_type,
                 'quantity' => $quantity,
-                'unit_price' => $unitPrice,
-                'unit_price_inc_tax' => $unitPriceIncTax,
-                'item_tax' => $itemTax,
-                'tax_id' => $taxId,
-                'line_discount_type' => 'fixed',
-                'line_discount_amount' => 0,
+                'unit_price' => $price['unit_price'],
+                'unit_price_inc_tax' => $price['unit_price_inc_tax'],
+                'item_tax' => $price['item_tax'],
+                'tax_id' => $price['tax_id'],
+                'line_discount_type' => $price['line_discount_type'],
+                'line_discount_amount' => $price['line_discount_amount'],
+                'discount_id' => $price['discount_id'],
                 'product_unit_id' => $product->unit_id,
                 'sub_unit_id' => null,
                 'base_unit_multiplier' => 1,
@@ -290,12 +312,12 @@ class SaleController extends BaseMobileController
                 $line['combo'] = collect($product->combo_products)->map(fn ($combo) => [
                     'product_id' => $combo['product_id'],
                     'variation_id' => $combo['variation_id'],
-                    'quantity' => $combo['qty_required'],
+                    'quantity' => $combo['qty_required'] * $quantity,
                 ])->values()->all();
             }
 
             $products[] = $line;
-            $total += $quantity * $unitPriceIncTax;
+            $total += $quantity * $price['unit_price_inc_tax'];
         }
 
         $discountType = $data['discount_type'] ?? 'fixed';
@@ -338,7 +360,7 @@ class SaleController extends BaseMobileController
             'invoice_layout_id' => $location->invoice_layout_id,
             'invoice_scheme_id' => $location->invoice_scheme_id,
             'default_price_group' => $location->selling_price_group_id,
-            'price_group' => $location->selling_price_group_id ?: 0,
+            'price_group' => $this->pricing->priceGroupFor((int) $user->business_id, $location, (int) $contact->id) ?: 0,
             'shipping_charges' => 0,
             'rp_redeemed' => 0,
             'rp_redeemed_amount' => 0,

@@ -22,8 +22,10 @@ Responses use:
 - `GET /dashboard?location_id=&period=today|week|month` — sales, paid/due totals, expenses, net, and recent sales.
 
 ### Products
-- `GET /products?q=&location_id=&page=&per_page=20` — searchable sellable variations scoped to permitted locations.
-- `GET /products/lookup?code=&location_id=` — exact SKU/barcode lookup.
+- `GET /products?q=&location_id=&contact_id=&page=&per_page=20` — searchable sellable variations scoped to permitted locations.
+- `GET /products/lookup?code=&location_id=&contact_id=` — exact SKU/barcode lookup.
+
+Prices use the same rules as the web POS screen: location/customer selling price group, customer group markup, active product discounts, and inline tax (only when enabled for the business). `contact_id` is optional and defaults to the walk-in customer; pass the selected customer so cart prices match the server's sale pricing.
 
 ### Customers
 - `GET /customers?q=&page=` — active customer/both contacts.
@@ -38,7 +40,7 @@ Responses use:
 - `POST /cash-register/close` — `{ closing_amount, closing_note? }`.
 
 ### Sales
-- `POST /sales` — creates a POS sale from DB-priced variations, payments, and a required `client_reference` idempotency key.
+- `POST /sales` — creates a POS sale from DB-priced variations, payments, and a required `client_reference` idempotency key. Error codes: `register_closed` (409), `insufficient_stock` (422), `subscription_expired` (403).
 - `GET /sales?status=&location_id=&q=&page=` — paginated summaries.
 - `GET /sales/{id}` — full sale details with receipt URL/text.
 

@@ -2,20 +2,31 @@
 
 namespace App\Http\Controllers\Api\Mobile;
 
+use App\Business;
 use App\BusinessLocation;
-use App\Product;
-use App\TaxRate;
+use App\Contact;
+use App\Services\MobilePricingService;
+use App\Utils\ProductUtil;
 use App\Variation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class ProductController extends BaseMobileController
 {
+    protected ?Business $business = null;
+
+    public function __construct(
+        protected ProductUtil $productUtil,
+        protected MobilePricingService $pricing
+    ) {
+    }
+
     public function index(Request $request)
     {
         $data = $request->validate([
             'q' => ['nullable', 'string', 'max:255'],
             'location_id' => ['required', 'integer'],
+            'contact_id' => ['nullable', 'integer'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
@@ -30,10 +41,16 @@ class ProductController extends BaseMobileController
                 return $this->error('Forbidden.', 403, 'forbidden');
             }
 
+            $location = BusinessLocation::where('business_id', $user->business_id)->findOrFail($locationId);
+            $contactId = $this->resolveContactId($user->business_id, $data['contact_id'] ?? null);
             $paginator = $this->queryProducts($user->business_id, $locationId, $data['q'] ?? null)
                 ->paginate((int) ($data['per_page'] ?? 20));
 
-            return $this->success($paginator->getCollection()->map(fn ($row) => $this->productPayload($row))->values(), $this->paginationMeta($paginator));
+            $items = $paginator->getCollection()
+                ->map(fn ($row) => $this->pricedPayload($row, $user->business_id, $location, $contactId))
+                ->values();
+
+            return $this->success($items, $this->paginationMeta($paginator));
         } catch (\Throwable $exception) {
             return $this->serverError($exception, ['action' => 'mobile_products']);
         }
@@ -44,6 +61,7 @@ class ProductController extends BaseMobileController
         $data = $request->validate([
             'code' => ['required', 'string', 'max:255'],
             'location_id' => ['required', 'integer'],
+            'contact_id' => ['nullable', 'integer'],
         ]);
 
         try {
@@ -61,7 +79,10 @@ class ProductController extends BaseMobileController
                 return $this->error('Product not found.', 404, 'not_found');
             }
 
-            return $this->success($this->productPayload($row));
+            $location = BusinessLocation::where('business_id', $user->business_id)->findOrFail($locationId);
+            $contactId = $this->resolveContactId($user->business_id, $data['contact_id'] ?? null);
+
+            return $this->success($this->pricedPayload($row, $user->business_id, $location, $contactId));
         } catch (\Throwable $exception) {
             return $this->serverError($exception, ['action' => 'mobile_product_lookup']);
         }
@@ -119,7 +140,7 @@ class ProductController extends BaseMobileController
         ])->orderBy('products.name');
     }
 
-    protected function productPayload($row): array
+    protected function productPayload($row, ?array $price = null): array
     {
         return [
             'variation_id' => (int) $row->variation_id,
@@ -130,10 +151,36 @@ class ProductController extends BaseMobileController
             'unit' => $row->unit,
             'enable_stock' => (bool) $row->enable_stock,
             'stock' => $row->enable_stock ? $this->money($row->qty_available ?? 0) : null,
-            'price_inc_tax' => $this->money($row->sell_price_inc_tax),
-            'price_exc_tax' => $this->money($row->default_sell_price),
+            'price_inc_tax' => $this->money($price['unit_price_inc_tax'] ?? $row->sell_price_inc_tax),
+            'price_exc_tax' => $this->money(
+                isset($price) ? $price['unit_price_inc_tax'] - $price['item_tax'] : $row->default_sell_price
+            ),
             'tax_rate' => is_null($row->tax_rate) ? null : $this->money($row->tax_rate),
             'image_url' => ! empty($row->image) ? asset('/uploads/img/'.rawurlencode($row->image)) : asset('/img/default.png'),
         ];
+    }
+
+    /**
+     * Applies the same price resolution used when the sale is saved, so the cart total
+     * shown in the app matches the server-side invoice total.
+     */
+    protected function pricedPayload($row, int $businessId, BusinessLocation $location, ?int $contactId): array
+    {
+        $this->business ??= Business::findOrFail($businessId);
+        $details = $this->productUtil->getDetailsFromVariation((int) $row->variation_id, $businessId, $location->id, false);
+        $price = $this->pricing->priceLine($details, $this->business, $location, $contactId);
+
+        return $this->productPayload($row, $price);
+    }
+
+    protected function resolveContactId(int $businessId, ?int $contactId): ?int
+    {
+        if (empty($contactId)) {
+            return optional(Contact::where('business_id', $businessId)->where('is_default', 1)->first())->id;
+        }
+
+        return Contact::where('business_id', $businessId)->whereIn('type', ['customer', 'both'])->whereKey($contactId)->exists()
+            ? $contactId
+            : null;
     }
 }
