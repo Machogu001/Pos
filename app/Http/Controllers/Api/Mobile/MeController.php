@@ -39,7 +39,8 @@ class MeController extends BaseMobileController
                     'view_products' => $user->can('product.view'),
                     'create_customer' => $user->can('customer.create'),
                     'view_dashboard' => $user->can('dashboard.data'),
-                    'edit_price' => $user->can('edit_product_price_from_sale_screen'),
+                    'edit_price' => $user->can('edit_product_price_from_sale_screen')
+                        || $user->can('edit_product_price_from_pos_screen'),
                     'discount' => $user->can('edit_product_discount_from_sale_screen'),
                 ],
                 'register' => $this->registerPayload($register),

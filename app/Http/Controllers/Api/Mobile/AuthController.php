@@ -90,9 +90,12 @@ class AuthController extends BaseMobileController
                 return $this->error($message, 403, 'forbidden');
             }
 
-            Cache::forget($key);
+            $response = $this->authenticatedResponse($request, $user, $data['device_name']);
+            if ($response->getStatusCode() < 400) {
+                Cache::forget($key);
+            }
 
-            return $this->authenticatedResponse($request, $user, $data['device_name']);
+            return $response;
         } catch (\Throwable $exception) {
             return $this->serverError($exception, ['action' => 'mobile_otp_verify']);
         }
@@ -175,8 +178,22 @@ class AuthController extends BaseMobileController
 
     protected function authenticatedResponse(Request $request, User $user, string $deviceName)
     {
+        try {
+            $token = $user->createToken('mobile:'.$deviceName)->accessToken;
+        } catch (\Throwable $exception) {
+            \Illuminate\Support\Facades\Log::error('Mobile API token creation failed: '.$exception->getMessage(), [
+                'user_id' => $user->id,
+                'exception' => get_class($exception),
+            ]);
+
+            return $this->error(
+                'Sign-in tokens are not set up on the server. Ask the administrator to run "php artisan passport:install".',
+                500,
+                'server_error'
+            );
+        }
+
         $this->loginService->logAuthenticationEvent($request, $user, 'login');
-        $token = $user->createToken('mobile:'.$deviceName)->accessToken;
         $user->loadMissing('business.currency');
 
         return $this->success([

@@ -11,7 +11,7 @@ use App\Http\Controllers\Api\Mobile\ProductController;
 use App\Http\Controllers\Api\Mobile\SaleController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('throttle:5,1')->group(function () {
+Route::middleware('throttle:10,1')->group(function () {
     Route::post('auth/login', [AuthController::class, 'login']);
     Route::post('auth/otp/verify', [AuthController::class, 'verifyOtp']);
     Route::post('auth/otp/resend', [AuthController::class, 'resendOtp']);

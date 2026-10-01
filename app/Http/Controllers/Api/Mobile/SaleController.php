@@ -251,7 +251,7 @@ class SaleController extends BaseMobileController
         $total = 0.0;
         $posSettings = ! empty($business->pos_settings) ? json_decode($business->pos_settings, true) : [];
         $allowOverselling = ! empty($posSettings['allow_overselling']) || $data['status'] !== 'final';
-        $editPrice = $user->can('edit_product_price_from_pos_screen');
+        $editPrice = $user->can('edit_product_price_from_sale_screen') || $user->can('edit_product_price_from_pos_screen');
 
         foreach ($data['items'] as $index => $item) {
             $variationId = (int) $item['variation_id'];

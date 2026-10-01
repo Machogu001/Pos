@@ -114,18 +114,32 @@ class MobileLoginService
 
     public function logAuthenticationEvent(Request $request, User $user, string $action): void
     {
-        if ($action === 'login') {
-            $this->updateLastLoginDetails($user, $request);
-        }
+        // Auditing must never block sign-in/out, and the public auth routes run without a session.
+        try {
+            if (! $request->hasSession()) {
+                $session = app('session')->driver('array');
+                $session->start();
+                $request->setLaravelSession($session);
+            }
 
-        $this->businessUtil->activityLog(
-            $user,
-            $action,
-            null,
-            $this->businessUtil->getAuthActivityProperties($request),
-            false,
-            $user->business_id
-        );
+            if ($action === 'login') {
+                $this->updateLastLoginDetails($user, $request);
+            }
+
+            $this->businessUtil->activityLog(
+                $user,
+                $action,
+                null,
+                $this->businessUtil->getAuthActivityProperties($request),
+                false,
+                $user->business_id
+            );
+        } catch (\Throwable $exception) {
+            Log::warning('Mobile '.$action.' activity log failed', [
+                'user_id' => $user->id,
+                'message' => $exception->getMessage(),
+            ]);
+        }
     }
 
     protected function updateLastLoginDetails(User $user, Request $request): void
