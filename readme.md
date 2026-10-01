@@ -13,3 +13,7 @@ For maintenance and support of this deployment, contact BreMac Consultant Limite
 ## License
 
 This deployment remains subject to the applicable upstream licensing terms and any project-specific commercial agreements in force for BreMac Consultant Limited.
+
+## Mobile API
+
+BreMac360 exposes a secure Laravel Passport mobile REST API for native apps under `/api/mobile/v1`. See `docs/MOBILE_API.md` for the endpoint contract, response envelopes, authentication/OTP flow, and deployment notes.

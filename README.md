@@ -171,3 +171,7 @@ Run a manual check: `php artisan pos:fetchRemoteVersion`
 - Added dual MPESA credential support for subscriptions vs POS/sell payments (see DUAL_MPESA_CREDENTIALS.md).
 - Implemented full PWA installation flow with working close/dismiss behaviour and telemetry (see PWA_* docs and pwa_test.js).
 - Improved payment account mapping and reporting, including consistent linking of Sell payments to revenue accounts (e.g. Sales/Revenue - 5426425).
+
+## Mobile API
+
+BreMac360 exposes a secure Laravel Passport mobile REST API for native apps under `/api/mobile/v1`. See `docs/MOBILE_API.md` for the endpoint contract, response envelopes, authentication/OTP flow, and deployment notes.

@@ -80,6 +80,7 @@ class Kernel extends HttpKernel
         'check.mpesa.payment' => \App\Http\Middleware\CheckMpesaPayment::class,
         'admin' => \App\Http\Middleware\AdminMiddleware::class,
         'subscription' => \App\Http\Middleware\CheckSubscription::class,
+        'mobile.api' => \App\Http\Middleware\MobileApiContext::class,
         // HRM access attempt logging
         // 'log.hrm' => \App\Http\Middleware\LogHrmAccessAttempt::class,
     ];

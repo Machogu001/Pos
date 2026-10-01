@@ -3,7 +3,11 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Session\TokenMismatchException;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -54,6 +58,28 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Throwable $exception)
     {
+        if ($request->is('api/mobile/*')) {
+            if ($exception instanceof AuthenticationException) {
+                return response()->json(['success' => false, 'message' => 'Unauthenticated.', 'code' => 'unauthenticated'], 401);
+            }
+
+            if ($exception instanceof ValidationException) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $exception->getMessage(),
+                    'errors' => $exception->errors(),
+                ], 422);
+            }
+
+            if ($exception instanceof AuthorizationException) {
+                return response()->json(['success' => false, 'message' => 'Forbidden.', 'code' => 'forbidden'], 403);
+            }
+
+            if ($exception instanceof ModelNotFoundException) {
+                return response()->json(['success' => false, 'message' => 'Not found.', 'code' => 'not_found'], 404);
+            }
+        }
+
         if ($exception instanceof TokenMismatchException) {
             return redirect()->route('login')
                 ->with('message', 'Your session expired due to inactivity. Please log in again.');
