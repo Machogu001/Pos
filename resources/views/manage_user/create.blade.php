@@ -85,6 +85,24 @@
         </div>
       </div>
 
+      <div class="col-md-3">
+        <div class="otp-card">
+          <div class="otp-card__header">
+            <div>
+              <div class="otp-card__label">{{ __('lang_v1.stock_alert_email') }}</div>
+              <div class="otp-card__hint">{{ __('lang_v1.stock_alert_email_hint') }}</div>
+            </div>
+            <label class="otp-switch" title="{{ __('lang_v1.toggle_stock_alert_email') }}">
+              <input type="hidden" name="stock_alert_email_notification_enabled" value="0">
+              <input type="checkbox" name="stock_alert_email_notification_enabled" value="1" id="stock_alert_email_notification_enabled" {{ old('stock_alert_email_notification_enabled', 1) ? 'checked' : '' }}>
+              <span class="otp-slider"></span>
+            </label>
+          </div>
+          <div class="otp-card__status {{ old('stock_alert_email_notification_enabled', 1) ? 'is-on' : 'is-off' }}" id="stock_alert_email_notification_enabled_status">{{ old('stock_alert_email_notification_enabled', 1) ? 'Enabled' : 'Disabled' }}</div>
+          <div class="otp-card__phone stock-alert-email-address">{{ __('lang_v1.stock_alert_email_address', ['email' => old('email') ? old('email') : __('lang_v1.not_set_yet')]) }}</div>
+        </div>
+      </div>
+
       <div class="col-md-2">
         <div class="form-group">
           <div class="checkbox">
@@ -373,8 +391,17 @@
         .text(enabled ? 'Enabled' : 'Disabled');
     }
 
+    function syncStockAlertEmailStatusLabel() {
+      var enabled = $('#stock_alert_email_notification_enabled').is(':checked');
+      $('#stock_alert_email_notification_enabled_status')
+        .toggleClass('is-on', enabled)
+        .toggleClass('is-off', !enabled)
+        .text(enabled ? 'Enabled' : 'Disabled');
+    }
+
     syncOtpStatusLabel();
     syncStockAlertSmsStatusLabel();
+    syncStockAlertEmailStatusLabel();
 
     $('#otp_login_enabled').on('change', function() {
       syncOtpStatusLabel();
@@ -382,6 +409,10 @@
 
     $('#stock_alert_sms_notification_enabled').on('change', function() {
       syncStockAlertSmsStatusLabel();
+    });
+
+    $('#stock_alert_email_notification_enabled').on('change', function() {
+      syncStockAlertEmailStatusLabel();
     });
 
     $('#selected_contacts').on('ifChecked', function(event){
@@ -410,6 +441,11 @@
     $('#contact_number').on('input', function() {
       var value = $(this).val().trim();
       $('.stock-alert-sms-phone').text(@json(__('lang_v1.stock_alert_sms_phone', ['phone' => '__PHONE__'])).replace('__PHONE__', value !== '' ? value : @json(__('lang_v1.not_set_yet'))));
+    });
+
+    $('#email').on('input', function() {
+      var value = $(this).val().trim();
+      $('.stock-alert-email-address').text(@json(__('lang_v1.stock_alert_email_address', ['email' => '__EMAIL__'])).replace('__EMAIL__', value !== '' ? value : @json(__('lang_v1.not_set_yet'))));
     });
 
     $('#user_allowed_contacts').select2({

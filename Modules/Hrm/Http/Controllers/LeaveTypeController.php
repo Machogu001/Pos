@@ -21,16 +21,6 @@ class LeaveTypeController extends Controller
 
     public function index(Request $request)
     {
-    // Canonical web entrypoint for leave types is the Essentials flow.
-    if (! $request->wantsJson() && ! $request->expectsJson()) {
-        $target = url('/hrm/leave-type');
-        if ($request->getQueryString()) {
-            $target .= '?' . $request->getQueryString();
-        }
-
-        return redirect($target);
-    }
-
     $this->authorizeForUser($this->getAuthUser($request), 'view', Leave::class);
 
         // How many items do you want to display.

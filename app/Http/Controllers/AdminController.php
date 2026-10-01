@@ -272,6 +272,8 @@ class AdminController extends Controller
 
         return [
             'last_run' => $settings->top_selling_low_stock_alert_last_run_at,
+            'last_failed_at' => $settings->top_selling_low_stock_alert_last_failed_at ?? null,
+            'last_failure_message' => $settings->top_selling_low_stock_alert_last_failure_message ?? null,
             'next_run' => $nextRun,
         ];
     }

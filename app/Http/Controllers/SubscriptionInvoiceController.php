@@ -71,7 +71,7 @@ class SubscriptionInvoiceController extends Controller
                     ->orderBy('created_at', 'asc')
                     ->get();
 
-        // Collect invoice transactions for the target user
+        // Collect business-side subscription charge transactions for the target user.
         $invoices = collect();
         try {
             if ($subscription->user && $subscription->user->business_id) {
@@ -81,12 +81,20 @@ class SubscriptionInvoiceController extends Controller
                 $userSubscriptionIds = Subscription::where('user_id', $targetUserId)->pluck('id')->toArray();
                 
                 if (!empty($userSubscriptionIds)) {
-                    // Build patterns for all user's subscriptions
-                    $invoices = Transaction::where('type', 'sell')
-                        ->where('sub_type', 'subscription_invoice')
+                    $invoices = Transaction::where('business_id', $businessId)
+                        ->where(function ($query) {
+                            $query->where(function ($expenseQuery) {
+                                $expenseQuery->where('type', 'expense')
+                                    ->where('sub_type', 'subscription_fee');
+                            })->orWhere(function ($legacyQuery) {
+                                $legacyQuery->where('type', 'sell')
+                                    ->where('sub_type', 'subscription_invoice');
+                            });
+                        })
                         ->where(function($q) use ($userSubscriptionIds) {
                             foreach ($userSubscriptionIds as $subId) {
                                 $q->orWhere('subscription_no', 'like', 'sub_invoice_' . $subId . '_%');
+                                $q->orWhere('subscription_no', 'like', 'sub_expense_' . $subId . '_%');
                             }
                         })
                         ->whereBetween('transaction_date', [$start, $end])
@@ -125,13 +133,11 @@ class SubscriptionInvoiceController extends Controller
                 if (!empty($user->phone) && $c->mobile === $user->phone) $allowed = true;
             }
 
-            // Second: if not allowed yet, check if this transaction is a subscription invoice
-            // created for a subscription belonging to the current user. Transactions created
-            // for subscriptions use subscription_no like: sub_invoice_{subscription_id}_YYYYMMDD...
-            if (!$allowed && !empty($tx->subscription_no) && strpos($tx->subscription_no, 'sub_invoice_') === 0) {
+            // Second: if not allowed yet, check if this transaction is a subscription-linked
+            // charge belonging to the current user.
+            if (!$allowed && !empty($tx->subscription_no) && (strpos($tx->subscription_no, 'sub_invoice_') === 0 || strpos($tx->subscription_no, 'sub_expense_') === 0)) {
                 try {
                     $parts = explode('_', $tx->subscription_no);
-                    // Expected format: ['sub','invoice','{subscription_id}', ...]
                     if (isset($parts[2]) && is_numeric($parts[2])) {
                         $subId = (int) $parts[2];
                         $sub = \App\Subscription::find($subId);

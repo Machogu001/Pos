@@ -35,7 +35,7 @@
                                 <button class="btn btn-sm btn-outline-primary" type="submit">Download</button>
                             </form>
                             @if($subscription->pending_invoice_transaction_id)
-                                <a href="{{ action([\App\Http\Controllers\SellController::class, 'show'], [$subscription->pending_invoice_transaction_id]) }}" class="btn btn-sm btn-outline-info" target="_blank"><i class="fas fa-receipt me-1"></i> View Pending Invoice</a>
+                                <a href="{{ action([\App\Http\Controllers\TransactionPaymentController::class, 'show'], [$subscription->pending_invoice_transaction_id]) }}" class="btn btn-sm btn-outline-info" target="_blank"><i class="fas fa-receipt me-1"></i> View Pending Expense</a>
                             @endif
                             @if($subscription->pending_mpesa_payment_id)
                                 @php $mp = $subscription->pending_mpesa ?? null; @endphp

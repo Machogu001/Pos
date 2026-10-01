@@ -12,6 +12,78 @@ use Illuminate\Support\Facades\Schema;
 class OfficeShiftController extends Controller
 {
 
+    protected function businessId()
+    {
+        return session('business.id');
+    }
+
+    protected function hasDayColumns(): bool
+    {
+        return Schema::hasColumn('office_shifts', 'monday_in');
+    }
+
+    protected function companies()
+    {
+        $businessId = $this->businessId();
+        $columns = ['id', 'name'];
+        if (Schema::hasColumn('companies', 'business_id')) {
+            $columns[] = 'business_id';
+        }
+
+        return Company::query()
+            ->whereNull('deleted_at')
+            ->when($businessId && Schema::hasColumn('companies', 'business_id'), function ($query) use ($businessId) {
+                return $query->where(function ($tenantQuery) use ($businessId) {
+                    $tenantQuery->where('business_id', $businessId)
+                        ->orWhereNull('business_id');
+                });
+            })
+            ->orderByDesc('id')
+                ->get($columns);
+    }
+
+    protected function normalizeTimeInput(?string $value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        $clean = preg_replace('/\s*[AP]M$/i', '', trim($value));
+        $ts = strtotime($clean);
+
+        return $ts !== false ? date('H:i', $ts) : null;
+    }
+
+    protected function officeShiftPayload(Request $request): array
+    {
+        $payload = [
+            'company_id' => $request->input('company_id'),
+            'name' => $request->input('name'),
+        ];
+
+        if ($this->hasDayColumns()) {
+            foreach (['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as $day) {
+                $payload[$day . '_in'] = $this->normalizeTimeInput($request->input($day . '_in'));
+                $payload[$day . '_out'] = $this->normalizeTimeInput($request->input($day . '_out'));
+            }
+        } else {
+            if (Schema::hasColumn('office_shifts', 'start_time')) {
+                $payload['start_time'] = $this->normalizeTimeInput($request->input('start_time'));
+            }
+            if (Schema::hasColumn('office_shifts', 'end_time')) {
+                $payload['end_time'] = $this->normalizeTimeInput($request->input('end_time'));
+            }
+            if (Schema::hasColumn('office_shifts', 'break_minutes')) {
+                $payload['break_minutes'] = $request->filled('break_minutes') ? (int) $request->input('break_minutes') : null;
+            }
+            if (Schema::hasColumn('office_shifts', 'notes')) {
+                $payload['notes'] = $request->input('notes');
+            }
+        }
+
+        return $payload;
+    }
+
     protected function getAuthUser($request)
     {
         return $request->user('api') ?? $request->user() ?? auth()->user();
@@ -51,6 +123,8 @@ class OfficeShiftController extends Controller
             $order = 'id';
         }
 
+        $hasDayCols = $this->hasDayColumns();
+
         // if company relation/table or column missing, avoid eager load join errors
         $office_shifts = OfficeShift::where('deleted_at', '=', null)
             ->when(Schema::hasTable('companies') && Schema::hasColumn('office_shifts','company_id'), function($q){
@@ -77,8 +151,6 @@ class OfficeShiftController extends Controller
             $office_shifts = $office_shifts->orderBy($order, $dir)->get();
         }
 
-    // determine if per-day columns exist; otherwise fall back to generic start_time/end_time
-    $hasDayCols = Schema::hasColumn('office_shifts', 'monday_in');
     $to24Time = function ($value) {
         if (empty($value)) {
             return null;
@@ -116,8 +188,8 @@ class OfficeShiftController extends Controller
                 $item['sunday_out'] = $to24Time($office_shift->sunday_out);
             } else {
                 // fallback to start_time/end_time if available
-                $item['start_time'] = isset($office_shift->start_time) ? $office_shift->start_time : null;
-                $item['end_time'] = isset($office_shift->end_time) ? $office_shift->end_time : null;
+                $item['start_time'] = $to24Time($office_shift->start_time ?? null);
+                $item['end_time'] = $to24Time($office_shift->end_time ?? null);
                 $item['break_minutes'] = isset($office_shift->break_minutes) ? $office_shift->break_minutes : null;
             }
 
@@ -133,8 +205,8 @@ class OfficeShiftController extends Controller
             ]);
         }
 
-    $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
-    return view('hrm::office_shifts.index', compact('office_shifts_for_view', 'companies', 'totalRows', 'perPage', 'pageStart'));
+    $companies = $this->companies();
+    return view('hrm::office_shifts.index', compact('office_shifts_for_view', 'companies', 'totalRows', 'perPage', 'pageStart', 'hasDayCols'));
     }
 
     public function create(Request $request)
@@ -144,14 +216,15 @@ class OfficeShiftController extends Controller
             abort(403);
         }
 
-        $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
+        $companies = $this->companies();
+        $hasDayCols = $this->hasDayColumns();
         if ($request->expectsJson()) {
             return response()->json([
                 'companies' =>$companies,
             ]);
         }
 
-        return view('hrm::office_shifts.create', compact('companies'));
+        return view('hrm::office_shifts.create', compact('companies', 'hasDayCols'));
 
     }
 
@@ -164,57 +237,19 @@ class OfficeShiftController extends Controller
             abort(403);
         }
 
-        request()->validate([
-            'name'           => 'required|string',
-            'company_id'     => 'required',
-        ]);
-
-    // Only create DateTime instances when values are present to avoid exceptions
-    $hasDayCols = Schema::hasColumn('office_shifts', 'monday_in');
-    $createData = [
-        'company_id' => $request['company_id'],
-        'name' => $request['name'],
-    ];
-
-    if ($hasDayCols) {
-        $parseTime = function ($val) {
-            if (empty($val)) {
-                return null;
-            }
-            $ts = strtotime((string) $val);
-            return $ts !== false ? date('H:i', $ts) : null;
-        };
-
-        $createData = array_merge($createData, [
-            'monday_in' => $parseTime($request['monday_in']),
-            'monday_out' => $parseTime($request['monday_out']),
-            'tuesday_in' => $parseTime($request['tuesday_in']),
-            'tuesday_out' => $parseTime($request['tuesday_out']),
-            'wednesday_in' => $parseTime($request['wednesday_in']),
-            'wednesday_out' => $parseTime($request['wednesday_out']),
-            'thursday_in' => $parseTime($request['thursday_in']),
-            'thursday_out' => $parseTime($request['thursday_out']),
-            'friday_in' => $parseTime($request['friday_in']),
-            'friday_out' => $parseTime($request['friday_out']),
-            'saturday_in' => $parseTime($request['saturday_in']),
-            'saturday_out' => $parseTime($request['saturday_out']),
-            'sunday_in' => $parseTime($request['sunday_in']),
-            'sunday_out' => $parseTime($request['sunday_out']),
-        ]);
-    } else {
-        // fallback to generic fields if they exist
-        if (Schema::hasColumn('office_shifts', 'start_time') && $request->filled('start_time')) {
-            $createData['start_time'] = $request->input('start_time');
+        $rules = [
+            'name' => 'required|string',
+            'company_id' => 'required',
+        ];
+        if (! $this->hasDayColumns()) {
+            $rules['start_time'] = 'required';
+            $rules['end_time'] = 'required';
+            $rules['break_minutes'] = 'nullable|integer|min:0';
         }
-        if (Schema::hasColumn('office_shifts', 'end_time') && $request->filled('end_time')) {
-            $createData['end_time'] = $request->input('end_time');
-        }
-        if (Schema::hasColumn('office_shifts', 'break_minutes') && $request->filled('break_minutes')) {
-            $createData['break_minutes'] = $request->input('break_minutes');
-        }
-    }
 
-        OfficeShift::create($createData);
+        request()->validate($rules);
+
+        OfficeShift::create($this->officeShiftPayload($request));
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
@@ -239,7 +274,8 @@ class OfficeShiftController extends Controller
             abort(403);
         }
 
-        $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
+        $companies = $this->companies();
+        $hasDayCols = $this->hasDayColumns();
         if ($request->expectsJson()) {
             return response()->json([
                 'companies' =>$companies,
@@ -247,7 +283,7 @@ class OfficeShiftController extends Controller
         }
 
         $office_shift = OfficeShift::findOrFail($id);
-        return view('hrm::office_shifts.edit', compact('companies', 'office_shift'));
+        return view('hrm::office_shifts.edit', compact('companies', 'office_shift', 'hasDayCols'));
 
     }
 
@@ -260,54 +296,19 @@ class OfficeShiftController extends Controller
             abort(403);
         }
 
-        $hasDayCols = Schema::hasColumn('office_shifts', 'monday_in');
-
-        // Helper: safely parse a time string like "08:00" or "08:00AM" → "H:i", or return null
-        $parseTime = function (?string $val): ?string {
-            if (empty($val)) {
-                return null;
-            }
-            // Strip AM/PM suffix if present so strtotime handles it cleanly
-            $clean = preg_replace('/[AP]M$/i', '', trim($val));
-            $ts = strtotime($clean);
-            return $ts !== false ? date('H:i', $ts) : null;
-        };
-
-        $updateData = [
-            'company_id' => $request['company_id'],
-            'name' => $request['name'],
+        $rules = [
+            'name' => 'required|string',
+            'company_id' => 'required',
         ];
-
-        if ($hasDayCols) {
-            $updateData = array_merge($updateData, [
-                'monday_in'     => $parseTime($request['monday_in']),
-                'monday_out'    => $parseTime($request['monday_out']),
-                'tuesday_in'    => $parseTime($request['tuesday_in']),
-                'tuesday_out'   => $parseTime($request['tuesday_out']),
-                'wednesday_in'  => $parseTime($request['wednesday_in']),
-                'wednesday_out' => $parseTime($request['wednesday_out']),
-                'thursday_in'   => $parseTime($request['thursday_in']),
-                'thursday_out'  => $parseTime($request['thursday_out']),
-                'friday_in'     => $parseTime($request['friday_in']),
-                'friday_out'    => $parseTime($request['friday_out']),
-                'saturday_in'   => $parseTime($request['saturday_in']),
-                'saturday_out'  => $parseTime($request['saturday_out']),
-                'sunday_in'     => $parseTime($request['sunday_in']),
-                'sunday_out'    => $parseTime($request['sunday_out']),
-            ]);
-        } else {
-            if (Schema::hasColumn('office_shifts', 'start_time') && $request->filled('start_time')) {
-                $updateData['start_time'] = $request->input('start_time');
-            }
-            if (Schema::hasColumn('office_shifts', 'end_time') && $request->filled('end_time')) {
-                $updateData['end_time'] = $request->input('end_time');
-            }
-            if (Schema::hasColumn('office_shifts', 'break_minutes') && $request->filled('break_minutes')) {
-                $updateData['break_minutes'] = $request->input('break_minutes');
-            }
+        if (! $this->hasDayColumns()) {
+            $rules['start_time'] = 'required';
+            $rules['end_time'] = 'required';
+            $rules['break_minutes'] = 'nullable|integer|min:0';
         }
 
-        OfficeShift::whereId($id)->update($updateData);
+        request()->validate($rules);
+
+        OfficeShift::whereId($id)->update($this->officeShiftPayload($request));
 
 
         if ($request->expectsJson()) {

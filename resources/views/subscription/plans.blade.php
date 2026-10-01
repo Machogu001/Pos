@@ -530,7 +530,7 @@
                             @foreach($userInvoices as $inv)
                             @php
                                 $invoiceOwner = null;
-                                if ($isAdmin && !empty($inv->subscription_no) && strpos($inv->subscription_no,'sub_invoice_')===0) {
+                                if ($isAdmin && !empty($inv->subscription_no) && (strpos($inv->subscription_no,'sub_invoice_')===0 || strpos($inv->subscription_no,'sub_expense_')===0)) {
                                     try {
                                         $parts = explode('_', $inv->subscription_no);
                                         if (isset($parts[2]) && is_numeric($parts[2])) {

@@ -15,6 +15,47 @@ use Illuminate\Validation\ValidationException;
 class DepartmentsController extends Controller
 {
 
+    protected function hasDepartmentHeadColumn(): bool
+    {
+        return Schema::hasColumn('departments', 'department_head');
+    }
+
+    protected function departmentPayload(Request $request): array
+    {
+        $payload = [
+            'department' => $request->input('department'),
+            'company_id' => $request->input('company_id'),
+        ];
+
+        if ($this->hasDepartmentHeadColumn()) {
+            $payload['department_head'] = $request->input('department_head') ?: null;
+        }
+
+        if (Schema::hasColumn('departments', 'business_id')) {
+            $payload['business_id'] = session('business.id');
+        }
+
+        if (Schema::hasColumn('departments', 'description')) {
+            $payload['description'] = $request->input('description');
+        }
+
+        return $payload;
+    }
+
+    protected function departmentValidationRules(): array
+    {
+        $rules = [
+            'department' => 'required|string',
+            'company_id' => 'required',
+        ];
+
+        if ($this->hasDepartmentHeadColumn()) {
+            $rules['department_head'] = 'nullable|exists:employees,id';
+        }
+
+        return $rules;
+    }
+
     protected function getAuthUser($request)
     {
         return $request->user('api') ?? $request->user() ?? auth()->user();
@@ -127,7 +168,8 @@ class DepartmentsController extends Controller
         ->get(['id','username','firstname','lastname']);
 
     // Pass the departments collection to the view so the list can be rendered
-    return view('hrm::departments.index', compact('companies', 'employees', 'departments', 'totalRows', 'perPage', 'pageStart'));
+    $supportsDepartmentHead = $this->hasDepartmentHeadColumn();
+    return view('hrm::departments.index', compact('companies', 'employees', 'departments', 'totalRows', 'perPage', 'pageStart', 'supportsDepartmentHead'));
     }
 
     public function create(Request $request)
@@ -163,7 +205,9 @@ class DepartmentsController extends Controller
             ]);
         }
 
-        return view('hrm::departments.create', compact('companies', 'employees'));
+        $supportsDepartmentHead = $this->hasDepartmentHeadColumn();
+
+        return view('hrm::departments.create', compact('companies', 'employees', 'supportsDepartmentHead'));
 
     }
 
@@ -176,15 +220,11 @@ class DepartmentsController extends Controller
             abort(403);
         }
 
-        request()->validate([
-            'department'   => 'required|string',
-            'company_id'   => 'required',
-            'department_head' => 'nullable|exists:employees,id',
-        ]);
+        request()->validate($this->departmentValidationRules());
 
-        $headId = $request->input('department_head') ?: null;
+        $headId = $this->hasDepartmentHeadColumn() ? ($request->input('department_head') ?: null) : null;
         $businessId = session('business.id');
-        if ($headId) {
+        if ($headId && $this->hasDepartmentHeadColumn()) {
             $headAlreadyAssigned = Department::query()
                 ->whereNull('deleted_at')
                 ->where('department_head', $headId)
@@ -203,18 +243,13 @@ class DepartmentsController extends Controller
             }
         }
 
-        Department::create([
-            'department'      => $request->department,
-            'company_id'      => $request->company_id,
-            'business_id'     => session('business.id'),
-            'department_head' => $headId,
-        ]);
+        Department::create($this->departmentPayload($request));
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
         }
 
-    return redirect()->route('hrm.departments.index')->with('success', 'Created successfully');
+    return redirect()->route('hrm_admin.departments.index')->with('success', 'Created successfully');
     }
 
     //------------ function show -----------\\
@@ -235,7 +270,9 @@ class DepartmentsController extends Controller
         $companies = Company::whereNull('deleted_at')->orderBy('id', 'desc')->get(['id', 'name']);
         $employees = Employee::whereNull('deleted_at')->orderBy('id', 'desc')->get(['id', 'username', 'firstname', 'lastname']);
 
-        return view('hrm::departments.edit', compact('department', 'companies', 'employees'));
+        $supportsDepartmentHead = $this->hasDepartmentHeadColumn();
+
+        return view('hrm::departments.edit', compact('department', 'companies', 'employees', 'supportsDepartmentHead'));
     }
 
     //------------ function edit -----------\\
@@ -274,7 +311,8 @@ class DepartmentsController extends Controller
         }
 
         $department = Department::findOrFail($id);
-        return view('hrm::departments.edit', compact('companies', 'employees', 'department'));
+        $supportsDepartmentHead = $this->hasDepartmentHeadColumn();
+        return view('hrm::departments.edit', compact('companies', 'employees', 'department', 'supportsDepartmentHead'));
 
     }
 
@@ -287,15 +325,11 @@ class DepartmentsController extends Controller
             abort(403);
         }
 
-        request()->validate([
-            'department'   => 'required|string',
-            'company_id'   => 'required',
-            'department_head' => 'nullable|exists:employees,id',
-        ]);
+        request()->validate($this->departmentValidationRules());
 
-        $headId = $request->input('department_head') ?: null;
+        $headId = $this->hasDepartmentHeadColumn() ? ($request->input('department_head') ?: null) : null;
         $businessId = session('business.id');
-        if ($headId) {
+        if ($headId && $this->hasDepartmentHeadColumn()) {
             $headAlreadyAssigned = Department::query()
                 ->whereNull('deleted_at')
                 ->where('department_head', $headId)
@@ -315,17 +349,13 @@ class DepartmentsController extends Controller
             }
         }
 
-        Department::whereId($id)->update([
-            'department'        => $request['department'],
-            'company_id'        => $request['company_id'],
-            'department_head'   => $headId,
-        ]);
+        Department::whereId($id)->update($this->departmentPayload($request));
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
         }
 
-    return redirect()->route('hrm.departments.index')->with('success', 'Updated successfully');
+    return redirect()->route('hrm_admin.departments.index')->with('success', 'Updated successfully');
     }
 
     //----------- Set department head (AJAX or form) --------------\
@@ -334,6 +364,13 @@ class DepartmentsController extends Controller
         $user = $this->getAuthUser($request);
         if (!$user || (! $user->can('hrm.access') && ! $user->can('hrm.departments'))) {
             abort(403);
+        }
+
+        if (! $this->hasDepartmentHeadColumn()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Department head is not supported on this installation.',
+            ], 422);
         }
 
         $request->validate([
@@ -380,7 +417,7 @@ class DepartmentsController extends Controller
             return response()->json(['success' => true, 'department_head' => $headId, 'employee_name' => $label]);
         }
 
-        return redirect()->route('hrm.departments.index')->with('success', 'Updated successfully');
+        return redirect()->route('hrm_admin.departments.index')->with('success', 'Updated successfully');
     }
 
     //----------- Remove department head --------------\
@@ -391,13 +428,20 @@ class DepartmentsController extends Controller
             abort(403);
         }
 
+        if (! $this->hasDepartmentHeadColumn()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Department head is not supported on this installation.',
+            ], 422);
+        }
+
         Department::whereId($id)->update(['department_head' => null]);
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
         }
 
-        return redirect()->route('hrm.departments.index')->with('success', 'Updated successfully');
+        return redirect()->route('hrm_admin.departments.index')->with('success', 'Updated successfully');
     }
 
     //----------- Delete  department --------------\\
@@ -421,7 +465,7 @@ class DepartmentsController extends Controller
             return response()->json(['success' => true]);
         }
 
-    return redirect()->route('hrm.departments.index')->with('success', 'Deleted successfully');
+    return redirect()->route('hrm_admin.departments.index')->with('success', 'Deleted successfully');
     }
 
     //-------------- Delete by selection  ---------------\\

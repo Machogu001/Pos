@@ -104,6 +104,7 @@ $(document).ready(function() {
             var productId = parseInt(query.get('product_id'), 10);
             var variationId = parseInt(query.get('variation_id'), 10);
             var locationId = parseInt(query.get('location_id'), 10);
+            var notificationId = query.get('notification_id');
             var shouldHighlight = query.get('highlight_product') === '1';
 
             if (!isNaN(locationId) && $('#location_id').length) {
@@ -114,6 +115,7 @@ $(document).ready(function() {
                 productId: isNaN(productId) ? null : productId,
                 variationId: isNaN(variationId) ? null : variationId,
                 locationId: isNaN(locationId) ? null : locationId,
+                notificationId: notificationId || null,
                 shouldHighlight: shouldHighlight,
                 didScroll: false,
             };
@@ -187,16 +189,20 @@ $(document).ready(function() {
                 d.unit_id = $('#unit').val();
                 d.product_id = stockReportFocus.productId;
                 d.variation_id = stockReportFocus.variationId;
+                d.notification_id = stockReportFocus.notificationId;
 
                 d.only_mfg_products = $('#only_mfg_products').length && $('#only_mfg_products').is(':checked') ? 1 : 0;
             },
         },
         columns: stock_report_cols,
         createdRow: function(row, data) {
-            var isMatch = stockReportFocus.shouldHighlight &&
+            var isNotificationMatch = !!stockReportFocus.notificationId;
+            var isSingleItemMatch = stockReportFocus.shouldHighlight &&
                 String(data.product_id || '') === String(stockReportFocus.productId || '') &&
                 String(data.variation_id || '') === String(stockReportFocus.variationId || '') &&
                 String(data.location_id || '') === String(stockReportFocus.locationId || '');
+
+            var isMatch = isNotificationMatch || isSingleItemMatch;
 
             $(row).toggleClass('notification-stock-hit', isMatch);
         },

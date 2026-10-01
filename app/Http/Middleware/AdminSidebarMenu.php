@@ -29,23 +29,31 @@ class AdminSidebarMenu
             if (!empty($businessId) && ! session()->has($syncKey)) {
                 $business = Business::find($businessId);
                 if ($business) {
+                    $hasCompanyBusinessId = Company::query()->getModel()->getConnection()->getSchemaBuilder()->hasColumn('companies', 'business_id');
                     // Prefer to find by business_id first
-                    $company = Company::where('business_id', $businessId)->first();
+                    $company = $hasCompanyBusinessId ? Company::where('business_id', $businessId)->first() : null;
                     if (!$company) {
                         // Try to find by name and attach
                         $company = Company::where('name', $business->name)->first();
                         if ($company) {
-                            $company->business_id = $businessId;
-                            $company->save();
+                            if ($hasCompanyBusinessId) {
+                                $company->business_id = $businessId;
+                                $company->save();
+                            }
                         } else {
                             // Create a new company record and link it to business
-                            Company::create([
+                            $payload = [
                                 'name' => $business->name,
                                 'email' => $business->email ?? null,
                                 'phone' => $business->phone ?? null,
                                 'country' => $business->country ?? null,
-                                'business_id' => $businessId,
-                            ]);
+                            ];
+
+                            if ($hasCompanyBusinessId) {
+                                $payload['business_id'] = $businessId;
+                            }
+
+                            Company::create($payload);
                         }
                     }
 
@@ -1101,7 +1109,7 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                         // Companies
                         try {
                             if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.companies')) {
-                                $sub->url(action([\Modules\Hrm\Http\Controllers\CompanyController::class, 'index']), __('lang_v1.companies'), ['icon' => '', 'active' => request()->segment(2) == 'companies' || request()->segment(1) == 'hrm' && request()->segment(2) == 'companies']);
+                                $sub->url(route('hrm_admin.companies.index'), __('lang_v1.companies'), ['icon' => '', 'active' => request()->is('hrm-admin/companies*') || request()->segment(2) == 'companies' || request()->segment(1) == 'hrm' && request()->segment(2) == 'companies']);
                             }
                         } catch (\Exception $e) {
                         }
@@ -1109,7 +1117,7 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                         // Departments
                         try {
                             if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.departments')) {
-                                $sub->url(action([\Modules\Hrm\Http\Controllers\DepartmentsController::class, 'index']), __('hrm.departments'), ['icon' => '', 'active' => request()->segment(2) == 'departments']);
+                                $sub->url(route('hrm_admin.departments.index'), __('hrm.departments'), ['icon' => '', 'active' => request()->is('hrm-admin/departments*') || request()->segment(2) == 'departments']);
                             }
                         } catch (\Exception $e) {
                         }
@@ -1141,7 +1149,7 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                         // Payroll
                         try {
                             if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.payrolls')) {
-                                $sub->url(action([\Modules\Essentials\Http\Controllers\PayrollController::class, 'index']), __('hrm.payroll'), ['icon' => '', 'active' => request()->segment(2) == 'payroll' || request()->segment(2) == 'payrolls']);
+                                $sub->url(action([\Modules\Hrm\Http\Controllers\PayrollController::class, 'index']), __('hrm.payroll'), ['icon' => '', 'active' => request()->segment(2) == 'payroll' || request()->segment(2) == 'payrolls']);
                             }
                         } catch (\Exception $e) {
                         }
@@ -1157,7 +1165,7 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                         // Leave (canonical: Essentials /hrm/leave)
                         try {
                             if (auth()->user()->can('leave.view') || auth()->user()->can('leave.create') || auth()->user()->can('leave.update')) {
-                                $sub->url(action([\Modules\Essentials\Http\Controllers\EssentialsLeaveController::class, 'index']), __('hrm.leave'), ['icon' => '', 'active' => request()->segment(2) == 'leave' || request()->segment(2) == 'leaves']);
+                                $sub->url(action([\Modules\Hrm\Http\Controllers\LeaveController::class, 'index']), __('hrm.leave'), ['icon' => '', 'active' => request()->segment(2) == 'leave' || request()->segment(2) == 'leaves']);
                             }
                         } catch (\Exception $e) {
                         }
@@ -1165,7 +1173,7 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                         // Leave Type (canonical: Essentials /hrm/leave-type)
                         try {
                             if (auth()->user()->can('leave.view') || auth()->user()->can('leave.create')) {
-                                $sub->url(action([\Modules\Essentials\Http\Controllers\EssentialsLeaveTypeController::class, 'index']), __('hrm.leave_type'), ['icon' => '', 'active' => request()->segment(2) == 'leave-type' || request()->segment(2) == 'leave_types']);
+                                $sub->url(action([\Modules\Hrm\Http\Controllers\LeaveTypeController::class, 'index']), __('hrm.leave_type'), ['icon' => '', 'active' => request()->segment(2) == 'leave-type' || request()->segment(2) == 'leave_types']);
                             }
                         } catch (\Exception $e) {
                         }
@@ -1173,7 +1181,7 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                         // Attendance
                         try {
                             if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.attendances') || auth()->user()->can('attendance.view') || auth()->user()->can('essentials.crud_all_attendance') || auth()->user()->can('essentials.view_own_attendance')) {
-                                $sub->url(action([\Modules\Essentials\Http\Controllers\AttendanceController::class, 'index']), __('hrm.attendance_sign_in'), ['icon' => '', 'active' => request()->segment(2) == 'attendance' || request()->segment(2) == 'attendances']);
+                                $sub->url(action([\Modules\Hrm\Http\Controllers\AttendancesController::class, 'index']), __('hrm.attendance_sign_in'), ['icon' => '', 'active' => request()->segment(2) == 'attendance' || request()->segment(2) == 'attendances']);
                             }
                         } catch (\Exception $e) {
                         }
@@ -1181,7 +1189,7 @@ if (in_array('stock_adjustment', $enabled_modules) &&
                         // Holiday
                         try {
                             if (auth()->user()->can('hrm.access') || auth()->user()->can('hrm.holidays') || auth()->user()->can('holiday.view')) {
-                                $sub->url(action([\Modules\Essentials\Http\Controllers\EssentialsHolidayController::class, 'index']), __('hrm.holiday'), ['icon' => '', 'active' => request()->segment(2) == 'holiday' || request()->segment(2) == 'holidays']);
+                                $sub->url(action([\Modules\Hrm\Http\Controllers\HolidayController::class, 'index']), __('hrm.holiday'), ['icon' => '', 'active' => request()->segment(2) == 'holiday' || request()->segment(2) == 'holidays']);
                             }
                         } catch (\Exception $e) {
                         }

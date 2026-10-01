@@ -133,7 +133,10 @@ class AdminlteCustomPresenter extends Presenter
 
                 $isActive = $child->isActive() ? 'tw-text-primary-700' : '';
 
-                $children .= '<a href="' . $child->getUrl() . '" title="" class="tw-flex tw-text-sm tw-font-medium tw-tracking-tight tw-text-gray-600 tw-truncate tw-transition-all tw-duration-200 hover:tw-text-gray-900 tw-whitespace-nowrap ' . $isActive . '"'.$isActive.' "' . $child->getAttributes() . '"' .$child->hasActiveOnChild() .'>' .
+                $attributes = trim($child->getAttributes());
+                $attributes = $attributes !== '' ? ' ' . $attributes : '';
+
+                $children .= '<a href="' . $child->getUrl() . '" title="" class="sidebar-child-link tw-relative tw-z-10 tw-flex tw-items-center tw-gap-2 tw-py-1 tw-text-sm tw-font-medium tw-tracking-tight tw-text-gray-600 tw-truncate tw-transition-all tw-duration-200 hover:tw-text-gray-900 tw-whitespace-nowrap ' . $isActive . '"' . $attributes . '>' .
                 $child->getIcon() . ' <span>' . $child->title . '</span>' .
                     '</a>' . PHP_EOL;
             }

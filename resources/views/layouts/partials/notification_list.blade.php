@@ -7,6 +7,9 @@
           <span class="notif-info">{!! $notification_data['msg'] ?? '' !!}</span>
           <span class="time">{{$notification_data['created_at']}}</span>
         </a>
+        @if(!empty($notification_data['action_link']))
+          <a href="{{$notification_data['action_link']}}" class="btn btn-xs btn-link text-primary @if(!empty($notification_data['action_popup'])) show-notification-in-popup @endif" title="{{$notification_data['action_label']}}">{{$notification_data['action_label']}}</a>
+        @endif
         <a href="{{ url('/notifications/delete/' . ($notification_data['id'] ?? '')) }}" class="btn btn-xs btn-link text-danger" title="@lang('lang_v1.delete_notification')">
           <i class="fas fa-times"></i>
         </a>

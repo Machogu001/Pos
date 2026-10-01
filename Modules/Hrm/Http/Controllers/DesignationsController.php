@@ -9,9 +9,85 @@ use App\Models\Company;
 use App\Models\Department;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 
 class DesignationsController extends Controller
 {
+
+    protected function businessId()
+    {
+        return session('business.id');
+    }
+
+    protected function applyBusinessScope($query, string $table = 'designations')
+    {
+        $businessId = $this->businessId();
+
+        if (! $businessId || ! Schema::hasColumn($table, 'business_id')) {
+            return $query;
+        }
+
+        return $query->where(function ($tenantQuery) use ($businessId, $table) {
+            $tenantQuery->where($table . '.business_id', $businessId)
+                ->orWhereNull($table . '.business_id');
+        });
+    }
+
+    protected function designationPayload(Request $request): array
+    {
+        $payload = [
+            'designation' => $request->input('designation'),
+            'company_id' => $request->input('company_id'),
+            'department_id' => $request->input('department'),
+        ];
+
+        if (Schema::hasColumn('designations', 'business_id')) {
+            $payload['business_id'] = $this->businessId();
+        }
+
+        return $payload;
+    }
+
+    protected function normalizeDesignationName(string $designation): string
+    {
+        return strtolower(trim($designation));
+    }
+
+    protected function findDuplicateDesignation(string $designation, $companyId, $departmentId, ?int $ignoreId = null)
+    {
+        $query = $this->applyBusinessScope(Designation::query(), 'designations')
+            ->whereNull('deleted_at')
+            ->where('company_id', $companyId)
+            ->where('department_id', $departmentId)
+            ->whereRaw('LOWER(TRIM(designation)) = ?', [$this->normalizeDesignationName($designation)]);
+
+        if ($ignoreId) {
+            $query->where('id', '!=', $ignoreId);
+        }
+
+        return $query->first();
+    }
+
+    protected function companies()
+    {
+        $columns = ['id', 'name'];
+        if (Schema::hasColumn('companies', 'business_id')) {
+            $columns[] = 'business_id';
+        }
+
+        return $this->applyBusinessScope(Company::query(), 'companies')
+            ->whereNull('deleted_at')
+            ->orderByDesc('id')
+            ->get($columns);
+    }
+
+    protected function departments()
+    {
+        return $this->applyBusinessScope(Department::query(), 'departments')
+            ->whereNull('deleted_at')
+            ->orderByDesc('id')
+            ->get(['id', 'department', 'company_id']);
+    }
 
     protected function getAuthUser($request)
     {
@@ -52,7 +128,8 @@ class DesignationsController extends Controller
             $order = 'id';
         }
 
-        $designations = Designation::with('department')->where('deleted_at', '=', null)
+        $designations = $this->applyBusinessScope(Designation::with(['company:id,name', 'department:id,department,company_id', 'department.company:id,name']), 'designations')
+            ->where('deleted_at', '=', null)
 
         // Search With Multiple Param
             ->where(function ($query) use ($request) {
@@ -75,17 +152,28 @@ class DesignationsController extends Controller
         }
 
         foreach ($designations as $designation) {
+            $effectiveCompany = $designation->company ?: optional($designation->department)->company;
+            $effectiveCompanyId = $effectiveCompany->id ?? $designation->company_id ?? optional($designation->department)->company_id;
+            $signature = implode('|', [
+                $this->normalizeDesignationName($designation->designation),
+                $effectiveCompanyId ?: 'no-company',
+                $designation->department_id ?: 'no-department',
+            ]);
 
             $item['id'] = $designation->id;
             $item['designation'] = $designation->designation;
-            $item['company_name'] = isset($designation['company']->name) ? $designation['company']->name : '';
-            $item['company_id'] = isset($designation['company']->id) ? $designation['company']->id : null;
+            $item['company_name'] = $effectiveCompany->name ?? '';
+            $item['company_id'] = $effectiveCompanyId ?: null;
             $item['department_name'] = isset($designation['department']->department) ? $designation['department']->department : '';
             $item['department_id'] = isset($designation['department']->id) ? $designation['department']->id : null;
-            $data[] = $item;
+
+            if (! isset($data[$signature]) || (empty($data[$signature]['company_id']) && ! empty($item['company_id']))) {
+                $data[$signature] = $item;
+            }
         }
         // Prepare a collection for the view
-        $designations_for_view = collect($data);
+        $designations_for_view = collect(array_values($data));
+        $totalRows = $designations_for_view->count();
     
         if ($request->expectsJson()) {
             return response()->json([
@@ -94,8 +182,8 @@ class DesignationsController extends Controller
             ]);
         }
 
-    $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
-    $departments = Department::where('deleted_at', '=', null)->get(['id','department']);
+    $companies = $this->companies();
+    $departments = $this->departments();
     return view('hrm::designations.index', compact('companies', 'departments', 'designations_for_view', 'totalRows', 'perPage', 'pageStart'));
     }
 
@@ -106,8 +194,8 @@ class DesignationsController extends Controller
             abort(403);
         }
 
-        $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
-        $departments = Department::where('deleted_at', '=', null)->get(['id','department']);
+        $companies = $this->companies();
+        $departments = $this->departments();
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -134,11 +222,13 @@ class DesignationsController extends Controller
             'department'    => 'required',
         ]);
 
-        Designation::create([
-            'designation'   => $request['designation'],
-            'company_id'    => $request['company_id'],
-            'department_id' => $request['department'],
-        ]);
+        if ($this->findDuplicateDesignation($request->input('designation'), $request->input('company_id'), $request->input('department'))) {
+            throw ValidationException::withMessages([
+                'designation' => 'This designation already exists for the selected company and department.',
+            ]);
+        }
+
+        Designation::create($this->designationPayload($request));
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
@@ -163,8 +253,8 @@ class DesignationsController extends Controller
             abort(403);
         }
 
-        $companies = Company::where('deleted_at', '=', null)->get(['id','name']);
-        $departments = Department::where('deleted_at', '=', null)->get(['id','department']);
+        $companies = $this->companies();
+        $departments = $this->departments();
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -172,7 +262,7 @@ class DesignationsController extends Controller
             ]);
         }
 
-        $designation = Designation::findOrFail($id);
+        $designation = $this->applyBusinessScope(Designation::query(), 'designations')->findOrFail($id);
         return view('hrm::designations.edit', compact('companies', 'departments', 'designation'));
 
     }
@@ -192,11 +282,15 @@ class DesignationsController extends Controller
             'department'    => 'required',
         ]);
 
-        Designation::whereId($id)->update([
-            'designation'   => $request['designation'],
-            'company_id'    => $request['company_id'],
-            'department_id' => $request['department'],
-        ]);
+        if ($this->findDuplicateDesignation($request->input('designation'), $request->input('company_id'), $request->input('department'), (int) $id)) {
+            throw ValidationException::withMessages([
+                'designation' => 'This designation already exists for the selected company and department.',
+            ]);
+        }
+
+        $this->applyBusinessScope(Designation::query(), 'designations')
+            ->whereId($id)
+            ->update($this->designationPayload($request));
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
@@ -216,7 +310,7 @@ class DesignationsController extends Controller
 
         \DB::transaction(function () use ($id) {
 
-            Designation::whereId($id)->update([
+            $this->applyBusinessScope(Designation::query(), 'designations')->whereId($id)->update([
                 'deleted_at' => Carbon::now(),
             ]);
 
@@ -240,7 +334,7 @@ class DesignationsController extends Controller
 
         $selectedIds = $request->selectedIds;
         foreach ($selectedIds as $designation_id) {
-            Designation::whereId($designation_id)->update([
+            $this->applyBusinessScope(Designation::query(), 'designations')->whereId($designation_id)->update([
                 'deleted_at' => Carbon::now(),
             ]);
         }
@@ -250,7 +344,10 @@ class DesignationsController extends Controller
 
     public function Get_designations_by_department(Request $request)
     {
-        $designations = Designation::where('department_id' , $request->id)->where('deleted_at', '=', null)->get();
+        $designations = $this->applyBusinessScope(Designation::query(), 'designations')
+            ->where('department_id', $request->id)
+            ->where('deleted_at', '=', null)
+            ->get();
 
         return response()->json($designations);
     }

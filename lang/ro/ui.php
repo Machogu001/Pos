@@ -816,6 +816,7 @@ return [
     'check' => 'Verifica',
     'check_in' => 'Check-in',
     'check_out' => 'Verifică',
+    'break_time' => 'Pauză',
     'choose_how_hrm_pages_look' => 'Alegeți Cum arată paginile Hrm',
     'choose_how_you_want_the_next_otp_sent' => 'Alegeți cum doriți să trimiteți următorul OTP',
     'choose_how_you_want_to_receive_your_otp' => 'Alegeți cum doriți să primiți OTP',

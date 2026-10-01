@@ -6,7 +6,7 @@
 @include('hrm::partials.hrm_page_header', [
     'title' => __('lang_v1.create_company'),
     'subtitle' => __('lang_v1.business_record_hrm_reporting'),
-    'actions' => '<a href="'.route('hrm.companies.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> '.e(__('lang_v1.back_to_companies')).'</a>'
+    'actions' => '<a href="'.route('hrm_admin.companies.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> '.e(__('lang_v1.back_to_companies')).'</a>'
 ])
 
 <section class="content">
@@ -14,7 +14,7 @@
         <div class="box-header with-border">
             <h3 class="box-title">@lang('lang_v1.company_details')</h3>
         </div>
-        <form action="{{ route('hrm.companies.store') }}" method="POST">
+        <form action="{{ route('hrm_admin.companies.store') }}" method="POST">
             {{ csrf_field() }}
             @include('hrm::partials.hrm_form_toolbar')
             <div class="box-body">

@@ -433,6 +433,15 @@
             }
         });
 
+        $(document).on('click', '.sidebar-child-link', function(event) {
+            event.stopPropagation();
+
+            var href = $(this).attr('href');
+            if (href && href !== '#' && href !== 'javascript:void(0)') {
+                window.location.href = href;
+            }
+        });
+
         function initializeHelpOverlays(context) {
             var $scope = context ? $(context) : $(document);
             $scope.find('[data-toggle="popover"], [data-bs-toggle="popover"]').popover();

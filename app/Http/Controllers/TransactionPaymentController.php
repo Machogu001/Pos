@@ -33,6 +33,35 @@ class TransactionPaymentController extends Controller
         $this->moduleUtil = $moduleUtil;
     }
 
+    protected function paymentAccountsDropdown($business_id, ?Transaction $transaction = null)
+    {
+        if (! $this->moduleUtil->isModuleEnabled('account')) {
+            return [];
+        }
+
+        if ($transaction && in_array($transaction->type, ['expense', 'expense_refund'], true)) {
+            return \App\Account::paymentSourceForDropdown($business_id, true, false, true);
+        }
+
+        return $this->moduleUtil->accountsDropdown($business_id, true, false, true);
+    }
+
+    protected function validateTransactionPaymentAmount(Transaction $transaction, float $amount): void
+    {
+        if (! in_array($transaction->type, ['expense', 'expense_refund'], true)) {
+            return;
+        }
+
+        $alreadyPaid = (float) $this->transactionUtil->getTotalPaid($transaction->id);
+        $remaining = max(0, (float) $transaction->final_total - $alreadyPaid);
+
+        if ($amount > $remaining + 0.0001) {
+            throw new \InvalidArgumentException(
+                __('lang_v1.max_amount_to_be_paid_is', ['amount' => $this->transactionUtil->num_f($remaining)])
+            );
+        }
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -81,6 +110,8 @@ class TransactionPaymentController extends Controller
                 $inputs['amount'] = $this->transactionUtil->num_uf($inputs['amount']);
                 $inputs['created_by'] = auth()->user()->id;
                 $inputs['payment_for'] = $transaction->contact_id;
+
+                $this->validateTransactionPaymentAmount($transaction, (float) $inputs['amount']);
 
                 if ($inputs['method'] == 'custom_pay_1') {
                     $inputs['transaction_no'] = $request->input('transaction_no_1');
@@ -150,7 +181,7 @@ class TransactionPaymentController extends Controller
             DB::rollBack();
             $msg = __('messages.something_went_wrong');
 
-            if (get_class($e) == \App\Exceptions\AdvanceBalanceNotAvailable::class) {
+            if (get_class($e) == \App\Exceptions\AdvanceBalanceNotAvailable::class || $e instanceof \InvalidArgumentException) {
                 $msg = $e->getMessage();
             } else {
                 \Log::emergency('File:'.$e->getFile().'Line:'.$e->getLine().'Message:'.$e->getMessage());
@@ -442,7 +473,7 @@ class TransactionPaymentController extends Controller
                 $payment_line->paid_on = \Carbon::now()->toDateTimeString();
 
                 //Accounts
-                $accounts = $this->moduleUtil->accountsDropdown($business_id, true, false, true);
+                $accounts = $this->paymentAccountsDropdown($business_id, $transaction);
 
                 $view = view('transaction_payment.payment_row')
                 ->with(compact('transaction', 'payment_types', 'payment_line', 'amount_formated', 'accounts'))->render();

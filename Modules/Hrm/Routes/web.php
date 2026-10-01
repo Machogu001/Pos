@@ -52,7 +52,7 @@ Route::group([
     'namespace' => 'Modules\\Hrm\\Http\\Controllers',
     // Ensure HRM routes build the admin sidebar and have session/lang context
     // Log access attempts, rely on controller-level granular permissions.
-    'middleware' => ['web', 'auth', 'SetSessionData', 'language', 'timezone', 'AdminSidebarMenu', 'subscription', 'hrm.enabled']
+    'middleware' => ['web', 'auth', 'SetSessionData', 'language', 'timezone', 'AdminSidebarMenu']
 ], function () {
     // Canonical HRM entrypoint: always use /hrm/dashboard.
     Route::get('/hrm', function () {

@@ -25,6 +25,155 @@ class EmployeesController extends Controller
 {
     use AuditsHrmActions;
 
+    protected function scopeUsersToBusiness($query, ?int $businessId)
+    {
+        if ($businessId && Schema::hasColumn('users', 'business_id')) {
+            $query->where('business_id', $businessId);
+        }
+
+        if (Schema::hasColumn('users', 'deleted_at')) {
+            $query->whereNull('deleted_at');
+        }
+
+        if (Schema::hasColumn('users', 'allow_login')) {
+            $query->where('allow_login', 1);
+        }
+
+        if (Schema::hasColumn('users', 'status')) {
+            $query->where('status', 'active');
+        }
+
+        if (Schema::hasColumn('users', 'user_type')) {
+            $query->whereIn('user_type', ['admin', 'user']);
+        }
+
+        return $query;
+    }
+
+    protected function findMatchingEmployeeForUser(User $user, ?int $businessId)
+    {
+        if (! Schema::hasTable('employees')) {
+            return null;
+        }
+
+        if (empty($user->email) && empty($user->username)) {
+            return null;
+        }
+
+        $query = Employee::query();
+        $query = $this->scopeEmployeesToBusiness($query, $businessId);
+        $query->where(function ($employeeQuery) use ($user) {
+            if (! empty($user->email)) {
+                $employeeQuery->orWhere('email', $user->email);
+            }
+            if (! empty($user->username)) {
+                $employeeQuery->orWhere('username', $user->username);
+            }
+        });
+
+        if (Schema::hasColumn('employees', 'deleted_at')) {
+            $query->orderByRaw('deleted_at is null desc');
+        }
+
+        return $query->orderByDesc('id')->first();
+    }
+
+    protected function availableExistingUsers(?int $businessId)
+    {
+        if (! Schema::hasTable('users')) {
+            return collect([]);
+        }
+
+        return $this->scopeUsersToBusiness(User::query(), $businessId)
+            ->orderBy('first_name')
+            ->orderBy('username')
+            ->get(['id', 'username', 'first_name', 'last_name', 'surname', 'email', 'contact_no', 'contact_number', 'alt_number', 'gender'])
+            ->filter(function ($user) use ($businessId) {
+                $employee = $this->findMatchingEmployeeForUser($user, $businessId);
+
+                return ! $employee || ! empty($employee->deleted_at);
+            })
+            ->map(function ($user) {
+                $firstName = trim((string) ($user->first_name ?? ''));
+                $lastName = trim((string) ($user->last_name ?? ($user->surname ?? '')));
+                $fullName = trim($firstName . ' ' . $lastName);
+                $phone = $user->contact_no ?? $user->contact_number ?? $user->alt_number ?? '';
+                $labelParts = array_filter([
+                    $fullName,
+                    $user->username,
+                    $user->email,
+                ]);
+
+                return [
+                    'id' => $user->id,
+                    'firstname' => $firstName ?: ($user->username ?: 'User'),
+                    'lastname' => $lastName ?: 'User',
+                    'email' => $user->email,
+                    'phone' => $phone,
+                    'gender' => in_array(strtolower((string) $user->gender), ['male', 'female', 'other'], true) ? strtolower((string) $user->gender) : 'male',
+                    'label' => implode(' - ', $labelParts) ?: ('User #' . $user->id),
+                ];
+            })
+            ->values();
+    }
+
+    protected function employeePayloadFromRequest(Request $request, ?User $selectedUser = null): array
+    {
+        $firstname = trim((string) $request->input('firstname'));
+        $lastname = trim((string) $request->input('lastname'));
+        $selectedGender = strtolower((string) ($request->input('gender') ?: ($selectedUser->gender ?? 'male')));
+        if (! in_array($selectedGender, ['male', 'female', 'other'], true)) {
+            $selectedGender = 'male';
+        }
+
+        return $this->setEmployeeBusinessId([
+            'firstname' => $firstname,
+            'lastname' => $lastname,
+            'username' => $selectedUser && ! empty($selectedUser->username) ? $selectedUser->username : trim($firstname . ' ' . $lastname),
+            'email' => $request->input('email') ?: ($selectedUser->email ?? null),
+            'gender' => $selectedGender,
+            'phone' => $request->input('phone') ?: ($selectedUser->contact_no ?? $selectedUser->contact_number ?? $selectedUser->alt_number ?? null),
+            'birth_date' => $request->birth_date,
+            'country' => $request->country,
+            'address' => $request->address,
+            'city' => $request->city,
+            'province' => $request->province,
+            'zipcode' => $request->zipcode,
+            'marital_status' => $request->marital_status,
+            'employment_type' => $request->employment_type,
+            'basic_salary' => $request->basic_salary,
+            'hourly_rate' => $request->hourly_rate,
+            'company_id' => $request->company_id,
+            'department_id' => $request->department_id,
+            'designation_id' => $request->designation_id,
+            'office_shift_id' => $request->office_shift_id,
+            'joining_date' => $request->joining_date,
+            'total_leave' => $request->input('total_leave'),
+            'remaining_leave' => $request->input('remaining_leave'),
+        ], session('business.id'));
+    }
+
+    protected function scopeEmployeesToBusiness($query, ?int $businessId)
+    {
+        if (! $businessId || ! Schema::hasColumn('employees', 'business_id')) {
+            return $query;
+        }
+
+        return $query->where(function ($tenantQ) use ($businessId) {
+            $tenantQ->where('business_id', $businessId)
+                ->orWhereNull('business_id');
+        });
+    }
+
+    protected function setEmployeeBusinessId(array $payload, ?int $businessId): array
+    {
+        if ($businessId && Schema::hasColumn('employees', 'business_id')) {
+            $payload['business_id'] = $businessId;
+        }
+
+        return $payload;
+    }
+
 
     /**
      * Resolve the authenticated user for authorization checks.
@@ -110,9 +259,9 @@ class EmployeesController extends Controller
                 return $q->with($with);
             })
             ->where('deleted_at', '=', null)
-            ->where('leaving_date', null)
-            // Multi-tenant: scope to current business
-            ->when($businessId, fn($q) => $q->where('business_id', $businessId));
+            ->where('leaving_date', null);
+
+        $employees = $this->scopeEmployeesToBusiness($employees, $businessId);
 
          //Multiple Filter
         $Filtred = $helpers->filter($employees, $columns, $param, $request)
@@ -204,6 +353,7 @@ class EmployeesController extends Controller
               abort(403);
           }
 
+          $businessId = session('business.id');
           if (Schema::hasTable('business')) {
               $companies = Business::orderBy('id', 'desc')->get(['id','name']);
           } else {
@@ -212,10 +362,11 @@ class EmployeesController extends Controller
           $departments = Schema::hasTable('departments') ? Department::where('deleted_at', '=', null)->get(['id','department']) : collect([]);
           $designations = Schema::hasTable('designations') ? Designation::where('deleted_at', '=', null)->get(['id','designation']) : collect([]);
           $office_shifts = Schema::hasTable('office_shifts') ? OfficeShift::where('deleted_at', '=', null)->get(['id','name']) : collect([]);
+          $existing_users = $this->availableExistingUsers($businessId);
 
           // If the browser requested HTML, return a blade form. Otherwise return JSON (API clients).
           if (! $request->wantsJson()) {
-              return view('hrm::employees.create', compact('companies', 'departments', 'designations', 'office_shifts'));
+              return view('hrm::employees.create', compact('companies', 'departments', 'designations', 'office_shifts', 'existing_users'));
           }
 
           return response()->json([
@@ -223,6 +374,7 @@ class EmployeesController extends Controller
               'departments' => $departments,
               'designations' => $designations,
               'office_shifts' => $office_shifts,
+              'existing_users' => $existing_users,
           ]);
       }
 
@@ -231,38 +383,36 @@ class EmployeesController extends Controller
 
     public function store(StoreEmployeeRequest $request)
     {
+        $selectedUser = null;
+        if ($request->filled('existing_user_id') && Schema::hasTable('users')) {
+            $selectedUser = $this->scopeUsersToBusiness(User::query(), session('business.id'))
+                ->where('id', $request->input('existing_user_id'))
+                ->first();
+        }
+
         $defaultLeave   = config('hrm.default_annual_leave', 21);
         $totalLeave     = $request->filled('total_leave') ? intval($request->total_leave) : $defaultLeave;
         $remainingLeave = $request->filled('remaining_leave') ? intval($request->remaining_leave) : $totalLeave;
         $remainingLeave = min($totalLeave, max(0, $remainingLeave));
 
-        $emp = Employee::create([
-            'firstname'       => $request->firstname,
-            'lastname'        => $request->lastname,
-            // display_name: full name stored as username (not a login identifier)
-            'username'        => trim($request->firstname.' '.$request->lastname),
-            'email'           => $request->email,
-            'gender'          => $request->gender,
-            'phone'           => $request->phone,
-            'birth_date'      => $request->birth_date,
-            'country'         => $request->country,
-            'address'         => $request->address,
-            'city'            => $request->city,
-            'province'        => $request->province,
-            'zipcode'         => $request->zipcode,
-            'marital_status'  => $request->marital_status,
-            'employment_type' => $request->employment_type,
-            'basic_salary'    => $request->basic_salary,
-            'hourly_rate'     => $request->hourly_rate,
-            'company_id'      => $request->company_id,
-            'business_id'     => session('business.id'),
-            'department_id'   => $request->department_id,
-            'designation_id'  => $request->designation_id,
-            'office_shift_id' => $request->office_shift_id,
-            'joining_date'    => $request->joining_date,
-            'total_leave'     => $totalLeave,
-            'remaining_leave' => $remainingLeave,
-        ]);
+        $payload = $this->employeePayloadFromRequest($request, $selectedUser);
+        $payload['total_leave'] = $totalLeave;
+        $payload['remaining_leave'] = $remainingLeave;
+
+        $emp = null;
+        if ($selectedUser) {
+            $emp = $this->findMatchingEmployeeForUser($selectedUser, session('business.id'));
+        }
+
+        if ($emp) {
+            if (Schema::hasColumn('employees', 'deleted_at')) {
+                $payload['deleted_at'] = null;
+            }
+            $emp->update($payload);
+            $emp->refresh();
+        } else {
+            $emp = Employee::create($payload);
+        }
 
         $this->logHrmAudit('hrm.employee.created', [
             'employee_id' => $emp->id,
@@ -630,6 +780,7 @@ class EmployeesController extends Controller
         $page = max(1, (int) $request->get('page', 1));
 
         $query = Employee::whereNotNull('deleted_at')->orderBy('deleted_at', 'desc');
+        $query = $this->scopeEmployeesToBusiness($query, session('business.id'));
         $total = $query->count();
         $perPage = ($perPage == '-1') ? ($total > 0 ? $total : 1) : max(1, (int)$perPage);
         $paginator = $query->paginate($perPage, ['*'], 'page', $page);
@@ -763,7 +914,9 @@ class EmployeesController extends Controller
         // an Employee record exists (create a minimal one if missing) so the payroll UI
         // can select them. This prevents duplicate names in the response.
         if (Schema::hasTable('users')) {
-            $users = User::where('business_id', $companyId)
+            $users = User::when(Schema::hasColumn('users', 'business_id'), function ($query) use ($companyId) {
+                    $query->where('business_id', $companyId);
+                })
                 ->whereNull('deleted_at')
                 ->orderBy('id', 'desc')
                 ->get(['id', 'username', 'first_name', 'last_name', 'surname', 'email']);
@@ -784,14 +937,14 @@ class EmployeesController extends Controller
                     $lastname = $u->last_name ?? $u->surname ?? '';
                     $username = $u->username ?: trim(($firstname . ' ' . $lastname));
 
-                    $emp = Employee::create([
+                    $emp = Employee::create($this->setEmployeeBusinessId([
                         'firstname' => $firstname ?: 'User',
                         'lastname' => $lastname ?: ('#' . $u->id),
                         'username' => $username,
                         'email' => $u->email,
                         'company_id' => $companyId,
                         'basic_salary' => 0,
-                    ]);
+                    ], session('business.id')));
                 } else {
                     // If employee exists but company_id empty, attach to this company
                     if (empty($emp->company_id)) {

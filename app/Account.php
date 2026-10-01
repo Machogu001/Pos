@@ -6,6 +6,7 @@ use App\Utils\Util;
 use DB;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Schema;
 
 class Account extends Model
 {
@@ -51,7 +52,7 @@ class Account extends Model
             $query->whereIn('accounts.id', $account_ids);
         }
 
-        $can_access_account = auth()->user()->can('account.access');
+        $can_access_account = auth()->check() && auth()->user()->can('account.access');
         if ($can_access_account && $show_balance) {
             $balance_expression = self::typeAwareBalanceExpression(
                 'COALESCE(pat.name, ats.name)',
@@ -79,6 +80,136 @@ class Account extends Model
         }
 
         $accounts = $query->get();
+
+        $dropdown = [];
+        if ($prepend_none) {
+            $dropdown[''] = __('lang_v1.none');
+        }
+
+        $commonUtil = new Util;
+        foreach ($accounts as $account) {
+            $name = $account->name;
+
+            if ($can_access_account && $show_balance) {
+                $name .= ' ('.__('lang_v1.balance').': '.$commonUtil->num_f($account->balance).')';
+            }
+
+            $dropdown[$account->id] = $name;
+        }
+
+        return $dropdown;
+    }
+
+    public static function paymentSourceForDropdown($business_id, $prepend_none, $closed = false, $show_balance = false)
+    {
+        $query = Account::where('accounts.business_id', $business_id)
+            ->leftJoin('account_types as ats', 'accounts.account_type_id', '=', 'ats.id')
+            ->leftJoin('account_types as pat', 'ats.parent_account_type_id', '=', 'pat.id');
+
+        $permitted_locations = auth()->check() ? auth()->user()->permitted_locations() : 'all';
+        $account_ids = [];
+        if ($permitted_locations != 'all') {
+            $locations = BusinessLocation::where('business_id', $business_id)
+                            ->whereIn('id', $permitted_locations)
+                            ->get();
+
+            foreach ($locations as $location) {
+                if (! empty($location->default_payment_accounts)) {
+                    $default_payment_accounts = json_decode($location->default_payment_accounts, true);
+                    foreach ($default_payment_accounts as $account) {
+                        if (! empty($account['is_enabled']) && ! empty($account['account'])) {
+                            $account_ids[] = $account['account'];
+                        }
+                    }
+                }
+            }
+
+            $account_ids = array_unique($account_ids);
+        }
+
+        if ($permitted_locations != 'all' && ! empty($account_ids)) {
+            $query->whereIn('accounts.id', $account_ids);
+        }
+
+        if (! $closed) {
+            $query->where('accounts.is_closed', 0);
+        }
+
+        $haystackColumns = ["COALESCE(accounts.name, '')", "COALESCE(ats.name, '')", "COALESCE(pat.name, '')"];
+        if (Schema::hasColumn('accounts', 'account_type')) {
+            $haystackColumns[] = "COALESCE(accounts.account_type, '')";
+        }
+        $searchHaystack = 'LOWER(CONCAT_WS(\' \' , '.implode(', ', $haystackColumns).'))';
+        $includeKeywords = [
+            'cash',
+            'bank',
+            'mpesa',
+            'm-pesa',
+            'mobile',
+            'wallet',
+            'petty',
+            'till',
+            'float',
+            'card',
+            'cheque',
+            'check',
+            'saving_current',
+            'savings',
+            'current account',
+        ];
+        $excludeKeywords = [
+            'receivable',
+            'payable',
+            'inventory',
+            'stock',
+            'vat',
+            'tax',
+            'expense',
+            'income',
+            'revenue',
+            'equity',
+            'cost of goods',
+            'cogs',
+            'payroll clearing',
+            'opening stock',
+            'loss',
+            'gain',
+        ];
+
+        $query->where(function ($keywordQuery) use ($searchHaystack, $includeKeywords) {
+            foreach ($includeKeywords as $index => $keyword) {
+                $method = $index === 0 ? 'whereRaw' : 'orWhereRaw';
+                $keywordQuery->{$method}("{$searchHaystack} LIKE ?", ['%'.$keyword.'%']);
+            }
+        });
+
+        $query->where(function ($keywordQuery) use ($searchHaystack, $excludeKeywords) {
+            foreach ($excludeKeywords as $keyword) {
+                $keywordQuery->whereRaw("{$searchHaystack} NOT LIKE ?", ['%'.$keyword.'%']);
+            }
+        });
+
+        $can_access_account = auth()->check() && auth()->user()->can('account.access');
+        if ($can_access_account && $show_balance) {
+            $balance_expression = self::typeAwareBalanceExpression(
+                'COALESCE(pat.name, ats.name)',
+                'AT.type',
+                'AT.amount',
+                'AT.sub_type'
+            );
+
+            $query->leftJoin('account_transactions as AT', function ($join) {
+                $join->on('AT.account_id', '=', 'accounts.id')
+                    ->whereNull('AT.deleted_at');
+            });
+
+            $query->select('accounts.name', 'accounts.id', DB::raw($balance_expression.' as balance'))
+                ->groupBy('accounts.id', 'accounts.name');
+        } else {
+            $query->select('accounts.name', 'accounts.id')->distinct();
+        }
+
+        $accounts = $query->orderBy('accounts.name')->get();
 
         $dropdown = [];
         if ($prepend_none) {

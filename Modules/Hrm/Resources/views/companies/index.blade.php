@@ -7,7 +7,7 @@
     'title' => __('lang_v1.companies'),
     'subtitle' => __('lang_v1.maintain_company_records'),
     'actions' => (!empty($currentBusiness)
-        ? '<form action="'.route('hrm.companies.store').'" method="POST" style="display:inline-block;margin-right:8px;">'
+        ? '<form action="'.route('hrm_admin.companies.store').'" method="POST" style="display:inline-block;margin-right:8px;">'
             .csrf_field().
             '<input type="hidden" name="use_business_details" value="1">'
                         .
@@ -16,7 +16,7 @@
             '<button type="submit" class="btn btn-default">'.e(__('lang_v1.use_current_business')).' ('.e($currentBusiness->name).')</button>'
           .'</form>'
         : '')
-        .'<a href="'.route('hrm.companies.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> '.e(__('lang_v1.add_company')).'</a>'
+        .'<a href="'.route('hrm_admin.companies.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> '.e(__('lang_v1.add_company')).'</a>'
 ])
 
 <section class="content">
@@ -47,8 +47,8 @@
                                 <td>{{ $c->phone }}</td>
                                 <td>{{ $c->country }}</td>
                                 <td class="text-end">
-                                    <a href="{{ route('hrm.companies.edit', $c->id) }}" class="btn btn-sm btn-default">@lang('messages.edit')</a>
-                                    <form action="{{ route('hrm.companies.destroy', $c->id) }}" method="POST" style="display:inline-block" data-hrm-confirm="{{ __('lang_v1.delete_company_confirm') }}" data-hrm-confirm-title="{{ __('lang_v1.delete_company') }}">
+                                    <a href="{{ route('hrm_admin.companies.edit', $c->id) }}" class="btn btn-sm btn-default">@lang('messages.edit')</a>
+                                    <form action="{{ route('hrm_admin.companies.destroy', $c->id) }}" method="POST" style="display:inline-block" data-hrm-confirm="{{ __('lang_v1.delete_company_confirm') }}" data-hrm-confirm-title="{{ __('lang_v1.delete_company') }}">
                                         @csrf
                                         @method('DELETE')
                                         <button class="btn btn-sm btn-danger">@lang('messages.delete')</button>
@@ -60,7 +60,7 @@
                                 <td colspan="5" class="text-center text-muted">
                                     <p style="margin-bottom: 0;">@lang('lang_v1.no_companies_found')</p>
                                     @if(!empty($currentBusiness))
-                                        <form action="{{ route('hrm.companies.store') }}" method="POST" style="display:inline-block">
+                                        <form action="{{ route('hrm_admin.companies.store') }}" method="POST" style="display:inline-block">
                                             @csrf
                                             <input type="hidden" name="use_business_details" value="1">
                                             <input type="hidden" name="source_business_id" value="{{ $currentBusiness->id }}">

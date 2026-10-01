@@ -1,19 +1,16 @@
 @extends('layouts.app')
 
-@section('title', __('ui.designations'))
+@section('title', __('ui.designation_register'))
 
 @section('content')
 @include('hrm::partials.hrm_page_header', [
-    'title' => __('ui.designations'),
+    'title' => __('ui.designation_register'),
     'subtitle' => __('ui.maintain_job_titles_and_map_them_to_departments_and_companies'),
     'actions' => '<a href="'.route('hrm.designations.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> '. __('ui.add_designation') .'</a>'
 ])
 
 <section class="content">
     <div class="box box-primary">
-        <div class="box-header with-border">
-            <h3 class="box-title">{{ __('ui.designation_register') }}</h3>
-        </div>
         <div class="box-body no-padding">
             <div class="table-responsive">
                 <table class="table table-hover table-striped mb-0">

@@ -6,7 +6,7 @@
 @include('hrm::partials.hrm_page_header', [
     'title' => __('ui.create_department'),
     'subtitle' => __('ui.define_a_department_and_assign_it_to_the_right_company_and_department_head'),
-    'actions' => '<a href="'.route('hrm.departments.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> '. __('ui.back_to_departments') .'</a>'
+    'actions' => '<a href="'.route('hrm_admin.departments.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> '. __('ui.back_to_departments') .'</a>'
 ])
 
 <section class="content">
@@ -14,7 +14,7 @@
         <div class="box-header with-border">
             <h3 class="box-title">{{ __('ui.department_details') }}</h3>
         </div>
-        <form method="POST" action="{{ route('hrm.departments.store') }}">
+        <form method="POST" action="{{ route('hrm_admin.departments.store') }}">
             @csrf
             @include('hrm::partials.hrm_form_toolbar')
 
@@ -42,28 +42,30 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="department_head">{{ __('ui.department_head') }} <small class="text-muted">{{ __('ui.optional') }}</small></label>
-                    @if(isset($employees) && count($employees) > 0)
-                        <div class="input-group">
-                            <select name="department_head" id="department_head" class="form-control">
-                                <option value="">{{ __('ui.none') }}</option>
-                                @foreach($employees as $e)
-                                    @php $empLabel = $e->username ?? trim((($e->firstname ?? '') . ' ' . ($e->lastname ?? ''))); @endphp
-                                    <option value="{{ $e->id }}" @if(old('department_head') == $e->id) selected @endif>{{ $empLabel ?: __('ui.employee_2') . $e->id }}</option>
-                                @endforeach
-                            </select>
-                            <span class="input-group-btn">
-                                <a href="{{ route('hrm.employees.create') }}" class="btn btn-default" target="_blank" rel="noopener">{{ __('ui.add_employee') }}</a>
-                            </span>
-                        </div>
-                    @else
-                        <div class="alert alert-info">{{ __('ui.no_employees_available_to_select_as_head') }} <a href="{{ route('hrm.employees.create') }}">{{ __('ui.create_one_first') }}</a>.</div>
-                    @endif
-                    @error('department_head')
-                        <div class="text-danger small">{{ $message }}</div>
-                    @enderror
-                </div>
+                @if($supportsDepartmentHead)
+                    <div class="form-group">
+                        <label for="department_head">{{ __('ui.department_head') }} <small class="text-muted">{{ __('ui.optional') }}</small></label>
+                        @if(isset($employees) && count($employees) > 0)
+                            <div class="input-group">
+                                <select name="department_head" id="department_head" class="form-control">
+                                    <option value="">{{ __('ui.none') }}</option>
+                                    @foreach($employees as $e)
+                                        @php $empLabel = $e->username ?? trim((($e->firstname ?? '') . ' ' . ($e->lastname ?? ''))); @endphp
+                                        <option value="{{ $e->id }}" @if(old('department_head') == $e->id) selected @endif>{{ $empLabel ?: __('ui.employee_2') . $e->id }}</option>
+                                    @endforeach
+                                </select>
+                                <span class="input-group-btn">
+                                    <a href="{{ route('hrm.employees.create') }}" class="btn btn-default" target="_blank" rel="noopener">{{ __('ui.add_employee') }}</a>
+                                </span>
+                            </div>
+                        @else
+                            <div class="alert alert-info">{{ __('ui.no_employees_available_to_select_as_head') }} <a href="{{ route('hrm.employees.create') }}">{{ __('ui.create_one_first') }}</a>.</div>
+                        @endif
+                        @error('department_head')
+                            <div class="text-danger small">{{ $message }}</div>
+                        @enderror
+                    </div>
+                @endif
 
                 <div class="form-group">
                     <label for="description">{{ __('ui.description') }} <small class="text-muted">{{ __('ui.optional') }}</small></label>

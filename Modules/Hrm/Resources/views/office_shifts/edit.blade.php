@@ -104,59 +104,82 @@
                     </div>
                     <div class="box-body">
                         <p class="text-muted">{{ __('ui.configure_the_shift_times_that_apply_to_this_office_schedule') }}</p>
-                        <table class="table table-bordered table-condensed shift-edit-table">
-                            <thead>
-                                <tr>
-                                    <th style="width:120px;">{{ __('ui.day') }}</th>
-                                    <th>{{ __('ui.check_in') }}</th>
-                                    <th>{{ __('ui.check_out') }}</th>
-                                    <th class="text-center" style="width:80px;">{{ __('ui.off') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @php
-                                $days = [
-                                    'monday'    => __('ui.monday'),
-                                    'tuesday'   => __('ui.tuesday'),
-                                    'wednesday' => __('ui.wednesday'),
-                                    'thursday'  => __('ui.thursday'),
-                                    'friday'    => __('ui.friday'),
-                                    'saturday'  => __('ui.saturday'),
-                                    'sunday'    => __('ui.sunday'),
-                                ];
-                                @endphp
-                                @foreach($days as $key => $label)
-                                @php
-                                    $inVal  = old("{$key}_in",  $office_shift->{"{$key}_in"}  ?? '');
-                                    $outVal = old("{$key}_out", $office_shift->{"{$key}_out"} ?? '');
-                                    $inTime  = $inVal  ? date('H:i', strtotime($inVal))  : '';
-                                    $outTime = $outVal ? date('H:i', strtotime($outVal)) : '';
-                                    $isOff   = ($inTime === '' && $outTime === '');
-                                    $isWeekend = in_array($key, ['saturday', 'sunday']);
-                                @endphp
-                                <tr class="shift-row {{ $isWeekend ? 'weekend-row' : '' }} {{ $isOff ? 'off-row' : '' }}" data-day="{{ $key }}">
-                                    <td>
-                                        <span class="shift-day-name">{{ $label }}</span>
-                                        <span class="off-day-badge" style="{{ $isOff ? '' : 'display:none;' }}">{{ __('ui.off_day') }}</span>
-                                    </td>
-                                    <td>
-                                        <input type="time" name="{{ $key }}_in" class="form-control shift-time-in"
-                                               value="{{ $inTime }}" {{ $isOff ? 'disabled' : '' }} />
-                                    </td>
-                                    <td>
-                                        <input type="time" name="{{ $key }}_out" class="form-control shift-time-out"
-                                               value="{{ $outTime }}" {{ $isOff ? 'disabled' : '' }} />
-                                    </td>
-                                    <td class="text-center">
-                                        <input type="checkbox" class="shift-off-toggle"
-                                               data-day="{{ $key }}"
-                                               {{ $isOff ? 'checked' : '' }}
-                                               title="{{ __('ui.mark_as_day_off') }}" />
-                                    </td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                        @if($hasDayCols)
+                            <table class="table table-bordered table-condensed shift-edit-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:120px;">{{ __('ui.day') }}</th>
+                                        <th>{{ __('ui.check_in') }}</th>
+                                        <th>{{ __('ui.check_out') }}</th>
+                                        <th class="text-center" style="width:80px;">{{ __('ui.off') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @php
+                                    $days = [
+                                        'monday'    => __('ui.monday'),
+                                        'tuesday'   => __('ui.tuesday'),
+                                        'wednesday' => __('ui.wednesday'),
+                                        'thursday'  => __('ui.thursday'),
+                                        'friday'    => __('ui.friday'),
+                                        'saturday'  => __('ui.saturday'),
+                                        'sunday'    => __('ui.sunday'),
+                                    ];
+                                    @endphp
+                                    @foreach($days as $key => $label)
+                                    @php
+                                        $inVal  = old("{$key}_in",  $office_shift->{"{$key}_in"}  ?? '');
+                                        $outVal = old("{$key}_out", $office_shift->{"{$key}_out"} ?? '');
+                                        $inTime  = $inVal  ? date('H:i', strtotime($inVal))  : '';
+                                        $outTime = $outVal ? date('H:i', strtotime($outVal)) : '';
+                                        $isOff   = ($inTime === '' && $outTime === '');
+                                        $isWeekend = in_array($key, ['saturday', 'sunday']);
+                                    @endphp
+                                    <tr class="shift-row {{ $isWeekend ? 'weekend-row' : '' }} {{ $isOff ? 'off-row' : '' }}" data-day="{{ $key }}">
+                                        <td>
+                                            <span class="shift-day-name">{{ $label }}</span>
+                                            <span class="off-day-badge" style="{{ $isOff ? '' : 'display:none;' }}">{{ __('ui.off_day') }}</span>
+                                        </td>
+                                        <td>
+                                            <input type="time" name="{{ $key }}_in" class="form-control shift-time-in"
+                                                   value="{{ $inTime }}" {{ $isOff ? 'disabled' : '' }} />
+                                        </td>
+                                        <td>
+                                            <input type="time" name="{{ $key }}_out" class="form-control shift-time-out"
+                                                   value="{{ $outTime }}" {{ $isOff ? 'disabled' : '' }} />
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="checkbox" class="shift-off-toggle"
+                                                   data-day="{{ $key }}"
+                                                   {{ $isOff ? 'checked' : '' }}
+                                                   title="{{ __('ui.mark_as_day_off') }}" />
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        @else
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="start_time">{{ __('ui.check_in') }}</label>
+                                        <input type="time" name="start_time" id="start_time" class="form-control" value="{{ old('start_time', $office_shift->start_time ? date('H:i', strtotime($office_shift->start_time)) : '08:00') }}" required />
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="end_time">{{ __('ui.check_out') }}</label>
+                                        <input type="time" name="end_time" id="end_time" class="form-control" value="{{ old('end_time', $office_shift->end_time ? date('H:i', strtotime($office_shift->end_time)) : '17:00') }}" required />
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="break_minutes">{{ __('ui.break_time') }}</label>
+                                        <input type="number" min="0" name="break_minutes" id="break_minutes" class="form-control" value="{{ old('break_minutes', $office_shift->break_minutes ?? 0) }}" />
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -169,6 +192,7 @@
     </div>
 </section>
 
+@if($hasDayCols)
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.shift-off-toggle').forEach(function (cb) {
@@ -199,7 +223,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // Re-enable disabled inputs before submit so values (empty) are submitted
     document.querySelector('form').addEventListener('submit', function () {
         document.querySelectorAll('.shift-time-in, .shift-time-out').forEach(function (el) {
             el.disabled = false;
@@ -207,4 +230,5 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+@endif
 @endsection

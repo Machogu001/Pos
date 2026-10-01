@@ -95,6 +95,7 @@ return [
     'check' => 'Check',
     'check_in' => 'Check In',
     'check_out' => 'Check Out',
+    'break_time' => 'Break Time',
     'choose_how_hrm_pages_look' => 'Choose How Hrm Pages Look',
     'choose_how_you_want_the_next_otp_sent' => 'Choose How You Want The Next Otp Sent',
     'choose_how_you_want_to_receive_your_otp' => 'Choose How You Want To Receive Your Otp',

@@ -6663,10 +6663,8 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
         // transactional figures unless transactional COGS is zero while ledger COGS exists.
         $useLedgerProfitLoss = $shouldUseLedgerForSingleDayZeroCogs
             || (! $isSingleDayRange
-                && (
-                    $transactionalActivityTotal == 0.0
-                    || ($ledgerActivityTotal > 0 && ($ledgerCogs > 0 || $transactionalCogs == 0.0))
-                ));
+                && $transactionalActivityTotal == 0.0
+                && $ledgerActivityTotal > 0);
 
         if ($useLedgerProfitLoss) {
             if ($shouldUseLedgerForSingleDayZeroCogs) {

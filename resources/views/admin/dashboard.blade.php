@@ -1114,9 +1114,15 @@
                                         </div>
                                         <div class="sched-card__note">{{ __('payment.top_selling_low_stock_alerts_note') }}</div>
                                         <div class="sched-card__runinfo">
-                                            <span><i class="far fa-check-circle me-1"></i>{{ __('payment.last_run_at') }}: <strong>{{ !empty($topSellingLowStockAlertStatus['last_run']) ? \Carbon\Carbon::parse($topSellingLowStockAlertStatus['last_run'])->format('d M H:i') : __('payment.not_available') }}</strong></span>
+                                            <span><i class="far fa-check-circle me-1"></i>{{ __('payment.last_run_at') }} ({{ __('lang_v1.success') }}): <strong>{{ !empty($topSellingLowStockAlertStatus['last_run']) ? \Carbon\Carbon::parse($topSellingLowStockAlertStatus['last_run'])->format('d M H:i') : __('payment.not_available') }}</strong></span>
                                             <span><i class="far fa-clock me-1"></i>{{ __('payment.next_run_at') }}: <strong>{{ !empty($topSellingLowStockAlertStatus['next_run']) ? \Carbon\Carbon::parse($topSellingLowStockAlertStatus['next_run'])->format('d M H:i') : __('payment.not_available') }}</strong></span>
                                         </div>
+                                        @if(!empty($topSellingLowStockAlertStatus['last_failed_at']) || !empty($topSellingLowStockAlertStatus['last_failure_message']))
+                                            <div class="sched-card__runinfo mt-1 text-danger">
+                                                <span><i class="far fa-times-circle me-1"></i>{{ __('payment.last_run_at') }} ({{ __('ui.failed') }}): <strong>{{ !empty($topSellingLowStockAlertStatus['last_failed_at']) ? \Carbon\Carbon::parse($topSellingLowStockAlertStatus['last_failed_at'])->format('d M H:i') : __('payment.not_available') }}</strong></span>
+                                                <span><i class="far fa-comment-alt me-1"></i>{{ __('payment.failure_reason') }}: <strong>{{ $topSellingLowStockAlertStatus['last_failure_message'] ?? __('payment.not_available') }}</strong></span>
+                                            </div>
+                                        @endif
                                         <div class="row g-3 mt-1">
                                             <div class="col-lg-3 col-md-6">
                                                 <label class="sched-card__lbl d-block mb-1">Frequency</label>

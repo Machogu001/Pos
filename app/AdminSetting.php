@@ -83,6 +83,8 @@ class AdminSetting extends Model
         'top_selling_low_stock_alert_whatsapp_phone_param',
         'top_selling_low_stock_alert_whatsapp_message_param',
         'top_selling_low_stock_alert_last_run_at',
+        'top_selling_low_stock_alert_last_failed_at',
+        'top_selling_low_stock_alert_last_failure_message',
     ];
 
     protected $casts = [
@@ -101,5 +103,6 @@ class AdminSetting extends Model
         'top_selling_low_stock_alert_send_sms' => 'boolean',
         'top_selling_low_stock_alert_send_whatsapp' => 'boolean',
         'top_selling_low_stock_alert_last_run_at' => 'datetime',
+        'top_selling_low_stock_alert_last_failed_at' => 'datetime',
     ];
 }

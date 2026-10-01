@@ -2,7 +2,9 @@
 
 namespace Modules\Accounting\Http\Controllers;
 
+use App\Account;
 use App\Business;
+use App\TransactionPayment;
 use Modules\Accounting\Services\FlashService;
 use Modules\Accounting\Entities\PaymentDetail;
 use Modules\Accounting\Entities\Transaction;
@@ -94,7 +96,10 @@ class AccountingTransactionController extends Controller
                     return $this->purchaseUtil->getPurchaseTransactionsDataTable();
                 }
                 $data_array = $this->purchaseUtil->getPurchaseData();
-                $data_array['chart_of_accounts'] = ChartOfAccount::where('active', 1)->orderBy('gl_code')->get();
+                $data_array['chart_of_accounts'] = ChartOfAccount::where('active', 1)
+                    ->whereIn('account_type', ['asset', 'expense'])
+                    ->orderBy('gl_code')
+                    ->get();
                 return view('accounting::transactions.purchases.purchase_payment')->with($data_array);
 
             default:
@@ -116,10 +121,42 @@ class AccountingTransactionController extends Controller
         try {
             DB::beginTransaction();
 
-            $business = Business::where('id', session('business.id'))->select('currency_id')->firstOrFail();
-            $transaction = Transaction::where('id', $request->transaction_id)->select('location_id', 'final_total')->firstOrFail();
+            $business = Business::where('id', session('business.id'))->select('id', 'currency_id', 'common_settings')->firstOrFail();
+            $transaction = Transaction::where('id', $request->transaction_id)->select('id', 'business_id', 'location_id', 'type', 'final_total', 'journal_entry_id')->firstOrFail();
             $transaction_number = get_uniqid();
             $transaction_type = "map_{$request->mapping_for}_transaction_to_journal_entry";
+
+            if ($request->mapping_for === 'purchase_payment') {
+                $journalEntry = $this->storePurchasePaymentJournalEntries($request, $transaction, $business, $transaction_number, $transaction_type);
+
+                Transaction::findOrFail($request->transaction_id)->update(['journal_entry_id' => $journalEntry->id]);
+
+                activity()
+                    ->on($journalEntry)
+                    ->withProperties(['id' => $journalEntry->id])
+                    ->log("Map {$request->mapping_for} transaction to journal entry");
+
+                DB::commit();
+
+                (new FlashService())->onSave();
+                return back();
+            }
+
+            if ($request->mapping_for === 'payment') {
+                $journalEntry = $this->storeSalesPaymentJournalEntries($request, $transaction, $business, $transaction_number, $transaction_type);
+
+                Transaction::findOrFail($request->transaction_id)->update(['journal_entry_id' => $journalEntry->id]);
+
+                activity()
+                    ->on($journalEntry)
+                    ->withProperties(['id' => $journalEntry->id])
+                    ->log("Map {$request->mapping_for} transaction to journal entry");
+
+                DB::commit();
+
+                (new FlashService())->onSave();
+                return back();
+            }
 
             $payment_detail = new PaymentDetail();
             $payment_detail->created_by_id = Auth::id();
@@ -167,5 +204,235 @@ class AccountingTransactionController extends Controller
 
         (new FlashService())->onSave();
         return back();
+    }
+
+    private function storePurchasePaymentJournalEntries(Request $request, Transaction $transaction, Business $business, string $transactionNumber, string $transactionType): JournalEntry
+    {
+        $debitAccount = ChartOfAccount::where('id', $request->chart_of_account_id)
+            ->where('active', 1)
+            ->firstOrFail();
+
+        if (! in_array($debitAccount->account_type, ['asset', 'expense'], true)) {
+            throw new \InvalidArgumentException('Purchase payment mapping must target an asset or expense account, such as Inventory or a purchase expense account.');
+        }
+
+        $payments = TransactionPayment::query()
+            ->where('transaction_id', $transaction->id)
+            ->whereNull('parent_id')
+            ->where('is_return', 0)
+            ->where('amount', '>', 0)
+            ->get(['id', 'account_id', 'amount', 'method']);
+
+        if ($payments->isEmpty()) {
+            throw new \InvalidArgumentException('No purchase payment lines were found for this transaction.');
+        }
+
+        $paymentAccounts = Account::query()
+            ->whereIn('id', $payments->pluck('account_id')->filter()->unique()->values()->all())
+            ->get()
+            ->keyBy('id');
+
+        $creditChartAccounts = [];
+        foreach ($payments as $payment) {
+            $legacyAccount = ! empty($payment->account_id) ? $paymentAccounts->get($payment->account_id) : null;
+            $creditChartAccount = $this->resolvePurchasePaymentCreditAccount($business, $transaction, $legacyAccount, $payment->method);
+
+            if (empty($creditChartAccounts[$creditChartAccount->id])) {
+                $creditChartAccounts[$creditChartAccount->id] = [
+                    'chart_account' => $creditChartAccount,
+                    'amount' => 0.0,
+                ];
+            }
+
+            $creditChartAccounts[$creditChartAccount->id]['amount'] = round(
+                $creditChartAccounts[$creditChartAccount->id]['amount'] + (float) $payment->amount,
+                4
+            );
+        }
+
+        $paymentDetail = new PaymentDetail();
+        $paymentDetail->created_by_id = Auth::id();
+        $paymentDetail->payment_type_id = 1;
+        $paymentDetail->transaction_type = $transactionType;
+        $paymentDetail->save();
+
+        $today = date('Y-m-d');
+        $date = explode('-', $today);
+        $totalPaid = round((float) $payments->sum('amount'), 4);
+
+        $debitEntry = new JournalEntry();
+        $debitEntry->created_by_id = Auth::id();
+        $debitEntry->transaction_number = $transactionNumber;
+        $debitEntry->payment_detail_id = $paymentDetail->id;
+        $debitEntry->location_id = $transaction->location_id;
+        $debitEntry->currency_id = $business->currency_id;
+        $debitEntry->chart_of_account_id = $debitAccount->id;
+        $debitEntry->transaction_type = $transactionType;
+        $debitEntry->date = $today;
+        $debitEntry->month = $date[1];
+        $debitEntry->year = $date[0];
+        $debitEntry->debit = $totalPaid;
+        $debitEntry->manual_entry = 0;
+        $debitEntry->notes = $request->notes;
+        $debitEntry->save();
+
+        foreach ($creditChartAccounts as $creditRow) {
+            $creditEntry = new JournalEntry();
+            $creditEntry->created_by_id = Auth::id();
+            $creditEntry->transaction_number = $transactionNumber;
+            $creditEntry->payment_detail_id = $paymentDetail->id;
+            $creditEntry->location_id = $transaction->location_id;
+            $creditEntry->currency_id = $business->currency_id;
+            $creditEntry->chart_of_account_id = $creditRow['chart_account']->id;
+            $creditEntry->transaction_type = $transactionType;
+            $creditEntry->date = $today;
+            $creditEntry->month = $date[1];
+            $creditEntry->year = $date[0];
+            $creditEntry->credit = $creditRow['amount'];
+            $creditEntry->manual_entry = 0;
+            $creditEntry->notes = $request->notes;
+            $creditEntry->save();
+        }
+
+        return $debitEntry;
+    }
+
+    private function storeSalesPaymentJournalEntries(Request $request, Transaction $transaction, Business $business, string $transactionNumber, string $transactionType): JournalEntry
+    {
+        $creditAccount = ChartOfAccount::where('id', $request->chart_of_account_id)
+            ->where('active', 1)
+            ->firstOrFail();
+
+        $payments = TransactionPayment::query()
+            ->where('transaction_id', $transaction->id)
+            ->whereNull('parent_id')
+            ->where('is_return', 0)
+            ->where('amount', '>', 0)
+            ->get(['id', 'account_id', 'amount', 'method']);
+
+        if ($payments->isEmpty()) {
+            throw new \InvalidArgumentException('No sales payment lines were found for this transaction.');
+        }
+
+        $paymentAccounts = Account::query()
+            ->whereIn('id', $payments->pluck('account_id')->filter()->unique()->values()->all())
+            ->get()
+            ->keyBy('id');
+
+        $debitChartAccounts = [];
+        foreach ($payments as $payment) {
+            $legacyAccount = ! empty($payment->account_id) ? $paymentAccounts->get($payment->account_id) : null;
+            $debitChartAccount = $this->resolvePurchasePaymentCreditAccount($business, $transaction, $legacyAccount, $payment->method);
+
+            if (empty($debitChartAccounts[$debitChartAccount->id])) {
+                $debitChartAccounts[$debitChartAccount->id] = [
+                    'chart_account' => $debitChartAccount,
+                    'amount' => 0.0,
+                ];
+            }
+
+            $debitChartAccounts[$debitChartAccount->id]['amount'] = round(
+                $debitChartAccounts[$debitChartAccount->id]['amount'] + (float) $payment->amount,
+                4
+            );
+        }
+
+        $paymentDetail = new PaymentDetail();
+        $paymentDetail->created_by_id = Auth::id();
+        $paymentDetail->payment_type_id = 1;
+        $paymentDetail->transaction_type = $transactionType;
+        $paymentDetail->save();
+
+        $today = date('Y-m-d');
+        $date = explode('-', $today);
+        $totalPaid = round((float) $payments->sum('amount'), 4);
+
+        foreach ($debitChartAccounts as $debitRow) {
+            $debitEntry = new JournalEntry();
+            $debitEntry->created_by_id = Auth::id();
+            $debitEntry->transaction_number = $transactionNumber;
+            $debitEntry->payment_detail_id = $paymentDetail->id;
+            $debitEntry->location_id = $transaction->location_id;
+            $debitEntry->currency_id = $business->currency_id;
+            $debitEntry->chart_of_account_id = $debitRow['chart_account']->id;
+            $debitEntry->transaction_type = $transactionType;
+            $debitEntry->date = $today;
+            $debitEntry->month = $date[1];
+            $debitEntry->year = $date[0];
+            $debitEntry->debit = $debitRow['amount'];
+            $debitEntry->manual_entry = 0;
+            $debitEntry->notes = $request->notes;
+            $debitEntry->save();
+        }
+
+        $creditEntry = new JournalEntry();
+        $creditEntry->created_by_id = Auth::id();
+        $creditEntry->transaction_number = $transactionNumber;
+        $creditEntry->payment_detail_id = $paymentDetail->id;
+        $creditEntry->location_id = $transaction->location_id;
+        $creditEntry->currency_id = $business->currency_id;
+        $creditEntry->chart_of_account_id = $creditAccount->id;
+        $creditEntry->transaction_type = $transactionType;
+        $creditEntry->date = $today;
+        $creditEntry->month = $date[1];
+        $creditEntry->year = $date[0];
+        $creditEntry->credit = $totalPaid;
+        $creditEntry->manual_entry = 0;
+        $creditEntry->notes = $request->notes;
+        $creditEntry->save();
+
+        return $creditEntry;
+    }
+
+    private function resolvePurchasePaymentCreditAccount(Business $business, Transaction $transaction, ?Account $legacyAccount, ?string $paymentMethod): ChartOfAccount
+    {
+        $resolvedPaymentAccountId = TransactionPayment::resolveDefaultAccountId(
+            $paymentMethod,
+            $transaction->location_id,
+            $transaction->business_id,
+            $transaction->type
+        );
+
+        if (! empty($resolvedPaymentAccountId)) {
+            $resolvedPaymentAccount = Account::query()->find($resolvedPaymentAccountId);
+            $resolvedChartAccount = $this->findActiveChartAccountForLegacyAccount($transaction->business_id, $resolvedPaymentAccount);
+
+            if (! empty($resolvedChartAccount) && $resolvedChartAccount->account_type === 'asset') {
+                return $resolvedChartAccount;
+            }
+        }
+
+        $creditChartAccount = $this->findActiveChartAccountForLegacyAccount($transaction->business_id, $legacyAccount);
+
+        if (! empty($creditChartAccount) && $creditChartAccount->account_type === 'asset') {
+            return $creditChartAccount;
+        }
+
+        $defaultPaymentAccountId = (int) data_get($business->common_settings, 'default_account_mappings.payment');
+        if ($defaultPaymentAccountId <= 0) {
+            throw new \InvalidArgumentException('No valid asset payment account is configured for purchase payment mapping.');
+        }
+
+        $defaultPaymentAccount = Account::query()->find($defaultPaymentAccountId);
+        $fallbackChartAccount = $this->findActiveChartAccountForLegacyAccount($transaction->business_id, $defaultPaymentAccount);
+
+        if (empty($fallbackChartAccount) || $fallbackChartAccount->account_type !== 'asset') {
+            throw new \InvalidArgumentException('The configured default payment chart account must be an asset account.');
+        }
+
+        return $fallbackChartAccount;
+    }
+
+    private function findActiveChartAccountForLegacyAccount(int $businessId, ?Account $legacyAccount): ?ChartOfAccount
+    {
+        if (empty($legacyAccount) || empty($legacyAccount->account_number)) {
+            return null;
+        }
+
+        return ChartOfAccount::query()
+            ->where('business_id', $businessId)
+            ->where('gl_code', $legacyAccount->account_number)
+            ->where('active', 1)
+            ->first();
     }
 }

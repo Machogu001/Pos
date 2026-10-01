@@ -12,12 +12,13 @@ class Department extends Model
     protected $dates = ['deleted_at'];
 
     protected $fillable = [
-        "department","department_head",'company_id'
+        "department","department_head",'company_id','business_id','description'
     ];
 
     protected $casts = [
         'department_head' => 'integer',
         'company_id' => 'integer',
+        'business_id' => 'integer',
     ];
 
 

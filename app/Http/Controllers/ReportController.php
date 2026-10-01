@@ -27,6 +27,7 @@ use App\Utils\ProductUtil;
 use App\Utils\TransactionUtil;
 use App\Variation;
 use App\VariationLocationDetails;
+use App\Notifications\TopSellingLowStockNotification;
 use Datatables;
 use DB;
 use Illuminate\Http\Request;
@@ -366,6 +367,10 @@ class ReportController extends Controller
             $filters = request()->only(['location_id', 'category_id', 'sub_category_id', 'brand_id', 'unit_id', 'tax_id', 'type',
                 'only_mfg_products', 'active_state',  'not_for_selling', 'repair_model_id', 'product_id', 'variation_id', 'active_state', ]);
 
+            if ($request->filled('notification_id')) {
+                $filters['notification_items'] = $this->getNotificationStockFilterItems($request);
+            }
+
             $filters['not_for_selling'] = isset($filters['not_for_selling']) && $filters['not_for_selling'] == 'true' ? 1 : 0;
 
             $filters['show_manufacturing_data'] = $show_manufacturing_data;
@@ -524,6 +529,23 @@ class ReportController extends Controller
 
     protected function getNotificationStockContext(int $business_id, Request $request): ?array
     {
+        if ($request->filled('notification_id')) {
+            $notificationItems = $this->getNotificationStockFilterItems($request);
+
+            if (empty($notificationItems)) {
+                return null;
+            }
+
+            $outOfStockCount = count(array_filter($notificationItems, function ($item) {
+                return (($item['stock_status'] ?? null) === 'out_of_stock') || (float) ($item['current_stock'] ?? 0) <= 0;
+            }));
+
+            return [
+                'notification_item_count' => count($notificationItems),
+                'out_of_stock_count' => $outOfStockCount,
+            ];
+        }
+
         if (! $request->filled('product_id')) {
             return null;
         }
@@ -579,6 +601,57 @@ class ReportController extends Controller
             'location_name' => $stockRow->location_name,
             'stock_updated_at' => ! empty($stockRow->stock_updated_at) ? (string) $stockRow->stock_updated_at : null,
         ];
+    }
+
+    protected function getNotificationStockFilterItems(Request $request): array
+    {
+        $notificationId = (string) $request->input('notification_id', '');
+        if ($notificationId === '' || ! $request->user()) {
+            return [];
+        }
+
+        $notification = $request->user()->notifications()
+            ->where('id', $notificationId)
+            ->where('type', TopSellingLowStockNotification::class)
+            ->first();
+
+        if (empty($notification)) {
+            return [];
+        }
+
+        $items = $notification->data['items'] ?? [];
+        if (! is_array($items)) {
+            return [];
+        }
+
+        return collect($items)
+            ->map(function ($item) {
+                if (! is_array($item)) {
+                    return null;
+                }
+
+                $productId = (int) ($item['product_id'] ?? 0);
+                $variationId = (int) ($item['variation_id'] ?? 0);
+                $locationId = (int) ($item['location_id'] ?? 0);
+
+                if ($productId <= 0 || $variationId <= 0 || $locationId <= 0) {
+                    return null;
+                }
+
+                return [
+                    'product_id' => $productId,
+                    'variation_id' => $variationId,
+                    'location_id' => $locationId,
+                    'stock_status' => $item['stock_status'] ?? null,
+                    'current_stock' => $item['current_stock'] ?? null,
+                ];
+            })
+            ->filter()
+            ->unique(function ($item) {
+                return implode(':', [$item['product_id'], $item['variation_id'], $item['location_id']]);
+            })
+            ->values()
+            ->all();
     }
 
     /**

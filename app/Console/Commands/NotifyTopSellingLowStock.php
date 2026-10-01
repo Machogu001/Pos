@@ -30,68 +30,80 @@ class NotifyTopSellingLowStock extends Command
     public function handle()
     {
         $settings = AdminSetting::first();
-        $businessId = $this->option('business-id') ?: ($settings->top_selling_low_stock_alert_business_id ?? null);
-        $days = max(1, (int) ($this->option('days') ?? ($settings->top_selling_low_stock_alert_days ?? 30)));
-        $limit = max(1, (int) ($this->option('limit') ?? ($settings->top_selling_low_stock_alert_limit ?? 5)));
-        $dryRun = (bool) $this->option('dry-run');
-        $since = Carbon::now()->subDays($days)->startOfDay();
-        $channelSettings = $this->resolveChannelSettings($settings);
 
-        $businesses = Business::query()
-            ->when(! empty($businessId), function ($query) use ($businessId) {
-                $query->where('id', (int) $businessId);
-            })
-            ->get();
+        try {
+            $businessId = $this->option('business-id') ?: ($settings->top_selling_low_stock_alert_business_id ?? null);
+            $days = max(1, (int) ($this->option('days') ?? ($settings->top_selling_low_stock_alert_days ?? 30)));
+            $limit = max(1, (int) ($this->option('limit') ?? ($settings->top_selling_low_stock_alert_limit ?? 5)));
+            $dryRun = (bool) $this->option('dry-run');
+            $since = Carbon::now()->subDays($days)->startOfDay();
+            $channelSettings = $this->resolveChannelSettings($settings);
 
-        if ($businesses->isEmpty()) {
-            $this->info('No businesses matched the supplied filters.');
+            $businesses = Business::query()
+                ->when(! empty($businessId), function ($query) use ($businessId) {
+                    $query->where('id', (int) $businessId);
+                })
+                ->get();
 
-            return 0;
-        }
+            if ($businesses->isEmpty()) {
+                $this->info('No businesses matched the supplied filters.');
 
-        $sentCount = 0;
-        $mailCount = 0;
-        $smsCount = 0;
-        $whatsAppCount = 0;
-        $previewRows = [];
-
-        foreach ($businesses as $business) {
-            $alerts = $this->getLowStockTopSellers((int) $business->id, $since, $limit);
-
-            if ($alerts->isEmpty()) {
-                continue;
+                return 0;
             }
 
-            $allowSmsForThisBatch = $alerts->count() < 5;
+            $sentCount = 0;
+            $mailCount = 0;
+            $smsCount = 0;
+            $whatsAppCount = 0;
+            $previewRows = [];
 
-            $userRecipients = $this->getRecipients($business);
-            if ($userRecipients->isEmpty() && ! $dryRun && $channelSettings['send_in_app']) {
-                $this->warn("No in-app alert recipients found for business #{$business->id}.");
-            }
+            foreach ($businesses as $business) {
+                $alerts = $this->getLowStockTopSellers((int) $business->id, $since, $limit);
 
-            if (! $dryRun && ! $this->hasAnyRecipient($business, $userRecipients, $channelSettings)) {
-                continue;
-            }
+                if ($alerts->isEmpty()) {
+                    continue;
+                }
 
-            foreach ($alerts as $alert) {
-                $payload = $this->buildNotificationPayload($business, $alert, $days);
+                $itemPayloads = $alerts->map(function ($alert) use ($business, $days) {
+                    return $this->buildNotificationPayload($business, $alert, $days);
+                })->values();
+
+                $userRecipients = $this->getRecipients($business);
+                if ($userRecipients->isEmpty() && ! $dryRun && $channelSettings['send_in_app']) {
+                    $this->warn("No in-app alert recipients found for business #{$business->id}.");
+                }
+
+                if (! $dryRun && ! $this->hasAnyRecipient($business, $userRecipients, $channelSettings)) {
+                    continue;
+                }
+
+                foreach ($itemPayloads as $payload) {
+                    if ($dryRun) {
+                        $previewRows[] = [
+                            $business->name,
+                            $payload['product_display_name'],
+                            $payload['location_name'],
+                            $payload['stock_status'],
+                            $payload['current_stock_label'],
+                            $payload['total_qty_sold_label'],
+                        ];
+                    }
+                }
 
                 if ($dryRun) {
-                    $previewRows[] = [
-                        $business->name,
-                        $payload['product_display_name'],
-                        $payload['location_name'],
-                        $payload['stock_status'],
-                        $payload['current_stock_label'],
-                        $payload['total_qty_sold_label'],
-                    ];
                     continue;
                 }
 
-                $cacheKey = $this->getCacheKey($payload);
-                if (Cache::has($cacheKey)) {
+                $pendingPayloads = $itemPayloads->reject(function ($payload) {
+                    return Cache::has($this->getCacheKey($payload));
+                })->values();
+
+                if ($pendingPayloads->isEmpty()) {
                     continue;
                 }
+
+                $allowSmsForThisBatch = $pendingPayloads->count() < 5;
+                $aggregatePayload = $this->buildAggregateNotificationPayload($business, $pendingPayloads, $days);
 
                 $alertDatabaseCount = 0;
                 $alertMailCount = 0;
@@ -100,14 +112,14 @@ class NotifyTopSellingLowStock extends Command
 
                 if ($channelSettings['send_in_app']) {
                     foreach ($userRecipients as $recipient) {
-                        $recipient->notify(new TopSellingLowStockNotification($payload));
+                        $recipient->notify(new TopSellingLowStockNotification($aggregatePayload));
                         $alertDatabaseCount++;
                     }
                 }
 
-                $alertMailCount = $this->sendEmailAlerts($userRecipients, $payload, $channelSettings);
-                $alertSmsCount = $this->sendSmsAlerts($business, $userRecipients, $payload, $channelSettings, $allowSmsForThisBatch);
-                $alertWhatsAppCount = $this->sendWhatsAppAlerts($userRecipients, $payload, $channelSettings);
+                $alertMailCount = $this->sendEmailAlerts($userRecipients, $aggregatePayload, $channelSettings);
+                $alertSmsCount = $this->sendSmsAlerts($business, $userRecipients, $aggregatePayload, $channelSettings, $allowSmsForThisBatch);
+                $alertWhatsAppCount = $this->sendWhatsAppAlerts($userRecipients, $aggregatePayload, $channelSettings);
 
                 if ($alertDatabaseCount === 0 && $alertMailCount === 0 && $alertSmsCount === 0 && $alertWhatsAppCount === 0) {
                     continue;
@@ -118,34 +130,87 @@ class NotifyTopSellingLowStock extends Command
                 $smsCount += $alertSmsCount;
                 $whatsAppCount += $alertWhatsAppCount;
 
-                Cache::put($cacheKey, true, Carbon::now()->addHours(12));
-            }
-        }
-
-        if ($dryRun) {
-            if (empty($previewRows)) {
-                $this->info('No top-selling low-stock products found.');
-            } else {
-                $this->table(
-                    ['Business', 'Product', 'Location', 'Status', 'Current stock', 'Sold'],
-                    $previewRows
-                );
+                foreach ($pendingPayloads as $payload) {
+                    Cache::put($this->getCacheKey($payload), true, Carbon::now()->addHours(12));
+                }
             }
 
-            $this->info('Preview matches: '.count($previewRows));
+            if ($dryRun) {
+                if (empty($previewRows)) {
+                    $this->info('No top-selling low-stock products found.');
+                } else {
+                    $this->table(
+                        ['Business', 'Product', 'Location', 'Status', 'Current stock', 'Sold'],
+                        $previewRows
+                    );
+                }
+
+                $this->info('Preview matches: '.count($previewRows));
+
+                return 0;
+            }
+
+            $this->recordSuccessfulRun($settings);
+
+            $this->info("Top-selling low-stock alerts delivered. In-app: {$sentCount}, email: {$mailCount}, SMS: {$smsCount}, WhatsApp: {$whatsAppCount}");
 
             return 0;
+        } catch (Throwable $e) {
+            $this->recordFailedRun($settings, $e);
+
+            throw $e;
+        }
+    }
+
+    protected function recordSuccessfulRun(?AdminSetting $settings): void
+    {
+        if (empty($settings) || ! Schema::hasTable('admin_settings')) {
+            return;
         }
 
-        if (! empty($settings)) {
-            $settings->forceFill([
-                'top_selling_low_stock_alert_last_run_at' => now(),
-            ])->save();
+        $payload = [];
+
+        if (Schema::hasColumn('admin_settings', 'top_selling_low_stock_alert_last_run_at')) {
+            $payload['top_selling_low_stock_alert_last_run_at'] = now();
         }
 
-        $this->info("Top-selling low-stock alerts delivered. In-app: {$sentCount}, email: {$mailCount}, SMS: {$smsCount}, WhatsApp: {$whatsAppCount}");
+        if (Schema::hasColumn('admin_settings', 'top_selling_low_stock_alert_last_failed_at')) {
+            $payload['top_selling_low_stock_alert_last_failed_at'] = null;
+        }
 
-        return 0;
+        if (Schema::hasColumn('admin_settings', 'top_selling_low_stock_alert_last_failure_message')) {
+            $payload['top_selling_low_stock_alert_last_failure_message'] = null;
+        }
+
+        if (! empty($payload)) {
+            $settings->forceFill($payload)->save();
+        }
+    }
+
+    protected function recordFailedRun(?AdminSetting $settings, Throwable $e): void
+    {
+        \Log::error('Top-selling low-stock alert command failed.', [
+            'message' => $e->getMessage(),
+            'exception' => get_class($e),
+        ]);
+
+        if (empty($settings) || ! Schema::hasTable('admin_settings')) {
+            return;
+        }
+
+        $payload = [];
+
+        if (Schema::hasColumn('admin_settings', 'top_selling_low_stock_alert_last_failed_at')) {
+            $payload['top_selling_low_stock_alert_last_failed_at'] = now();
+        }
+
+        if (Schema::hasColumn('admin_settings', 'top_selling_low_stock_alert_last_failure_message')) {
+            $payload['top_selling_low_stock_alert_last_failure_message'] = mb_substr($e->getMessage(), 0, 1000);
+        }
+
+        if (! empty($payload)) {
+            $settings->forceFill($payload)->save();
+        }
     }
 
     protected function resolveChannelSettings(?AdminSetting $settings): array
@@ -259,6 +324,10 @@ class NotifyTopSellingLowStock extends Command
         }
 
         if ($channelSettings['send_email'] && (! empty($channelSettings['custom_emails']) || $userRecipients->contains(function ($user) {
+            if (Schema::hasColumn('users', 'stock_alert_email_notification_enabled') && ! $user->stock_alert_email_notification_enabled) {
+                return false;
+            }
+
             return ! empty($user->email);
         }))) {
             return true;
@@ -328,10 +397,132 @@ class NotifyTopSellingLowStock extends Command
             'unit' => $unit,
             'days' => $days,
             'stock_report_url' => $stockReportUrl,
+            'notification_line_html' => $htmlMessage,
+            'notification_line_plain' => $plainMessage,
             'mail_subject' => $this->buildMailSubject($business->name, $currentStock <= 0 ? 'out_of_stock' : 'running_low', $this->formatProductName($alert)),
             'mail_body' => '<p>'.$htmlMessage.'</p><p><strong>'.e(__('lang_v1.top_selling_low_stock_mail_business')).':</strong> '.e($business->name).'<br><strong>'.e($stockReportLabel).':</strong> <a href="'.e($stockReportUrl).'">'.e($stockReportUrl).'</a></p>',
             'sms_body' => $plainMessage,
             'whatsapp_body' => $plainMessage,
+        ];
+    }
+
+    protected function buildAggregateNotificationPayload(Business $business, Collection $itemPayloads, int $days): array
+    {
+        $firstPayload = $itemPayloads->first();
+        $hasOutOfStock = $itemPayloads->contains(function ($payload) {
+            return ($payload['stock_status'] ?? null) === 'out_of_stock';
+        });
+        $outOfStockPayloads = $itemPayloads->filter(function ($payload) {
+            return ($payload['stock_status'] ?? null) === 'out_of_stock';
+        })->values();
+        $outOfStockLocations = $outOfStockPayloads->pluck('location_name')
+            ->filter()
+            ->unique()
+            ->values();
+        $sharedOutOfStockLocation = $outOfStockLocations->count() === 1
+            ? (string) $outOfStockLocations->first()
+            : null;
+        $stockReportUrl = $itemPayloads->count() === 1
+            ? ($firstPayload['stock_report_url'] ?? action([
+                \App\Http\Controllers\ReportController::class,
+                'getStockReport',
+            ]))
+            : action([
+                \App\Http\Controllers\ReportController::class,
+                'getStockReport',
+            ]);
+
+        $notificationLines = $itemPayloads->take(3)->map(function ($payload) {
+            return '<li>'.$payload['notification_line_html'].'</li>';
+        })->implode('');
+
+        $fullNotificationLines = $itemPayloads->map(function ($payload) {
+            return '<li>'.$payload['notification_line_html'].'</li>';
+        })->implode('');
+
+        if ($itemPayloads->count() > 3) {
+            $notificationLines .= '<li>+'.$this->formatQuantity((float) ($itemPayloads->count() - 3)).'</li>';
+        }
+
+        $mailLines = $itemPayloads->map(function ($payload) {
+            return '<li>'.$payload['notification_line_html'].'</li>';
+        })->implode('');
+
+        $plainLines = $itemPayloads->map(function ($payload) {
+            return '- '.$payload['notification_line_plain'];
+        })->implode("\n");
+
+        $outOfStockItems = $outOfStockPayloads->map(function ($payload) use ($sharedOutOfStockLocation) {
+            return $this->buildAlertItemLabel($payload, $sharedOutOfStockLocation === null);
+        })->values();
+        $outOfStockItemsHtml = $outOfStockItems->map(function ($label) {
+            return '<li>'.e($label).'</li>';
+        })->implode('');
+        $outOfStockItemsPlain = $outOfStockItems->implode(', ');
+        $outOfStockItemsSms = $this->summarizeSmsItems($outOfStockItems);
+        $outOfStockCount = $outOfStockPayloads->count();
+        $totalUnitsSold = $this->formatQuantity((float) $outOfStockPayloads->sum(function ($payload) {
+            return (float) ($payload['total_qty_sold'] ?? 0);
+        }));
+        $systemName = config('app.name', 'BreMac360');
+
+        $subject = __('payment.top_selling_low_stock_alerts_title').' - '.$business->name;
+        $mailBody = '<p><strong>'.e(__('payment.top_selling_low_stock_alerts_title')).'</strong></p><ul>'.$mailLines.'</ul>';
+        $smsBody = __('payment.top_selling_low_stock_alerts_title')."\n".$plainLines;
+
+        if ($outOfStockCount > 0) {
+            $subject = 'Out of Stock Alert - '.$business->name;
+            $mailBody = $this->buildEmailTemplateBody('Manager', [
+                'lookback_days' => $days,
+                'out_of_stock_count' => $outOfStockCount,
+                'out_of_stock_items_html' => $outOfStockItemsHtml,
+                'out_of_stock_location' => $sharedOutOfStockLocation,
+                'total_units_sold' => $totalUnitsSold,
+                'inventory_url' => $stockReportUrl,
+                'company_name' => $business->name,
+                'system_name' => $systemName,
+            ]);
+            $smsBody = $business->name.': OUT OF STOCK ALERT';
+            if (! empty($sharedOutOfStockLocation)) {
+                $smsBody .= ' - Location '.$sharedOutOfStockLocation;
+            }
+            $smsBody .= ' - '.$outOfStockCount.' item(s) based on your '.$days.'-day analysis: '.$outOfStockItemsSms.'. Review your POS and restock as needed.';
+        }
+
+        return [
+            'business_id' => $business->id,
+            'business_name' => $business->name,
+            'product_id' => $firstPayload['product_id'] ?? null,
+            'variation_id' => $firstPayload['variation_id'] ?? null,
+            'location_id' => $firstPayload['location_id'] ?? null,
+            'variation_location_detail_id' => $firstPayload['variation_location_detail_id'] ?? null,
+            'product_display_name' => $firstPayload['product_display_name'] ?? null,
+            'location_name' => $firstPayload['location_name'] ?? __('lang_v1.all'),
+            'stock_status' => $hasOutOfStock ? 'out_of_stock' : 'running_low',
+            'current_stock' => $firstPayload['current_stock'] ?? null,
+            'current_stock_label' => $firstPayload['current_stock_label'] ?? null,
+            'total_qty_sold_label' => $firstPayload['total_qty_sold_label'] ?? null,
+            'days' => $days,
+            'stock_report_url' => $stockReportUrl,
+            'alert_count' => $itemPayloads->count(),
+            'items' => $itemPayloads->values()->all(),
+            'lookback_days' => $days,
+            'out_of_stock_count' => $outOfStockCount,
+            'out_of_stock_items_html' => $outOfStockItemsHtml,
+            'out_of_stock_location' => $sharedOutOfStockLocation,
+            'company_name' => $business->name,
+            'system_name' => $systemName,
+            'inventory_url' => $stockReportUrl,
+            'total_units_sold' => $totalUnitsSold,
+            'mail_template' => $outOfStockCount > 0 ? 'out_of_stock' : null,
+            'notification_message_html' => '<strong>'.e(__('payment.top_selling_low_stock_alerts_title')).'</strong><ul>'.$notificationLines.'</ul>',
+            'notification_message_plain' => __('payment.top_selling_low_stock_alerts_title')."\n".$plainLines,
+            'subject' => __('payment.top_selling_low_stock_alerts_title'),
+            'msg' => '<strong>'.e(__('payment.top_selling_low_stock_alerts_title')).'</strong><ul>'.$fullNotificationLines.'</ul>',
+            'mail_subject' => $subject,
+            'mail_body' => $mailBody,
+            'sms_body' => $smsBody,
+            'whatsapp_body' => $smsBody,
         ];
     }
 
@@ -341,21 +532,38 @@ class NotifyTopSellingLowStock extends Command
             return 0;
         }
 
-        $emails = $userRecipients
-            ->pluck('email')
-            ->merge($channelSettings['custom_emails'])
-            ->filter()
-            ->map(function ($email) {
-                return strtolower(trim((string) $email));
-            })
-            ->unique()
-            ->values();
+        $emails = $this->resolveEmailRecipients($userRecipients, $channelSettings['custom_emails']);
+
+        $sentCount = 0;
 
         foreach ($emails as $email) {
-            Notification::route('mail', $email)->notify(new TopSellingLowStockMailNotification($payload));
+            $recipientEmail = $email['email'] ?? '';
+
+            if (! filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
+                \Log::warning('Skipping invalid top-selling low-stock email recipient.', [
+                    'email' => $recipientEmail,
+                    'business_id' => $payload['business_id'] ?? null,
+                    'product_id' => $payload['product_id'] ?? null,
+                ]);
+
+                continue;
+            }
+
+            try {
+                Notification::route('mail', $recipientEmail)->notify(new TopSellingLowStockMailNotification(
+                    $this->personalizeEmailPayload($payload, (string) ($email['manager_name'] ?? 'Manager'))
+                ));
+                $sentCount++;
+            } catch (Throwable $e) {
+                \Log::warning('Top-selling low-stock email alert failed: '.$e->getMessage(), [
+                    'email' => $recipientEmail,
+                    'business_id' => $payload['business_id'] ?? null,
+                    'product_id' => $payload['product_id'] ?? null,
+                ]);
+            }
         }
 
-        return $emails->count();
+        return $sentCount;
     }
 
     protected function sendSmsAlerts(Business $business, Collection $userRecipients, array $payload, array $channelSettings, bool $allowSmsForThisBatch): int
@@ -510,6 +718,119 @@ class NotifyTopSellingLowStock extends Command
             ->unique()
             ->values()
             ->all();
+    }
+
+    protected function resolveEmailRecipients(Collection $userRecipients, array $customEmails): Collection
+    {
+        $recipientMap = [];
+
+        foreach ($userRecipients as $user) {
+            if (Schema::hasColumn('users', 'stock_alert_email_notification_enabled') && ! $user->stock_alert_email_notification_enabled) {
+                continue;
+            }
+
+            $email = strtolower(trim((string) ($user->email ?? '')));
+            if ($email === '') {
+                continue;
+            }
+
+            $recipientMap[$email] = [
+                'email' => $email,
+                'manager_name' => $this->formatManagerName($user, $email),
+            ];
+        }
+
+        foreach ($customEmails as $email) {
+            $normalizedEmail = strtolower(trim((string) $email));
+            if ($normalizedEmail === '' || isset($recipientMap[$normalizedEmail])) {
+                continue;
+            }
+
+            $recipientMap[$normalizedEmail] = [
+                'email' => $normalizedEmail,
+                'manager_name' => 'Manager',
+            ];
+        }
+
+        return collect(array_values($recipientMap));
+    }
+
+    protected function personalizeEmailPayload(array $payload, string $managerName): array
+    {
+        if (($payload['mail_template'] ?? null) !== 'out_of_stock') {
+            return $payload;
+        }
+
+        $payload['mail_body'] = $this->buildEmailTemplateBody($managerName, $payload);
+
+        return $payload;
+    }
+
+    protected function formatManagerName(?User $user, string $email): string
+    {
+        $fullName = trim((string) ($user->user_full_name ?? ''));
+        if ($fullName !== '') {
+            return $fullName;
+        }
+
+        $firstName = trim((string) ($user->first_name ?? ''));
+        if ($firstName !== '') {
+            return $firstName;
+        }
+
+        $username = trim((string) ($user->username ?? ''));
+        if ($username !== '') {
+            return $username;
+        }
+
+        $localPart = trim((string) strtok($email, '@'));
+
+        return $localPart !== '' ? $localPart : 'Manager';
+    }
+
+    protected function buildEmailTemplateBody(string $managerName, array $payload): string
+    {
+        $locationLine = '';
+        if (! empty($payload['out_of_stock_location'])) {
+            $locationLine = '<p><strong>Location</strong><br>'.e((string) $payload['out_of_stock_location']).'</p>';
+        }
+
+        return '<p>Hello '.e($managerName).',</p>'
+            .'<p>The following items are currently out of stock based on your '.e((string) ($payload['lookback_days'] ?? 30)).'-day inventory and sales analysis.</p>'
+            .$locationLine
+            .'<p><strong>OUT OF STOCK ITEMS</strong></p>'
+            .'<ul>'.($payload['out_of_stock_items_html'] ?? '').'</ul>'
+            .'<p><strong>Summary</strong><br>'
+            .'&bull; Look-back Period: '.e((string) ($payload['lookback_days'] ?? 30)).' days<br>'
+            .'&bull; Items Out of Stock: '.e((string) ($payload['out_of_stock_count'] ?? 0)).'<br>'
+            .'&bull; Total Units Sold During Period: '.e((string) ($payload['total_units_sold'] ?? 0))
+            .'</p>'
+            .'<p>Please review the items and arrange for restocking.</p>'
+            .'<p>View Inventory &amp; Sales Report:<br><a href="'.e((string) ($payload['inventory_url'] ?? '#')).'">'.e((string) ($payload['inventory_url'] ?? '#')).'</a></p>'
+            .'<p>Regards,<br>'.e((string) ($payload['company_name'] ?? '')).'<br>'.e((string) ($payload['system_name'] ?? 'BreMac360')).'</p>';
+    }
+
+    protected function buildAlertItemLabel(array $payload, bool $includeLocation = true): string
+    {
+        $label = (string) ($payload['product_display_name'] ?? 'Product');
+
+        if ($includeLocation) {
+            $label .= ' - '.($payload['location_name'] ?? __('lang_v1.all'));
+        }
+
+        return trim($label);
+    }
+
+    protected function summarizeSmsItems(Collection $items, int $limit = 3): string
+    {
+        $visible = $items->take($limit)->implode(', ');
+        $remaining = $items->count() - min($items->count(), $limit);
+
+        if ($remaining <= 0) {
+            return $visible;
+        }
+
+        return $visible.' +'.$remaining.' more';
     }
 
     protected function buildMailSubject(string $businessName, string $stockStatus, string $productName): string

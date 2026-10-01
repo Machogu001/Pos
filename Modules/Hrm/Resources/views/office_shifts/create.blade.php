@@ -42,64 +42,86 @@
                     </div>
                 </div>
 
-                <h4 class="tw-font-semibold">{{ __('ui.times') }} <small class="text-muted">{{ __('ui.optional_leave_blank_for_day_off') }}</small></h4>
-                <table class="table table-bordered table-condensed">
-                    <thead>
-                        <tr>
-                            <th style="width:120px;">{{ __('ui.day') }}</th>
-                            <th>{{ __('ui.check_in') }}</th>
-                            <th>{{ __('ui.check_out') }}</th>
-                            <th class="text-center" style="width:80px;">{{ __('ui.off') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @php
-                        $days = [
-                            'monday'    => __('ui.monday'),
-                            'tuesday'   => __('ui.tuesday'),
-                            'wednesday' => __('ui.wednesday'),
-                            'thursday'  => __('ui.thursday'),
-                            'friday'    => __('ui.friday'),
-                            'saturday'  => __('ui.saturday'),
-                            'sunday'    => __('ui.sunday'),
-                        ];
-                        // Default all days to 08:00–17:00; admin can disable any day via "Off" checkbox
-                        $defaults = [
-                            'monday'    => ['08:00', '17:00'],
-                            'tuesday'   => ['08:00', '17:00'],
-                            'wednesday' => ['08:00', '17:00'],
-                            'thursday'  => ['08:00', '17:00'],
-                            'friday'    => ['08:00', '17:00'],
-                            'saturday'  => ['08:00', '17:00'],
-                            'sunday'    => ['08:00', '17:00'],
-                        ];
-                        @endphp
-                        @foreach($days as $key => $label)
-                        @php
-                            $inVal  = old("{$key}_in",  $defaults[$key][0]);
-                            $outVal = old("{$key}_out", $defaults[$key][1]);
-                            $isOff  = ($inVal === '' && $outVal === '');
-                        @endphp
-                        <tr class="shift-row" data-day="{{ $key }}">
-                            <td><strong>{{ $label }}</strong></td>
-                            <td>
-                                <input type="time" name="{{ $key }}_in" class="form-control shift-time-in"
-                                       value="{{ $inVal }}" {{ $isOff ? 'disabled' : '' }} />
-                            </td>
-                            <td>
-                                <input type="time" name="{{ $key }}_out" class="form-control shift-time-out"
-                                       value="{{ $outVal }}" {{ $isOff ? 'disabled' : '' }} />
-                            </td>
-                            <td class="text-center">
-                                <input type="checkbox" class="shift-off-toggle"
-                                       data-day="{{ $key }}"
-                                       {{ $isOff ? 'checked' : '' }}
-                                       title="{{ __('ui.mark_as_day_off') }}" />
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                @if($hasDayCols)
+                    <h4 class="tw-font-semibold">{{ __('ui.times') }} <small class="text-muted">{{ __('ui.optional_leave_blank_for_day_off') }}</small></h4>
+                    <table class="table table-bordered table-condensed">
+                        <thead>
+                            <tr>
+                                <th style="width:120px;">{{ __('ui.day') }}</th>
+                                <th>{{ __('ui.check_in') }}</th>
+                                <th>{{ __('ui.check_out') }}</th>
+                                <th class="text-center" style="width:80px;">{{ __('ui.off') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @php
+                            $days = [
+                                'monday'    => __('ui.monday'),
+                                'tuesday'   => __('ui.tuesday'),
+                                'wednesday' => __('ui.wednesday'),
+                                'thursday'  => __('ui.thursday'),
+                                'friday'    => __('ui.friday'),
+                                'saturday'  => __('ui.saturday'),
+                                'sunday'    => __('ui.sunday'),
+                            ];
+                            $defaults = [
+                                'monday'    => ['08:00', '17:00'],
+                                'tuesday'   => ['08:00', '17:00'],
+                                'wednesday' => ['08:00', '17:00'],
+                                'thursday'  => ['08:00', '17:00'],
+                                'friday'    => ['08:00', '17:00'],
+                                'saturday'  => ['08:00', '17:00'],
+                                'sunday'    => ['08:00', '17:00'],
+                            ];
+                            @endphp
+                            @foreach($days as $key => $label)
+                            @php
+                                $inVal  = old("{$key}_in",  $defaults[$key][0]);
+                                $outVal = old("{$key}_out", $defaults[$key][1]);
+                                $isOff  = ($inVal === '' && $outVal === '');
+                            @endphp
+                            <tr class="shift-row" data-day="{{ $key }}">
+                                <td><strong>{{ $label }}</strong></td>
+                                <td>
+                                    <input type="time" name="{{ $key }}_in" class="form-control shift-time-in"
+                                           value="{{ $inVal }}" {{ $isOff ? 'disabled' : '' }} />
+                                </td>
+                                <td>
+                                    <input type="time" name="{{ $key }}_out" class="form-control shift-time-out"
+                                           value="{{ $outVal }}" {{ $isOff ? 'disabled' : '' }} />
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="shift-off-toggle"
+                                           data-day="{{ $key }}"
+                                           {{ $isOff ? 'checked' : '' }}
+                                           title="{{ __('ui.mark_as_day_off') }}" />
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @else
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="start_time">{{ __('ui.check_in') }}</label>
+                                <input type="time" name="start_time" id="start_time" class="form-control" value="{{ old('start_time', '08:00') }}" required />
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="end_time">{{ __('ui.check_out') }}</label>
+                                <input type="time" name="end_time" id="end_time" class="form-control" value="{{ old('end_time', '17:00') }}" required />
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="break_minutes">{{ __('ui.break_time') }}</label>
+                                <input type="number" min="0" name="break_minutes" id="break_minutes" class="form-control" value="{{ old('break_minutes', 0) }}" />
+                            </div>
+                        </div>
+                    </div>
+                @endif
             </div>
 
             <div class="box-footer text-right">
@@ -109,6 +131,7 @@
     </div>
 </section>
 
+@if($hasDayCols)
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.shift-off-toggle').forEach(function (cb) {
@@ -139,5 +162,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+@endif
 @endsection
 

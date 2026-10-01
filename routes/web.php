@@ -228,6 +228,13 @@ Route::post('/mpesa/sync-subscription', [MpesaController::class, 'syncSubscripti
 // ============================
 Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone', 'AdminSidebarMenu', 'CheckUserLogin', 'subscription'])->group(function () {
     // All business operation routes that require active subscription
+    Route::prefix('hrm-admin')->name('hrm_admin.')->group(function () {
+        Route::resource('companies', \Modules\Hrm\Http\Controllers\CompanyController::class);
+        Route::resource('departments', \Modules\Hrm\Http\Controllers\DepartmentsController::class);
+        Route::post('departments/{department}/head', [\Modules\Hrm\Http\Controllers\DepartmentsController::class, 'setHead'])->name('departments.set_head');
+        Route::delete('departments/{department}/head', [\Modules\Hrm\Http\Controllers\DepartmentsController::class, 'removeHead'])->name('departments.remove_head');
+    });
+
     Route::get('pos/payment/{id}', [SellPosController::class, 'edit'])->name('edit-pos-payment');
     Route::get('service-staff-availability', [SellPosController::class, 'showServiceStaffAvailibility']);
     Route::get('pause-resume-service-staff-timer/{user_id}', [SellPosController::class, 'pauseResumeServiceStaffTimer']);

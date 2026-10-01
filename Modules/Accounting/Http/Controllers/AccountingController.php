@@ -2,6 +2,8 @@
 
 namespace Modules\Accounting\Http\Controllers;
 
+use App\Account;
+use App\AccountTransaction;
 use Modules\Accounting\Entities\BusinessLocation;
 use Modules\Accounting\Entities\Currency;
 use Modules\Accounting\Services\ApiService;
@@ -15,15 +17,19 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\ManageUserController;
 use Modules\Accounting\Entities\ChartOfAccount;
 use Modules\Accounting\Entities\JournalEntry;
 use Modules\Accounting\Entities\PaymentType;
 use Modules\Accounting\Entities\Transfer;
+use Modules\Accounting\Services\FlashService;
 use Yajra\DataTables\Facades\DataTables;
 
 class AccountingController extends Controller
 {
     private $commonUtil;
+
+    private const TRANSFER_ACCOUNT_TYPES = ['asset', 'liability', 'equity'];
 
     public function __construct(Util $commonUtil)
     {
@@ -226,7 +232,7 @@ class AccountingController extends Controller
                 ->editColumn('transfer_by', function ($row) {
                     $transfer_by = $row->transfer_by->user_full_name;
                     $transfer_by_id = $row->transfer_by_id;
-                    return '<a href="' . action('ManageUserController@show', [$transfer_by_id]) . '"> ' . $transfer_by . ' </a>&nbsp;';
+                    return '<a href="' . action([ManageUserController::class, 'show'], [$transfer_by_id]) . '"> ' . $transfer_by . ' </a>&nbsp;';
                 })
                 ->editColumn('arrow_right', function () {
                     return '<i class="fa fa-arrow-right" aria-hidden="true"></i>';
@@ -244,6 +250,7 @@ class AccountingController extends Controller
         $chart_of_accounts = ChartOfAccount::query()
             ->where('business_id', $businessId)
             ->where('active', 1)
+            ->whereIn('account_type', self::TRANSFER_ACCOUNT_TYPES)
             ->orderBy('gl_code')
             ->get();
         $currencies = Currency::all();
@@ -292,14 +299,28 @@ class AccountingController extends Controller
         try {
             DB::beginTransaction();
 
-            $transaction_number = $this->store_transfer_journal_entry($request);
+            $amount = $this->commonUtil->num_uf($request->input('amount'));
+
+            $this->assertDistinctTransferAccounts((int) $request->debit, (int) $request->credit);
+
+            $businessId = $this->resolveBusinessId();
+            $fromChartAccount = ChartOfAccount::query()
+                ->where('business_id', $businessId)
+                ->findOrFail($request->debit);
+            $toChartAccount = ChartOfAccount::query()
+                ->where('business_id', $businessId)
+                ->findOrFail($request->credit);
+
+            $this->assertBalanceSheetTransferAccounts($fromChartAccount, $toChartAccount);
+
+            $transaction_number = $this->store_transfer_journal_entry($request, $amount);
 
             $transfer = Transfer::create([
                 'journal_transaction_number' => $transaction_number,
                 'transfer_from_id' => $request->debit,
                 'transfer_to_id' => $request->credit,
                 'transfer_by_id' => Auth::id(),
-                'amount' => $request->amount,
+                'amount' => $amount,
             ]);
 
             activity()
@@ -307,16 +328,28 @@ class AccountingController extends Controller
                 ->withProperties(['id' => $transfer->id])
                 ->log('Create Transfer');
 
+            $this->syncTransferAccountTransactions($request, $transaction_number, $amount, $fromChartAccount, $toChartAccount);
+
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
+
+            if ($e instanceof \InvalidArgumentException) {
+                Log::warning($e->getMessage(), ['exception' => $e]);
+
+                return response()->json([
+                    'success' => false,
+                    'msg' => $e->getMessage(),
+                ], 422);
+            }
+
             return (new ApiService())->onException($e);
         }
 
         return (new ApiService())->onSave();
     }
 
-    private function store_transfer_journal_entry(Request $request)
+    private function store_transfer_journal_entry(Request $request, float $amount)
     {
         $payment_detail = new PaymentDetail();
         $payment_detail->created_by_id = Auth::id();
@@ -344,7 +377,7 @@ class AccountingController extends Controller
         $date = explode('-', $request->date);
         $journal_entry->month = $date[1];
         $journal_entry->year = $date[0];
-        $journal_entry->debit = $request->amount;
+        $journal_entry->debit = $amount;
         $journal_entry->reference = $request->reference;
         $journal_entry->manual_entry = 0;
         $journal_entry->notes = $request->notes;
@@ -362,7 +395,7 @@ class AccountingController extends Controller
         $date = explode('-', $request->date);
         $journal_entry->month = $date[1];
         $journal_entry->year = $date[0];
-        $journal_entry->credit = $request->amount;
+        $journal_entry->credit = $amount;
         $journal_entry->reference = $request->reference;
         $journal_entry->manual_entry = 0;
         $journal_entry->notes = $request->notes;
@@ -374,5 +407,109 @@ class AccountingController extends Controller
             ->log('Create Journal Entry for Transfer');
 
         return $transaction_number;
+    }
+
+    private function syncTransferAccountTransactions(Request $request, string $transactionNumber, float $amount, ?ChartOfAccount $fromChartAccount = null, ?ChartOfAccount $toChartAccount = null): void
+    {
+        $businessId = $this->resolveBusinessId();
+        if (empty($businessId)) {
+            return;
+        }
+
+        $amount = round($amount, 4);
+        if ($amount <= 0) {
+            return;
+        }
+
+        $fromChartAccount = $fromChartAccount ?: ChartOfAccount::query()
+            ->where('business_id', $businessId)
+            ->find($request->debit);
+        $toChartAccount = $toChartAccount ?: ChartOfAccount::query()
+            ->where('business_id', $businessId)
+            ->find($request->credit);
+
+        if (empty($fromChartAccount) || empty($toChartAccount)) {
+            return;
+        }
+
+        $fromLegacyAccount = $this->findLegacyAccountForChartAccount($businessId, $fromChartAccount->gl_code);
+        $toLegacyAccount = $this->findLegacyAccountForChartAccount($businessId, $toChartAccount->gl_code);
+
+        if (empty($fromLegacyAccount) || empty($toLegacyAccount)) {
+            return;
+        }
+
+        $operationDate = $request->filled('date')
+            ? $this->commonUtil->uf_date($request->input('date'), false)
+            : now()->toDateString();
+        $createdBy = Auth::id();
+        $note = $request->notes;
+
+        $fromData = [
+            'amount' => $amount,
+            'account_id' => $fromLegacyAccount->id,
+            'type' => $this->typeForDecrease($fromLegacyAccount),
+            'sub_type' => 'journal_entry',
+            'reff_no' => $transactionNumber,
+            'operation_date' => $operationDate,
+            'created_by' => $createdBy,
+            'note' => $note,
+        ];
+        $fromAccountTransaction = AccountTransaction::createAccountTransaction($fromData);
+
+        $toData = [
+            'amount' => $amount,
+            'account_id' => $toLegacyAccount->id,
+            'type' => $this->typeForIncrease($toLegacyAccount),
+            'sub_type' => 'journal_entry',
+            'reff_no' => $transactionNumber,
+            'operation_date' => $operationDate,
+            'created_by' => $createdBy,
+            'note' => $note,
+            'transfer_transaction_id' => $fromAccountTransaction->id,
+        ];
+        $toAccountTransaction = AccountTransaction::createAccountTransaction($toData);
+
+        $fromAccountTransaction->transfer_transaction_id = $toAccountTransaction->id;
+        $fromAccountTransaction->save();
+    }
+
+    private function findLegacyAccountForChartAccount(int $businessId, $glCode): ?Account
+    {
+        $normalizedGlCode = trim((string) $glCode);
+        if ($normalizedGlCode === '') {
+            return null;
+        }
+
+        return Account::query()
+            ->where('business_id', $businessId)
+            ->where('account_number', $normalizedGlCode)
+            ->with(['account_type.parent_account'])
+            ->first();
+    }
+
+    private function typeForIncrease(Account $account): string
+    {
+        return $account->isDebitNormalAccount() ? 'debit' : 'credit';
+    }
+
+    private function typeForDecrease(Account $account): string
+    {
+        return $account->isDebitNormalAccount() ? 'credit' : 'debit';
+    }
+
+    private function assertBalanceSheetTransferAccounts(ChartOfAccount $fromChartAccount, ChartOfAccount $toChartAccount): void
+    {
+        if (! in_array($fromChartAccount->account_type, self::TRANSFER_ACCOUNT_TYPES, true)
+            || ! in_array($toChartAccount->account_type, self::TRANSFER_ACCOUNT_TYPES, true)) {
+            throw new \InvalidArgumentException('Transfers are only allowed between balance sheet accounts. Use a journal entry for income, expense, or COGS reclassifications.');
+        }
+    }
+
+    private function assertDistinctTransferAccounts(int $fromChartAccountId, int $toChartAccountId): void
+    {
+        if ($fromChartAccountId === $toChartAccountId) {
+            throw new \InvalidArgumentException('Transfer source and destination accounts must be different.');
+        }
     }
 }

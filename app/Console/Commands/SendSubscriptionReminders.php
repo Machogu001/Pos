@@ -112,28 +112,7 @@ class SendSubscriptionReminders extends Command
             return;
         }
 
-        // Create or find contact for user within business
-        $contact = null;
-        if ($business_id) {
-            $contact = Contact::where('business_id', $business_id)
-                        ->where(function ($q) use ($user) {
-                            $q->where('email', $user->email)->orWhere('mobile', $user->phone ?? '');
-                        })->first();
-
-            if (! $contact) {
-                $contact = Contact::create([
-                    'business_id' => $business_id,
-                    'type' => 'customer',
-                    'name' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
-                    'mobile' => $user->phone ?? null,
-                    'email' => $user->email ?? null,
-                    'contact_status' => 'active',
-                    'created_by' => $user->id,
-                ]);
-            }
-        }
-
-    // Build transaction input
+        // Build transaction input
 
         $location_id = 1;
         try {
@@ -143,42 +122,6 @@ class SendSubscriptionReminders extends Command
                 $location_id = $business->locations()->first()->id;
             }
         } catch (\Exception $e) {
-        }
-
-        // Try to build a subscription-specific invoice_no from admin settings (prefix + next)
-        $invoice_no = null;
-        try {
-            DB::beginTransaction();
-            $adminSettings = \App\AdminSetting::lockForUpdate()->first();
-            if ($adminSettings) {
-                $prefix = $adminSettings->subscription_invoice_prefix ?? '';
-                $next = intval($adminSettings->subscription_invoice_next ?? 1);
-                // pad numeric part for readability (6 digits)
-                $numeric = str_pad($next, 6, '0', STR_PAD_LEFT);
-                $invoice_no = $prefix . $numeric;
-                $adminSettings->subscription_invoice_next = $next + 1;
-                $adminSettings->save();
-            }
-            DB::commit();
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::warning('Failed to generate subscription invoice sequence: '.$e->getMessage());
-            $invoice_no = null;
-        }
-
-        $input = [
-            'location_id' => $location_id,
-            'status' => 'final',
-            'contact_id' => $contact->id ?? null,
-            'transaction_date' => now()->toDateTimeString(),
-            'is_recurring' => 0,
-            'subscription_no' => $uniqueKey,
-            'sub_type' => 'subscription_invoice',
-            'sale_note' => 'Subscription renewal invoice for '.$subscription->plan_name,
-        ];
-
-        if (!empty($invoice_no)) {
-            $input['invoice_no'] = $invoice_no;
         }
 
         $amount = $subscription->amount ?? 0;
@@ -204,15 +147,17 @@ class SendSubscriptionReminders extends Command
         }
         $finalAmountRounded = round($finalAmount, $roundPrecision, PHP_ROUND_HALF_UP);
 
-        $invoice_total = [
-            'total_before_tax' => $amount,
-            'tax' => $vatAmount,
-        ];
-
         try {
-            $tx = $transactionUtil->createSellTransaction($business_id, array_merge($input, ['final_total' => $finalAmountRounded]), $invoice_total, $user->id);
-            // Ensure payment status due
-            $tx->payment_status = 'due';
+            $tx = $transactionUtil->createExpense(new \Illuminate\Http\Request([
+                'location_id' => $location_id,
+                'transaction_date' => now()->toDateTimeString(),
+                'final_total' => $finalAmountRounded,
+                'additional_notes' => 'Subscription renewal fee for '.$subscription->plan_name,
+            ]), $business_id, $user->id, false);
+            $tx->sub_type = 'subscription_fee';
+            $tx->subscription_no = $uniqueKey;
+            $tx->total_before_tax = $amount;
+            $tx->tax_amount = $vatAmount;
             $tx->save();
 
             try {
@@ -296,11 +241,12 @@ class SendSubscriptionReminders extends Command
             }
 
             try {
-                $mpdf = $transactionUtil->getEmailAttachmentForGivenTransaction($business_id, $tx->id, true);
+                $settings = \App\AdminSetting::first();
+                $mpdf = PDF::loadView('subscriptions.invoice_pdf', compact('subscription', 'settings'))->output();
 
-                $paymentLink = route('invoice_payment', ['token' => $tx->invoice_token ?? '']);
+                $paymentLink = route('subscription.plans');
                 $subject = __('Invoice for subscription renewal - :plan', ['plan' => $subscription->plan_name]);
-                $body = "An invoice has been generated for your upcoming subscription renewal (ends on ". $subscription->end_date->toFormattedDateString() .").\n";
+                $body = "A subscription renewal charge has been recorded as a business expense for your location (ends on ". $subscription->end_date->toFormattedDateString() .").\n";
                 if ($vatAmount > 0) {
                     $body .= "Amount (ex VAT): ".number_format($amount,2)."\n";
                     $body .= "VAT (".$vatPercent."%): ".number_format($vatAmount,2)."\n";
@@ -308,13 +254,13 @@ class SendSubscriptionReminders extends Command
                 } else {
                     $body .= "Amount: ".number_format($amount,2)."\n";
                 }
-                $body .= "Pay now: ". $paymentLink;
+                $body .= "Pay from your subscription page: ". $paymentLink;
 
                 $data = [
                     'subject' => $subject,
                     'email_body' => nl2br(e($body)),
                     'pdf' => $mpdf,
-                    'pdf_name' => 'INVOICE-'.$tx->invoice_no.'.pdf',
+                    'pdf_name' => 'subscription_invoice_'.$subscription->id.'.pdf',
                 ];
 
                 Notification::route('mail', $user->email)->notify(new CustomerNotification($data));

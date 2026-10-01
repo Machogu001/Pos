@@ -134,6 +134,19 @@
                         } else {
                             toastr.error(result.msg);
                         }
+                    },
+                    error: function(xhr) {
+                        var message = 'An error occurred while saving the transfer.';
+
+                        if (xhr.responseJSON) {
+                            if (xhr.responseJSON.msg) {
+                                message = xhr.responseJSON.msg;
+                            } else if (xhr.responseJSON.message) {
+                                message = xhr.responseJSON.message;
+                            }
+                        }
+
+                        toastr.error(message);
                     }
                 });
             });

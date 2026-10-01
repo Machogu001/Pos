@@ -10,11 +10,9 @@ use PDF;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Modules\Accounting\Services\AccountingReportService;
 use Modules\Accounting\Entities\AccountSubtype;
 use Modules\Accounting\Entities\ChartOfAccount;
-use Modules\Accounting\Entities\JournalEntry;
 use Modules\Accounting\Entities\Transaction;
 use Modules\Accounting\Services\BudgetService;
 
@@ -49,29 +47,7 @@ class ReportController extends Controller
             $location_id = $business_locations->first()->id;
         }
         $account_types = ChartOfAccount::getAccountTypes();
-        $data = DB::table('chart_of_accounts')
-            ->leftJoin('accounts', function ($join) use ($business_id) {
-                $join->on('accounts.account_number', '=', 'chart_of_accounts.gl_code')
-                     ->where('accounts.business_id', $business_id);
-            })
-            ->leftJoin('account_transactions', function ($join) use ($start_date, $end_date) {
-                $join->on('account_transactions.account_id', '=', 'accounts.id')
-                     ->whereNull('account_transactions.deleted_at')
-                     ->where(DB::raw('DATE(account_transactions.operation_date)'), '>=', $start_date)
-                     ->where(DB::raw('DATE(account_transactions.operation_date)'), '<=', $end_date);
-            })
-            ->where('chart_of_accounts.active', 1)
-            ->where('chart_of_accounts.business_id', $business_id)
-            ->selectRaw("
-                chart_of_accounts.name,
-                chart_of_accounts.gl_code,
-                chart_of_accounts.account_type,
-                NULL as business_location,
-                COALESCE(SUM(CASE WHEN account_transactions.type='debit' THEN account_transactions.amount ELSE 0 END), 0) as debit,
-                COALESCE(SUM(CASE WHEN account_transactions.type='credit' THEN account_transactions.amount ELSE 0 END), 0) as credit
-            ")
-            ->groupBy('chart_of_accounts.id')
-            ->get();
+        $data = $this->buildJournalStatementRows($business_id, $start_date, $end_date, $location_id);
 
         $compact_data = compact(
             'start_date',
@@ -120,30 +96,9 @@ class ReportController extends Controller
         }
         $currency_code = currency_code();
         $account_types = ChartOfAccount::getAccountTypes();
-
-        $data = DB::table('chart_of_accounts')
-            ->leftJoin('accounts', function ($join) use ($business_id) {
-                $join->on('accounts.account_number', '=', 'chart_of_accounts.gl_code')
-                     ->where('accounts.business_id', $business_id);
-            })
-            ->leftJoin('account_transactions', function ($join) use ($end_date) {
-                $join->on('account_transactions.account_id', '=', 'accounts.id')
-                     ->whereNull('account_transactions.deleted_at')
-                     ->where(DB::raw('DATE(account_transactions.operation_date)'), '<=', $end_date);
-            })
-            ->where('chart_of_accounts.active', 1)
-            ->where('chart_of_accounts.business_id', $business_id)
-            ->selectRaw("
-                chart_of_accounts.name,
-                chart_of_accounts.gl_code,
-                chart_of_accounts.account_type,
-                NULL as business_location,
-                COALESCE(SUM(CASE WHEN account_transactions.type='debit' THEN account_transactions.amount ELSE 0 END), 0) as debit,
-                COALESCE(SUM(CASE WHEN account_transactions.type='credit' THEN account_transactions.amount ELSE 0 END), 0) as credit
-            ")
-            ->groupBy('chart_of_accounts.id')
-            ->orderBy('account_type')
-            ->get();
+        $data = $this->buildJournalStatementRows($business_id, null, $end_date, $location_id)
+            ->sortBy('account_type')
+            ->values();
 
         $compact_data = compact('start_date', 'end_date', 'location_id', 'data', 'business_locations', 'currency_code', 'account_types');
 
@@ -183,31 +138,9 @@ class ReportController extends Controller
         if (empty($location_id) && $business_locations->isNotEmpty()) {
             $location_id = $business_locations->first()->id;
         }
-        $data = DB::table('chart_of_accounts')
-            ->leftJoin('accounts', function ($join) use ($business_id) {
-                $join->on('accounts.account_number', '=', 'chart_of_accounts.gl_code')
-                     ->where('accounts.business_id', $business_id);
-            })
-            ->leftJoin('account_transactions', function ($join) use ($start_date, $end_date) {
-                $join->on('account_transactions.account_id', '=', 'accounts.id')
-                     ->whereNull('account_transactions.deleted_at')
-                     ->where(DB::raw('DATE(account_transactions.operation_date)'), '>=', $start_date)
-                     ->where(DB::raw('DATE(account_transactions.operation_date)'), '<=', $end_date);
-            })
-            ->where('chart_of_accounts.active', 1)
-            ->whereIn('chart_of_accounts.account_type', $account_types)
-            ->where('chart_of_accounts.business_id', $business_id)
-            ->selectRaw("
-                chart_of_accounts.name,
-                chart_of_accounts.gl_code,
-                chart_of_accounts.account_type,
-                NULL as business_location,
-                COALESCE(SUM(CASE WHEN account_transactions.type='debit' THEN account_transactions.amount ELSE 0 END), 0) as debit,
-                COALESCE(SUM(CASE WHEN account_transactions.type='credit' THEN account_transactions.amount ELSE 0 END), 0) as credit
-            ")
-            ->groupBy('chart_of_accounts.id')
-            ->orderBy('account_type')
-            ->get();
+        $data = $this->buildJournalStatementRows($business_id, $start_date, $end_date, $location_id, $account_types)
+            ->sortBy('account_type')
+            ->values();
         $currency_code = currency_code();
         $compact_data = compact(
             'start_date',
@@ -253,37 +186,18 @@ class ReportController extends Controller
         $account_types = ['asset', 'equity', 'liability'];
 
         if (!empty($end_date)) {
-            $data = DB::table('chart_of_accounts')
-                ->leftJoin('accounts', function ($join) use ($business_id) {
-                    $join->on('accounts.account_number', '=', 'chart_of_accounts.gl_code')
-                         ->where('accounts.business_id', $business_id);
+            $data = $this->buildJournalStatementRows($business_id, null, $end_date, $location_id, ['asset', 'equity', 'liability'])
+                ->map(function ($row) {
+                    $balance = in_array($row->account_type, ['asset'], true)
+                        ? ((float) $row->debit - (float) $row->credit)
+                        : ((float) $row->credit - (float) $row->debit);
+
+                    $row->balance = $balance;
+
+                    return $row;
                 })
-                ->leftJoin('account_transactions', function ($join) use ($end_date) {
-                    $join->on('account_transactions.account_id', '=', 'accounts.id')
-                         ->whereNull('account_transactions.deleted_at')
-                         ->where(DB::raw('DATE(account_transactions.operation_date)'), '<=', $end_date);
-                })
-                ->where('chart_of_accounts.active', 1)
-                ->whereIn('chart_of_accounts.account_type', ['asset', 'equity', 'liability'])
-                ->where('chart_of_accounts.business_id', $business_id)
-                ->selectRaw("
-                    chart_of_accounts.name,
-                    chart_of_accounts.gl_code,
-                    chart_of_accounts.account_type,
-                    NULL as business_location,
-                    COALESCE(SUM(CASE WHEN account_transactions.type='debit' THEN account_transactions.amount ELSE 0 END), 0) as debit,
-                    COALESCE(SUM(CASE WHEN account_transactions.type='credit' THEN account_transactions.amount ELSE 0 END), 0) as credit,
-                    COALESCE(SUM(CASE
-                        WHEN chart_of_accounts.account_type='asset' AND account_transactions.type='debit' THEN account_transactions.amount
-                        WHEN chart_of_accounts.account_type='asset' AND account_transactions.type='credit' THEN -1 * account_transactions.amount
-                        WHEN account_transactions.type='credit' THEN account_transactions.amount
-                        WHEN account_transactions.type='debit' THEN -1 * account_transactions.amount
-                        ELSE 0
-                    END), 0) as balance
-                ")
-                ->groupBy('chart_of_accounts.id')
-                ->orderBy('account_type')
-                ->get();
+                ->sortBy('account_type')
+                ->values();
 
             $compact_data = compact('end_date', 'location_id', 'data', 'business_locations', 'currency_code', 'account_types');
 
@@ -304,6 +218,42 @@ class ReportController extends Controller
         }
 
         return view('accounting::report.balance_sheet', $compact_data);
+    }
+
+    private function buildJournalStatementRows($business_id, $start_date = null, $end_date = null, $location_id = null, array $account_types = [])
+    {
+        $query = DB::table('chart_of_accounts')
+            ->leftJoin('journal_entries', function ($join) use ($start_date, $end_date, $location_id) {
+                $join->on('journal_entries.chart_of_account_id', '=', 'chart_of_accounts.id')
+                    ->where('journal_entries.reversed', 0);
+
+                if (! empty($start_date) && ! empty($end_date)) {
+                    $join->whereBetween('journal_entries.date', [$start_date, $end_date]);
+                } elseif (! empty($end_date)) {
+                    $join->where('journal_entries.date', '<=', $end_date);
+                }
+
+                if (! empty($location_id)) {
+                    $join->where('journal_entries.location_id', $location_id);
+                }
+            })
+            ->where('chart_of_accounts.active', 1)
+            ->where('chart_of_accounts.business_id', $business_id)
+            ->when(! empty($account_types), function ($query) use ($account_types) {
+                $query->whereIn('chart_of_accounts.account_type', $account_types);
+            })
+            ->selectRaw(" 
+                chart_of_accounts.id,
+                chart_of_accounts.name,
+                chart_of_accounts.gl_code,
+                chart_of_accounts.account_type,
+                NULL as business_location,
+                COALESCE(SUM(journal_entries.debit), 0) as debit,
+                COALESCE(SUM(journal_entries.credit), 0) as credit
+            ")
+            ->groupBy('chart_of_accounts.id', 'chart_of_accounts.name', 'chart_of_accounts.gl_code', 'chart_of_accounts.account_type');
+
+        return $query->get();
     }
 
     public function ledger(Request $request)

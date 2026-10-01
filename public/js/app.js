@@ -2957,8 +2957,11 @@ $(document).on('change', 'input#expense_final_total, #add_expense_modal_form .pa
 
 function calculateExpensePaymentDue() {
     var final_total = __read_number($('input#expense_final_total'));
-    var payment_amount = __read_number($('#add_expense_modal_form input.payment-amount'));
-    var payment_due = final_total - payment_amount;
+    var payment_amount = 0;
+    $('#add_expense_modal_form input.payment-amount').each(function() {
+        payment_amount += __read_number($(this));
+    });
+    var payment_due = Math.max(0, final_total - payment_amount);
     $('#expense_payment_due').text(__currency_trans_from_en(payment_due, true, false));
 }
 

@@ -327,7 +327,7 @@
                                     <div class="d-flex flex-column gap-1">
                                         @forelse($pendingLinks as $pl)
                                             @if($pl['type'] === 'invoice')
-                                                <a href="{{ action([\App\Http\Controllers\SellController::class, 'show'], [$pl['id']]) }}" target="_blank" class="badge bg-info text-decoration-none">Invoice #{{ $pl['id'] }}</a>
+                                                <a href="{{ action([\App\Http\Controllers\TransactionPaymentController::class, 'show'], [$pl['id']]) }}" target="_blank" class="badge bg-info text-decoration-none">Charge #{{ $pl['id'] }}</a>
                                             @else
                                                 @if(!empty($pl['checkout']))
                                                     <a href="{{ route('mpesa.logs', ['checkout_request_id' => $pl['checkout']]) }}" target="_blank" class="badge bg-warning text-decoration-none">Mpesa #{{ $pl['id'] }}</a>

@@ -74,6 +74,14 @@
 	  transform: rotate(315deg);
 	}
 
+	.sidebar-child-link {
+		display: flex;
+		width: 100%;
+		position: relative;
+		z-index: 2;
+		pointer-events: auto;
+	}
+
 	/*
 	 * Print fix: prevent a blank leading page when printing receipts/reports.
 	 * The app shell uses full-height flex containers (h-screen/h-full + overflow hidden),

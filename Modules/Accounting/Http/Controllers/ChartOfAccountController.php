@@ -54,12 +54,11 @@ class ChartOfAccountController extends Controller
         $orderByDir = $request->order_by_dir;
         $search = $request->s;
 
-        $ledger_balances = $this->getLedgerBalancesByGlCode($business_id);
-
         $paginator = ChartOfAccount::with('parent')
             ->with('account_detail_type')
             ->with('account_detail_type')
             ->with('currency')
+            ->with('journal_entries')
             ->forBusiness()
             ->when($orderBy, function (Builder $query) use ($orderBy, $orderByDir) {
                 $query->orderBy($orderBy, $orderByDir);
@@ -70,9 +69,8 @@ class ChartOfAccountController extends Controller
             ->paginate($perPage)
             ->appends($request->input());
 
-        $paginator->getCollection()->transform(function ($chart_of_account) use ($ledger_balances) {
-            $gl_code = (string) $chart_of_account->gl_code;
-            $chart_of_account->ledger_current_balance = $ledger_balances[$gl_code] ?? $chart_of_account->current_balance;
+        $paginator->getCollection()->transform(function ($chart_of_account) {
+            $chart_of_account->ledger_current_balance = $chart_of_account->current_balance;
 
             return $chart_of_account;
         });
@@ -276,8 +274,7 @@ class ChartOfAccountController extends Controller
     {
         $business_id = $this->resolveBusinessId();
         $chart_of_account = ChartOfAccount::with('journal_entries')->forBusiness($business_id)->findOrFail($id);
-        $ledger_balances = $this->getLedgerBalancesByGlCode($business_id);
-        $chart_of_account->ledger_current_balance = $ledger_balances[(string) $chart_of_account->gl_code] ?? $chart_of_account->current_balance;
+        $chart_of_account->ledger_current_balance = $chart_of_account->current_balance;
         $account_ledger_entries = $this->getAccountLedgerEntries($chart_of_account, $business_id);
 
         // Keep older account-detail templates working by hydrating the legacy
@@ -338,56 +335,22 @@ class ChartOfAccountController extends Controller
 
     private function getAccountLedgerEntries(ChartOfAccount $chart_of_account, int $business_id): Collection
     {
-        $account = Account::where('business_id', $business_id)
-            ->where('account_number', $chart_of_account->gl_code)
-            ->first();
-
-        if (! empty($account)) {
-            $entriesQuery = DB::table('account_transactions as at')
-                ->where('at.account_id', $account->id)
-                ->select([
-                    'at.id',
-                    'at.operation_date',
-                    'at.reff_no',
-                    'at.note',
-                    'at.type',
-                    'at.amount',
-                ])
-                ->orderBy('at.operation_date')
-                ->orderBy('at.id');
-
-            if ($this->accountTransactionsHasDeletedAt()) {
-                $entriesQuery->whereNull('at.deleted_at');
-            }
-
-            $entries = $entriesQuery->get()
-                ->map(function ($entry) {
-                    return (object) [
-                        'entry_date' => $entry->operation_date,
-                        'reference' => $entry->reff_no,
-                        'note' => $entry->note,
-                        'debit' => $entry->type === 'debit' ? (float) $entry->amount : 0.0,
-                        'credit' => $entry->type === 'credit' ? (float) $entry->amount : 0.0,
-                    ];
-                });
-
-            if ($entries->isNotEmpty()) {
-                return $entries;
-            }
-        }
-
-        return $chart_of_account->journal_entries
-            ->sortBy([['date', 'asc'], ['id', 'asc']])
+        return JournalEntry::forBusiness()
+            ->where('chart_of_account_id', $chart_of_account->id)
+            ->notReversed()
+            ->orderBy('date')
+            ->orderBy('id')
+            ->get()
             ->map(function ($entry) {
                 return (object) [
+                    'id' => $entry->id,
                     'entry_date' => $entry->date,
                     'reference' => $entry->reference,
                     'note' => $entry->notes,
-                    'debit' => (float) $entry->debit,
-                    'credit' => (float) $entry->credit,
+                    'debit' => (float) ($entry->debit ?? 0),
+                    'credit' => (float) ($entry->credit ?? 0),
                 ];
-            })
-            ->values();
+            });
     }
 
     private function accountTransactionsHasDeletedAt(): bool
@@ -439,7 +402,32 @@ class ChartOfAccountController extends Controller
             'detail_type_id' => ['required'],
         ]);
 
-        $chart_of_account = ChartOfAccount::findOrFail($id);
+        $chart_of_account = ChartOfAccount::forBusiness($this->resolveBusinessId())->findOrFail($id);
+
+        $hasPostedEntries = $chart_of_account->journal_entries()->exists();
+        if ($hasPostedEntries) {
+            $immutableFields = [
+                'gl_code',
+                'account_type',
+                'currency_id',
+                'account_subtype_id',
+                'detail_type_id',
+                'opening_balance',
+                'parent_id',
+            ];
+
+            foreach ($immutableFields as $field) {
+                $incomingValue = $request->input($field);
+                $currentValue = $chart_of_account->{$field};
+
+                if ((string) ($incomingValue ?? '') !== (string) ($currentValue ?? '')) {
+                    return (new FlashService())
+                        ->onException(new \Exception('Posted chart of account fields cannot be changed.'), 'This account already has posted journal entries. Create a new account instead of changing its accounting identity.')
+                        ->redirectBackWithInput();
+                }
+            }
+        }
+
         $chart_of_account->name = $request->name;
         $chart_of_account->parent_id = $request->parent_id;
         $chart_of_account->gl_code = $request->gl_code;
@@ -469,6 +457,13 @@ class ChartOfAccountController extends Controller
     public function destroy($id)
     {
         $chart_of_account = ChartOfAccount::forBusiness($this->resolveBusinessId())->findOrFail($id);
+
+        if ($chart_of_account->journal_entries()->exists()) {
+            return (new FlashService())
+                ->onException(new \Exception('Cannot delete chart of account with posted entries.'), 'This account has posted journal entries and cannot be deleted. Deactivate it instead.')
+                ->redirectBackWithInput();
+        }
+
         $chart_of_account->delete();
         activity()->on($chart_of_account)
             ->withProperties(['id' => $chart_of_account->id])

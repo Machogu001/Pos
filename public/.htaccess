@@ -46,6 +46,8 @@
         Header set Cache-Control "max-age=31536000, public"
     </FilesMatch>
     <FilesMatch "\\.(php|html)$">
-        Header set Cache-Control "max-age=7200, public"
+        Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0, private"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
     </FilesMatch>
 </IfModule>

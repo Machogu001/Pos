@@ -99,7 +99,14 @@ class ChartOfAccount extends Model
 
     public function getCurrentBalanceAttribute()
     {
-        return $this->journal_entries_not_reversed->sum('credit') - $this->journal_entries_not_reversed->sum('debit');
+        $debit = (float) $this->journal_entries_not_reversed->sum('debit');
+        $credit = (float) $this->journal_entries_not_reversed->sum('credit');
+
+        if (in_array($this->account_type, ['asset', 'expense'], true)) {
+            return $debit - $credit;
+        }
+
+        return $credit - $debit;
     }
 
     public function getNameWithSubtypeAttribute()

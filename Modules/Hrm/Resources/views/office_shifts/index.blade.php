@@ -100,18 +100,29 @@
             <div class="table-responsive shift-schedule-wrap">
                 <table class="table table-hover table-striped shift-table mb-0">
                     <thead>
-                        <tr>
-                            <th>{{ __('ui.name') }}</th>
-                            <th>{{ __('ui.company') }}</th>
-                            <th>{{ __('ui.mon') }}</th>
-                            <th>{{ __('ui.tue') }}</th>
-                            <th>{{ __('ui.wed') }}</th>
-                            <th>{{ __('ui.thu') }}</th>
-                            <th>{{ __('ui.fri') }}</th>
-                            <th class="weekend-head">{{ __('ui.sat') }}</th>
-                            <th class="weekend-head">{{ __('ui.sun') }}</th>
-                            <th class="text-end">{{ __('ui.actions') }}</th>
-                        </tr>
+                        @if($hasDayCols)
+                            <tr>
+                                <th>{{ __('ui.name') }}</th>
+                                <th>{{ __('ui.company') }}</th>
+                                <th>{{ __('ui.mon') }}</th>
+                                <th>{{ __('ui.tue') }}</th>
+                                <th>{{ __('ui.wed') }}</th>
+                                <th>{{ __('ui.thu') }}</th>
+                                <th>{{ __('ui.fri') }}</th>
+                                <th class="weekend-head">{{ __('ui.sat') }}</th>
+                                <th class="weekend-head">{{ __('ui.sun') }}</th>
+                                <th class="text-end">{{ __('ui.actions') }}</th>
+                            </tr>
+                        @else
+                            <tr>
+                                <th>{{ __('ui.name') }}</th>
+                                <th>{{ __('ui.company') }}</th>
+                                <th>{{ __('ui.check_in') }}</th>
+                                <th>{{ __('ui.check_out') }}</th>
+                                <th>{{ __('ui.break_time') }}</th>
+                                <th class="text-end">{{ __('ui.actions') }}</th>
+                            </tr>
+                        @endif
                     </thead>
                     <tbody>
                         @forelse($office_shifts_for_view ?? [] as $s)
@@ -133,13 +144,19 @@
                             <tr>
                                 <td><span class="shift-name">{{ $s['name'] }}</span></td>
                                 <td><span class="shift-company">{{ $s['company_name'] }}</span></td>
-                                <td><span class="shift-chip {{ $mon['off'] ? 'off' : 'on' }}">{{ $mon['label'] }}</span></td>
-                                <td><span class="shift-chip {{ $tue['off'] ? 'off' : 'on' }}">{{ $tue['label'] }}</span></td>
-                                <td><span class="shift-chip {{ $wed['off'] ? 'off' : 'on' }}">{{ $wed['label'] }}</span></td>
-                                <td><span class="shift-chip {{ $thu['off'] ? 'off' : 'on' }}">{{ $thu['label'] }}</span></td>
-                                <td><span class="shift-chip {{ $fri['off'] ? 'off' : 'on' }}">{{ $fri['label'] }}</span></td>
-                                <td class="weekend-col"><span class="shift-chip {{ $sat['off'] ? 'off' : 'on' }}">{{ $sat['label'] }}</span></td>
-                                <td class="weekend-col"><span class="shift-chip {{ $sun['off'] ? 'off' : 'on' }}">{{ $sun['label'] }}</span></td>
+                                @if($hasDayCols)
+                                    <td><span class="shift-chip {{ $mon['off'] ? 'off' : 'on' }}">{{ $mon['label'] }}</span></td>
+                                    <td><span class="shift-chip {{ $tue['off'] ? 'off' : 'on' }}">{{ $tue['label'] }}</span></td>
+                                    <td><span class="shift-chip {{ $wed['off'] ? 'off' : 'on' }}">{{ $wed['label'] }}</span></td>
+                                    <td><span class="shift-chip {{ $thu['off'] ? 'off' : 'on' }}">{{ $thu['label'] }}</span></td>
+                                    <td><span class="shift-chip {{ $fri['off'] ? 'off' : 'on' }}">{{ $fri['label'] }}</span></td>
+                                    <td class="weekend-col"><span class="shift-chip {{ $sat['off'] ? 'off' : 'on' }}">{{ $sat['label'] }}</span></td>
+                                    <td class="weekend-col"><span class="shift-chip {{ $sun['off'] ? 'off' : 'on' }}">{{ $sun['label'] }}</span></td>
+                                @else
+                                    <td><span class="shift-chip on">{{ $s['start_time'] ?: '--:--' }}</span></td>
+                                    <td><span class="shift-chip on">{{ $s['end_time'] ?: '--:--' }}</span></td>
+                                    <td><span class="shift-chip {{ empty($s['break_minutes']) ? 'off' : 'on' }}">{{ $s['break_minutes'] !== null ? $s['break_minutes'].' min' : __('ui.not_set') }}</span></td>
+                                @endif
                                 <td class="text-end">
                                     <a href="{{ route('hrm.office_shifts.edit', $s['id']) }}" class="btn btn-sm btn-default">{{ __('ui.edit') }}</a>
                                     <form action="{{ route('hrm.office_shifts.destroy', $s['id']) }}" method="POST" style="display:inline-block">
@@ -150,7 +167,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="10" class="text-center text-muted">{{ __('ui.no_office_shifts_found') }}</td></tr>
+                            <tr><td colspan="{{ $hasDayCols ? 10 : 6 }}" class="text-center text-muted">{{ __('ui.no_office_shifts_found') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>

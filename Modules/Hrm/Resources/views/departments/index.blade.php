@@ -6,7 +6,7 @@
 @include('hrm::partials.hrm_page_header', [
     'title' => __('ui.departments'),
     'subtitle' => __('ui.organize_employees_by_department_and_assign_the_right_department_head'),
-    'actions' => '<a href="'.route('hrm.departments.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> '. __('ui.create_department') .'</a>'
+    'actions' => '<a href="'.route('hrm_admin.departments.create').'" class="btn btn-primary"><i class="fa fa-plus"></i> '. __('ui.create_department') .'</a>'
 ])
 
 <section class="content">
@@ -21,7 +21,9 @@
                         <tr>
                             <th>{{ __('ui.department') }}</th>
                             <th>{{ __('ui.company') }}</th>
-                            <th>{{ __('ui.head') }}</th>
+                            @if($supportsDepartmentHead)
+                                <th>{{ __('ui.head') }}</th>
+                            @endif
                             <th class="text-end">{{ __('ui.actions') }}</th>
                         </tr>
                     </thead>
@@ -42,14 +44,18 @@
                             <tr data-id="{{ $d->id }}">
                                 <td><strong>{{ $d->department }}</strong></td>
                                 <td>{{ $d->company_name ?? '-' }}</td>
-                                <td class="head-cell">{{ $headLabel }}</td>
+                                @if($supportsDepartmentHead)
+                                    <td class="head-cell">{{ $headLabel }}</td>
+                                @endif
                                 <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-primary set-head-btn" data-id="{{ $d->id }}" data-current="{{ $d->department_head ?? '' }}">{{ __('ui.set_head') }}</button>
-                                    @if($d->department_head)
-                                        <button type="button" class="btn btn-sm btn-warning remove-head-btn" data-id="{{ $d->id }}">{{ __('ui.remove_head') }}</button>
+                                    @if($supportsDepartmentHead)
+                                        <button type="button" class="btn btn-sm btn-primary set-head-btn" data-id="{{ $d->id }}" data-current="{{ $d->department_head ?? '' }}">{{ __('ui.set_head') }}</button>
+                                        @if($d->department_head)
+                                            <button type="button" class="btn btn-sm btn-warning remove-head-btn" data-id="{{ $d->id }}">{{ __('ui.remove_head') }}</button>
+                                        @endif
                                     @endif
-                                    <a href="{{ route('hrm.departments.edit', $d->id) }}" class="btn btn-sm btn-default">{{ __('ui.edit') }}</a>
-                                    <form action="{{ route('hrm.departments.destroy', $d->id) }}" method="POST" style="display:inline-block" data-hrm-confirm="{{ __('ui.delete_this_department') }}" data-hrm-confirm-title="{{ __('ui.delete_department') }}">
+                                    <a href="{{ route('hrm_admin.departments.edit', $d->id) }}" class="btn btn-sm btn-default">{{ __('ui.edit') }}</a>
+                                    <form action="{{ route('hrm_admin.departments.destroy', $d->id) }}" method="POST" style="display:inline-block" data-hrm-confirm="{{ __('ui.delete_this_department') }}" data-hrm-confirm-title="{{ __('ui.delete_department') }}">
                                         @csrf
                                         @method('DELETE')
                                         <button class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button>
@@ -57,7 +63,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="text-center text-muted">{{ __('ui.no_departments_found') }}</td></tr>
+                            <tr><td colspan="{{ $supportsDepartmentHead ? 4 : 3 }}" class="text-center text-muted">{{ __('ui.no_departments_found') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -72,11 +78,13 @@
     @endif
 </section>
 
+@if($supportsDepartmentHead)
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function(){
     var csrf = '{{ csrf_token() }}';
-    var baseUrl = '{{ url("") }}';
+    var setHeadUrlTemplate = @json(route('hrm_admin.departments.set_head', ['department' => '__ID__']));
+    var removeHeadUrlTemplate = @json(route('hrm_admin.departments.remove_head', ['department' => '__ID__']));
 
     function showToast(message, type){
         type = type || 'success';
@@ -280,7 +288,7 @@ document.addEventListener('DOMContentLoaded', function(){
     }
 
     function sendSetHead(id, head){
-        var url = baseUrl + '/hrm/departments/' + id + '/head';
+        var url = setHeadUrlTemplate.replace('__ID__', id);
         return fetch(url, {
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
@@ -374,7 +382,7 @@ document.addEventListener('DOMContentLoaded', function(){
         var id = this.getAttribute('data-id');
         askRemoveHeadConfirm().then(function(confirmed){
             if(!confirmed){ return; }
-            var url = baseUrl + '/hrm/departments/' + id + '/head';
+            var url = removeHeadUrlTemplate.replace('__ID__', id);
             fetch(url, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } }).then(function(r){ return r.json(); }).then(function(data){
                 if(data && data.success){
                     var row = document.querySelector('tr[data-id="'+id+'"]'); if(row){ row.querySelector('.head-cell').textContent = '-'; var btn = row.querySelector('.remove-head-btn'); if(btn) btn.remove(); }
@@ -389,6 +397,7 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 @endpush
+@endif
 
 @endsection
 

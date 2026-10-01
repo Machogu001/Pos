@@ -2596,6 +2596,30 @@ class ProductUtil extends Util
             $products->where('variations.id', $filters['variation_id']);
         }
 
+        if (! empty($filters['notification_items']) && is_array($filters['notification_items'])) {
+            $products->where(function ($notificationQuery) use ($filters) {
+                foreach ($filters['notification_items'] as $item) {
+                    if (! is_array($item)) {
+                        continue;
+                    }
+
+                    $productId = (int) ($item['product_id'] ?? 0);
+                    $variationId = (int) ($item['variation_id'] ?? 0);
+                    $locationId = (int) ($item['location_id'] ?? 0);
+
+                    if ($productId <= 0 || $variationId <= 0 || $locationId <= 0) {
+                        continue;
+                    }
+
+                    $notificationQuery->orWhere(function ($itemQuery) use ($productId, $variationId, $locationId) {
+                        $itemQuery->where('p.id', $productId)
+                            ->where('variations.id', $variationId)
+                            ->where('vld.location_id', $locationId);
+                    });
+                }
+            });
+        }
+
         if ($for == 'view_product') {
             return $products->get();
         } elseif ($for == 'api') {

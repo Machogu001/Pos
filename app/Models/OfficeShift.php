@@ -15,7 +15,8 @@ class OfficeShift extends Model
         'name','company_id','monday_in','monday_out',
         'tuesday_in','tuesday_out','wednesday_in','wednesday_out',
         'thursday_in','thursday_out','friday_in','friday_out',
-        'saturday_in','saturday_out','sunday_in','sunday_out'
+        'saturday_in','saturday_out','sunday_in','sunday_out',
+        'start_time','end_time','break_minutes','notes'
 
     ];
 

@@ -6,7 +6,7 @@
 @include('hrm::partials.hrm_page_header', [
     'title' => __('ui.edit_company'),
     'subtitle' => __('ui.update_the_company_profile_and_payroll_defaults_used_across_hrm'),
-    'actions' => '<a href="'.route('hrm.companies.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> '. __('ui.back_to_companies') .'</a>'
+    'actions' => '<a href="'.route('hrm_admin.companies.index').'" class="btn btn-default"><i class="fa fa-arrow-left"></i> '. __('ui.back_to_companies') .'</a>'
 ])
 
 <section class="content">
@@ -14,7 +14,7 @@
         <div class="box-header with-border">
             <h3 class="box-title">{{ __('ui.company_details') }}</h3>
         </div>
-        <form action="{{ route('hrm.companies.update', $company->id) }}" method="POST">
+        <form action="{{ route('hrm_admin.companies.update', $company->id) }}" method="POST">
             {{ csrf_field() }}
             {{ method_field('PUT') }}
             @include('hrm::partials.hrm_form_toolbar')
@@ -96,7 +96,7 @@
             </div>
 
             <div class="box-footer text-right">
-                <a href="{{ route('hrm.companies.index') }}" class="btn btn-default">{{ __('ui.cancel') }}</a>
+                <a href="{{ route('hrm_admin.companies.index') }}" class="btn btn-default">{{ __('ui.cancel') }}</a>
                 <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> {{ __('ui.update_company') }}</button>
             </div>
         </form>

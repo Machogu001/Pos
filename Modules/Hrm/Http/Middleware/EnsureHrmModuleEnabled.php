@@ -2,25 +2,35 @@
 
 namespace Modules\Hrm\Http\Middleware;
 
+use App\Business;
 use Closure;
 use Illuminate\Http\Request;
 
 class EnsureHrmModuleEnabled
 {
+    protected function normalizeModules($modules): array
+    {
+        if (is_string($modules)) {
+            $decoded = json_decode($modules, true);
+            $modules = is_array($decoded) ? $decoded : [];
+        }
+
+        return is_array($modules) ? $modules : [];
+    }
+
     public function handle(Request $request, Closure $next)
     {
-        $enabled = session('business.enabled_modules', []);
+        $sessionModules = $this->normalizeModules(session('business.enabled_modules', []));
+        $businessModules = $this->normalizeModules(optional(optional($request->user())->business)->enabled_modules ?? []);
 
-        if (is_string($enabled)) {
-            $decoded = json_decode($enabled, true);
-            $enabled = is_array($decoded) ? $decoded : [];
+        $enabled = array_values(array_unique(array_merge($sessionModules, $businessModules)));
+
+        if (empty($enabled) && ! empty(session('business.id'))) {
+            $dbModules = Business::where('id', session('business.id'))->value('enabled_modules');
+            $enabled = $this->normalizeModules($dbModules);
         }
 
-        if (!is_array($enabled)) {
-            $enabled = [];
-        }
-
-        $isEnabled = in_array('hrm', $enabled, true);
+        $isEnabled = in_array('hrm', $enabled, true) || in_array('Hrm', $enabled, true);
 
         if (!$isEnabled) {
             if ($request->expectsJson()) {

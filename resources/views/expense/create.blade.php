@@ -156,8 +156,11 @@
 
 	function calculateExpensePaymentDue() {
 		var final_total = __read_number($('input#final_total'));
-		var payment_amount = __read_number($('input.payment-amount'));
-		var payment_due = final_total - payment_amount;
+		var payment_amount = 0;
+		$('input.payment-amount').each(function() {
+			payment_amount += __read_number($(this));
+		});
+		var payment_due = Math.max(0, final_total - payment_amount);
 		$('#payment_due').text(__currency_trans_from_en(payment_due, true, false));
 	}
 

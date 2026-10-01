@@ -57,19 +57,32 @@
 
 <!-- Main content -->
 <section class="content">
-    @if(request()->filled('product_id') || request()->filled('variation_id'))
+    @if(request()->filled('product_id') || request()->filled('variation_id') || request()->filled('notification_id'))
     <div class="row">
         <div class="col-md-12">
             <div class="alert alert-info stock-report-alert-banner">
                 <span class="stock-report-alert-banner__message">
-                    {{ __('lang_v1.notifications') }}: {{ __('report.stock_report') }} filtered to the selected alert item.
+                    @if(request()->filled('notification_id'))
+                        {{ __('lang_v1.notifications') }}: {{ __('report.stock_report') }} filtered to the selected alert items.
+                        @if(!empty($notification_stock_context['notification_item_count']))
+                            <br>
+                            <small>
+                                {{ $notification_stock_context['notification_item_count'] }} item(s) from this alert are shown below.
+                                @if(!empty($notification_stock_context['out_of_stock_count']))
+                                    {{ $notification_stock_context['out_of_stock_count'] }} are out of stock.
+                                @endif
+                            </small>
+                        @endif
+                    @else
+                        {{ __('lang_v1.notifications') }}: {{ __('report.stock_report') }} filtered to the selected alert item.
+                    @endif
                     @if(request()->filled('alert_stock_label'))
                         <br>
                         <small>
                             Alert snapshot: {{ request('alert_stock_label') }} at {{ request('alerted_at') ?: now()->toDateTimeString() }}. Current stock on this page may be higher if the item was restocked after the alert was created.
                         </small>
                     @endif
-                    @if(!empty($notification_stock_context))
+                    @if(!empty($notification_stock_context) && !request()->filled('notification_id'))
                         <br>
                         <small>
                             Live stock: {{ $notification_stock_context['current_stock_label'] }}.
@@ -174,7 +187,7 @@
 @endsection
 
 @section('javascript')
-    <script src="{{ asset('js/report.js?v=' . $asset_v) }}"></script>
+    <script src="{{ asset('js/report.js?v=' . $asset_v . '&t=' . @filemtime(public_path('js/report.js'))) }}"></script>
     <script>
         $(document).ready(function() {
             var query = new URLSearchParams(window.location.search || '');

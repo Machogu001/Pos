@@ -3,15 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Business;
+use App\BusinessLocation;
 use App\Currency;
 use App\Notifications\TestEmailNotification;
 use App\System;
 use App\TaxRate;
+use App\Transaction;
+use App\TransactionPayment;
 use App\Unit;
 use App\User;
 use App\Utils\BusinessUtil;
 use App\Utils\ModuleUtil;
 use App\Utils\RestaurantUtil;
+use App\Utils\TransactionUtil;
 use Carbon\Carbon;
 use DateTimeZone;
 use Illuminate\Http\Request;
@@ -319,10 +323,10 @@ class BusinessController extends Controller
             $user->business_id = $business->id;
             $user->save();
 
-            $this->attachRegistrationPayment($request, $user, $business);
-
             $this->businessUtil->newBusinessDefaultResources($business->id, $user->id);
             $new_location = $this->businessUtil->addLocation($business->id, $business_location);
+
+            $this->attachRegistrationPayment($request, $user, $business, $new_location);
 
             //create new permission with the new location
             Permission::create(['name' => 'location.'.$new_location->id]);
@@ -564,7 +568,7 @@ class BusinessController extends Controller
         ]);
     }
 
-    protected function attachRegistrationPayment(Request $request, User $user, Business $business): void
+    protected function attachRegistrationPayment(Request $request, User $user, Business $business, ?BusinessLocation $location = null): void
     {
         $payment = $this->findSuccessfulMpesaPayment($request);
 
@@ -580,12 +584,12 @@ class BusinessController extends Controller
             $attributes['business_id'] = $business->id;
         }
 
-        if ($this->mpesaPaymentsHasColumn('consumed_at') && empty($payment->consumed_at)) {
-            $attributes['consumed_at'] = now();
-        }
-
         $payment->fill($attributes);
         $payment->save();
+
+        if (! empty($location)) {
+            $this->recordRegistrationFeeExpense($user, $business, $location, $payment);
+        }
 
         session([
             'registration_payment_id' => $payment->id,
@@ -594,6 +598,98 @@ class BusinessController extends Controller
             'checkout_request_id' => $payment->checkout_request_id,
             'payment_phone' => $payment->phone_number,
         ]);
+    }
+
+    protected function recordRegistrationFeeExpense(User $user, Business $business, BusinessLocation $location, MpesaPayment $payment): void
+    {
+        if (! empty($payment->consumed_by_transaction_id)) {
+            $existingTransaction = Transaction::find($payment->consumed_by_transaction_id);
+            if (! empty($existingTransaction) && $existingTransaction->type === 'expense') {
+                return;
+            }
+        }
+
+        $existingExpense = Transaction::where('business_id', $business->id)
+            ->where('type', 'expense')
+            ->where('sub_type', 'registration_fee')
+            ->where('transaction_date', '>=', now()->subDay())
+            ->where('location_id', $location->id)
+            ->latest('id')
+            ->first();
+
+        if (! empty($existingExpense)) {
+            $this->ensureExpensePaymentForMpesa($existingExpense, $payment, 'Registration fee recorded from completed business signup.');
+            return;
+        }
+
+        $transactionUtil = app(TransactionUtil::class);
+        $expenseRequest = new Request([
+            'location_id' => $location->id,
+            'transaction_date' => $payment->paid_at ?: now()->toDateTimeString(),
+            'final_total' => $payment->amount,
+            'additional_notes' => 'Registration fee paid during business onboarding.',
+        ]);
+
+        $expense = $transactionUtil->createExpense($expenseRequest, $business->id, $user->id, false);
+        $expense->sub_type = 'registration_fee';
+        $expense->subscription_no = 'registration_fee_' . $payment->id;
+        $expense->save();
+
+        $this->ensureExpensePaymentForMpesa($expense, $payment, 'Registration fee recorded from completed business signup.');
+    }
+
+    protected function ensureExpensePaymentForMpesa(Transaction $transaction, MpesaPayment $payment, string $note): void
+    {
+        $existingPayment = TransactionPayment::where('transaction_id', $transaction->id)
+            ->where('method', 'mpesa')
+            ->where(function ($query) use ($payment) {
+                if (! empty($payment->checkout_request_id)) {
+                    $query->where('checkout_request_id', $payment->checkout_request_id);
+                }
+
+                if (! empty($payment->mpesa_receipt_number)) {
+                    $query->orWhere('mpesa_receipt_number', $payment->mpesa_receipt_number);
+                }
+            })
+            ->first();
+
+        if (empty($existingPayment)) {
+            $transactionUtil = app(TransactionUtil::class);
+            $refCount = $transactionUtil->setAndGetReferenceCount('expense_payment');
+
+            TransactionPayment::create([
+                'transaction_id' => $transaction->id,
+                'business_id' => $transaction->business_id,
+                'created_by' => $transaction->created_by ?: ($payment->user_id ?? 1),
+                'payment_for' => $transaction->contact_id,
+                'paid_on' => $payment->paid_at ?: now(),
+                'amount' => $payment->amount ?? $transaction->final_total,
+                'method' => 'mpesa',
+                'note' => $note,
+                'transaction_no' => $payment->mpesa_receipt_number,
+                'mpesa_phone' => $payment->phone_number,
+                'checkout_request_id' => $payment->checkout_request_id,
+                'mpesa_receipt_number' => $payment->mpesa_receipt_number,
+                'mpesa_status' => $payment->transaction_status,
+                'payment_ref_no' => $transactionUtil->generateReferenceNumber('expense_payment', $refCount),
+                'account_id' => TransactionPayment::resolveDefaultAccountId('mpesa', $transaction->location_id, $transaction->business_id, $transaction->type),
+            ]);
+
+            $transaction->payment_status = $transactionUtil->updatePaymentStatus($transaction->id, $transaction->final_total);
+            $transaction->save();
+        }
+
+        $paymentAttributes = [];
+        if ($this->mpesaPaymentsHasColumn('consumed_at') && empty($payment->consumed_at)) {
+            $paymentAttributes['consumed_at'] = now();
+        }
+        if ($this->mpesaPaymentsHasColumn('consumed_by_transaction_id') && empty($payment->consumed_by_transaction_id)) {
+            $paymentAttributes['consumed_by_transaction_id'] = $transaction->id;
+        }
+        if (! empty($paymentAttributes)) {
+            $payment->fill($paymentAttributes);
+            $payment->save();
+        }
     }
 
     protected function mpesaPaymentsHasColumn(string $column): bool

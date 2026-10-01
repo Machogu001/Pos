@@ -14,6 +14,58 @@ use Illuminate\Support\Facades\Schema;
 
 class CompanyController extends Controller
 {
+    protected function hasCompanyColumn(string $column): bool
+    {
+        return Schema::hasTable('companies') && Schema::hasColumn('companies', $column);
+    }
+
+    protected function sanitizeCompanyPayload(array $payload): array
+    {
+        $allowedColumns = [
+            'name',
+            'email',
+            'phone',
+            'country',
+            'deleted_at',
+            'business_id',
+            'nssf_percent',
+            'shif_percent',
+            'housing_percent',
+            'tax_percent',
+            'personal_relief',
+        ];
+
+        $sanitized = [];
+        foreach ($payload as $key => $value) {
+            if ($this->hasCompanyColumn($key)) {
+                $sanitized[$key] = $value;
+            }
+        }
+
+        return $sanitized;
+    }
+
+    protected function scopeCompaniesToBusiness($query, ?int $businessId)
+    {
+        if (! $businessId || ! Schema::hasColumn('companies', 'business_id')) {
+            return $query;
+        }
+
+        return $query->where(function ($subQ) use ($businessId) {
+            $subQ->where('business_id', $businessId)
+                ->orWhereNull('business_id');
+        });
+    }
+
+    protected function setCompanyBusinessId(array $payload, ?int $businessId): array
+    {
+        if ($businessId && $this->hasCompanyColumn('business_id')) {
+            $payload['business_id'] = $businessId;
+        }
+
+        return $payload;
+    }
+
 
     /**
      * Ensure Laravel Passport encryption keys exist.
@@ -85,23 +137,18 @@ class CompanyController extends Controller
 
         $businessId = session('business.id');
 
-        $companies = Company::where('deleted_at', '=', null)
-            ->when($businessId && Schema::hasColumn('companies', 'business_id'), function ($q) use ($businessId) {
-                return $q->where(function ($subQ) use ($businessId) {
-                    $subQ->where('business_id', $businessId)
-                        ->orWhereNull('business_id');
-                });
-            })
+        $companies = Company::where('deleted_at', '=', null);
 
-        // Search With Multiple Param
-            ->where(function ($query) use ($request) {
-                return $query->when($request->filled('search'), function ($query) use ($request) {
-                    return $query->where('name', 'LIKE', "%{$request->search}%")
-                        ->orWhere('phone', 'LIKE', "%{$request->search}%")
-                        ->orWhere('country', 'LIKE', "%{$request->search}%")
-                        ->orWhere('email', 'LIKE', "%{$request->search}%");
-                });
+        $companies = $this->scopeCompaniesToBusiness($companies, $businessId);
+
+        $companies = $companies->where(function ($query) use ($request) {
+            return $query->when($request->filled('search'), function ($query) use ($request) {
+                return $query->where('name', 'LIKE', "%{$request->search}%")
+                    ->orWhere('phone', 'LIKE', "%{$request->search}%")
+                    ->orWhere('country', 'LIKE', "%{$request->search}%")
+                    ->orWhere('email', 'LIKE', "%{$request->search}%");
             });
+        });
         $totalRows = $companies->count();
         if ($perPage == "-1") {
             $perPage = $totalRows;
@@ -160,7 +207,6 @@ class CompanyController extends Controller
                 ->first();
 
             $payload = [
-                'business_id' => $sourceBusiness->id,
                 'name' => $request->filled('name') ? $request->name : $sourceBusiness->name,
                 'email' => $request->filled('email') ? $request->email : ($location->email ?? null),
                 'phone' => $request->filled('phone') ? $request->phone : ($location->mobile ?? null),
@@ -172,9 +218,17 @@ class CompanyController extends Controller
                 'personal_relief' => $request->input('personal_relief'),
             ];
 
-            $existing = Company::where('business_id', $sourceBusiness->id)
-                ->whereNull('deleted_at')
-                ->first();
+            $payload = $this->sanitizeCompanyPayload(
+                $this->setCompanyBusinessId($payload, $sourceBusiness->id)
+            );
+
+            $existing = Company::whereNull('deleted_at');
+            if (Schema::hasColumn('companies', 'business_id')) {
+                $existing->where('business_id', $sourceBusiness->id);
+            } else {
+                $existing->where('name', $payload['name']);
+            }
+            $existing = $existing->first();
 
             if ($existing) {
                 $existing->update($payload);
@@ -182,25 +236,26 @@ class CompanyController extends Controller
                 Company::create($payload);
             }
         } else {
-            Company::create([
-                'business_id' => $businessId,
-                'name' => $request->name,
-                'email' => $request->email,
-                'phone' => $request->phone,
-                'country' => $request->country,
-                'nssf_percent' => $request->input('nssf_percent'),
-                'shif_percent' => $request->input('shif_percent'),
-                'housing_percent' => $request->input('housing_percent'),
-                'tax_percent' => $request->input('tax_percent'),
-                'personal_relief' => $request->input('personal_relief'),
-            ]);
+            Company::create($this->sanitizeCompanyPayload(
+                $this->setCompanyBusinessId([
+                    'name' => $request->name,
+                    'email' => $request->email,
+                    'phone' => $request->phone,
+                    'country' => $request->country,
+                    'nssf_percent' => $request->input('nssf_percent'),
+                    'shif_percent' => $request->input('shif_percent'),
+                    'housing_percent' => $request->input('housing_percent'),
+                    'tax_percent' => $request->input('tax_percent'),
+                    'personal_relief' => $request->input('personal_relief'),
+                ], $businessId)
+            ));
         }
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
         }
 
-    return redirect()->route('hrm.companies.index')->with('success', 'Company created');
+    return redirect()->route('hrm_admin.companies.index')->with('success', 'Company created');
     }
 
     //------------ function show -----------\\
@@ -250,7 +305,7 @@ class CompanyController extends Controller
             'name'      => 'required|string',
         ]);
 
-        Company::whereId($id)->update([
+        Company::whereId($id)->update($this->sanitizeCompanyPayload([
             'name'    => $request['name'],
             'email'   => $request['email'],
             'phone'   => $request['phone'],
@@ -260,13 +315,13 @@ class CompanyController extends Controller
             'housing_percent' => $request->input('housing_percent'),
             'tax_percent' => $request->input('tax_percent'),
             'personal_relief' => $request->input('personal_relief'),
-        ]);
+        ]));
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
         }
 
-    return redirect()->route('hrm.companies.index')->with('success', 'Company updated');
+    return redirect()->route('hrm_admin.companies.index')->with('success', 'Company updated');
     }
 
     //----------- Delete  company --------------\\
@@ -275,16 +330,16 @@ class CompanyController extends Controller
     {
         $this->authorizeForUser($this->getAuthUser($request), 'delete', Company::class);
 
-        Company::whereId($id)->update([
+        Company::whereId($id)->update($this->sanitizeCompanyPayload([
             'deleted_at' => Carbon::now(),
-        ]);
+        ]));
 
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
         }
 
-    return redirect()->route('hrm.companies.index')->with('success', 'Company deleted');
+    return redirect()->route('hrm_admin.companies.index')->with('success', 'Company deleted');
     }
 
     //-------------- Delete by selection  ---------------\\
@@ -296,9 +351,9 @@ class CompanyController extends Controller
 
         $selectedIds = $request->selectedIds;
         foreach ($selectedIds as $company_id) {
-            Company::whereId($company_id)->update([
+            Company::whereId($company_id)->update($this->sanitizeCompanyPayload([
                 'deleted_at' => Carbon::now(),
-            ]);
+            ]));
         }
 
         return response()->json(['success' => true]);

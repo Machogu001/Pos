@@ -49,15 +49,19 @@
             $tx = null;
             try {
                 $endDateYmd = $fmt($subscription->end_date ?? null, 'Ymd') ?: now()->format('Ymd');
-                $uniqueKey = 'sub_invoice_' . $subscription->id . '_' . $endDateYmd;
+                $uniqueKey = 'sub_expense_' . $subscription->id . '_' . $endDateYmd;
                 $tx = \App\Transaction::where('subscription_no', $uniqueKey)->first();
+                if (! $tx) {
+                    $legacyKey = 'sub_invoice_' . $subscription->id . '_' . $endDateYmd;
+                    $tx = \App\Transaction::where('subscription_no', $legacyKey)->first();
+                }
                 if (! $tx && !empty($subscription->pending_invoice_transaction_id)) {
                     $tx = \App\Transaction::find($subscription->pending_invoice_transaction_id);
                 }
             } catch (\Exception $e) { $tx = null; }
 
             $currency = $settings->invoice_currency ?? 'KES';
-            $invoiceNo = $tx->invoice_no ?? ('INV-' . $subscription->id);
+            $invoiceNo = $tx->invoice_no ?? $tx->ref_no ?? ('INV-' . $subscription->id);
             $invoiceDate = $fmt($tx->transaction_date ?? null) ?: now()->format('m/d/Y');
             $dueDate = $fmt($tx->due_date ?? ($subscription->end_date ?? null));
             $paymentDate = $fmt($tx->paid_on ?? null);

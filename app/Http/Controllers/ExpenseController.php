@@ -35,6 +35,34 @@ class ExpenseController extends Controller
         $this->cashRegisterUtil = $cashRegisterUtil;
     }
 
+    protected function expensePaymentAccountsDropdown($business_id)
+    {
+        if (! $this->moduleUtil->isModuleEnabled('account')) {
+            return [];
+        }
+
+        return Account::paymentSourceForDropdown($business_id, true, false, true);
+    }
+
+    protected function validateExpensePaymentAmounts(Request $request): void
+    {
+        $payments = collect($request->input('payment', []));
+        if ($payments->isEmpty()) {
+            return;
+        }
+
+        $finalTotal = $this->transactionUtil->num_uf($request->input('final_total', 0));
+        $totalPaid = $payments->sum(function ($payment) {
+            return $this->transactionUtil->num_uf($payment['amount'] ?? 0);
+        });
+
+        if ($totalPaid > $finalTotal + 0.0001) {
+            throw new \InvalidArgumentException(
+                __('lang_v1.max_amount_to_be_paid_is', ['amount' => $this->transactionUtil->num_f($finalTotal)])
+            );
+        }
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -316,7 +344,7 @@ class ExpenseController extends Controller
         //Accounts
         $accounts = [];
         if ($this->moduleUtil->isModuleEnabled('account')) {
-            $accounts = Account::forDropdown($business_id, true, false, true);
+            $accounts = $this->expensePaymentAccountsDropdown($business_id);
         }
 
         if (request()->ajax()) {
@@ -355,6 +383,8 @@ class ExpenseController extends Controller
 
             $user_id = $request->session()->get('user.id');
 
+            $this->validateExpensePaymentAmounts($request);
+
             DB::beginTransaction();
 
             $expense = $this->transactionUtil->createExpense($request, $business_id, $user_id);
@@ -377,7 +407,7 @@ class ExpenseController extends Controller
             \Log::emergency('File:'.$e->getFile().'Line:'.$e->getLine().'Message:'.$e->getMessage());
 
             $output = ['success' => 0,
-                'msg' => __('messages.something_went_wrong'),
+                'msg' => $e instanceof \InvalidArgumentException ? $e->getMessage() : __('messages.something_went_wrong'),
             ];
         }
 
