@@ -1,4 +1,92 @@
-# Mobile API
+# BreMac360 Mobile App and API Guide
+
+The system has two mobile entry points: the installable website PWA and the
+separate [BreMac360 Android app](https://github.com/Machogu001/pos_app).
+The Android app combines native API screens with embedded website POS/admin
+pages. Installing the PWA does not install or update the Android APK.
+
+This guide describes Android app **2.10.0** (version code **13**), requiring
+Android **8.0 (API 26)** or later. Both native and embedded operations require
+connectivity; the Android app does not provide offline sales synchronization.
+
+For server installation, see [the installation runbook](../INSTALLATION.md).
+For app builds, signing and distribution, see the
+[Android README](https://github.com/Machogu001/pos_app/blob/main/README.md).
+
+## User guide
+
+### Server address and sign-in
+
+Enter the website base URL (for example, `https://example.com` or
+`https://example.com/retail`) and tap **Save**. The app normalizes a pasted
+`/api/mobile/v1` URL back to the website address. The editor stays hidden after
+saving and sign-out; tap **Edit** to change it. Saving the URL is not a server
+connectivity test.
+
+Use the existing system username and password. The password eye reveals/hides
+the entered value. If OTP is enabled, the app submits when six digits are
+entered. **Verify and continue** remains available.
+
+For SMS delivery, supported Google Play services can ask for consent to read
+one arriving message, fill the code and submit it. The app does not require
+general SMS-reading permission. Manual entry remains available for email,
+declined consent, missing Play services, or messages that were not detected.
+Resend by SMS/email requires a configured account target and the cooldown to
+finish. An expired challenge requires starting sign-in again.
+
+### Navigation, appearance and performance
+
+The top-left drawer lists features permitted for the user. **Quick sale**,
+sales history, products/stock, customers, cash-register actions and Home
+performance use native API screens. **POS** opens the website's full POS inside
+the app. Business admins also receive the available website menu, including
+purchases, products and reports, filtered by permissions and enabled modules.
+There is no separate Full system button.
+
+Choose **Appearance > Light**, **Dark**, or **Use device theme**. This setting
+survives sign-out; changing it returns to Home. Embedded pages are darkened
+where supported by the phone's WebView, so website styling can differ.
+
+Home performance supports **Today**, **Week**, **Month**, and **Custom**.
+Custom uses an inclusive From/To date range and the app limits selection to
+today or earlier. Pull down to refresh on supported screens. Left-to-right
+swipes go back; right-to-left swipes restore the last eligible native screen
+closed with Back, or use embedded page history. Edge gestures and horizontal
+tables retain their own handling.
+
+### Business locations and permissions
+
+Use **Change location** in the drawer or **LOCATION** on Home when more than
+one permitted active location is available.
+
+| Selection | Effect |
+|-----------|--------|
+| Individual location | Native performance and sales history filter to that branch; branch-specific operations use it |
+| All locations | Native performance, recent sales and sales history combine permitted locations only |
+| Selling/stock while All locations is selected | Quick sale, products/stock, payments and registers keep the last selected individual branch, displayed in their app bar |
+| Embedded website pages | Use the website page's own location controls, independent of the native filter |
+
+The combined selection is remembered until sign-out. Changing the individual
+branch from the drawer asks before clearing an unfinished quick-sale cart.
+Quick sale also has a **SELLING FROM** selector; it selects a concrete branch
+and reprices the cart. Never treat All locations as a location for a new sale
+or register.
+
+The server remains the authority for permissions and location access; hiding
+a menu entry is not the access control. Own-sales-only permissions continue
+to restrict combined sales history. Admin website access does not bypass
+disabled modules or server authorization.
+
+### Activity log
+
+The system records native mobile-app and in-app website authentication
+separately from ordinary browser authentication. Authorized users can review
+the channel, device label and app version in **Reports > Activity log**.
+Android device labels are maker/model descriptions; browser labels describe
+the platform/type/browser, not a hardware serial number. These client-provided
+labels must not be used as trusted device identity.
+
+## API contract
 
 Base URL: `{server}/api/mobile/v1`. All clients must send `Accept: application/json`; authenticated requests must send a Laravel Passport bearer token.
 
@@ -17,6 +105,16 @@ The Android app also sends `User-Agent: BreMac360App/<version> (Android <release
 - `POST /auth/otp/resend` — resends the OTP subject to cooldown.
 - `POST /auth/logout` — revokes the current token.
 
+Login accepts `{ username, password, device_name, otp_delivery_method? }`
+(`sms` or `email`). Successful authentication returns
+`data.status = "authenticated"` and `data.token`. An OTP challenge returns
+`data.status = "otp_required"`, `otp_session`, delivery information, expiry and resend timing.
+Verification accepts `{ otp_session, otp, device_name }`; resend accepts
+`{ otp_session, otp_delivery_method? }`. Current challenge limits are five
+minutes, five incorrect verification attempts and a 59-second resend cooldown.
+Login, verification and resend additionally share the route's 10/minute
+throttle.
+
 ### Session
 - `GET /me` — current user, business, permitted locations, permissions, and open register.
   - `permissions` keys used by the app's menu: `is_admin` (Admin role, opens the full website), `sell_create` (sell.create or direct_sell.access), `view_sales`, `view_products`, `view_customers` (customer.view or customer.view_own), `create_customer`, `view_dashboard`, `close_register` (close_cash_register), `edit_price`, `discount`.
@@ -25,13 +123,24 @@ The Android app also sends `User-Agent: BreMac360App/<version> (Android <release
 ### Dashboard
 - `GET /dashboard?location_id=&period=today|week|month|custom&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD` — sales, paid/due totals, expenses, net, and recent sales. `start_date`/`end_date` (inclusive) are required for `period=custom`.
 
+For dashboard and sales-history reads, omit `location_id` to combine the user's
+permitted locations, or send an integer ID for a specific branch. Do not send
+the literal `"all"`. The Android All locations option uses this existing API
+behavior; no new aggregation endpoint is required.
+
 ### Products
+
 - `GET /products?q=&location_id=&contact_id=&page=&per_page=20` — searchable sellable variations scoped to permitted locations.
 - `GET /products/lookup?code=&location_id=&contact_id=` — exact SKU/barcode lookup.
 
 Prices use the same rules as the web POS screen: location/customer selling price group, customer group markup, active product discounts, and inline tax (only when enabled for the business). `contact_id` is optional and defaults to the walk-in customer; pass the selected customer so cart prices match the server's sale pricing.
 
+Product search/lookup, payment methods, sale creation, register opening and
+M-Pesa STK requests require a concrete permitted integer `location_id`.
+Products/stock are not aggregated by the Android All locations option.
+
 ### Customers
+
 - `GET /customers?q=&page=` — active customer/both contacts.
 - `POST /customers` — create a customer with `{ name, mobile, email? }`.
 
@@ -66,7 +175,66 @@ app shows in its native navigation drawer.
 
 ## Setup notes
 
-1. Ensure Laravel Passport is installed and keys/clients exist: `php artisan passport:install` (or `php artisan passport:keys` if clients already exist).
-2. Serve the API only over HTTPS in production.
-3. After deploying, clear cached framework state: `php artisan route:clear && php artisan config:clear`.
-4. Confirm business locations, cash registers, M-Pesa credentials, and user permissions are configured before allowing mobile sales.
+Use the supported installation/deploy workflow in
+[INSTALLATION.md](../INSTALLATION.md), rather than reinstalling an existing
+database to enable mobile access.
+
+1. Deploy the mobile routes, controllers, authentication middleware and in-app
+   website support together, before distributing the corresponding Android app.
+2. Ensure Passport keys and a personal-access client exist. The supported
+   installer sets up Passport; repair an existing installation only if needed.
+   `php artisan passport:keys` creates keys when missing;
+   `php artisan passport:client --personal` creates a missing personal-access
+   client. Do not force key rotation as a routine update: it can invalidate
+   existing tokens.
+3. Serve the website and API over HTTPS with a trusted certificate. Ensure
+   the proxy/web server forwards `Authorization`. The app also sends
+   `X-Authorization` for hosts supported by the backend's fallback middleware;
+   proxies must not drop both headers.
+4. Keep the configured Laravel cache persistent between login, OTP verification
+   and web-session redemption. Multi-node deployments need a shared cache for
+   these challenges and single-use links.
+5. Configure account SMS/email targets and delivery, active business locations,
+   role permissions, subscription status, payment methods and registers.
+   For M-Pesa, configure sell-payment credentials and working callback handling
+   separately from subscription-payment credentials.
+6. Use the deploy workflow's cache rebuild steps. When diagnosing stale routes
+   or configuration, clear the relevant framework caches, then restore your
+   production cache configuration. Restart PHP-FPM after code changes when
+   OPcache timestamp validation is disabled.
+7. Exercise sign-in/OTP, `/me`, location-limited and combined reads, a permitted
+   sale/register flow, and embedded POS/admin navigation with representative
+   admin and restricted accounts before rollout. Confirm forbidden locations
+   remain inaccessible and activity entries identify the channel correctly.
+
+## Troubleshooting and support
+
+| Symptom | Administrator action |
+|---------|----------------------|
+| Server cannot be reached | Check base URL, certificate chain, connectivity, route deployment and proxy routing |
+| OTP not delivered | Check account target, SMS/email provider settings and server delivery logs |
+| SMS not auto-filled | Use manual entry; check Play services and message consent on the device |
+| OTP challenge expired (`otp_expired`, 410) | Start sign-in again; check cache persistence, server time and attempt limits |
+| Session expires immediately after successful OTP | Check Passport keys/personal-access client, API guard and Authorization forwarding |
+| Forbidden (403) or hidden menu/location | Review permissions, allowed active locations, enabled modules and account restrictions |
+| Generic server error | Inspect Laravel logs for the endpoint/action and underlying exception; a retry is not a configuration fix |
+| Register closed (`register_closed`, 409) | Open the required register before completing the sale |
+| Insufficient stock (422) | Review branch stock and requested quantities |
+| STK push pending/failed | Review sell-payment credentials, callback processing and provider status before retrying |
+
+Logs and support captures must not expose passwords, OTPs, bearer tokens,
+single-use sign-in URLs, `.env` credentials or signing secrets.
+
+## Release and maintenance
+
+Backend and Android updates are separate deployments. Update the backend first,
+then distribute the signed APK or publish the AAB through the chosen store.
+PWA installation and server remote-version notifications do not update the
+native Android binary automatically.
+
+Keep app version numbers and this guide aligned with releases. Use the same
+Android release signing key for direct-install upgrades and an increasing
+version code. Keep signing material outside source control, with encrypted
+backups and restricted access; the public repositories should contain neither
+keystores nor passwords. See the Android README for build commands and artifact
+paths. Local signed artifacts do not imply a GitHub Release or store publication.

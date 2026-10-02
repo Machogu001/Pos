@@ -1,6 +1,6 @@
 # External Repo Workflow
 
-This workspace now contains two separate Git repositories:
+The deployment workspace described here contains two separate Git repositories:
 
 - Backend POS repo: `/var/www/pos`
 - Mobile app repo: `/var/www/pos/.external/Pos_app`
@@ -46,5 +46,18 @@ git -C /var/www/pos/.external/Pos_app status
 ```
 
 ## Mobile app note
+
+Backend deployment and signed Android distribution are independent: pushing a
+repository does not deploy the server, create a GitHub Release, or update
+installed Android apps. Deploy compatible backend changes before app rollout.
+
+For the current Windows development workspace, the repositories are separate
+siblings at `D:\Myapps\pos_src` and `D:\Myapps\pos_app`; the Linux paths above
+apply only to the deployment workspace. Android signing material belongs
+outside both repositories and must not be included in Git synchronization.
+
+See [MOBILE_API.md](MOBILE_API.md) for system usage and deployment requirements,
+and the [Android README](https://github.com/Machogu001/pos_app/blob/main/README.md)
+for builds, signed artifacts and release-key maintenance.
 
 The Android app expects the POS website base URL and calls the Mobile API at `/api/mobile/v1` itself. It now also normalizes a pasted full API URL such as `https://example.com/api/mobile/v1` back to the website base URL.

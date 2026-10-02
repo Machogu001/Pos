@@ -115,6 +115,36 @@ After installation, confirm:
 - Avoid documenting raw `migrate` plus partial `db:seed` sequences as the primary install path, because that drifts away from the supported installer flow.
 - If install behavior changes, update both this runbook and the browser success page messaging in the same change.
 
+## Android App Deployment
+
+The separate [BreMac360 Android app](https://github.com/Machogu001/pos_app)
+uses this server's Mobile API and embedded website screens. It is not the
+website PWA and requires its own signed APK installation or store distribution.
+See [docs/MOBILE_API.md](docs/MOBILE_API.md) for the user guide, endpoint
+contract, permission/location rules and troubleshooting.
+
+Before distributing an app update:
+
+- Deploy the compatible backend using the supported maintenance workflow.
+- Confirm trusted HTTPS, mobile routes, Passport keys/personal-access client,
+  and forwarding of authentication headers through the web server/proxy.
+- Confirm the cache persists OTP challenges and single-use website sign-in
+  links; use shared cache storage across application nodes.
+- Configure account SMS/email delivery, business-location permissions, payment
+  methods, cash registers and sell-payment M-Pesa credentials.
+- Check login/OTP, restricted-account access, combined location reads and
+  embedded website navigation against the deployed environment.
+
+Native **All locations** combines performance and sales history only within
+the user's permitted locations. Sales creation, products/stock, payments and
+registers still require an individual branch. Embedded website pages retain
+their own location filters.
+
+The installer already handles Passport setup. Do not reinstall the database or
+force regeneration of existing Passport keys for a normal app update. Android
+signing keys are separate from Passport keys: preserve both securely, never
+commit them, and use the existing Android release key for APK upgrades.
+
 ## BreMac Ownership
 
 Operational ownership, deployment maintenance, and installation support for this system are handled by BreMac Consultant Limited.
