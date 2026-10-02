@@ -35,6 +35,7 @@ class MeController extends BaseMobileController
                 'business' => $this->businessPayload($business),
                 'locations' => $locations,
                 'permissions' => [
+                    'is_admin' => $this->util->is_admin($user),
                     'sell_create' => $canSell,
                     'view_sales' => $user->can('sell.view') || $user->can('view_own_sell_only'),
                     'view_products' => $user->can('product.view'),

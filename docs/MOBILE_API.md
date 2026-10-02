@@ -17,7 +17,7 @@ Responses use:
 
 ### Session
 - `GET /me` — current user, business, permitted locations, permissions, and open register.
-  - `permissions` keys used by the app's menu: `sell_create` (sell.create or direct_sell.access), `view_sales`, `view_products`, `view_customers` (customer.view or customer.view_own), `create_customer`, `view_dashboard`, `close_register` (close_cash_register), `edit_price`, `discount`.
+  - `permissions` keys used by the app's menu: `is_admin` (Admin role, opens the full website), `sell_create` (sell.create or direct_sell.access), `view_sales`, `view_products`, `view_customers` (customer.view or customer.view_own), `create_customer`, `view_dashboard`, `close_register` (close_cash_register), `edit_price`, `discount`.
   - Users who can sell may search products and customers even without product.view / customer.view.
 
 ### Dashboard
@@ -51,7 +51,7 @@ Prices use the same rules as the web POS screen: location/customer selling price
 - `GET /mpesa/status/{checkout_request_id}` — returns `pending`, `paid`, `failed`, or `cancelled`.
 
 ### Web POS
-- `POST /web-session` with `{ target: "pos" | "home" }` — returns `{ url, expires_in }`, a single-use link (60 s) that signs the same user into the website and redirects to the POS screen. Requires `sell.create` or `direct_sell.access` for `pos`.
+- `POST /web-session` with `{ target: "pos" | "home" }` — returns `{ url, expires_in }`, a single-use link (60 s) that signs the same user into the website and redirects to the POS screen (`pos`) or dashboard (`home`). Requires `sell.create` or `direct_sell.access` for `pos`; `home` (full website) is limited to business admins (`permissions.is_admin`).
 
 ## Setup notes
 

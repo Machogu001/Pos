@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Mobile;
 
 use App\Services\MobileLoginService;
 use App\User;
+use App\Utils\Util;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -23,7 +24,7 @@ class WebSessionController extends BaseMobileController
         'home' => '/home',
     ];
 
-    public function __construct(protected MobileLoginService $loginService)
+    public function __construct(protected MobileLoginService $loginService, protected Util $util)
     {
     }
 
@@ -37,6 +38,9 @@ class WebSessionController extends BaseMobileController
             $user = $request->user();
             $target = $data['target'] ?? 'pos';
             if ($target === 'pos' && ! ($user->can('sell.create') || $user->can('direct_sell.access'))) {
+                return $this->error('Forbidden.', 403, 'forbidden');
+            }
+            if ($target === 'home' && ! $this->util->is_admin($user)) {
                 return $this->error('Forbidden.', 403, 'forbidden');
             }
 

@@ -63,6 +63,7 @@ abstract class BaseMobileController extends Controller
         return [
             'id' => $user->id,
             'username' => $user->username,
+            'title' => $user->surname ? trim($user->surname) : null,
             'first_name' => $user->first_name,
             'last_name' => $user->last_name,
             'full_name' => trim(($user->surname ? $user->surname.' ' : '').$user->first_name.' '.$user->last_name),
