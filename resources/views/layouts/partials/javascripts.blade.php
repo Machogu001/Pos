@@ -75,10 +75,13 @@
         try {
             var headerInstallBtn = document.getElementById('header-pwa-install-btn');
 
-            // Hide if already installed or dismissed
+            // Only hide the install entry point when the app is already installed.
             function headerInstallShouldHide() {
                 try {
-                    if (localStorage.getItem('pwa-installed') === '1' || localStorage.getItem('pwa-install-dismissed') === '1') return true;
+                    if (localStorage.getItem('pwa-installed') === '1') return true;
+                } catch (e) { /* noop */ }
+                try {
+                    if (window.__bremac_pwa_status && window.__bremac_pwa_status.serverPwaInstalled) return true;
                 } catch (e) { /* noop */ }
                 // Standalone check
                 try {
@@ -95,12 +98,14 @@
                 // Listen for global beforeinstallprompt (may be fired by other partials too)
                 window.addEventListener('beforeinstallprompt', function (e) {
                     try {
-                        // Keep the event for user-triggered install flow without suppressing native behavior.
+                        // Keep the event for user-triggered install flow and defer the native prompt.
+                        e.preventDefault();
                         window.__bremac_deferredPrompt = e;
                         window.__bremac_pwa_status = window.__bremac_pwa_status || {};
                         window.__bremac_pwa_status.beforeInstallPromptFired = true;
                         // If user already installed/dismissed, don't show
                         if (headerInstallShouldHide()) return;
+                        headerInstallBtn.classList.remove('tw-hidden');
                         headerInstallBtn.style.display = '';
                         headerInstallBtn.removeAttribute('aria-hidden');
                     } catch (err) { console.warn('header beforeinstallprompt handler', err); }
@@ -108,7 +113,13 @@
 
                 // If appinstalled event fires, hide the button
                 window.addEventListener('appinstalled', function () {
-                    try { localStorage.setItem('pwa-installed', '1'); } catch (e) {}
+                    try {
+                        if (typeof window.__bremac_mark_pwa_installed === 'function') {
+                            window.__bremac_mark_pwa_installed();
+                        } else {
+                            localStorage.setItem('pwa-installed', '1');
+                        }
+                    } catch (e) {}
                     headerInstallBtn.style.display = 'none';
                 });
 
@@ -119,48 +130,28 @@
                             dp.prompt();
                             var choice = await dp.userChoice;
                             if (choice && choice.outcome === 'accepted') {
-                                try { localStorage.setItem('pwa-installed', '1'); } catch (e) {}
+                                try {
+                                    if (typeof window.__bremac_mark_pwa_installed === 'function') {
+                                        await window.__bremac_mark_pwa_installed();
+                                    } else {
+                                        localStorage.setItem('pwa-installed', '1');
+                                    }
+                                } catch (e) {}
+                                headerInstallBtn.style.display = 'none';
                             } else {
-                                try { localStorage.setItem('pwa-install-dismissed', '1'); } catch (e) {}
+                                headerInstallBtn.classList.remove('tw-hidden');
+                                headerInstallBtn.style.display = '';
+                                headerInstallBtn.removeAttribute('aria-hidden');
                             }
                             window.__bremac_deferredPrompt = null;
-                            headerInstallBtn.style.display = 'none';
                         } else {
-                            // Fallback: open the install modal if present
-                            var installModalBtn = document.getElementById('pwa-install-btn');
-                            if (installModalBtn) {
-                                try { installModalBtn.click(); } catch (e) { console.warn('could not open install modal', e); }
+                            // Fallback: open the install modal or its helper for manual guidance.
+                            if (typeof window.__bremac_show_install_modal === 'function') {
+                                try { window.__bremac_show_install_modal(); } catch (e) { console.warn('could not open install modal', e); }
                             }
                         }
                     } catch (e) { console.warn('header install click error', e); }
                 });
-                // If beforeinstallprompt never fired, attempt a gentle fallback after a short delay:
-                // if manifest + SW look good, show CTA so user can open the install modal.
-                setTimeout(async function () {
-                    try {
-                        if (window.__bremac_deferredPrompt) return; // native prompt available
-                        // Ensure we have probe data; if not, run a quick probe
-                        if (!window.__bremac_pwa_status) {
-                            // If install_prompt partial is present it exposes __bremac_probe_pwa
-                            if (typeof window.__bremac_probe_pwa === 'function') {
-                                await window.__bremac_probe_pwa();
-                            }
-                        }
-                        var status = window.__bremac_pwa_status || {};
-                        var canShow = (status.manifestOk && status.swRegistered) && !headerInstallShouldHide();
-                        if (canShow) {
-                            // Show header CTA
-                            headerInstallBtn.style.display = '';
-                            headerInstallBtn.removeAttribute('aria-hidden');
-                            // Aggressive fallback: open our install modal programmatically so user sees install instructions
-                            try {
-                                if (typeof window.__bremac_show_install_modal === 'function') {
-                                    window.__bremac_show_install_modal();
-                                }
-                            } catch (e) { console.warn('could not show install modal programmatically', e); }
-                        }
-                    } catch (e) { console.warn('header CTA fallback error', e); }
-                }, 1800);
             }
         } catch (e) { console.warn('header install CTA init error', e); }
         // Initialize view toggle button label and behavior

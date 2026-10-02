@@ -23,6 +23,21 @@
     <link rel="icon" type="image/png" href="{{ asset($faviconDarkPath) }}?v={{ $faviconDarkVersion }}" media="(prefers-color-scheme: dark)">
     <link rel="icon" href="{{ asset($faviconPath) }}?v={{ $faviconVersion }}" sizes="any">
     <link rel="shortcut icon" href="{{ asset($faviconPath) }}?v={{ $faviconVersion }}" type="image/x-icon">
+    @php
+        $manifestUrl = url('manifest.webmanifest?v=' . time());
+        $iconPath = 'pwa-icons/mobile-app-192.png';
+        $iconVersion = file_exists(public_path($iconPath)) ? filemtime(public_path($iconPath)) : time();
+    @endphp
+    <link rel="manifest" href="{{ $manifestUrl }}">
+    <meta name="theme-color" content="#2b6cb0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="{{ config('app.name', 'POS') }}">
+    @if(file_exists(public_path($iconPath)))
+        <link rel="apple-touch-icon" sizes="192x192" href="{{ asset($iconPath) }}?v={{ $iconVersion }}">
+    @endif
+    <link rel="apple-touch-icon" href="{{ asset($iconPath) }}?v={{ $iconVersion }}">
 
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -126,6 +141,16 @@
             background-color: white !important;
         }
     </style>
+    @include('layouts.partials.install_prompt')
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('{{ url("service-worker.js") }}?v={{ $asset_v }}')
+                    .then(function() {})
+                    .catch(function() {});
+            });
+        }
+    </script>
 </body>
 
 </html>

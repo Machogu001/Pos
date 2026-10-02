@@ -85,6 +85,7 @@ return [
     'show_payment_type_on_contact_pay' => false,
     'enable_gst_report_india' => env('ENABLE_GST_REPORT_INDIA', false),
     'enable_secondary_unit' => false, //Experimental feature, may depreciate
+    'pwa_install_dismiss_days' => (int) env('PWA_INSTALL_DISMISS_DAYS', 15),
 
     // Default ledger / payment account mappings by transaction type.
     // These IDs should correspond to entries in the `accounts` table.

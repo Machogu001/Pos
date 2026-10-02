@@ -115,7 +115,7 @@
         $faviconLightVersion = file_exists(public_path($faviconLightPath)) ? filemtime(public_path($faviconLightPath)) : $faviconVersion;
         $faviconDarkPath = 'pwa-icons/favicon-bremac360-dark.png';
         $faviconDarkVersion = file_exists(public_path($faviconDarkPath)) ? filemtime(public_path($faviconDarkPath)) : $faviconVersion;
-        $manifestUrl = url('manifest.json?v=' . time());
+        $manifestUrl = url('manifest.webmanifest?v=' . time());
         $iconPath = 'pwa-icons/mobile-app-192.png';
         $iconVersion = file_exists(public_path($iconPath)) ? filemtime(public_path($iconPath)) : time();
         if (session('business.id')) {

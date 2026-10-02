@@ -14,6 +14,7 @@
 </IfModule>
 
 <IfModule mod_deflate.c>
+    AddType application/manifest+json .webmanifest
     AddOutputFilterByType DEFLATE text/plain
     AddOutputFilterByType DEFLATE text/html
     AddOutputFilterByType DEFLATE text/xml
