@@ -32,6 +32,8 @@ class WebSessionController extends BaseMobileController
     {
         $data = $request->validate([
             'target' => ['nullable', 'string', 'in:'.implode(',', array_keys(self::TARGETS))],
+            // Website page to open after signing in (admins only), e.g. "/reports/profit-loss".
+            'path' => ['nullable', 'string', 'max:1000'],
         ]);
 
         try {
@@ -48,6 +50,7 @@ class WebSessionController extends BaseMobileController
             Cache::put(self::cacheKey($token), [
                 'user_id' => $user->id,
                 'target' => $target,
+                'path' => $target === 'home' ? self::safePath($data['path'] ?? null) : null,
             ], now()->addSeconds(self::TTL_SECONDS));
 
             return $this->success([
@@ -80,7 +83,20 @@ class WebSessionController extends BaseMobileController
         $request->session()->regenerate();
         $this->loginService->logAuthenticationEvent($request, $user, 'login');
 
-        return redirect(self::TARGETS[$payload['target']] ?? self::TARGETS['pos']);
+        return redirect($payload['path'] ?? self::TARGETS[$payload['target']] ?? self::TARGETS['pos']);
+    }
+
+    /** Accepts only a local path (no scheme/host), so the link can't redirect to another site. */
+    protected static function safePath(?string $path): ?string
+    {
+        if ($path === null || ! preg_match('#^/(?![/\\\\])[^\s\\\\]*$#', $path)) {
+            return null;
+        }
+        if (preg_match('#^/(mobile/web-login|login|logout)(/|\?|$)#i', $path)) {
+            return null;
+        }
+
+        return $path;
     }
 
     protected static function cacheKey(string $token): string
