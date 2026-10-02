@@ -53,6 +53,14 @@ Prices use the same rules as the web POS screen: location/customer selling price
 ### Web POS
 - `POST /web-session` with `{ target: "pos" | "home" }` — returns `{ url, expires_in }`, a single-use link (60 s) that signs the same user into the website and redirects to the POS screen (`pos`) or dashboard (`home`). Requires `sell.create` or `direct_sell.access` for `pos`; `home` (full website) is limited to business admins (`permissions.is_admin`).
 
+### In-app website mode
+
+The app's WebView adds `BreMac360App/<version>` to its User-Agent. Pages using `layouts.app` then
+(`App\Utils\MobileAppView`): hide the website header (kept in the DOM so its modals and scripts work),
+sidebar, footer and install prompt; force the mobile viewport; and expose the permission-filtered
+sidebar menu as `window.__bremacAppMenu = [{ title, url, children: [{ title, url }] }]`, which the
+app shows in its native navigation drawer.
+
 ## Setup notes
 
 1. Ensure Laravel Passport is installed and keys/clients exist: `php artisan passport:install` (or `php artisan passport:keys` if clients already exist).

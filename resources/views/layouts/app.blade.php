@@ -14,6 +14,8 @@
 
 @php
     $whitelist = ['127.0.0.1', '::1'];
+    // Page opened inside the BreMac360 Android app: the app shows its own app bar and menu.
+    $in_app = \App\Utils\MobileAppView::isAppRequest($request);
 @endphp
 
 <!DOCTYPE html>
@@ -73,7 +75,7 @@
     <script>
         (function(){
             try {
-                var pref = localStorage.getItem('preferred_view') || 'desktop';
+                var pref = @if($in_app) 'mobile' @else (localStorage.getItem('preferred_view') || 'desktop') @endif;
                 var meta = document.getElementById('meta-viewport');
                 function apply(p){
                     if (!meta) return;
@@ -141,7 +143,7 @@
 
 </head>
 <body
-    class="tw-font-sans tw-antialiased tw-text-gray-900 tw-bg-gray-100 @if ($pos_layout) hold-transition lockscreen @else hold-transition skin-@if (!empty(session('business.theme_color'))){{ session('business.theme_color') }}@else{{ 'blue-light' }} @endif sidebar-mini @endif" >
+    class="@if ($in_app) bremac-in-app @endif tw-font-sans tw-antialiased tw-text-gray-900 tw-bg-gray-100 @if ($pos_layout) hold-transition lockscreen @else hold-transition skin-@if (!empty(session('business.theme_color'))){{ session('business.theme_color') }}@else{{ 'blue-light' }} @endif sidebar-mini @endif" >
     <div class="tw-flex tw-h-screen tw-overflow-hidden">
         <script type="text/javascript">
             if (localStorage.getItem("upos_sidebar_collapse") == 'true') {
@@ -149,7 +151,7 @@
                 body.className += " sidebar-collapse";
             }
         </script>
-        @if (!$pos_layout)
+        @if (!$pos_layout && !$in_app)
             @include('layouts.partials.sidebar')
         @endif
 
@@ -180,7 +182,10 @@
             @endif
 
             @if (!$pos_layout)
-                @include('layouts.partials.header')
+                {{-- In the app the header stays in the page (hidden) so its scripts and modals keep working. --}}
+                <div class="bremac-web-header">
+                    @include('layouts.partials.header')
+                </div>
             @else
                 @include('layouts.partials.header-pos')
             @endif
@@ -191,8 +196,9 @@
             <div class="tw-flex-1 tw-min-h-0 tw-overflow-y-auto" id="scrollable-container">
                 @yield('content')
                 @if (!$pos_layout)
-                
-                    @include('layouts.partials.footer')
+                    @if (!$in_app)
+                        @include('layouts.partials.footer')
+                    @endif
                 @else
                     @include('layouts.partials.footer_pos')
                 @endif
@@ -301,7 +307,24 @@
     {{-- Install prompt modal and registration. Include for all visitors so the client-side
          beforeinstallprompt handler can show the prompt when criteria are met. The
          partial itself checks server-side and local flags before showing the modal. --}}
-    @include('layouts.partials.install_prompt')
+    @if (!$in_app)
+        @include('layouts.partials.install_prompt')
+    @endif
+
+    @if ($in_app)
+        <script>
+            window.__bremacAppMenu = @json(\App\Utils\MobileAppView::menu());
+        </script>
+        <style>
+            body.bremac-in-app .bremac-web-header,
+            body.bremac-in-app .scrolltop {
+                display: none !important;
+            }
+            body.bremac-in-app {
+                -webkit-tap-highlight-color: transparent;
+            }
+        </style>
+    @endif
 
         <div class="modal fade view_modal" tabindex="-1" role="dialog" aria-labelledby="gridSystemModalLabel"></div>
 
