@@ -4104,7 +4104,7 @@ class ReportController extends Controller
                                     if (! empty($ip_address)) {
                                         $html .= 'IP: '.e($ip_address).'<br>';
                                     }
-                                    if (! empty($user_agent_summary)) {
+                                    if (! empty($user_agent_summary) && $user_agent_summary !== $device_name) {
                                         $html .= 'Device: '.e($user_agent_summary).'<br>';
                                     }
                                     if (! empty($location)) {

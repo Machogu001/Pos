@@ -1718,6 +1718,8 @@ class Util
         if ($login_channel !== 'web') {
             $device_name = $request->input('device_name') ?: $request->header('X-Device-Name') ?: ($app_details['device_name'] ?? null);
             $device_name = is_string($device_name) ? mb_substr(trim(strip_tags($device_name)), 0, 100) : null;
+        } else {
+            $device_name = $this->formatBrowserDeviceLabel($device_details, $user_agent);
         }
 
         return array_filter([
@@ -1874,6 +1876,25 @@ class Util
         }
 
         return ! empty($user_agent) ? substr($user_agent, 0, 120) : 'Unknown device';
+    }
+
+    public function formatBrowserDeviceLabel(array $details = [], ?string $user_agent = null): ?string
+    {
+        $parts = array_filter([
+            $details['platform'] ?? null,
+            $details['device_type'] ?? null,
+            $details['browser'] ?? null,
+        ], function ($value) {
+            return ! empty($value) && $value !== 'Unknown browser' && $value !== 'Unknown platform';
+        });
+
+        if (! empty($parts)) {
+            return mb_substr(implode(' / ', array_unique($parts)), 0, 100);
+        }
+
+        $user_agent = trim((string) $user_agent);
+
+        return $user_agent !== '' ? mb_substr($user_agent, 0, 100) : null;
     }
 
     private function extractClientIpFromHeader($header_value): ?string
