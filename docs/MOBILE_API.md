@@ -7,6 +7,8 @@ Responses use:
 - Success: `{ "success": true, "data": ..., "meta": ... }`
 - Error: `{ "success": false, "message": "...", "errors": {...}, "code": "..." }`
 
+The Android app also sends `User-Agent: BreMac360App/<version> (Android <release>; <maker model>)` and `X-Device-Name: <maker model>`. Login/logout entries in **Reports → Activity log** then show "Signed in via" (BreMac360 mobile app, in-app website, or web browser), the device name and the app version.
+
 ## Endpoints
 
 ### Auth

@@ -1711,7 +1711,19 @@ class Util
             $session_id = optional($request->session())->getId();
         }
 
+        $app_details = $this->getMobileAppDetails($user_agent);
+        $is_mobile_api = $request->is('api/mobile/*');
+        $login_channel = $is_mobile_api ? 'mobile_app' : (! empty($app_details) ? 'mobile_app_web' : 'web');
+        $device_name = null;
+        if ($login_channel !== 'web') {
+            $device_name = $request->input('device_name') ?: $request->header('X-Device-Name') ?: ($app_details['device_name'] ?? null);
+            $device_name = is_string($device_name) ? mb_substr(trim(strip_tags($device_name)), 0, 100) : null;
+        }
+
         return array_filter([
+            'login_channel' => $login_channel,
+            'device_name' => $device_name,
+            'app_version' => $app_details['app_version'] ?? null,
             'ip_address' => $resolved_ip,
             'proxy_ip_address' => $request->ip(),
             'forwarded_for' => $request->headers->get('x-forwarded-for'),
@@ -1805,6 +1817,45 @@ class Util
         });
     }
 
+    /**
+     * Details sent by the BreMac360 Android app in its User-Agent, e.g.
+     * "BreMac360App/2.8.0 (Android 15; Samsung SM-A515F)" (API) or "... BreMac360App/2.8.0 (Samsung SM-A515F)" (in-app website).
+     */
+    public function getMobileAppDetails(?string $user_agent): array
+    {
+        if (empty($user_agent) || ! preg_match('/BreMac360App\/([\w.\-]+)(?:\s*\(([^)]*)\))?/i', $user_agent, $matches)) {
+            return [];
+        }
+
+        $device_name = null;
+        if (! empty($matches[2])) {
+            $parts = array_map('trim', explode(';', $matches[2]));
+            $device_name = end($parts) ?: null;
+            if ($device_name !== null && preg_match('/^android\s+[\d.]+$/i', $device_name)) {
+                $device_name = null;
+            }
+        }
+
+        return array_filter([
+            'app_version' => $matches[1],
+            'device_name' => $device_name !== null ? mb_substr($device_name, 0, 100) : null,
+        ]);
+    }
+
+    /** Human label for how a user signed in, from the stored login_channel (or the user agent for older entries). */
+    public function formatLoginChannel(?string $channel, ?string $user_agent = null): string
+    {
+        if (empty($channel)) {
+            $channel = ! empty($this->getMobileAppDetails($user_agent)) ? 'mobile_app_web' : null;
+        }
+
+        return match ($channel) {
+            'mobile_app' => 'BreMac360 mobile app',
+            'mobile_app_web' => 'BreMac360 mobile app (in-app website)',
+            'web' => 'Web browser',
+            default => '',
+        };
+    }
     public function formatUserAgentSummary(?string $user_agent, array $details = []): string
     {
         $user_agent = (string) $user_agent;
@@ -1879,7 +1930,9 @@ class Util
         }
 
         $browser = 'Unknown browser';
-        if (str_contains($user_agent, 'edg/')) {
+        if (str_contains($user_agent, 'bremac360app')) {
+            $browser = 'BreMac360 App';
+        } elseif (str_contains($user_agent, 'edg/')) {
             $browser = 'Edge';
         } elseif (str_contains($user_agent, 'opr/') || str_contains($user_agent, 'opera')) {
             $browser = 'Opera';

@@ -4086,6 +4086,21 @@ class ReportController extends Controller
                                         $ip_metadata['country'] ?? null,
                                     ]));
 
+                                    $user_agent = $row->getExtraProperty('user_agent');
+                                    $channel = $this->businessUtil->formatLoginChannel($row->getExtraProperty('login_channel'), $user_agent);
+                                    $app_details = $this->businessUtil->getMobileAppDetails($user_agent);
+                                    $device_name = $row->getExtraProperty('device_name') ?: ($app_details['device_name'] ?? null);
+                                    $app_version = $row->getExtraProperty('app_version') ?: ($app_details['app_version'] ?? null);
+
+                                    if (! empty($channel)) {
+                                        $html .= 'Signed in via: <strong>'.e($channel).'</strong><br>';
+                                    }
+                                    if (! empty($device_name)) {
+                                        $html .= 'Device name: '.e($device_name).'<br>';
+                                    }
+                                    if (! empty($app_version)) {
+                                        $html .= 'App version: '.e($app_version).'<br>';
+                                    }
                                     if (! empty($ip_address)) {
                                         $html .= 'IP: '.e($ip_address).'<br>';
                                     }
@@ -4154,7 +4169,10 @@ class ReportController extends Controller
                 return $row->ip_address ?: '-';
             })
             ->addColumn('device', function ($row) {
-                return e($this->businessUtil->formatUserAgentSummary($row->user_agent));
+                $summary = $this->businessUtil->formatUserAgentSummary($row->user_agent);
+                $device_name = $this->businessUtil->getMobileAppDetails($row->user_agent)['device_name'] ?? null;
+
+                return e($summary.(! empty($device_name) ? ' - '.$device_name : ''));
             })
             ->addColumn('location', function ($row) {
                 $ip_metadata = $this->businessUtil->getIpAddressAuditMetadata($row->ip_address);
