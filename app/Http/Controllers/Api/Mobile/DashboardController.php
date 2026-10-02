@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Mobile;
 
 use App\BusinessLocation;
 use App\Transaction;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -13,7 +14,9 @@ class DashboardController extends BaseMobileController
     {
         $data = $request->validate([
             'location_id' => ['nullable', 'integer'],
-            'period' => ['nullable', 'in:today,week,month'],
+            'period' => ['nullable', 'in:today,week,month,custom'],
+            'start_date' => ['required_if:period,custom', 'nullable', 'date_format:Y-m-d'],
+            'end_date' => ['required_if:period,custom', 'nullable', 'date_format:Y-m-d', 'after_or_equal:start_date'],
         ]);
 
         try {
@@ -31,6 +34,10 @@ class DashboardController extends BaseMobileController
             [$from, $to] = match ($period) {
                 'week' => [now()->startOfWeek(), now()->endOfWeek()],
                 'month' => [now()->startOfMonth(), now()->endOfMonth()],
+                'custom' => [
+                    Carbon::createFromFormat('Y-m-d', $data['start_date'])->startOfDay(),
+                    Carbon::createFromFormat('Y-m-d', $data['end_date'])->endOfDay(),
+                ],
                 default => [now()->startOfDay(), now()->endOfDay()],
             };
 

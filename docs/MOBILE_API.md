@@ -21,7 +21,7 @@ Responses use:
   - Users who can sell may search products and customers even without product.view / customer.view.
 
 ### Dashboard
-- `GET /dashboard?location_id=&period=today|week|month` — sales, paid/due totals, expenses, net, and recent sales.
+- `GET /dashboard?location_id=&period=today|week|month|custom&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD` — sales, paid/due totals, expenses, net, and recent sales. `start_date`/`end_date` (inclusive) are required for `period=custom`.
 
 ### Products
 - `GET /products?q=&location_id=&contact_id=&page=&per_page=20` — searchable sellable variations scoped to permitted locations.
