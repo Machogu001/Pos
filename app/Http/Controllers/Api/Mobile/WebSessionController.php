@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Api\Mobile;
 
+use App\Http\Middleware\AdminSidebarMenu;
 use App\Services\MobileLoginService;
 use App\User;
+use App\Utils\MobileAppView;
 use App\Utils\Util;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -59,6 +61,27 @@ class WebSessionController extends BaseMobileController
             ]);
         } catch (\Throwable $exception) {
             return $this->serverError($exception, ['action' => 'mobile_web_session']);
+        }
+    }
+
+    /**
+     * The website's sidebar menu (filtered by the user's permissions and enabled modules), so the app
+     * can list Purchases, Products, Reports, … in its own menu before any website page is opened.
+     */
+    public function menu(Request $request)
+    {
+        try {
+            if (! $this->util->is_admin($request->user())) {
+                return $this->error('Forbidden.', 403, 'forbidden');
+            }
+
+            app(AdminSidebarMenu::class)->handle($request, function () {
+                return null;
+            });
+
+            return $this->success(['items' => MobileAppView::menu()]);
+        } catch (\Throwable $exception) {
+            return $this->serverError($exception, ['action' => 'mobile_web_menu']);
         }
     }
 

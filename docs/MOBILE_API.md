@@ -52,6 +52,7 @@ Prices use the same rules as the web POS screen: location/customer selling price
 
 ### Web POS
 - `POST /web-session` with `{ target: "pos" | "home", path?: "/reports/profit-loss" }` — returns `{ url, expires_in }`, a single-use link (60 s) that signs the same user into the website and redirects to the POS screen (`pos`) or dashboard (`home`). For `home`, an optional local `path` opens that website page instead (absolute URLs, `//host` and login/logout paths are ignored). Requires `sell.create` or `direct_sell.access` for `pos`; `home` (full website) is limited to business admins (`permissions.is_admin`).
+- `GET /web-menu` — admins only. Returns `{ items: [{ title, url, children: [{ title, url }] }] }`, the website's sidebar menu filtered by the user's permissions and enabled modules, so the app can list it in its navigation drawer.
 
 ### In-app website mode
 

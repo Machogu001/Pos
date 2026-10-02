@@ -36,4 +36,5 @@ Route::middleware(['auth:api', 'mobile.api'])->group(function () {
     Route::post('mpesa/stk-push', [MpesaController::class, 'stkPush']);
     Route::get('mpesa/status/{checkoutRequestId}', [MpesaController::class, 'status']);
     Route::post('web-session', [WebSessionController::class, 'create'])->middleware('throttle:20,1');
+    Route::get('web-menu', [WebSessionController::class, 'menu']);
 });
