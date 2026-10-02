@@ -12,6 +12,14 @@
 
 @php
 $whitelist = ['127.0.0.1', '::1'];
+$faviconPath = 'favicon-bremac360.ico';
+$faviconVersion = file_exists(public_path($faviconPath)) ? filemtime(public_path($faviconPath)) : time();
+$faviconPngPath = 'pwa-icons/favicon-bremac360.png';
+$faviconPngVersion = file_exists(public_path($faviconPngPath)) ? filemtime(public_path($faviconPngPath)) : $faviconVersion;
+$faviconLightPath = 'pwa-icons/favicon-bremac360-light.png';
+$faviconLightVersion = file_exists(public_path($faviconLightPath)) ? filemtime(public_path($faviconLightPath)) : $faviconVersion;
+$faviconDarkPath = 'pwa-icons/favicon-bremac360-dark.png';
+$faviconDarkVersion = file_exists(public_path($faviconDarkPath)) ? filemtime(public_path($faviconDarkPath)) : $faviconVersion;
 @endphp
 
 <!DOCTYPE html>
@@ -23,7 +31,11 @@ $whitelist = ['127.0.0.1', '::1'];
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
 
-    <link rel="shortcut icon" href="{{ asset('img/favicon.svg') }}" type="image/x-icon">
+    <link rel="icon" type="image/png" href="{{ asset($faviconPngPath) }}?v={{ $faviconPngVersion }}">
+    <link rel="icon" type="image/png" href="{{ asset($faviconLightPath) }}?v={{ $faviconLightVersion }}" media="(prefers-color-scheme: light)">
+    <link rel="icon" type="image/png" href="{{ asset($faviconDarkPath) }}?v={{ $faviconDarkVersion }}" media="(prefers-color-scheme: dark)">
+    <link rel="icon" href="{{ asset($faviconPath) }}?v={{ $faviconVersion }}" sizes="any">
+    <link rel="shortcut icon" href="{{ asset($faviconPath) }}?v={{ $faviconVersion }}" type="image/x-icon">
 
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">

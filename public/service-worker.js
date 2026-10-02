@@ -1,14 +1,14 @@
 // Unified service worker for Bremac POS
 // Use `var` and global self properties to make the script idempotent and
 // avoid SyntaxErrors if the file is accidentally concatenated/served twice.
-var CACHE_NAME = (self.__BREMAC_CACHE_NAME__ = self.__BREMAC_CACHE_NAME__ || 'bremac-pos-cache-v4');
+var CACHE_NAME = (self.__BREMAC_CACHE_NAME__ = self.__BREMAC_CACHE_NAME__ || 'bremac-pos-cache-v5');
 var ASSETS_TO_CACHE = (self.__BREMAC_ASSETS__ = self.__BREMAC_ASSETS__ || [
   './offline.html',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
+  './pwa-icons/mobile-app-192.png',
+  './pwa-icons/mobile-app-512.png',
   './css/app.css',
   './js/app.js',
-  './favicon.ico'
+  './favicon-bremac360.ico'
 ]);
 
 // Helpful debug log to identify which SW file the browser actually evaluated

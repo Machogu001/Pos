@@ -107,7 +107,17 @@
         Only use the per-business manifest if the file actually exists under public/manifest/{id}.json.
         This avoids linking to a 404 manifest which breaks PWA installability. --}}
     @php
+        $faviconPath = 'favicon-bremac360.ico';
+        $faviconVersion = file_exists(public_path($faviconPath)) ? filemtime(public_path($faviconPath)) : time();
+        $faviconPngPath = 'pwa-icons/favicon-bremac360.png';
+        $faviconPngVersion = file_exists(public_path($faviconPngPath)) ? filemtime(public_path($faviconPngPath)) : $faviconVersion;
+        $faviconLightPath = 'pwa-icons/favicon-bremac360-light.png';
+        $faviconLightVersion = file_exists(public_path($faviconLightPath)) ? filemtime(public_path($faviconLightPath)) : $faviconVersion;
+        $faviconDarkPath = 'pwa-icons/favicon-bremac360-dark.png';
+        $faviconDarkVersion = file_exists(public_path($faviconDarkPath)) ? filemtime(public_path($faviconDarkPath)) : $faviconVersion;
         $manifestUrl = url('manifest.json?v=' . time());
+        $iconPath = 'pwa-icons/mobile-app-192.png';
+        $iconVersion = file_exists(public_path($iconPath)) ? filemtime(public_path($iconPath)) : time();
         if (session('business.id')) {
             $perBusinessPath = public_path('manifest/' . session('business.id') . '.json');
             if (file_exists($perBusinessPath)) {
@@ -115,6 +125,11 @@
             }
         }
     @endphp
+    <link rel="icon" type="image/png" href="{{ asset($faviconPngPath) }}?v={{ $faviconPngVersion }}">
+    <link rel="icon" type="image/png" href="{{ asset($faviconLightPath) }}?v={{ $faviconLightVersion }}" media="(prefers-color-scheme: light)">
+    <link rel="icon" type="image/png" href="{{ asset($faviconDarkPath) }}?v={{ $faviconDarkVersion }}" media="(prefers-color-scheme: dark)">
+    <link rel="icon" href="{{ asset($faviconPath) }}?v={{ $faviconVersion }}" sizes="any">
+    <link rel="shortcut icon" href="{{ asset($faviconPath) }}?v={{ $faviconVersion }}" type="image/x-icon">
     <link rel="manifest" href="{{ $manifestUrl }}">
     <meta name="theme-color" content="{{ !empty(session('business.theme_color')) ? session('business.theme_color') : '#2b6cb0' }}">
     <!-- iOS support -->
@@ -123,18 +138,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="{{ Session::get('business.name') }}">
     {{-- Use PWA icons with fallback to prevent 404 errors --}}
-    @php
-        $iconPath = 'pwa-icons/icon-192.png';
-        $iconExists = file_exists(public_path($iconPath));
-        if (!$iconExists) {
-            $iconPath = 'icons/icon-192.png';
-            $iconExists = file_exists(public_path($iconPath));
-        }
-    @endphp
-    @if($iconExists)
-        <link rel="apple-touch-icon" sizes="192x192" href="{{ asset($iconPath) }}">
+    @if(file_exists(public_path($iconPath)))
+        <link rel="apple-touch-icon" sizes="192x192" href="{{ asset($iconPath) }}?v={{ $iconVersion }}">
     @endif
-    <link rel="apple-touch-icon" href="{{ asset(config('app.favicon', 'favicon.ico')) }}">
+    <link rel="apple-touch-icon" href="{{ asset($iconPath) }}?v={{ $iconVersion }}">
     
 
     @include('layouts.partials.extracss')
