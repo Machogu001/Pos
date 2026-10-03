@@ -1071,6 +1071,16 @@ class SellPosController extends Controller
         }
     }
 
+    public function mobileReceiptContent(Transaction $transaction): array
+    {
+        $invoiceLayoutId = $transaction->is_direct_sale ? $transaction->location->sale_invoice_layout_id : null;
+
+        return $this->receiptContent(
+            $transaction->business_id, $transaction->location_id, $transaction->id,
+            'browser', false, false, $invoiceLayoutId
+        );
+    }
+
     /**
      * Returns the content for the receipt
      *

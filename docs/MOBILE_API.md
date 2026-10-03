@@ -5,7 +5,7 @@ separate [BreMac360 Android app](https://github.com/Machogu001/pos_app).
 The Android app combines native API screens with embedded website POS/admin
 pages. Installing the PWA does not install or update the Android APK.
 
-This guide describes Android app **2.11.0** (version code **15**), requiring
+This guide describes Android app **2.12.0** (version code **16**), requiring
 Android **8.0 (API 26)** or later. Both native and embedded operations require
 connectivity; the Android app does not provide offline sales synchronization.
 
@@ -162,6 +162,14 @@ Products/stock are not aggregated by the Android All locations option.
   draft labeling. Requires business/location access and either sales-view
   permission or own-sale access (own-sales permission or sale-creation access).
   mPDF dependencies and writable `public/uploads/temp` must be available.
+- `GET /sales/{id}/receipt` — `{ data: { html } }`, the configured website
+  receipt HTML with the same vendor/app stylesheets used by the guest invoice
+  page. Reuses `SellPosController::receiptContent` in browser mode, including
+  direct-sale layout selection, branding, item/tax/payment fields and footer.
+  Same business/location/own-sale authorization as document access.
+  Styles, logos and fonts must be served over HTTPS from the configured server
+  origin (embedded data images/fonts are also allowed). Page scripts, frames,
+  forms and cross-origin resources are not enabled in receipt preview.
 
 New-sale and idempotent-retry responses include receipt text and the website
 receipt URL. If URL generation fails after a sale was saved, `receipt_error`
@@ -185,10 +193,15 @@ does not reserve stock: if availability changes before completion, retain the
 confirmed payment and resolve the stock/payment rather than sending STK again.
 
 Android **Print receipt** supports paired Bluetooth Classic SPP or raw TCP
-network ESC/POS printers, with 58/80 mm text receipts based on saved sale data.
+network ESC/POS printers, rendering the same website receipt template as a
+58 mm (384-dot) or 80 mm (576-dot) monochrome raster image.
 Printing is local to the phone and does not require a server print endpoint.
-It is not a reproduction of the A4 PDF layout; PDF viewing/sharing stays
-separate. See the Android README for pairing, permissions and limitations.
+It fetches `/sales/{id}/receipt` before printing; no simplified text template
+is used. Printers must support ESC/POS `GS v 0` raster images. Receipt viewing
+uses that HTML, while invoice viewing/sharing uses the existing website PDF
+renderer. Thermal width, monochrome output and hardware resolution still
+differ from A4/color output. Missing assets or oversized receipts fail rather
+than silently truncate. See the Android README for pairing and limitations.
 
 ### M-Pesa
 - `POST /mpesa/stk-push` — starts a sell STK push with `{ phone, amount, location_id }`.
@@ -266,11 +279,12 @@ single-use sign-in URLs, `.env` credentials or signing secrets.
 
 ## Release and maintenance
 
-### v2.11.0 rollout checklist
+### v2.12.0 rollout checklist
 
 Deploy this backend's stock-validation and document routes, controllers,
 `MobileStockService` and PDF helper changes before distributing Android
-v2.11.0. Refresh route/config caches through the normal deployment workflow
+v2.12.0, including `/sales/{id}/receipt` and the shared website receipt
+renderer wrapper/view. Refresh route/config caches through the normal deployment workflow
 and confirm the existing PDF dependencies and temp-directory permissions.
 No database reset or key rotation is required.
 

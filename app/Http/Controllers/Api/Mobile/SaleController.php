@@ -264,6 +264,25 @@ class SaleController extends BaseMobileController
         }
     }
 
+    public function receipt(Request $request, int $id)
+    {
+        try {
+            $transaction = $this->findAuthorizedSale($request, $id);
+            if (! $transaction) {
+                return $this->error('Sale not found.', 404, 'not_found');
+            }
+            $receipt = app(\App\Http\Controllers\SellPosController::class)->mobileReceiptContent($transaction);
+            if (empty($receipt['html_content'])) {
+                throw new \RuntimeException('The configured website receipt layout did not produce content.');
+            }
+            $html = view('sale_pos.receipts.mobile_document', ['receipt_html' => $receipt['html_content']])->render();
+
+            return $this->success(['html' => $html])->header('Cache-Control', 'private, no-store');
+        } catch (\Throwable $exception) {
+            return $this->serverError($exception, ['action' => 'mobile_sale_receipt', 'sale_id' => $id]);
+        }
+    }
+
     public function validateStock(Request $request)
     {
         $data = $request->validate([
