@@ -5,7 +5,7 @@ separate [BreMac360 Android app](https://github.com/Machogu001/pos_app).
 The Android app combines native API screens with embedded website POS/admin
 pages. Installing the PWA does not install or update the Android APK.
 
-This guide describes Android app **2.12.1** (version code **17**), requiring
+This guide describes Android app **2.12.2** (version code **18**), requiring
 Android **8.0 (API 26)** or later. Both native and embedded operations require
 connectivity; the Android app does not provide offline sales synchronization.
 
@@ -213,6 +213,12 @@ receipt-sized page to avoid splitting rows. It does not substitute the
 separate website download-PDF template. Thermal width, monochrome output and hardware resolution still
 differ from A4/color output. Missing assets or oversized receipts fail rather
 than silently truncate. See the Android README for pairing and limitations.
+
+Android v2.12.2 also routes embedded POS receipt/invoice print actions through
+the same native Bluetooth/network picker. `SellPosController::receiptContent`
+returns browser HTML for the app user agent even when the branch is configured
+for websocket printing; ordinary browser requests retain their printer setting.
+The app preserves website colors instead of algorithmically darkening invoices.
 
 ### M-Pesa
 - `POST /mpesa/stk-push` — starts a sell STK push with `{ phone, amount, location_id }`.

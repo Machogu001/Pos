@@ -1122,6 +1122,9 @@ class SellPosController extends Controller
 
         //Check if printer setting is provided.
         $receipt_printer_type = is_null($printer_type) ? $location_details->receipt_printer_type : $printer_type;
+        if (str_contains((string) request()->userAgent(), 'BreMac360App/')) {
+            $receipt_printer_type = 'browser';
+        }
 
         $receipt_details = $this->transactionUtil->getReceiptDetails($transaction_id, $location_id, $invoice_layout, $business_details, $location_details, $receipt_printer_type);
 
