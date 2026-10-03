@@ -5,7 +5,7 @@ separate [BreMac360 Android app](https://github.com/Machogu001/pos_app).
 The Android app combines native API screens with embedded website POS/admin
 pages. Installing the PWA does not install or update the Android APK.
 
-This guide describes Android app **2.12.0** (version code **16**), requiring
+This guide describes Android app **2.12.1** (version code **17**), requiring
 Android **8.0 (API 26)** or later. Both native and embedded operations require
 connectivity; the Android app does not provide offline sales synchronization.
 
@@ -162,6 +162,8 @@ Products/stock are not aggregated by the Android All locations option.
   draft labeling. Requires business/location access and either sales-view
   permission or own-sale access (own-sales permission or sale-creation access).
   mPDF dependencies and writable `public/uploads/temp` must be available.
+  Retained for older clients and separate website PDF downloads; Android
+  v2.12.1 uses `/receipt` for sharing/opening as well as thermal printing.
 - `GET /sales/{id}/receipt` — `{ data: { html } }`, the configured website
   receipt HTML with the same vendor/app stylesheets used by the guest invoice
   page. Reuses `SellPosController::receiptContent` in browser mode, including
@@ -198,8 +200,10 @@ network ESC/POS printers, rendering the same website receipt template as a
 Printing is local to the phone and does not require a server print endpoint.
 It fetches `/sales/{id}/receipt` before printing; no simplified text template
 is used. Printers must support ESC/POS `GS v 0` raster images. Receipt viewing
-uses that HTML, while invoice viewing/sharing uses the existing website PDF
-renderer. Thermal width, monochrome output and hardware resolution still
+and invoice viewing/sharing all use that HTML. Android v2.12.1 creates a
+color, image-based PDF from the rendered 80 mm website layout, with one
+receipt-sized page to avoid splitting rows. It does not substitute the
+separate website download-PDF template. Thermal width, monochrome output and hardware resolution still
 differ from A4/color output. Missing assets or oversized receipts fail rather
 than silently truncate. See the Android README for pairing and limitations.
 
@@ -279,11 +283,11 @@ single-use sign-in URLs, `.env` credentials or signing secrets.
 
 ## Release and maintenance
 
-### v2.12.0 rollout checklist
+### v2.12.1 rollout checklist
 
 Deploy this backend's stock-validation and document routes, controllers,
 `MobileStockService` and PDF helper changes before distributing Android
-v2.12.0, including `/sales/{id}/receipt` and the shared website receipt
+v2.12.1, including `/sales/{id}/receipt` and the shared website receipt
 renderer wrapper/view. Refresh route/config caches through the normal deployment workflow
 and confirm the existing PDF dependencies and temp-directory permissions.
 No database reset or key rotation is required.

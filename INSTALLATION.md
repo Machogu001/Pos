@@ -135,10 +135,10 @@ Before distributing an app update:
 - Check login/OTP, restricted-account access, combined location reads and
   embedded website navigation against the deployed environment.
 
-### Android v2.12.0: stock checks and website receipt documents
+### Android v2.12.1: stock checks and unified website receipt documents
 
 Deploy the mobile controller/routes, `MobileStockService` and invoice PDF helper
-changes before installing the v2.12.0 APK. Required endpoints are:
+changes before installing the v2.12.1 APK. Required endpoints are:
 
 - `POST /api/mobile/v1/sales/validate-stock`
 - `GET /api/mobile/v1/sales/{id}/document`
@@ -154,12 +154,15 @@ completion; the server rechecks during the save. Prechecks do not reserve stock.
 If stock changes after M-Pesa confirmation, preserve the payment and resolve
 the stock/payment rather than collecting it again.
 
-Receipt preview and thermal printing now use the website's configured receipt
+Receipt preview, invoice opening/sharing and thermal printing use the website's configured receipt
 template, including its direct-sale/branch layout selection, rather than an
 app-specific text receipt. Serve its CSS/logo/font assets over trusted HTTPS
 from the website's origin. Printers require ESC/POS raster-image support;
 58/80 mm thermal output is monochrome and scaled to the chosen width.
 Missing assets or oversized receipts should be resolved before printing.
+Android v2.12.1 exports that rendered HTML at 80 mm width to a single-page,
+receipt-sized color PDF for sharing/opening, rather than using the separate
+mPDF download template. `/document` remains available for older clients.
 
 PDFs open inside the Android app and can be shared as attachments. Existing
 invoices, drafts and quotations can be retrieved without a new sale or payment.
