@@ -61,6 +61,7 @@ class PosInstaller
 
     private function prepareInstallEnvironment(?callable $logger = null): void
     {
+        app(RuntimePermissions::class)->repair(base_path(), env('POS_WEB_USER'));
         foreach (['packages.php', 'services.php'] as $cacheFile) {
             $path = base_path('bootstrap/cache/' . $cacheFile);
             if (file_exists($path)) {

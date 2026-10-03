@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\RuntimePermissions;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -27,16 +28,23 @@ use Illuminate\Support\Facades\Schema;
  */
 class AppSetup extends Command
 {
-    protected $signature   = 'pos:setup {--force : Skip confirmation prompts}';
+    protected $signature   = 'pos:setup {--force : Skip confirmation prompts}
+        {--web-user= : PHP worker account for runtime permissions (or POS_WEB_USER)}';
     protected $description = 'Run all post-install setup tasks (directories, symlinks, keys, cache).';
 
     public function handle(): int
     {
         $this->info('Running POS setup...');
 
+        try {
+            app(RuntimePermissions::class)->repair(base_path(), $this->option('web-user') ?: env('POS_WEB_USER'));
+        } catch (\RuntimeException $exception) {
+            $this->error($exception->getMessage());
+            return self::FAILURE;
+        }
+        $this->line('  Runtime permissions and file locking: OK');
         $this->ensureAppKey();
         $this->ensureDirectories();
-        $this->ensureStoragePermissions();
         $this->ensureLanguagePermissions();
         $this->ensureModuleStatusFile();
         $this->ensureLogFileExists();
@@ -101,10 +109,6 @@ class AppSetup extends Command
             }
         }
 
-        // Ensure top-level storage/ and bootstrap/cache/ are writable
-        @chmod(storage_path(), 0775);
-        @chmod(base_path('bootstrap/cache'), 0775);
-
         $this->line('  Directories: OK');
     }
 
@@ -164,44 +168,6 @@ class AppSetup extends Command
         }
 
         $this->line('  bootstrap/cache: OK');
-    }
-
-    /**
-     * Recursively fix permissions on storage subdirectories and existing files
-     * so both CLI users and the web server (www-data) can read/write.
-     *
-     * Directories → 0775 + setgid (new files inherit the directory group)
-     * Files       → 0664
-     *
-     * Uses only PHP's chmod() — no shell exec, no root required.
-     * The setgid bit ensures files created by any user inherit the group.
-     */
-    private function ensureStoragePermissions(): void
-    {
-        $targets = [
-            storage_path('logs'),
-            storage_path('framework/cache'),
-            storage_path('framework/sessions'),
-            storage_path('framework/views'),
-        ];
-
-        foreach ($targets as $dir) {
-            if (! is_dir($dir)) {
-                continue;
-            }
-
-            // Directory itself: rwxrwsr-x (setgid so new files inherit group)
-            @chmod($dir, 02775);
-
-            // All existing files in the directory
-            foreach (new \FilesystemIterator($dir, \FilesystemIterator::SKIP_DOTS) as $entry) {
-                if ($entry->isFile()) {
-                    @chmod($entry->getPathname(), 0664);
-                }
-            }
-        }
-
-        $this->line('  Storage permissions: OK');
     }
 
     /**

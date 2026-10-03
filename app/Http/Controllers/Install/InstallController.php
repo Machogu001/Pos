@@ -75,6 +75,11 @@ class InstallController extends Controller
      */
     private function installSettings()
     {
+        try {
+            app(\App\Services\RuntimePermissions::class)->repair(base_path(), env('POS_WEB_USER'));
+        } catch (\RuntimeException $exception) {
+            abort(503, $exception->getMessage());
+        }
         config(['app.debug' => true]);
 
         // Wipe stale bootstrap/cache package manifests on every installer page

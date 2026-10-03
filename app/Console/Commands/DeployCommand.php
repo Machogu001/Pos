@@ -65,7 +65,9 @@ class DeployCommand extends Command
 
         // Step 1: Setup dirs, symlinks, Passport keys, clear caches
         $this->step('pos:setup (dirs, symlinks, keys)', function () use ($force) {
-            Artisan::call('pos:setup', ['--force' => true]);
+            if (Artisan::call('pos:setup', ['--force' => true]) !== 0) {
+                throw new \RuntimeException(trim(Artisan::output()));
+            }
         });
 
         DB::statement('SET default_storage_engine=INNODB;');

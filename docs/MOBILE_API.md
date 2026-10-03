@@ -180,6 +180,13 @@ The app opens the PDF inside the app and shares the PDF for completed and histor
 not plain text, and does not create a new sale or STK request to retrieve it.
 M-Pesa payment references prefer the stored provider transaction number.
 
+If sale completion reports an inability to create a lockable cache file,
+the payment may already be confirmed: do not send another STK prompt.
+Deploy the runtime permission repair and follow `INSTALLATION.md` to repair
+existing cache ownership without clearing idempotency records. New installs
+and supported deployments repair nested runtime permissions before cache
+operations; insufficient OS privileges produce an explicit setup failure.
+
 - `POST /sales/validate-stock` — `{ location_id, items: [{ variation_id, quantity }] }`.
   Returns `{ data: { items: [{ variation_id, enable_stock, stock }] } }`, or
   `insufficient_stock` (422) with the requested/available quantities.

@@ -77,6 +77,10 @@
                     <p>{{ __('ui.the_following_two_steps') }} <strong>{{ __('ui.cannot_be_done_by_the_web_installer') }}</strong> {{ __('ui.they_require_server_access_run_them_now_to_ensure_all_features_work_correctly') }}</p>
 
                     <pre style="background:#f5f5f5;padding:10px;">sudo bash {{ base_path('scripts/post_install_server_setup.sh') }}</pre>
+                    <p>Runtime directories and existing nested cache files are repaired automatically during installation.
+                      If ownership prevents repair, run the helper above as an administrator.
+                      Pass the actual PHP worker username as its argument when it is not <code>www-data</code>.
+                      The helper repairs ownership and runs the scheduler as that same account.</p>
 
                     <p><strong>{{ __('ui.1_register_the_laravel_scheduler_required_for_subscriptions_m_pesa_checks_reminders') }}</strong></p>
                     <pre style="background:#f5f5f5;padding:10px;"># Included in the helper script above.</pre>

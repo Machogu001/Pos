@@ -41,6 +41,8 @@ php artisan pos:install --fresh --force
 What the installer does:
 
 - Runs `php artisan pos:setup --force`
+- Repairs existing nested runtime/cache permissions before any cache operation;
+  creates missing runtime directories and verifies writable, lockable files
 - Clears stale cache manifests
 - Runs core migrations
 - Runs module migrations
@@ -69,11 +71,48 @@ Installer routes lock automatically after a successful installation to prevent a
 
 The application cannot safely perform privileged server changes for you. Run these steps on the server after a successful install.
 
+### Runtime permission repair
+
+Browser installation, CLI installation, `pos:setup` and `pos:deploy` now
+repair nested runtime directories/files automatically, including the hashed
+`storage/framework/cache/data` paths used by mobile sale idempotency locks.
+Unix directories use `2775` (setgid), files use `664`; private OAuth keys,
+`.env` and application code are not made group-writable. File-cache writes
+also use `664`. Symbolic links inside repaired runtime trees are refused.
+
+For CLI commands, run as the PHP worker account or a deployment account in
+its group and set `POS_WEB_USER` in `.env` to the actual worker username.
+Cross-account Unix repair requires PHP's POSIX extension.
+Root setup requires that username explicitly; it never guesses the account.
+Processes cannot repair files owned by another account without OS permission.
+Installation/deployment stops with an actionable error instead of claiming
+success when repair fails.
+
+For this existing production installation, after deploying the code:
+
+```bash
+cd /var/www/pos
+sudo php scripts/repair_runtime_permissions.php www-data
+sudo -u www-data php scripts/repair_runtime_permissions.php www-data
+```
+
+Replace `www-data` with the actual PHP worker account. This standalone repair
+does not bootstrap Laravel, clear idempotency keys, delete cache files, or
+create a sale/payment. It can therefore repair the permissions even when
+Artisan cannot start. Do not use `chmod 777`. On Windows, filesystem ACLs
+must permit the PHP process to write; Unix ownership/modes are not applied.
+
 ### 1. Register the Laravel scheduler
 
 ```bash
 sudo bash scripts/post_install_server_setup.sh
 ```
+
+The helper also repairs runtime ownership and verifies file locking as the
+PHP worker before configuring cron. Pass a different worker account when
+needed: `sudo bash scripts/post_install_server_setup.sh nginx`.
+The scheduler uses that same account with a group-writable umask, avoiding
+new root-owned cache files. Avoid running scheduled jobs as root.
 
 ### 2. Enable PHP OPcache for production
 
