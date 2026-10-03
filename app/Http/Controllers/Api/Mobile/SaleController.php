@@ -9,6 +9,7 @@ use App\Contact;
 use App\Events\SellCreatedOrModified;
 use App\Services\MobilePricingService;
 use App\Services\MobileStockService;
+use App\Services\RuntimePermissions;
 use App\Transaction;
 use App\Utils\CashRegisterUtil;
 use App\Utils\ProductUtil;
@@ -141,6 +142,9 @@ class SaleController extends BaseMobileController
                 return $this->error('No open cash register.', 409, 'register_closed');
             }
 
+            $runtimePermissions = app(RuntimePermissions::class);
+            $runtimePermissions->ensureCacheKeyPathWritable(base_path(), $mapKey, env('POS_WEB_USER'));
+
             if ($existingId = Cache::get($mapKey)) {
                 $existing = $this->findAuthorizedSale($request, (int) $existingId);
                 if ($existing) {
@@ -149,6 +153,7 @@ class SaleController extends BaseMobileController
             }
 
             $lockKey = $mapKey.':lock';
+            $runtimePermissions->ensureCacheKeyPathWritable(base_path(), $lockKey, env('POS_WEB_USER'));
             $lock = null;
             $lockAcquired = false;
             try {

@@ -9,6 +9,29 @@ use RuntimeException;
 
 class RuntimePermissions
 {
+    public function ensureCacheKeyPathWritable(string $root, string $cacheKey, ?string $webUser = null): void
+    {
+        if (config('cache.default') !== 'file') {
+            return;
+        }
+
+        $root = realpath($root);
+        if ($root === false) {
+            throw new RuntimeException('The application directory does not exist.');
+        }
+
+        $cacheRoot = $root.DIRECTORY_SEPARATOR.'storage'.DIRECTORY_SEPARATOR.'framework'.DIRECTORY_SEPARATOR.'cache'.DIRECTORY_SEPARATOR.'data';
+        $hash = sha1($cacheKey);
+        $firstDir = $cacheRoot.DIRECTORY_SEPARATOR.substr($hash, 0, 2);
+        $secondDir = $firstDir.DIRECTORY_SEPARATOR.substr($hash, 2, 2);
+
+        if ($this->pathNeedsRepair($cacheRoot)
+            || $this->existingPathNeedsRepair($firstDir)
+            || $this->existingPathNeedsRepair($secondDir)) {
+            $this->repair($root, $webUser);
+        }
+    }
+
     public function repair(string $root, ?string $webUser = null): void
     {
         $root = realpath($root);
@@ -123,6 +146,30 @@ class RuntimePermissions
         if (! is_writable($path)) {
             $this->failed($path);
         }
+    }
+
+    private function existingPathNeedsRepair(string $path): bool
+    {
+        return file_exists($path) && $this->pathNeedsRepair($path);
+    }
+
+    private function pathNeedsRepair(string $path): bool
+    {
+        clearstatcache(true, $path);
+
+        if (! is_dir($path)) {
+            return true;
+        }
+
+        if (! is_writable($path) || ! is_readable($path) || ! is_executable($path)) {
+            return true;
+        }
+
+        if (PHP_OS_FAMILY !== 'Windows' && (fileperms($path) & 07777) !== 02775) {
+            return true;
+        }
+
+        return false;
     }
 
     private function failed(string $path): void

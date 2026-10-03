@@ -52,7 +52,11 @@ return [
         'file' => [
             'driver' => 'file',
             'path' => storage_path('framework/cache/data'),
-            'permission' => 0664,
+            // Leave Laravel's file cache chmod disabled here. FileStore applies this
+            // permission to both files and newly created directories, and 0664 breaks
+            // directory traversal for hashed cache branches. RuntimePermissions owns
+            // the correct runtime modes instead (dirs 2775, files 0664).
+            'permission' => null,
         ],
 
         'memcached' => [
