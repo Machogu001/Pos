@@ -5,7 +5,7 @@ separate [BreMac360 Android app](https://github.com/Machogu001/pos_app).
 The Android app combines native API screens with embedded website POS/admin
 pages. Installing the PWA does not install or update the Android APK.
 
-This guide describes Android app **2.10.0** (version code **13**), requiring
+This guide describes Android app **2.11.0** (version code **15**), requiring
 Android **8.0 (API 26)** or later. Both native and embedded operations require
 connectivity; the Android app does not provide offline sales synchronization.
 
@@ -156,10 +156,49 @@ Products/stock are not aggregated by the Android All locations option.
 - `POST /sales` — creates a POS sale from DB-priced variations, payments, and a required `client_reference` idempotency key. Error codes: `register_closed` (409), `insufficient_stock` (422), `subscription_expired` (403).
 - `GET /sales?status=&location_id=&q=&page=` — paginated summaries.
 - `GET /sales/{id}` — full sale details with receipt URL/text.
+- `GET /sales/{id}/document` — authenticated PDF document envelope:
+  `{ data: { filename, content_type: "application/pdf", content_base64 } }`.
+  Uses the existing invoice PDF renderer and quotation headings, with explicit
+  draft labeling. Requires business/location access and either sales-view
+  permission or own-sale access (own-sales permission or sale-creation access).
+  mPDF dependencies and writable `public/uploads/temp` must be available.
+
+New-sale and idempotent-retry responses include receipt text and the website
+receipt URL. If URL generation fails after a sale was saved, `receipt_error`
+reports the problem explicitly without treating the sale as unsaved.
+The app opens the PDF inside the app and shares the PDF for completed and historical sales,
+not plain text, and does not create a new sale or STK request to retrieve it.
+M-Pesa payment references prefer the stored provider transaction number.
+
+- `POST /sales/validate-stock` — `{ location_id, items: [{ variation_id, quantity }] }`.
+  Returns `{ data: { items: [{ variation_id, enable_stock, stock }] } }`, or
+  `insufficient_stock` (422) with the requested/available quantities.
+  Requires sale-creation permission and permitted location access. This is a
+  read-only stock check, not a reservation or payment.
+
+The native app performs stock checks before checkout/payment/STK/completion.
+Final mobile-sale creation rechecks totals per variation, including shared
+stock components of combos, inside a transaction with stock locks. Final
+mobile sales reject overselling even when the website allows it. Drafts and
+quotations retain their non-stock-consuming behavior. An STK confirmation
+does not reserve stock: if availability changes before completion, retain the
+confirmed payment and resolve the stock/payment rather than sending STK again.
+
+Android **Print receipt** supports paired Bluetooth Classic SPP or raw TCP
+network ESC/POS printers, with 58/80 mm text receipts based on saved sale data.
+Printing is local to the phone and does not require a server print endpoint.
+It is not a reproduction of the A4 PDF layout; PDF viewing/sharing stays
+separate. See the Android README for pairing, permissions and limitations.
 
 ### M-Pesa
 - `POST /mpesa/stk-push` — starts a sell STK push with `{ phone, amount, location_id }`.
 - `GET /mpesa/status/{checkout_request_id}` — returns `pending`, `paid`, `failed`, or `cancelled`.
+
+In Quick sale, use **Checkout > Add payment > M-Pesa**, enter the customer's
+phone number and tap **Add**. The amount defaults to the checkout total or
+remaining unpaid balance for split payments. After payment confirmation,
+**Complete sale** saves the invoice. A failed receipt fetch or stock check is
+not a reason to repeat a confirmed STK payment.
 
 ### Web POS
 - `POST /web-session` with `{ target: "pos" | "home", path?: "/reports/profit-loss" }` — returns `{ url, expires_in }`, a single-use link (60 s) that signs the same user into the website and redirects to the POS screen (`pos`) or dashboard (`home`). For `home`, an optional local `path` opens that website page instead (absolute URLs, `//host` and login/logout paths are ignored). Requires `sell.create` or `direct_sell.access` for `pos`; `home` (full website) is limited to business admins (`permissions.is_admin`).
@@ -226,6 +265,20 @@ Logs and support captures must not expose passwords, OTPs, bearer tokens,
 single-use sign-in URLs, `.env` credentials or signing secrets.
 
 ## Release and maintenance
+
+### v2.11.0 rollout checklist
+
+Deploy this backend's stock-validation and document routes, controllers,
+`MobileStockService` and PDF helper changes before distributing Android
+v2.11.0. Refresh route/config caches through the normal deployment workflow
+and confirm the existing PDF dependencies and temp-directory permissions.
+No database reset or key rotation is required.
+
+Confirm that excess quantities and combined combo-component demand are rejected,
+that completed and historical documents open/share without another payment,
+and that intended users cannot retrieve another business's or forbidden
+location's documents. Check paired Bluetooth/network printing on the actual
+ESC/POS devices; an emulator cannot confirm paper output.
 
 Backend and Android updates are separate deployments. Update the backend first,
 then distribute the signed APK or publish the AAB through the chosen store.

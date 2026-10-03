@@ -135,6 +135,30 @@ Before distributing an app update:
 - Check login/OTP, restricted-account access, combined location reads and
   embedded website navigation against the deployed environment.
 
+### Android v2.11.0: stock checks and receipt documents
+
+Deploy the mobile controller/routes, `MobileStockService` and invoice PDF helper
+changes before installing the v2.11.0 APK. Required endpoints are:
+
+- `POST /api/mobile/v1/sales/validate-stock`
+- `GET /api/mobile/v1/sales/{id}/document`
+
+Use the normal deployment workflow to refresh framework caches. Confirm mPDF
+dependencies are installed and `public/uploads/temp` is writable by PHP.
+This update does not require a database reset or Passport key rotation.
+
+Final native mobile sales reject excess stock independently of the website's
+Allow overselling setting. The app checks stock before checkout/payment/STK and
+completion; the server rechecks during the save. Prechecks do not reserve stock.
+If stock changes after M-Pesa confirmation, preserve the payment and resolve
+the stock/payment rather than collecting it again.
+
+PDFs open inside the Android app and can be shared as attachments. Existing
+invoices, drafts and quotations can be retrieved without a new sale or payment.
+Bluetooth Classic/network ESC/POS thermal printing runs locally on the phone;
+no server printer service is required. Confirm actual printer compatibility,
+Bluetooth permissions and trusted-network connectivity before rollout.
+
 Native **All locations** combines performance and sales history only within
 the user's permitted locations. Sales creation, products/stock, payments and
 registers still require an individual branch. Embedded website pages retain

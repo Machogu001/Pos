@@ -31,8 +31,10 @@ Route::middleware(['auth:api', 'mobile.api'])->group(function () {
     Route::post('cash-register/open', [CashRegisterController::class, 'open']);
     Route::post('cash-register/close', [CashRegisterController::class, 'close']);
     Route::post('sales', [SaleController::class, 'store']);
+    Route::post('sales/validate-stock', [SaleController::class, 'validateStock']);
     Route::get('sales', [SaleController::class, 'index']);
     Route::get('sales/{id}', [SaleController::class, 'show'])->whereNumber('id');
+    Route::get('sales/{id}/document', [SaleController::class, 'document'])->whereNumber('id');
     Route::post('mpesa/stk-push', [MpesaController::class, 'stkPush']);
     Route::get('mpesa/status/{checkoutRequestId}', [MpesaController::class, 'status']);
     Route::post('web-session', [WebSessionController::class, 'create'])->middleware('throttle:20,1');

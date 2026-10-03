@@ -169,7 +169,9 @@ abstract class BaseMobileController extends Controller
             'method' => $payment->method,
             'amount' => $this->money($payment->amount),
             'paid_on' => optional($payment->paid_on ? \Carbon\Carbon::parse($payment->paid_on) : null)->toIso8601String(),
-            'reference' => $payment->payment_ref_no ?: ($payment->transaction_no ?: null),
+            'reference' => $payment->method === 'mpesa'
+                ? ($payment->transaction_no ?: $payment->payment_ref_no)
+                : ($payment->payment_ref_no ?: ($payment->transaction_no ?: null)),
         ])->values()->all();
 
         return $summary + [

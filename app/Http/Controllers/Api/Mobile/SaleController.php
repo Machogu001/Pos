@@ -8,15 +8,18 @@ use App\CashRegister;
 use App\Contact;
 use App\Events\SellCreatedOrModified;
 use App\Services\MobilePricingService;
+use App\Services\MobileStockService;
 use App\Transaction;
 use App\Utils\CashRegisterUtil;
 use App\Utils\ProductUtil;
+use App\Utils\TransactionUtil;
 use App\Utils\Util;
 use App\Variation;
 use App\VariationLocationDetails;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\DB;
 
 class SaleController extends BaseMobileController
 {
@@ -91,14 +94,7 @@ class SaleController extends BaseMobileController
                 return $this->error('Sale not found.', 404, 'not_found');
             }
 
-            $receiptUrl = null;
-            try {
-                $receiptUrl = $this->util->getInvoiceUrl($transaction->id, $transaction->business_id);
-            } catch (\Throwable $ignored) {
-                $receiptUrl = null;
-            }
-
-            return $this->success($this->salePayload($transaction, $receiptUrl, $this->receiptText($transaction)));
+            return $this->success($this->saleWithReceipt($transaction));
         } catch (\Throwable $exception) {
             return $this->serverError($exception, ['action' => 'mobile_sales_show', 'sale_id' => $id]);
         }
@@ -148,7 +144,7 @@ class SaleController extends BaseMobileController
             if ($existingId = Cache::get($mapKey)) {
                 $existing = $this->findAuthorizedSale($request, (int) $existingId);
                 if ($existing) {
-                    return $this->success($this->salePayload($existing), [], 200);
+                    return $this->success($this->saleWithReceipt($existing), [], 200);
                 }
             }
 
@@ -166,14 +162,20 @@ class SaleController extends BaseMobileController
                 return $this->error('Duplicate sale submission in progress.', 409, 'duplicate_request');
             }
 
+            $transactionLevel = DB::transactionLevel();
             try {
                 if ($existingId = Cache::get($mapKey)) {
                     $existing = $this->findAuthorizedSale($request, (int) $existingId);
                     if ($existing) {
-                        return $this->success($this->salePayload($existing), [], 200);
+                        return $this->success($this->saleWithReceipt($existing), [], 200);
                     }
                 }
 
+                DB::beginTransaction();
+                // Serialize mobile check-and-save, and hold location stock until the sale commits.
+                Business::whereKey($user->business_id)->lockForUpdate()->firstOrFail();
+                VariationLocationDetails::where('location_id', $locationId)->orderBy('variation_id')
+                    ->lockForUpdate()->get();
                 $posInput = $this->buildPosInput($request, $data);
                 if ($posInput instanceof \Illuminate\Http\JsonResponse) {
                     return $posInput;
@@ -217,11 +219,15 @@ class SaleController extends BaseMobileController
                     return $this->error('Sale was saved but could not be located.', 500, 'server_error');
                 }
 
-                Cache::put($mapKey, $transaction->id, now()->addDay());
                 $transaction = $this->findAuthorizedSale($request, $transaction->id);
+                DB::commit();
+                Cache::put($mapKey, $transaction->id, now()->addDay());
 
-                return $this->success($this->salePayload($transaction), [], 201);
+                return $this->success($this->saleWithReceipt($transaction), [], 201);
             } finally {
+                while (DB::transactionLevel() > $transactionLevel) {
+                    DB::rollBack();
+                }
                 if ($lock) {
                     optional($lock)->release();
                 } else {
@@ -230,6 +236,122 @@ class SaleController extends BaseMobileController
             }
         } catch (\Throwable $exception) {
             return $this->serverError($exception, ['action' => 'mobile_sales_store']);
+        }
+    }
+
+    public function document(Request $request, int $id)
+    {
+        try {
+            $transaction = $this->findAuthorizedSale($request, $id);
+            if (! $transaction) {
+                return $this->error('Sale not found.', 404, 'not_found');
+            }
+            $quotation = (bool) $transaction->is_quotation;
+            $label = $quotation ? 'QUOTATION' : ($transaction->status === 'draft' ? 'DRAFT' : 'INVOICE');
+            $filename = $label.'-'.preg_replace('/[^A-Za-z0-9._-]/', '_', $transaction->invoice_no).'.pdf';
+            $pdf = app(TransactionUtil::class)->getEmailAttachmentForGivenTransaction(
+                $transaction->business_id, $id, true, $label === 'DRAFT' ? 'DRAFT' : null
+            );
+            $pdf->SetTitle($filename);
+
+            return $this->success([
+                'filename' => $filename,
+                'content_type' => 'application/pdf',
+                'content_base64' => base64_encode($pdf->Output('', 'S')),
+            ])->header('Cache-Control', 'private, no-store');
+        } catch (\Throwable $exception) {
+            return $this->serverError($exception, ['action' => 'mobile_sale_document', 'sale_id' => $id]);
+        }
+    }
+
+    public function validateStock(Request $request)
+    {
+        $data = $request->validate([
+            'location_id' => ['required', 'integer'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.variation_id' => ['required', 'integer'],
+            'items.*.quantity' => ['required', 'numeric', 'min:0.0001'],
+        ]);
+        try {
+            $user = $request->user();
+            if ((! $user->can('sell.create') && ! $user->can('direct_sell.access'))
+                || ! $this->canAccessLocation($user, (int) $data['location_id'])) {
+                return $this->error('Forbidden.', 403, 'forbidden');
+            }
+            BusinessLocation::where('business_id', $user->business_id)->findOrFail($data['location_id']);
+
+            return $this->checkStock($user->business_id, (int) $data['location_id'], $data['items']);
+        } catch (\Throwable $exception) {
+            return $this->serverError($exception, ['action' => 'mobile_validate_stock']);
+        }
+    }
+
+    protected function checkStock(int $businessId, int $locationId, array $items)
+    {
+        $demand = [];
+        $availability = [];
+        foreach ($items as $item) {
+            $id = (int) $item['variation_id'];
+            $variation = Variation::whereHas('product', fn ($query) => $query->where('business_id', $businessId))
+                ->with('product')->find($id);
+            if (! $variation) {
+                return $this->error('Product not found.', 422, 'not_found');
+            }
+            $product = $variation->product;
+            $quantity = (float) $item['quantity'];
+            $stock = null;
+            if ($product->type === 'combo') {
+                $stock = app(MobileStockService::class)->comboAvailability($locationId, $variation->combo_variations);
+                foreach ($this->productUtil->calculateComboDetails($locationId, $variation->combo_variations) as $component) {
+                    if ($component['enable_stock']) {
+                        $componentId = (int) $component['variation_id'];
+                        $demand[$componentId] = ($demand[$componentId] ?? 0) + $quantity * $component['qty_required'];
+                    }
+                }
+            } elseif ($product->enable_stock) {
+                $stock = (float) VariationLocationDetails::where('variation_id', $id)
+                    ->where('location_id', $locationId)->value('qty_available');
+                $demand[$id] = ($demand[$id] ?? 0) + $quantity;
+            }
+            $availability[] = [
+                'variation_id' => $id, 'enable_stock' => $stock !== null,
+                'stock' => $stock,
+            ];
+        }
+        foreach ($demand as $id => $required) {
+            $stock = (float) VariationLocationDetails::where('variation_id', $id)
+                ->where('location_id', $locationId)->value('qty_available');
+            if ($this->money($required) > $this->money($stock)) {
+                $variation = Variation::with('product.unit')->findOrFail($id);
+                $name = $variation->product->name;
+
+                return $this->error(
+                    'Insufficient stock for '.$name.'. Requested: '.$this->money($required)
+                        .'; available: '.$this->money($stock).'. Reduce the quantity before payment or completion.',
+                    422, 'insufficient_stock', ['items' => ['Insufficient stock for '.$name.'.']]
+                );
+            }
+        }
+
+        return $this->success(['items' => $availability]);
+    }
+
+    protected function saleWithReceipt(Transaction $transaction): array
+    {
+        $text = $this->receiptText($transaction);
+        try {
+            $url = $this->util->getInvoiceUrl($transaction->id, $transaction->business_id);
+
+            return $this->salePayload($transaction, $url, $text);
+        } catch (\Throwable $exception) {
+            // The sale is already saved: report the document failure without inviting a second payment.
+            \Illuminate\Support\Facades\Log::error('Mobile sale receipt link failed', [
+                'sale_id' => $transaction->id, 'exception' => $exception->getMessage(),
+            ]);
+
+            return $this->salePayload($transaction, null, $text) + [
+                'receipt_error' => 'Sale saved, but its website receipt link could not be generated. Open or share the PDF, or contact the administrator.',
+            ];
         }
     }
 
@@ -249,8 +371,12 @@ class SaleController extends BaseMobileController
 
         $products = [];
         $total = 0.0;
-        $posSettings = ! empty($business->pos_settings) ? json_decode($business->pos_settings, true) : [];
-        $allowOverselling = ! empty($posSettings['allow_overselling']) || $data['status'] !== 'final';
+        if ($data['status'] === 'final') {
+            $stockCheck = $this->checkStock($user->business_id, $location->id, $data['items']);
+            if ($stockCheck->getStatusCode() !== 200) {
+                return $stockCheck;
+            }
+        }
         $editPrice = $user->can('edit_product_price_from_sale_screen') || $user->can('edit_product_price_from_pos_screen');
 
         foreach ($data['items'] as $index => $item) {
@@ -265,24 +391,6 @@ class SaleController extends BaseMobileController
 
             $product = $this->productUtil->getDetailsFromVariation($variationId, $user->business_id, $location->id, false);
             $quantity = (float) $item['quantity'];
-
-            if ((int) $product->enable_stock === 1 && ! $allowOverselling) {
-                $available = $product->product_type === 'combo'
-                    ? (float) $this->productUtil->calculateComboQuantity($location->id, $product->combo_variations)
-                    : (float) VariationLocationDetails::where('variation_id', $variationId)
-                        ->where('location_id', $location->id)
-                        ->value('qty_available');
-
-                if ($quantity > $available) {
-                    return $this->error(
-                        'Quantity not available for '.$product->product_name.'. Available: '
-                            .$this->money($available).' '.$product->unit,
-                        422,
-                        'insufficient_stock',
-                        ['items.'.$index.'.quantity' => ['Insufficient stock.']]
-                    );
-                }
-            }
 
             $price = $this->pricing->priceLine($product, $business, $location, (int) $contact->id);
             if ($editPrice && isset($item['unit_price_inc_tax'])) {
@@ -377,12 +485,17 @@ class SaleController extends BaseMobileController
     protected function findAuthorizedSale(Request $request, int $id): ?Transaction
     {
         $user = $request->user();
+        $canViewAll = $user->can('sell.view');
+        $canViewOwn = $user->can('view_own_sell_only') || $user->can('sell.create') || $user->can('direct_sell.access');
+        if (! $canViewAll && ! $canViewOwn) {
+            return null;
+        }
         $permitted = $this->permittedLocationIds($user);
 
         return Transaction::where('business_id', $user->business_id)
             ->where('type', 'sell')
             ->where('id', $id)
-            ->when(! $user->can('sell.view') && $user->can('view_own_sell_only'), fn ($q) => $q->where('created_by', $user->id))
+            ->when(! $canViewAll, fn ($q) => $q->where('created_by', $user->id))
             ->when($permitted !== 'all', fn ($q) => $q->whereIn('location_id', $permitted))
             ->with(['contact', 'location', 'payment_lines', 'sell_lines.product.unit', 'sell_lines.variations.product_variation'])
             ->first();
@@ -393,7 +506,8 @@ class SaleController extends BaseMobileController
         $lines = [];
         $lines[] = $this->center(optional($transaction->business)->name ?: config('app.name'));
         $lines[] = str_repeat('-', 32);
-        $lines[] = 'Invoice: '.$transaction->invoice_no;
+        $label = $transaction->is_quotation ? 'Quotation' : ($transaction->status === 'draft' ? 'Draft' : 'Invoice');
+        $lines[] = $label.': '.$transaction->invoice_no;
         $lines[] = 'Date: '.optional($transaction->transaction_date ? \Carbon\Carbon::parse($transaction->transaction_date) : null)->format('Y-m-d H:i');
         $lines[] = 'Customer: '.substr(optional($transaction->contact)->name ?: '', 0, 22);
         $lines[] = str_repeat('-', 32);
@@ -407,6 +521,12 @@ class SaleController extends BaseMobileController
         $lines[] = str_repeat('-', 32);
         $lines[] = str_pad('TOTAL', 20).str_pad((string) $this->money($transaction->final_total), 12, ' ', STR_PAD_LEFT);
         $lines[] = str_pad('PAID', 20).str_pad((string) $this->money($transaction->payment_lines->where('is_return', 0)->sum('amount')), 12, ' ', STR_PAD_LEFT);
+        foreach ($transaction->payment_lines->where('is_return', 0) as $payment) {
+            $lines[] = strtoupper($payment->method).': '.$this->money($payment->amount);
+            if ($payment->transaction_no) {
+                $lines[] = 'Receipt: '.$payment->transaction_no;
+            }
+        }
 
         return implode("\n", array_map(fn ($line) => substr($line, 0, 32), $lines));
     }

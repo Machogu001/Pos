@@ -7318,14 +7318,19 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
      * @param  int  $business_id
      * @param  int  $transaction_id
      * @param  bool  $is_email_attachment
+     * @param  string|null  $document_heading
      * @return object
      */
-    public function getEmailAttachmentForGivenTransaction($business_id, $transaction_id, $is_email_attachment)
+    public function getEmailAttachmentForGivenTransaction($business_id, $transaction_id, $is_email_attachment, ?string $document_heading = null)
     {
         $receipt_contents = $this->getPdfContentsForGivenTransaction($business_id, $transaction_id);
 
         $receipt_details = $receipt_contents['receipt_details'];
         $location_details = $receipt_contents['location_details'];
+
+        if ($document_heading !== null) {
+            $receipt_details->invoice_heading = $document_heading;
+        }
 
         $blade_file = 'download_pdf';
         if (! empty($receipt_details->is_export)) {

@@ -6,6 +6,7 @@ use App\Business;
 use App\BusinessLocation;
 use App\Contact;
 use App\Services\MobilePricingService;
+use App\Services\MobileStockService;
 use App\Utils\ProductUtil;
 use App\Variation;
 use Illuminate\Http\Request;
@@ -177,6 +178,10 @@ class ProductController extends BaseMobileController
     {
         $this->business ??= Business::findOrFail($businessId);
         $details = $this->productUtil->getDetailsFromVariation((int) $row->variation_id, $businessId, $location->id, false);
+        if ($row->type === 'combo') {
+            $row->qty_available = app(MobileStockService::class)->comboAvailability($location->id, $details->combo_variations);
+            $row->enable_stock = $row->qty_available !== null;
+        }
         $price = $this->pricing->priceLine($details, $this->business, $location, $contactId);
 
         return $this->productPayload($row, $price);
