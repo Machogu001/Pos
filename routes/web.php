@@ -150,6 +150,8 @@ Route::middleware(['setData'])->group(function () {
         return view('welcome');
     });
 
+    Route::view('/privacy-policy', 'privacy_policy')->name('privacy.policy');
+
     Auth::routes();
 
     Route::get('/login/otp', [App\Http\Controllers\Auth\LoginController::class, 'showOtpForm'])->name('login.otp.form');
