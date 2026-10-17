@@ -24,8 +24,8 @@
             </a>
         </li>
 
-        <li class="{{ $request->segment(2) == 'attendance' ? 'active active-sub' : '' }}">
-            <a href="{{action([\Modules\Essentials\Http\Controllers\AttendanceController::class, 'index'])}}">
+        <li class="{{ in_array($request->segment(2), ['attendance', 'attendances']) ? 'active active-sub' : '' }}">
+            <a href="{{ action([\Modules\Hrm\Http\Controllers\AttendancesController::class, 'index']) }}">
                 <i class="fa fa-check-square-o"></i>
                 <span class="title">@lang('essentials::lang.attendance')</span>
             </a>

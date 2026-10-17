@@ -9,6 +9,7 @@ use Excel;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Schema;
 use Modules\Essentials\Entities\EssentialsAttendance;
 use Modules\Essentials\Entities\Shift;
 use Modules\Essentials\Utils\EssentialsUtil;
@@ -164,20 +165,7 @@ class AttendanceController extends Controller
             // Start with system users for this business
             $employees = User::forDropdown($business_id, false);
 
-            // Overlay HRM employees (using system_user_id as key) so that
-            // real employee names appear instead of login usernames
-            $hrmEmployees = \DB::table('employees')
-                ->where('business_id', $business_id)
-                ->whereNotNull('system_user_id')
-                ->select('system_user_id', 'firstname', 'lastname')
-                ->get();
-
-            foreach ($hrmEmployees as $emp) {
-                $name = trim($emp->firstname . ' ' . $emp->lastname);
-                if ($name !== '') {
-                    $employees[$emp->system_user_id] = $name;
-                }
-            }
+            $this->overlayHrmEmployeeNames($employees, $business_id);
         }
 
         $days = $this->moduleUtil->getDays();
@@ -202,20 +190,37 @@ class AttendanceController extends Controller
 
         $employees = User::forDropdown($business_id, false);
 
-        // Overlay HRM employee names keyed by system_user_id
+        $this->overlayHrmEmployeeNames($employees, $business_id);
+
+        return view('essentials::attendance.create')->with(compact('employees'));
+    }
+
+    protected function overlayHrmEmployeeNames(array &$employees, $business_id): void
+    {
+        if (! Schema::hasTable('employees')
+            || ! Schema::hasColumn('employees', 'system_user_id')
+            || ! Schema::hasColumn('employees', 'firstname')
+            || ! Schema::hasColumn('employees', 'lastname')) {
+            return;
+        }
+
         $hrmEmployees = \DB::table('employees')
-            ->where('business_id', $business_id)
+            ->when($business_id && Schema::hasColumn('employees', 'business_id'), function ($query) use ($business_id) {
+                $query->where(function ($tenantQ) use ($business_id) {
+                    $tenantQ->where('business_id', $business_id)
+                        ->orWhereNull('business_id');
+                });
+            })
             ->whereNotNull('system_user_id')
             ->select('system_user_id', 'firstname', 'lastname')
             ->get();
+
         foreach ($hrmEmployees as $emp) {
             $name = trim($emp->firstname . ' ' . $emp->lastname);
             if ($name !== '') {
                 $employees[$emp->system_user_id] = $name;
             }
         }
-
-        return view('essentials::attendance.create')->with(compact('employees'));
     }
 
     /**
