@@ -15,11 +15,18 @@ return new class extends Migration
             return;
         }
 
+        $afterColumn = Schema::hasColumn('admin_settings', 'accounting_backfill_last_run_at')
+            ? 'accounting_backfill_last_run_at'
+            : null;
+
         Schema::table('admin_settings', function (Blueprint $table) {
             if (! Schema::hasColumn('admin_settings', 'stock_costing_backfill_enabled')) {
-                $table->boolean('stock_costing_backfill_enabled')
-                    ->default(false)
-                    ->after('accounting_backfill_last_run_at');
+                $column = $table->boolean('stock_costing_backfill_enabled')
+                    ->default(false);
+
+                if ($afterColumn !== null) {
+                    $column->after($afterColumn);
+                }
             }
 
             if (! Schema::hasColumn('admin_settings', 'stock_costing_backfill_frequency')) {

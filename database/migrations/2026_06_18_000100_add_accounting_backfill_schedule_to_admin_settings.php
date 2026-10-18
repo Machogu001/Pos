@@ -15,23 +15,44 @@ return new class extends Migration
             return;
         }
 
+        $enabledAfterColumn = Schema::hasColumn('admin_settings', 'auto_close_register_time')
+            ? 'auto_close_register_time'
+            : null;
+
+        $frequencyAfterColumn = Schema::hasColumn('admin_settings', 'accounting_backfill_enabled')
+            ? 'accounting_backfill_enabled'
+            : null;
+
+        $timeAfterColumn = Schema::hasColumn('admin_settings', 'accounting_backfill_frequency')
+            ? 'accounting_backfill_frequency'
+            : null;
+
         Schema::table('admin_settings', function (Blueprint $table) {
             if (! Schema::hasColumn('admin_settings', 'accounting_backfill_enabled')) {
-                $table->boolean('accounting_backfill_enabled')
-                    ->default(false)
-                    ->after('auto_close_register_time');
+                $column = $table->boolean('accounting_backfill_enabled')
+                    ->default(false);
+
+                if ($enabledAfterColumn !== null) {
+                    $column->after($enabledAfterColumn);
+                }
             }
 
             if (! Schema::hasColumn('admin_settings', 'accounting_backfill_frequency')) {
-                $table->string('accounting_backfill_frequency', 30)
-                    ->default('hourly')
-                    ->after('accounting_backfill_enabled');
+                $column = $table->string('accounting_backfill_frequency', 30)
+                    ->default('hourly');
+
+                if ($frequencyAfterColumn !== null) {
+                    $column->after($frequencyAfterColumn);
+                }
             }
 
             if (! Schema::hasColumn('admin_settings', 'accounting_backfill_time')) {
-                $table->string('accounting_backfill_time', 5)
-                    ->default('02:00')
-                    ->after('accounting_backfill_frequency');
+                $column = $table->string('accounting_backfill_time', 5)
+                    ->default('02:00');
+
+                if ($timeAfterColumn !== null) {
+                    $column->after($timeAfterColumn);
+                }
             }
         });
     }

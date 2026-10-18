@@ -15,11 +15,18 @@ return new class extends Migration
             return;
         }
 
+        $afterColumn = Schema::hasColumn('admin_settings', 'accounting_backfill_time')
+            ? 'accounting_backfill_time'
+            : null;
+
         Schema::table('admin_settings', function (Blueprint $table) {
             if (! Schema::hasColumn('admin_settings', 'accounting_backfill_last_run_at')) {
-                $table->dateTime('accounting_backfill_last_run_at')
-                    ->nullable()
-                    ->after('accounting_backfill_time');
+                $column = $table->dateTime('accounting_backfill_last_run_at')
+                    ->nullable();
+
+                if ($afterColumn !== null) {
+                    $column->after($afterColumn);
+                }
             }
         });
     }

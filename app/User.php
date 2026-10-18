@@ -36,6 +36,8 @@ class User extends Authenticatable
         'stock_alert_sms_notification_enabled' => 'boolean',
         'stock_alert_email_notification_enabled' => 'boolean',
         'has_active_subscription' => 'boolean',
+        'pwa_installed_at' => 'datetime',
+        'pwa_install_dismissed_at' => 'datetime',
         'subscription_expires_at' => 'datetime',
         'last_login_at' => 'datetime',
     ];
