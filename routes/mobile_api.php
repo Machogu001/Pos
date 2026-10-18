@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Mobile\AuthController;
 use App\Http\Controllers\Api\Mobile\CashRegisterController;
+use App\Http\Controllers\Api\Mobile\DiscoverController;
 use App\Http\Controllers\Api\Mobile\CustomerController;
 use App\Http\Controllers\Api\Mobile\DashboardController;
 use App\Http\Controllers\Api\Mobile\MeController;
@@ -16,6 +17,7 @@ Route::middleware('throttle:10,1')->group(function () {
     Route::post('auth/login', [AuthController::class, 'login']);
     Route::post('auth/otp/verify', [AuthController::class, 'verifyOtp']);
     Route::post('auth/otp/resend', [AuthController::class, 'resendOtp']);
+    Route::get('discover', [DiscoverController::class, 'show']);
 });
 
 Route::middleware(['auth:api', 'mobile.api'])->group(function () {
