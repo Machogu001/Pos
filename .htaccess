@@ -4,13 +4,18 @@
     </IfModule>
 
     RewriteEngine On
+    RewriteBase /pos/
 
     # Pass the Authorization header to PHP (required for API bearer tokens on Apache/CGI/FPM)
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # Redirect all requests to index.php
+    # Redirect /pos/ to the app login entry point.
+    # Use an absolute URL-path target to avoid leaking filesystem paths in Location headers.
+    RewriteRule ^$ /pos/public/login [R=302,L]
+
+    # Route all non-file/non-directory requests through Laravel front controller in /public.
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^ index.php [L]
+    RewriteRule ^ public/index.php [L]
 </IfModule>
