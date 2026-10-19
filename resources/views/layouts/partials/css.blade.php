@@ -88,6 +88,19 @@
 	 * which can force the printable section onto the next page.
 	 */
 	@media print {
+		@page {
+			size: A4 portrait;
+			margin: 10mm;
+		}
+
+		html,
+		body {
+			width: auto !important;
+			height: auto !important;
+			margin: 0 !important;
+			padding: 0 !important;
+		}
+
 		.tw-h-screen,
 		.tw-h-full,
 		#scrollable-container {
@@ -106,6 +119,96 @@
 			display: block !important;
 			page-break-before: auto !important;
 			break-before: auto !important;
+			width: 100% !important;
+			max-width: 100% !important;
+			margin: 0 auto !important;
+			padding: 0 !important;
+			box-sizing: border-box !important;
+			overflow: visible !important;
+		}
+
+		#receipt_section.print_section .row,
+		#print_div .row {
+			margin-left: 0 !important;
+			margin-right: 0 !important;
+		}
+
+		#receipt_section.print_section .invoice-info::before,
+		#receipt_section.print_section .invoice-info::after,
+		#print_div .invoice-info::before,
+		#print_div .invoice-info::after {
+			content: " ";
+			display: table;
+		}
+
+		#receipt_section.print_section .invoice-info::after,
+		#print_div .invoice-info::after {
+			clear: both;
+		}
+
+		#receipt_section.print_section [class*="col-"],
+		#print_div [class*="col-"] {
+			padding-left: 4px !important;
+			padding-right: 4px !important;
+			min-width: 0 !important;
+		}
+
+		#receipt_section.print_section .invoice-col.width-50,
+		#receipt_section.print_section .width-50.f-left,
+		#receipt_section.print_section .width-50.f-right,
+		#print_div .invoice-col.width-50,
+		#print_div .width-50.f-left,
+		#print_div .width-50.f-right {
+			float: left !important;
+			width: 50% !important;
+			max-width: 50% !important;
+		}
+
+		#receipt_section.print_section .width-100,
+		#print_div .width-100 {
+			width: 100% !important;
+			max-width: 100% !important;
+		}
+
+		#receipt_section.print_section table,
+		#print_div table {
+			width: 100% !important;
+			max-width: 100% !important;
+			table-layout: fixed;
+			border-collapse: collapse;
+		}
+
+		#receipt_section.print_section th,
+		#receipt_section.print_section td,
+		#print_div th,
+		#print_div td {
+			white-space: normal !important;
+			word-break: break-word !important;
+			overflow-wrap: anywhere !important;
+			font-size: 11px !important;
+			padding: 4px !important;
+		}
+
+		#receipt_section.print_section .font-30,
+		#print_div .font-30 {
+			font-size: 20px !important;
+		}
+
+		#receipt_section.print_section .font-23,
+		#print_div .font-23 {
+			font-size: 15px !important;
+		}
+
+		#receipt_section.print_section .pull-left,
+		#print_div .pull-left {
+			float: left !important;
+			max-width: 48% !important;
+		}
+
+		#receipt_section.print_section img,
+		#print_div img {
+			max-width: 100% !important;
+			height: auto !important;
 		}
 	}
 </style>

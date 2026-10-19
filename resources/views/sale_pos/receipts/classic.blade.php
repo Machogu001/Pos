@@ -113,6 +113,11 @@
 		margin-bottom: 4px;
 		word-break: break-word;
 	}
+	.receipt-meta-right {
+		text-align: center;
+		padding-left: 8px;
+		padding-right: 8px;
+	}
 	.receipt-payment-box {
 		border: 2px solid #222;
 		border-radius: 10px;
@@ -253,32 +258,32 @@
 		vertical-align: top;
 	}
 	.receipt-line-items .col-product {
-		width: 35%;
+		width: 29%;
 		word-break: break-word;
 	}
 	.receipt-line-items .col-qty {
-		width: 9%;
+		width: 8%;
 	}
 	.receipt-line-items .col-bonus {
-		width: 8%;
+		width: 7%;
 	}
 	.receipt-line-items .col-lot {
-		width: 10%;
+		width: 9%;
 	}
 	.receipt-line-items .col-expiry {
-		width: 9%;
-	}
-	.receipt-line-items .col-unit-price {
-		width: 9%;
-	}
-	.receipt-line-items .col-tax {
 		width: 8%;
 	}
+	.receipt-line-items .col-unit-price {
+		width: 10%;
+	}
+	.receipt-line-items .col-tax {
+		width: 7%;
+	}
 	.receipt-line-items .col-discount {
-		width: 6%;
+		width: 7%;
 	}
 	.receipt-line-items .col-subtotal {
-		width: 6%;
+		width: 15%;
 	}
 	.receipt-line-items .col-qty,
 	.receipt-line-items .col-bonus,
@@ -290,6 +295,28 @@
 	.receipt-line-items .col-subtotal {
 		white-space: nowrap;
 		font-variant-numeric: tabular-nums;
+		padding-left: 4px;
+		padding-right: 4px;
+	}
+	.receipt-line-items th.col-qty,
+	.receipt-line-items th.col-bonus,
+	.receipt-line-items th.col-lot,
+	.receipt-line-items th.col-expiry,
+	.receipt-line-items td.col-qty,
+	.receipt-line-items td.col-bonus,
+	.receipt-line-items td.col-lot,
+	.receipt-line-items td.col-expiry {
+		text-align: center !important;
+	}
+	.receipt-line-items th.col-unit-price,
+	.receipt-line-items th.col-tax,
+	.receipt-line-items th.col-discount,
+	.receipt-line-items th.col-subtotal,
+	.receipt-line-items td.col-unit-price,
+	.receipt-line-items td.col-tax,
+	.receipt-line-items td.col-discount,
+	.receipt-line-items td.col-subtotal {
+		text-align: right !important;
 	}
 	@media (max-width: 1024px) {
 		.receipt-line-items {
@@ -426,7 +453,7 @@
 				<div class="receipt-meta-value">{{ $receipt_details->customer_name ?? __('contact.customer') }}</div>
 				<div class="receipt-meta-value"><strong>@lang('contact.mobile'):</strong> {{ $receipt_details->customer_mobile ?? '—' }}</div>
 			</div>
-			<div class="col-xs-6 text-right">
+			<div class="col-xs-6 receipt-meta-right">
 				<div class="receipt-meta-title">@lang('receipt.date')</div>
 				<div class="receipt-meta-value">{{ $receipt_details->invoice_date }}</div>
 				<div class="receipt-meta-value"><strong>@lang('sale.invoice_no')</strong> {{ $receipt_details->invoice_no }}</div>
