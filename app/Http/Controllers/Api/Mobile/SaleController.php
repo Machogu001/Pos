@@ -272,11 +272,15 @@ class SaleController extends BaseMobileController
     public function receipt(Request $request, int $id)
     {
         try {
+            $data = $request->validate([
+                'paper_mm' => ['nullable', 'integer', 'in:58,80'],
+            ]);
             $transaction = $this->findAuthorizedSale($request, $id);
             if (! $transaction) {
                 return $this->error('Sale not found.', 404, 'not_found');
             }
-            $receipt = app(\App\Http\Controllers\SellPosController::class)->mobileReceiptContent($transaction);
+            $receipt = app(\App\Http\Controllers\SellPosController::class)
+                ->mobileReceiptContent($transaction, isset($data['paper_mm']) ? (int) $data['paper_mm'] : null);
             if (empty($receipt['html_content'])) {
                 throw new \RuntimeException('The configured website receipt layout did not produce content.');
             }

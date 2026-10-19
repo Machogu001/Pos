@@ -1071,13 +1071,14 @@ class SellPosController extends Controller
         }
     }
 
-    public function mobileReceiptContent(Transaction $transaction): array
+    public function mobileReceiptContent(Transaction $transaction, ?int $paperMm = null): array
     {
         $invoiceLayoutId = $transaction->is_direct_sale ? $transaction->location->sale_invoice_layout_id : null;
+        $designOverride = $paperMm === 58 ? 'slim2' : 'slim';
 
         return $this->receiptContent(
             $transaction->business_id, $transaction->location_id, $transaction->id,
-            'browser', false, false, $invoiceLayoutId
+            'browser', false, false, $invoiceLayoutId, false, $designOverride
         );
     }
 
@@ -1098,7 +1099,8 @@ class SellPosController extends Controller
         $is_package_slip = false,
         $from_pos_screen = true,
         $invoice_layout_id = null,
-        $is_delivery_note = false
+        $is_delivery_note = false,
+        $design_override = null
     ) {
         $output = ['is_enabled' => false,
             'print_type' => 'browser',
@@ -1119,6 +1121,9 @@ class SellPosController extends Controller
 
         $invoice_layout_id = !empty($invoice_layout_id) ? $invoice_layout_id : $location_details->invoice_layout_id;
         $invoice_layout = $this->businessUtil->invoiceLayout($business_id, $invoice_layout_id);
+        if (!empty($design_override)) {
+            $invoice_layout->design = $design_override;
+        }
 
         //Check if printer setting is provided.
         $receipt_printer_type = is_null($printer_type) ? $location_details->receipt_printer_type : $printer_type;
