@@ -82,7 +82,9 @@ class Util
                 : ($businessSession['quantity_precision'] ?? 2);
         }
 
-        $formatted = number_format($input_number, $currency_precision, $decimal_separator, $thousand_separator);
+        $normalized_number = is_numeric($input_number) ? (float) $input_number : 0.0;
+
+        $formatted = number_format($normalized_number, $currency_precision, $decimal_separator, $thousand_separator);
 
         if ($add_symbol) {
             $currency_symbol_placement = ! empty($business_details)

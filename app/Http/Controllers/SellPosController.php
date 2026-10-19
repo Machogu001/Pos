@@ -69,6 +69,8 @@ use App\Events\SellCreatedOrModified;
 
 class SellPosController extends Controller
 {
+    protected $dummyPaymentLine = [];
+
     protected function getMissingSubmittedVariationIds(array $products, int $business_id): array
     {
         $variation_ids = [];
