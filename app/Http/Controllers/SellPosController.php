@@ -1074,7 +1074,7 @@ class SellPosController extends Controller
     public function mobileReceiptContent(Transaction $transaction, ?int $paperMm = null): array
     {
         $invoiceLayoutId = $transaction->is_direct_sale ? $transaction->location->sale_invoice_layout_id : null;
-        $designOverride = $paperMm === 58 ? 'slim2' : 'slim';
+        $designOverride = $paperMm === 58 ? 'slim2' : ($paperMm === 80 ? 'slim' : null);
 
         return $this->receiptContent(
             $transaction->business_id, $transaction->location_id, $transaction->id,

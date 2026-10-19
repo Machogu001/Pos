@@ -284,7 +284,10 @@ class SaleController extends BaseMobileController
             if (empty($receipt['html_content'])) {
                 throw new \RuntimeException('The configured website receipt layout did not produce content.');
             }
-            $html = view('sale_pos.receipts.mobile_document', ['receipt_html' => $receipt['html_content']])->render();
+            $wrapper = isset($data['paper_mm'])
+                ? 'sale_pos.receipts.mobile_document'
+                : 'sale_pos.receipts.mobile_invoice_document';
+            $html = view($wrapper, ['receipt_html' => $receipt['html_content']])->render();
 
             return $this->success(['html' => $html])->header('Cache-Control', 'private, no-store');
         } catch (\Throwable $exception) {
