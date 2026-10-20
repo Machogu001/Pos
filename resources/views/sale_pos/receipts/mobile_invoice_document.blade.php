@@ -69,17 +69,62 @@
             #invoice_content .receipt-wrap {
                 overflow-x: visible !important;
             }
+            #invoice_content .receipt-totals-wrap {
+                display: flex !important;
+                justify-content: flex-end !important;
+            }
+            #invoice_content .receipt-totals {
+                display: table !important;
+                width: auto !important;
+                max-width: 100% !important;
+                margin-left: auto !important;
+                margin-right: 0 !important;
+            }
+            #invoice_content .receipt-line-items-scroll {
+                display: block;
+                width: 100%;
+                max-width: 100%;
+                overflow-x: auto;
+                overflow-y: hidden;
+                -webkit-overflow-scrolling: touch;
+            }
             #invoice_content .receipt-line-items {
                 display: table !important;
-                width: 740px !important;
-                min-width: 740px !important;
+                width: 700px !important;
+                min-width: 700px !important;
                 max-width: none !important;
                 table-layout: fixed !important;
+                overflow: visible !important;
+            }
+            #invoice_content .receipt-line-items .col-product { width: 26% !important; }
+            #invoice_content .receipt-line-items .col-qty { width: 8% !important; min-width: 56px; }
+            #invoice_content .receipt-line-items .col-bonus { width: 6% !important; }
+            #invoice_content .receipt-line-items .col-lot { width: 8% !important; }
+            #invoice_content .receipt-line-items .col-expiry { width: 7% !important; }
+            #invoice_content .receipt-line-items .col-unit-price { width: 12% !important; }
+            #invoice_content .receipt-line-items .col-tax { width: 7% !important; }
+            #invoice_content .receipt-line-items .col-discount { width: 8% !important; }
+            #invoice_content .receipt-line-items .col-subtotal { width: 18% !important; }
+            #invoice_content .receipt-line-items th,
+            #invoice_content .receipt-line-items td {
+                padding-left: 3px !important;
+                padding-right: 3px !important;
+            }
+            #invoice_content .receipt-line-items th.col-discount {
+                text-align: right !important;
+                padding-right: 2px !important;
+            }
+            #invoice_content .receipt-line-items th.col-subtotal,
+            #invoice_content .receipt-line-items td.col-subtotal {
+                text-align: center !important;
+                padding-left: 10px !important;
             }
             #invoice_content .receipt-line-items th.col-bonus,
             #invoice_content .receipt-line-items td.col-bonus,
             #invoice_content .receipt-line-items th.col-lot,
             #invoice_content .receipt-line-items td.col-lot,
+            #invoice_content .receipt-line-items th.col-qty,
+            #invoice_content .receipt-line-items td.col-qty,
             #invoice_content .receipt-line-items th.col-unit-price,
             #invoice_content .receipt-line-items td.col-unit-price {
                 white-space: nowrap !important;

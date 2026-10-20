@@ -215,9 +215,9 @@
 		white-space: nowrap;
 	}
 	.receipt-totals {
-		width: 280px;
+		width: auto;
 		max-width: 100%;
-		margin: 0;
+		margin: 0 0 0 auto !important;
 	}
 	.receipt-totals td,
 	.receipt-totals th {
@@ -258,7 +258,7 @@
 		vertical-align: top;
 	}
 	.receipt-line-items .col-product {
-		width: 29%;
+		width: 32%;
 		word-break: break-word;
 	}
 	.receipt-line-items .col-qty {
@@ -283,7 +283,7 @@
 		width: 7%;
 	}
 	.receipt-line-items .col-subtotal {
-		width: 15%;
+		width: 12%;
 	}
 	.receipt-line-items .col-qty,
 	.receipt-line-items .col-bonus,
@@ -317,6 +317,13 @@
 	.receipt-line-items td.col-discount,
 	.receipt-line-items td.col-subtotal {
 		text-align: right !important;
+	}
+	.receipt-line-items th.col-discount {
+		padding-right: 4px;
+	}
+	.receipt-line-items th.col-subtotal {
+		text-align: right !important;
+		padding-left: 4px;
 	}
 	@media (max-width: 1024px) {
 		.receipt-line-items {
@@ -375,8 +382,8 @@
 		padding-top: 0;
 	}
 	.receipt-totals-wrap {
-		display: flex;
-		justify-content: flex-end;
+		display: flex !important;
+		justify-content: flex-end !important;
 		width: 100%;
 		padding-right: 0;
 		margin-top: -4px;
@@ -511,7 +518,7 @@
 </div>
 
 <div class="row" style="color: #000000 !important;">
-	<div class="col-xs-12">
+	<div class="col-xs-12 receipt-line-items-scroll">
 		<br/>
 		<table class="table table-slim receipt-line-items">
 			<thead>
