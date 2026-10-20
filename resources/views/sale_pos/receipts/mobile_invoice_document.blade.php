@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta id="meta-viewport" name="viewport" content="width=1024">
+    <meta id="meta-viewport" name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; script-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
     <title>Invoice</title>
     @include('layouts.partials.css')
@@ -13,7 +13,9 @@
             background: #fff;
             color: #000;
             width: 100%;
-            overflow-x: auto;
+            max-width: 100vw;
+            overflow-x: hidden;
+            -webkit-text-size-adjust: 100%;
         }
         #invoice_content {
             width: 100%;
@@ -21,9 +23,40 @@
             margin: 0 auto;
             padding: 12px;
             box-sizing: border-box;
+            overflow-x: auto;
+            overflow-y: hidden;
         }
         #invoice_content, #invoice_content * {
             box-sizing: border-box;
+            max-width: 100%;
+        }
+        #invoice_content table {
+            width: 100% !important;
+            max-width: 100% !important;
+            table-layout: fixed;
+            border-collapse: collapse;
+            display: block;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        #invoice_content th,
+        #invoice_content td {
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow-wrap: anywhere !important;
+            font-size: 10px !important;
+            line-height: 1.3 !important;
+            padding: 3px 4px !important;
+            vertical-align: top;
+        }
+        #invoice_content p,
+        #invoice_content span,
+        #invoice_content div,
+        #invoice_content strong,
+        #invoice_content small {
+            max-width: 100%;
+            word-break: break-word;
+            overflow-wrap: anywhere;
         }
         #invoice_content img {
             max-width: 100% !important;

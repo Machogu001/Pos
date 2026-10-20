@@ -327,6 +327,50 @@
 			padding: 5px 4px;
 		}
 	}
+	@media (max-width: 480px) {
+		.receipt-line-items {
+			table-layout: auto;
+			width: 100%;
+			font-size: 9px;
+			overflow-x: auto;
+			-webkit-overflow-scrolling: touch;
+		}
+		.receipt-line-items > thead > tr > th,
+		.receipt-line-items > tbody > tr > td {
+			padding: 4px 3px;
+			white-space: normal !important;
+			word-break: break-word;
+			line-height: 1.25;
+		}
+		.receipt-line-items .col-product {
+			width: 26%;
+			min-width: 120px;
+		}
+		.receipt-line-items .col-qty,
+		.receipt-line-items .col-bonus,
+		.receipt-line-items .col-lot,
+		.receipt-line-items .col-expiry {
+			width: 8%;
+			min-width: 36px;
+		}
+		.receipt-line-items .col-unit-price,
+		.receipt-line-items .col-tax,
+		.receipt-line-items .col-discount,
+		.receipt-line-items .col-subtotal {
+			width: 10%;
+			min-width: 46px;
+		}
+		.receipt-line-items .col-qty,
+		.receipt-line-items .col-bonus,
+		.receipt-line-items .col-lot,
+		.receipt-line-items .col-expiry,
+		.receipt-line-items .col-unit-price,
+		.receipt-line-items .col-tax,
+		.receipt-line-items .col-discount,
+		.receipt-line-items .col-subtotal {
+			white-space: normal !important;
+		}
+	}
 	.receipt-summary {
 		padding-top: 0;
 	}
