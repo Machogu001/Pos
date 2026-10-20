@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta id="meta-viewport" name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover">
+    <meta id="meta-viewport" name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; script-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
     <title>Invoice</title>
     @include('layouts.partials.css')
@@ -64,6 +64,28 @@
         }
         .no-print {
             display: none !important;
+        }
+        @media (max-width: 600px) {
+            #invoice_content .receipt-wrap {
+                overflow-x: visible !important;
+            }
+            #invoice_content .receipt-line-items {
+                display: table !important;
+                width: 740px !important;
+                min-width: 740px !important;
+                max-width: none !important;
+                table-layout: fixed !important;
+            }
+            #invoice_content .receipt-line-items th.col-bonus,
+            #invoice_content .receipt-line-items td.col-bonus,
+            #invoice_content .receipt-line-items th.col-lot,
+            #invoice_content .receipt-line-items td.col-lot,
+            #invoice_content .receipt-line-items th.col-unit-price,
+            #invoice_content .receipt-line-items td.col-unit-price {
+                white-space: nowrap !important;
+                word-break: normal !important;
+                overflow-wrap: normal !important;
+            }
         }
     </style>
 </head>
