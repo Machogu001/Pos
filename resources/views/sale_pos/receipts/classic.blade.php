@@ -215,9 +215,9 @@
 		white-space: nowrap;
 	}
 	.receipt-totals {
-		width: 280px;
+		width: auto;
 		max-width: 100%;
-		margin: 0;
+		margin: 0 0 0 auto !important;
 	}
 	.receipt-totals td,
 	.receipt-totals th {
@@ -258,7 +258,7 @@
 		vertical-align: top;
 	}
 	.receipt-line-items .col-product {
-		width: 29%;
+		width: 32%;
 		word-break: break-word;
 	}
 	.receipt-line-items .col-qty {
@@ -283,7 +283,7 @@
 		width: 7%;
 	}
 	.receipt-line-items .col-subtotal {
-		width: 15%;
+		width: 12%;
 	}
 	.receipt-line-items .col-qty,
 	.receipt-line-items .col-bonus,
@@ -318,6 +318,13 @@
 	.receipt-line-items td.col-subtotal {
 		text-align: right !important;
 	}
+	.receipt-line-items th.col-discount {
+		padding-right: 4px;
+	}
+	.receipt-line-items th.col-subtotal {
+		text-align: right !important;
+		padding-left: 4px;
+	}
 	@media (max-width: 1024px) {
 		.receipt-line-items {
 			font-size: 11px;
@@ -327,12 +334,56 @@
 			padding: 5px 4px;
 		}
 	}
+	@media (max-width: 480px) {
+		.receipt-line-items {
+			table-layout: auto;
+			width: 100%;
+			font-size: 9px;
+			overflow-x: auto;
+			-webkit-overflow-scrolling: touch;
+		}
+		.receipt-line-items > thead > tr > th,
+		.receipt-line-items > tbody > tr > td {
+			padding: 4px 3px;
+			white-space: normal !important;
+			word-break: break-word;
+			line-height: 1.25;
+		}
+		.receipt-line-items .col-product {
+			width: 26%;
+			min-width: 120px;
+		}
+		.receipt-line-items .col-qty,
+		.receipt-line-items .col-bonus,
+		.receipt-line-items .col-lot,
+		.receipt-line-items .col-expiry {
+			width: 8%;
+			min-width: 36px;
+		}
+		.receipt-line-items .col-unit-price,
+		.receipt-line-items .col-tax,
+		.receipt-line-items .col-discount,
+		.receipt-line-items .col-subtotal {
+			width: 10%;
+			min-width: 46px;
+		}
+		.receipt-line-items .col-qty,
+		.receipt-line-items .col-bonus,
+		.receipt-line-items .col-lot,
+		.receipt-line-items .col-expiry,
+		.receipt-line-items .col-unit-price,
+		.receipt-line-items .col-tax,
+		.receipt-line-items .col-discount,
+		.receipt-line-items .col-subtotal {
+			white-space: normal !important;
+		}
+	}
 	.receipt-summary {
 		padding-top: 0;
 	}
 	.receipt-totals-wrap {
-		display: flex;
-		justify-content: flex-end;
+		display: flex !important;
+		justify-content: flex-end !important;
 		width: 100%;
 		padding-right: 0;
 		margin-top: -4px;
@@ -467,7 +518,7 @@
 </div>
 
 <div class="row" style="color: #000000 !important;">
-	<div class="col-xs-12">
+	<div class="col-xs-12 receipt-line-items-scroll">
 		<br/>
 		<table class="table table-slim receipt-line-items">
 			<thead>

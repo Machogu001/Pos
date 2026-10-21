@@ -10,7 +10,7 @@ on:
 
 jobs:
   translations:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       APP_ENV: testing
       APP_DEBUG: false

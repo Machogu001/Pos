@@ -25,6 +25,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\AuditSellPostings::class,
         \App\Console\Commands\FixNegativeStockMismatches::class,
         \App\Console\Commands\BackfillStockCostingLayers::class,
+        \App\Console\Commands\BackfillStockCostingScope::class,
         \App\Console\Commands\RealignPaymentAccountMappings::class,
         \App\Console\Commands\AutoCloseRegister::class,
         \App\Console\Commands\FetchRemoteVersion::class,
@@ -176,11 +177,13 @@ class Kernel extends ConsoleKernel
                     $time = '01:30';
                 }
 
-                $businessId = (int) ($adminSettings->stock_costing_backfill_business_id ?? 0);
-                $locationId = (int) ($adminSettings->stock_costing_backfill_location_id ?? 0);
-                if ($businessId > 0 && $locationId > 0) {
+                $businessIdValue = $adminSettings->stock_costing_backfill_business_id;
+                $locationIdValue = $adminSettings->stock_costing_backfill_location_id;
+                if ($businessIdValue !== null && $locationIdValue !== null) {
+                    $businessId = (int) $businessIdValue;
+                    $locationId = (int) $locationIdValue;
                     $commandString = sprintf(
-                        'stock:backfill-costing-layers --business-id=%d --location-id=%d',
+                        'stock:backfill-costing-scope --business-id=%d --location-id=%d',
                         $businessId,
                         $locationId
                     );

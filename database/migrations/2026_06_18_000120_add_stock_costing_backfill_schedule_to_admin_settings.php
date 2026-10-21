@@ -19,7 +19,7 @@ return new class extends Migration
             ? 'accounting_backfill_last_run_at'
             : null;
 
-        Schema::table('admin_settings', function (Blueprint $table) {
+        Schema::table('admin_settings', function (Blueprint $table) use ($afterColumn) {
             if (! Schema::hasColumn('admin_settings', 'stock_costing_backfill_enabled')) {
                 $column = $table->boolean('stock_costing_backfill_enabled')
                     ->default(false);

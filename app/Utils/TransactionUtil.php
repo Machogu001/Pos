@@ -1046,9 +1046,9 @@ class TransactionUtil extends Util
             'sub_heading_line4' => trim((string) ($il->sub_heading_line4 ?? '')),
             'sub_heading_line5' => trim((string) ($il->sub_heading_line5 ?? '')),
             'table_product_label' => $il->table_product_label,
-            'table_qty_label' => $il->table_qty_label,
-            'table_unit_price_label' => $il->table_unit_price_label,
-            'table_subtotal_label' => $il->table_subtotal_label,
+            'table_qty_label' => 'Qty',
+            'table_unit_price_label' => 'Unit Price',
+            'table_subtotal_label' => 'Subtotal',
         ];
 
         //Display name
@@ -1473,7 +1473,7 @@ class TransactionUtil extends Util
                 }
             }
 
-            $output['item_discount_label'] = $il->common_settings['item_discount_label'] ?? '';
+            $output['item_discount_label'] = ! empty($il->common_settings['item_discount_label']) ? 'Disc' : '';
 
             $output['discounted_unit_price_label'] = $il->common_settings['discounted_unit_price_label'] ?? '';
 
@@ -1643,7 +1643,7 @@ class TransactionUtil extends Util
 
         //Discount
         $discount_amount = $this->num_f($transaction->discount_amount, $show_currency, $business_details);
-        $output['line_discount_label'] = $invoice_layout->discount_label;
+        $output['line_discount_label'] = 'Disc';
         $output['discount_label'] = $invoice_layout->discount_label;
         $output['discount_label'] .= ($transaction->discount_type == 'percentage') ? ' <small>('.$this->num_f($transaction->discount_amount, false, $business_details).'%)</small> :' : '';
 
@@ -1675,7 +1675,7 @@ class TransactionUtil extends Util
         //Order Tax
         $tax = $transaction->tax;
         $output['tax_label'] = $invoice_layout->tax_label;
-        $output['line_tax_label'] = $invoice_layout->tax_label;
+        $output['line_tax_label'] = 'VAT';
         if (! empty($tax) && ! empty($tax->name)) {
             $output['tax_label'] .= ' ('.$tax->name.')';
         }
@@ -2426,7 +2426,7 @@ class TransactionUtil extends Util
 
             if ($is_product_expiry_enabled == 1 && $il->show_expiry == 1) {
                 $line_array['product_expiry'] = ! empty($line->lot_details->exp_date) ? $this->format_date($line->lot_details->exp_date, false, $business_details) : null;
-                $line_array['product_expiry_label'] = __('lang_v1.expiry');
+                $line_array['product_expiry_label'] = 'Exp.';
             }
 
             //Set warranty data if enabled

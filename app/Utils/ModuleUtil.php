@@ -172,12 +172,34 @@ class ModuleUtil extends Util
         if ($this->isSuperadminInstalled()) {
             $package = \Modules\Superadmin\Entities\Subscription::active_subscription($business_id);
 
-            if (empty($package)) {
+            if (empty($package) && ! $this->businessHasActiveCustomSubscription($business_id)) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * This app also has its own per-user subscription system (table
+     * "subscriptions", model App\Subscription, populated by M-Pesa
+     * payments) which doesn't set business_id/package_id/status='approved'
+     * expected by the legacy Superadmin module's Subscription model.
+     * This checks whether any user of the business currently has an
+     * active, non-expired subscription there, so businesses using the
+     * custom subscription flow aren't wrongly blocked by the legacy gate.
+     *
+     * @param  int  $business_id
+     * @return bool
+     */
+    private function businessHasActiveCustomSubscription($business_id): bool
+    {
+        return User::where('business_id', $business_id)
+            ->whereHas('subscriptions', function ($query) {
+                $query->where('status', 'active')
+                    ->where('end_date', '>=', now());
+            })
+            ->exists();
     }
 
     /**
@@ -202,7 +224,11 @@ class ModuleUtil extends Util
             $package = \Modules\Superadmin\Entities\Subscription::active_subscription($business_id);
 
             if (empty($package)) {
-                return false;
+                // No legacy Superadmin package found; fall back to the
+                // app's custom per-user subscription system. It has no
+                // per-feature package_details, so a valid active
+                // subscription simply grants the permission.
+                return $this->businessHasActiveCustomSubscription($business_id);
             } elseif (isset($package['package_details'][$permission])) {
                 if (! is_null($callback_function)) {
                     $obj = new ModuleUtil();
@@ -357,7 +383,11 @@ class ModuleUtil extends Util
             $package = \Modules\Superadmin\Entities\Subscription::active_subscription($business_id);
 
             if (empty($package)) {
-                return false;
+                // No legacy Superadmin package found; the business may still
+                // be validly subscribed via the app's custom per-user
+                // subscription system, which has no package-based quotas.
+                // In that case, don't enforce any quota limits.
+                return $this->businessHasActiveCustomSubscription($business_id);
             }
 
             //Start
