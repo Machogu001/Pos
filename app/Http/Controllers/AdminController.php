@@ -752,7 +752,7 @@ class AdminController extends Controller
                     || $request->boolean('run_stock_costing_backfill_now')
                     || $request->boolean('run_stock_costing_backfill_dry_run')
                 ) ? 'required' : 'nullable',
-                'integer', 'min:1',
+                'integer', 'min:0',
             ],
             'stock_costing_backfill_location_id' => [
                 (
@@ -760,7 +760,7 @@ class AdminController extends Controller
                     || $request->boolean('run_stock_costing_backfill_now')
                     || $request->boolean('run_stock_costing_backfill_dry_run')
                 ) ? 'required' : 'nullable',
-                'integer', 'min:1',
+                'integer', 'min:0',
             ],
             'run_stock_costing_backfill_now' => 'nullable|boolean',
             'run_stock_costing_backfill_dry_run' => 'nullable|boolean',
@@ -877,10 +877,11 @@ class AdminController extends Controller
             $locationId = (int) ($settings->stock_costing_backfill_location_id ?? 0);
             $dryRun = $request->boolean('run_stock_costing_backfill_dry_run');
 
-            if ($businessId < 1 || $locationId < 1) {
+            if ($request->input('stock_costing_backfill_business_id') === null
+                || $request->input('stock_costing_backfill_location_id') === null) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Please select Business and Location before running stock costing backfill manually.',
+                    'message' => 'Please select a Business and Location scope before running stock costing backfill manually.',
                 ], 422);
             }
 
@@ -892,7 +893,7 @@ class AdminController extends Controller
                 $params['--dry-run'] = true;
             }
 
-            $exitCode = Artisan::call('stock:backfill-costing-layers', $params);
+            $exitCode = Artisan::call('stock:backfill-costing-scope', $params);
 
             if ($exitCode !== 0) {
                 return response()->json([
@@ -904,11 +905,11 @@ class AdminController extends Controller
             $output = (string) Artisan::output();
             $needsLayer = null;
             $layerQty = null;
-            if (preg_match('/Rows needing layer backfill:\s*(\d+)/', $output, $m)) {
-                $needsLayer = (int) $m[1];
+            if (preg_match_all('/Rows needing layer backfill:\s*(\d+)/', $output, $matches)) {
+                $needsLayer = array_sum(array_map('intval', $matches[1]));
             }
-            if (preg_match('/Layer qty backfilled:\s*([0-9.]+)/', $output, $m)) {
-                $layerQty = $m[1];
+            if (preg_match_all('/Layer qty backfilled:\s*([0-9.]+)/', $output, $matches)) {
+                $layerQty = (string) round(array_sum(array_map('floatval', $matches[1])), 4);
             }
 
             if ($dryRun) {

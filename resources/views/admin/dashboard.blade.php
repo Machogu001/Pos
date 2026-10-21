@@ -1060,6 +1060,9 @@
                                                 <label class="sched-card__lbl d-block mb-1">{{ __('lang_v1.business') }}</label>
                                                 <select class="form-select form-select-sm" name="stock_costing_backfill_business_id" id="stockCostingBackfillBusinessId">
                                                     <option value="">— {{ __('lang_v1.business') }} —</option>
+                                                    @if(($schedulerBusinesses ?? collect())->count() > 1)
+                                                        <option value="0" {{ $settings?->stock_costing_backfill_business_id !== null && (int) $settings->stock_costing_backfill_business_id === 0 ? 'selected' : '' }}>{{ __('lang_v1.all') }} {{ \Illuminate\Support\Str::plural(__('lang_v1.business')) }}</option>
+                                                    @endif
                                                     @foreach($schedulerBusinesses ?? [] as $sb)
                                                         <option value="{{ $sb->id }}" {{ (int)($settings?->stock_costing_backfill_business_id) === (int)$sb->id ? 'selected' : '' }}>{{ $sb->name }}</option>
                                                     @endforeach
@@ -1069,6 +1072,9 @@
                                                 <label class="sched-card__lbl d-block mb-1">{{ __('lang_v1.location') }}</label>
                                                 <select class="form-select form-select-sm" name="stock_costing_backfill_location_id" id="stockCostingBackfillLocationId">
                                                     <option value="">— {{ __('lang_v1.location') }} —</option>
+                                                    @if(($schedulerLocations ?? collect())->count() > 1)
+                                                        <option value="0" {{ $settings?->stock_costing_backfill_location_id !== null && (int) $settings->stock_costing_backfill_location_id === 0 ? 'selected' : '' }}>{{ __('lang_v1.all') }} {{ \Illuminate\Support\Str::plural(__('lang_v1.location')) }}</option>
+                                                    @endif
                                                     @foreach($schedulerLocations ?? [] as $sl)
                                                         <option value="{{ $sl->id }}" data-business="{{ $sl->business_id }}"
                                                             {{ (int)($settings?->stock_costing_backfill_location_id) === (int)$sl->id ? 'selected' : '' }}>{{ $sl->name }}</option>
@@ -2089,7 +2095,7 @@
 
             // Cascade: filter location options by selected business
             var allLocOptions = Array.from(locSel.options).map(function(o) {
-                return { value: o.value, text: o.text, biz: o.dataset.business };
+                return { value: o.value, text: o.text, biz: o.dataset.business, isAll: o.value === '0' };
             });
 
             function filterLocations() {
@@ -2101,10 +2107,10 @@
                 locSel.appendChild(blank);
                 allLocOptions.forEach(function(opt) {
                     if (!opt.value) return;
-                    if (!bizId || opt.biz === bizId) {
+                    if (opt.isAll || !bizId || bizId === '0' || opt.biz === bizId) {
                         var o = document.createElement('option');
                         o.value = opt.value; o.textContent = opt.text;
-                        o.dataset.business = opt.biz;
+                        if (opt.biz) o.dataset.business = opt.biz;
                         if (opt.value === currentLoc) o.selected = true;
                         locSel.appendChild(o);
                     }
