@@ -28,6 +28,7 @@ class ProductController extends BaseMobileController
             'q' => ['nullable', 'string', 'max:255'],
             'location_id' => ['required', 'integer'],
             'contact_id' => ['nullable', 'integer'],
+            'sort_by' => ['nullable', 'in:product_name,qty_available'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
@@ -44,7 +45,7 @@ class ProductController extends BaseMobileController
 
             $location = BusinessLocation::where('business_id', $user->business_id)->findOrFail($locationId);
             $contactId = $this->resolveContactId($user->business_id, $data['contact_id'] ?? null);
-            $paginator = $this->queryProducts($user->business_id, $locationId, $data['q'] ?? null)
+            $paginator = $this->queryProducts($user->business_id, $locationId, $data['q'] ?? null, false, $data['sort_by'] ?? 'product_name')
                 ->paginate((int) ($data['per_page'] ?? 20));
 
             $items = $paginator->getCollection()
@@ -94,7 +95,7 @@ class ProductController extends BaseMobileController
         return $user->can('product.view') || $user->can('sell.create') || $user->can('direct_sell.access');
     }
 
-    protected function queryProducts(int $businessId, int $locationId, ?string $term = null, bool $exact = false)
+    protected function queryProducts(int $businessId, int $locationId, ?string $term = null, bool $exact = false, string $sortBy = 'product_name')
     {
         $query = Variation::query()
             ->join('products', 'variations.product_id', '=', 'products.id')
@@ -133,7 +134,7 @@ class ProductController extends BaseMobileController
             });
         }
 
-        return $query->select([
+        $query->select([
             'variations.id as variation_id',
             'products.id as product_id',
             DB::raw("IF(pv.is_dummy = 0, CONCAT(products.name, ' (', pv.name, ':', variations.name, ')'), products.name) as product_name"),
@@ -147,7 +148,15 @@ class ProductController extends BaseMobileController
             'tax.amount as tax_rate',
             'units.short_name as unit',
             'products.image',
-        ])->orderBy('products.name');
+        ]);
+
+        if ($sortBy === 'qty_available') {
+            return $query
+                ->orderByRaw('COALESCE(vld.qty_available, 0) DESC')
+                ->orderBy('products.name');
+        }
+
+        return $query->orderBy('products.name');
     }
 
     protected function productPayload($row, ?array $price = null): array

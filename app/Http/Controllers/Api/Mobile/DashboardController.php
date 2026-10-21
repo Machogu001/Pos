@@ -55,6 +55,17 @@ class DashboardController extends BaseMobileController
                 DB::raw('COALESCE(SUM((SELECT COALESCE(SUM(IF(tp.is_return = 1, -1 * tp.amount, tp.amount)), 0) FROM transaction_payments as tp WHERE tp.transaction_id = transactions.id)), 0) as total_paid')
             )->first();
 
+            $purchases = Transaction::where('business_id', $user->business_id)
+                ->where('type', 'purchase')
+                ->whereBetween('transaction_date', [$from, $to])
+                ->when($locationId, fn ($query) => $query->where('location_id', $locationId))
+                ->when($permitted !== 'all', fn ($query) => $query->whereIn('location_id', $permitted));
+
+            $purchaseTotals = (clone $purchases)->select(
+                DB::raw('COALESCE(SUM(final_total), 0) as total_purchase'),
+                DB::raw('COALESCE(SUM((SELECT COALESCE(SUM(tp.amount), 0) FROM transaction_payments as tp WHERE tp.transaction_id = transactions.id)), 0) as purchase_paid')
+            )->first();
+
             $totalExpense = (float) Transaction::where('business_id', $user->business_id)
                 ->where('type', 'expense')
                 ->whereBetween('transaction_date', [$from, $to])
@@ -67,15 +78,19 @@ class DashboardController extends BaseMobileController
 
             $totalSales = (float) $totals->total_sales;
             $totalPaid = (float) $totals->total_paid;
+            $totalPurchase = (float) $purchaseTotals->total_purchase;
+            $purchasePaid = (float) $purchaseTotals->purchase_paid;
 
             return $this->success([
                 'period' => $period,
                 'from' => $from->toIso8601String(),
                 'to' => $to->toIso8601String(),
                 'total_sales' => $this->money($totalSales),
+                'total_purchase' => $this->money($totalPurchase),
                 'sales_count' => (int) $totals->sales_count,
                 'total_paid' => $this->money($totalPaid),
                 'total_due' => $this->money($totalSales - $totalPaid),
+                'purchase_due' => $this->money($totalPurchase - $purchasePaid),
                 'total_expense' => $this->money($totalExpense),
                 'net' => $this->money($totalSales - $totalExpense),
                 'recent_sales' => $recent,
