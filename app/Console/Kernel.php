@@ -224,15 +224,44 @@ class Kernel extends ConsoleKernel
                 ->get();
 
             foreach ($pendingPayments as $payment) {
-                $mpesaController = new MpesaController();
-                $status = $mpesaController->checkPaymentStatusDirect($payment->checkout_request_id);
+                if (empty($payment->checkout_request_id)) {
+                    continue;
+                }
 
-                if ($status['transaction_status'] === 'success' && $payment->subscription_id) {
-                    $subscriptionController = new SubscriptionController();
-                    $subscriptionController->activateSubscription($payment);
+                $status = app(MpesaController::class)->queryMpesaPaymentStatus($payment->checkout_request_id);
+
+                if (in_array($status['transaction_status'] ?? null, ['paid', 'success'], true)
+                    && MpesaPayment::normalizePaymentType($payment) === MpesaPayment::TYPE_SUBSCRIPTION) {
+                    app(SubscriptionController::class)->activateSubscription($payment->fresh());
                 }
             }
-        })->everyFiveMinutes();
+        })->everyFiveMinutes()->withoutOverlapping();
+
+        // Retry activation when payment confirmation succeeded but activation did not.
+        $schedule->call(function () {
+            $controller = app(SubscriptionController::class);
+
+            MpesaPayment::where('transaction_status', 'paid')
+                ->where(function ($query) {
+                    $query->where('payment_type', MpesaPayment::TYPE_SUBSCRIPTION)
+                        ->orWhereNotNull('subscription_id')
+                        ->orWhere('account_reference', 'like', 'SUB%')
+                        ->orWhere('account_reference', 'like', 'RENEW%');
+                })
+                ->where(function ($query) {
+                    $query->whereDoesntHave('subscription')
+                        ->orWhereHas('subscription', function ($subscription) {
+                            $subscription->where('status', '!=', 'active')
+                                ->orWhereNull('activated_at');
+                        });
+                })
+                ->orderBy('id')
+                ->chunkById(100, function ($payments) use ($controller) {
+                    foreach ($payments as $payment) {
+                        $controller->activateSubscription($payment);
+                    }
+                });
+        })->everyFiveMinutes()->withoutOverlapping();
     }
 
     /**

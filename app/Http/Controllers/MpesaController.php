@@ -481,10 +481,15 @@ class MpesaController extends Controller
                     'result_desc' => $resultDesc,
                 ]);
 
-                // Only activate subscription if this payment is explicitly a subscription
-                if (isset($payment->payment_type) && $payment->payment_type === 'subscription') {
-                    $subscriptionController = new SubscriptionController();
-                    $subscriptionController->activateSubscription($payment);
+                if (MpesaPayment::normalizePaymentType($payment) === MpesaPayment::TYPE_SUBSCRIPTION) {
+                    $activated = app(SubscriptionController::class)->activateSubscription($payment);
+                    if (!$activated) {
+                        Log::error("Subscription activation failed for paid payment: {$payment->id}");
+                        return response()->json([
+                            'ResultCode' => 1,
+                            'ResultDesc' => 'Payment recorded but subscription activation is pending',
+                        ], 500);
+                    }
                     Log::info("✅ Subscription activation triggered for payment: {$payment->id}");
                 } else {
                     Log::info("Payment processed but not a subscription payment; skipping activation", [
@@ -1133,10 +1138,23 @@ public function queryMpesaPaymentStatus($requestOrCheckoutId = null)
             // ResultCode 0 means success
             if ($resultCode === '0') {
                 $resultDescription = $responseData['ResultDesc'] ?? 'Payment confirmed';
+                if ($payment) {
+                    $payment->update([
+                        'transaction_status' => 'paid',
+                        'paid_at' => $payment->paid_at ?: now(),
+                        'result_code' => $responseData['ResultCode'],
+                        'result_desc' => $resultDescription,
+                    ]);
+
+                    if (MpesaPayment::normalizePaymentType($payment) === MpesaPayment::TYPE_SUBSCRIPTION) {
+                        app(SubscriptionController::class)->activateSubscription($payment);
+                    }
+                }
+
                 return [
                     'success' => true,
-                    'status' => 'success',
-                    'transaction_status' => 'success',
+                    'status' => 'paid',
+                    'transaction_status' => 'paid',
                     'checkout_request_id' => $payment->checkout_request_id ?? $checkoutRequestId,
                     'result_code' => $responseData['ResultCode'],
                     'result_desc' => $resultDescription,

@@ -1111,10 +1111,11 @@ class SubscriptionController extends Controller
         DB::beginTransaction();
 
         try {
-            // Safety: only activate when the payment_type explicitly indicates subscription
-            if (($payment->payment_type ?? null) !== 'subscription') {
+            $payment = $payment ? MpesaPayment::lockForUpdate()->find($payment->id) : null;
+
+            if (!$payment || MpesaPayment::normalizePaymentType($payment) !== MpesaPayment::TYPE_SUBSCRIPTION) {
                 Log::warning('activateSubscription called for non-subscription payment; aborting', [
-                    'payment_id' => $payment->id,
+                    'payment_id' => $payment->id ?? null,
                     'payment_type' => $payment->payment_type ?? 'null'
                 ]);
 
@@ -1135,7 +1136,6 @@ class SubscriptionController extends Controller
 
             Log::info("Starting subscription activation for payment ID: {$payment->id}");
             Log::info("Payment M-Pesa receipt: " . ($payment->mpesa_receipt_number ?? 'NULL'));
-            Log::info("Payment created at: " . $payment->created_at->toDateTimeString());
             
             // Find the subscription
             $subscription = $this->findSubscriptionForPayment($payment);
@@ -1144,6 +1144,30 @@ class SubscriptionController extends Controller
                 Log::warning("No subscription found for payment: {$payment->id}");
                 DB::rollBack();
                 return false;
+            }
+
+            $subscription = Subscription::lockForUpdate()->find($subscription->id);
+            $user = User::find($subscription->user_id ?: $payment->user_id);
+
+            if (!$user || ($payment->user_id && (int) $payment->user_id !== (int) $subscription->user_id)) {
+                Log::error('Subscription payment ownership validation failed', [
+                    'payment_id' => $payment->id,
+                    'payment_user_id' => $payment->user_id,
+                    'subscription_id' => $subscription->id,
+                    'subscription_user_id' => $subscription->user_id,
+                ]);
+                DB::rollBack();
+                return false;
+            }
+
+            if ($subscription->status === 'active' && $subscription->activated_at) {
+                $payment->update(['subscription_id' => $subscription->id]);
+                $user->update([
+                    'has_active_subscription' => true,
+                    'subscription_expires_at' => $subscription->end_date,
+                ]);
+                DB::commit();
+                return true;
             }
 
             // If this payment is linked to a pending business-side subscription charge,
@@ -1173,7 +1197,7 @@ class SubscriptionController extends Controller
             // created to start after the current subscription (i.e., pre-paid renewal),
             // respect the subscription's configured start_date so the renewal begins
             // when the current subscription expires.
-            $startDate = $payment->created_at;
+            $startDate = $payment->paid_at ?: $payment->created_at ?: now();
             try {
                 if (! empty($subscription->is_renewal) || ! empty($subscription->previous_subscription_id)) {
                     // If a planned start_date exists and is in the future relative to payment,
@@ -1186,25 +1210,10 @@ class SubscriptionController extends Controller
                     }
                 }
             } catch (\Exception $e) {
-                // fallback to payment created_at if any parsing fails
-                $startDate = $payment->created_at;
+                $startDate = $payment->paid_at ?: $payment->created_at ?: now();
             }
             
-            // CRITICAL FIX: Ensure we always have the receipt number
             $mpesaReceipt = $payment->mpesa_receipt_number;
-            
-            // If receipt is missing, try to get it from payment query
-            if (empty($mpesaReceipt)) {
-                $mpesaController = new MpesaController();
-                $result = $mpesaController->queryMpesaPaymentStatus($payment->checkout_request_id);
-                
-                if (isset($result['receipt_number']) && !empty($result['receipt_number'])) {
-                    $mpesaReceipt = $result['receipt_number'];
-                    // Update the payment record too
-                    $payment->update(['mpesa_receipt_number' => $mpesaReceipt]);
-                    Log::info("Retrieved receipt from payment query: {$mpesaReceipt}");
-                }
-            }
 
             $updateData = [
                 'status' => 'active',
@@ -1221,21 +1230,17 @@ class SubscriptionController extends Controller
             $subscription->update($updateData);
 
             // Update user subscription status
-            $user = User::find($payment->user_id);
-            if ($user) {
-                $userUpdateData = [
-                    'has_active_subscription' => true,
-                    'subscription_expires_at' => $updateData['end_date'],
-                ];
-                
-                // Add subscription_status if column exists
-                if (Schema::hasColumn('users', 'subscription_status')) {
-                    $userUpdateData['subscription_status'] = 'active';
-                }
-                
-                $user->update($userUpdateData);
-                Log::info("Updated user {$user->id} subscription status to active");
+            $userUpdateData = [
+                'has_active_subscription' => true,
+                'subscription_expires_at' => $updateData['end_date'],
+            ];
+
+            if (Schema::hasColumn('users', 'subscription_status')) {
+                $userUpdateData['subscription_status'] = 'active';
             }
+
+            $user->update($userUpdateData);
+            Log::info("Updated user {$user->id} subscription status to active");
 
             // Commit transaction
             DB::commit();
@@ -1266,7 +1271,7 @@ class SubscriptionController extends Controller
         // 1. Try by subscription_id (direct relationship)
         if ($payment->subscription_id) {
             $subscription = Subscription::find($payment->subscription_id);
-            if ($subscription) {
+            if ($subscription && (!$payment->user_id || (int) $subscription->user_id === (int) $payment->user_id)) {
                 Log::info("Found subscription by subscription_id: {$subscription->id}");
                 return $subscription;
             }
@@ -1276,7 +1281,7 @@ class SubscriptionController extends Controller
         // 2. Try by checkout_request_id
         if ($payment->checkout_request_id) {
             $subscription = Subscription::where('checkout_request_id', $payment->checkout_request_id)->first();
-            if ($subscription) {
+            if ($subscription && (!$payment->user_id || (int) $subscription->user_id === (int) $payment->user_id)) {
                 Log::info("Found subscription by checkout_request_id: {$subscription->id}");
                 // Link the payment to the subscription if not already linked
                 if (!$payment->subscription_id) {
@@ -1287,34 +1292,37 @@ class SubscriptionController extends Controller
             Log::warning("Subscription not found by checkout_request_id: {$payment->checkout_request_id}");
         }
 
-        // 3. Try latest pending subscription for user
+        // 3. Try a subscription that explicitly tracks this payment.
+        $subscription = Subscription::where('pending_mpesa_payment_id', $payment->id)->first();
+        if ($subscription && (!$payment->user_id || (int) $subscription->user_id === (int) $payment->user_id)) {
+            $payment->update(['subscription_id' => $subscription->id]);
+            return $subscription;
+        }
+
+        // 4. Recover the subscription ID from generated SUB{id}-... references.
+        if (preg_match('/^(?:SUB|RENEW)(\d+)-/i', (string) $payment->account_reference, $matches)) {
+            $subscription = Subscription::find((int) $matches[1]);
+            if ($subscription && (!$payment->user_id || (int) $subscription->user_id === (int) $payment->user_id)) {
+                $payment->update(['subscription_id' => $subscription->id]);
+                return $subscription;
+            }
+        }
+
+        // 5. Use a pending subscription only when it is unambiguous.
         if ($payment->user_id) {
-            $subscription = Subscription::where('user_id', $payment->user_id)
+            $subscriptions = Subscription::where('user_id', $payment->user_id)
                 ->where('status', 'pending')
                 ->latest()
-                ->first();
+                ->limit(2)
+                ->get();
                 
-            if ($subscription) {
+            if ($subscriptions->count() === 1) {
+                $subscription = $subscriptions->first();
                 Log::info("Found pending subscription for user: {$subscription->id}");
-                // Link the payment to the subscription
                 $payment->update(['subscription_id' => $subscription->id]);
                 return $subscription;
             }
             Log::warning("No pending subscription found for user: {$payment->user_id}");
-        }
-
-        // 4. Try any subscription for user (last resort)
-        if ($payment->user_id) {
-            $subscription = Subscription::where('user_id', $payment->user_id)
-                ->latest()
-                ->first();
-                
-            if ($subscription) {
-                Log::info("Found latest subscription for user: {$subscription->id}");
-                // Link the payment to the subscription
-                $payment->update(['subscription_id' => $subscription->id]);
-                return $subscription;
-            }
         }
 
         Log::error("No subscription found for payment ID: {$payment->id}");
