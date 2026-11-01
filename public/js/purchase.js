@@ -1214,6 +1214,18 @@ $(document).on('click', 'button#submit_purchase_form', function(e) {
         return false;
     }
 
+    if ($('#status').val() === 'received') {
+        var zero_quantity_input = $('#purchase_entry_table tbody .purchase_quantity').filter(function() {
+            return __read_number($(this)) <= 0;
+        }).first();
+
+        if (zero_quantity_input.length) {
+            toastr.warning($('#zero_quantity_purchase_warning').val());
+            zero_quantity_input.focus();
+            return false;
+        }
+    }
+
     $('form#add_purchase_form').validate({
         rules: {
             ref_no: {
@@ -1555,5 +1567,4 @@ $("#purchase_requisition_ids").on("select2:unselect", function (e) {
         }
     });
 });
-
 

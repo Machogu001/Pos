@@ -52,7 +52,7 @@ class DashboardController extends BaseMobileController
             $totals = (clone $sales)->select(
                 DB::raw('COALESCE(SUM(final_total), 0) as total_sales'),
                 DB::raw('COUNT(*) as sales_count'),
-                DB::raw('COALESCE(SUM((SELECT COALESCE(SUM(IF(tp.is_return = 1, -1 * tp.amount, tp.amount)), 0) FROM transaction_payments as tp WHERE tp.transaction_id = transactions.id)), 0) as total_paid')
+                DB::raw('COALESCE(SUM((SELECT COALESCE(SUM(CASE WHEN tp.is_return = 1 THEN -1 * tp.amount ELSE tp.amount END), 0) FROM transaction_payments as tp WHERE tp.transaction_id = transactions.id)), 0) as total_paid')
             )->first();
 
             $purchases = Transaction::where('business_id', $user->business_id)

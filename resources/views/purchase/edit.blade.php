@@ -20,6 +20,7 @@
   <input type="hidden" id="p_thousand" value="{{$currency_details->thousand_separator}}">
   <input type="hidden" id="p_decimal" value="{{$currency_details->decimal_separator}}">
   <input type="hidden" id="lock_purchase_tax_override" value="{{ !empty($lock_purchase_tax_override) ? 1 : 0 }}">
+  <input type="hidden" id="zero_quantity_purchase_warning" value="{{ __('lang_v1.zero_quantity_purchase_cannot_be_received') }}">
 
   @include('layouts.partials.error')
 
