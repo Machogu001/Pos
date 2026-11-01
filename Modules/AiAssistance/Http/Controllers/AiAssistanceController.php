@@ -222,17 +222,42 @@ class AiAssistanceController extends Controller
             }
             $max_token = ($token_details != false) ? (min($token_details['remaining_tokens'], $tools[$tool]['max_token'])) : $tools[$tool]['max_token'];
 
-            //make openai request
-            $result = OpenAI::chat()->create([
-                'model' => 'gpt-3.5-turbo-1106',
-                'messages' => [
-                    ['role' => 'user', 'content' => $prompt],
-                ],
-                
-                'max_tokens' => $tools[$tool]['max_token'],
-                'temperature' => 0
-            ]);
-            $text = $result->choices[0]->message->content;
+            //make openai request (supports custom OpenAI-compatible endpoints via OPENAI_BASE_URL)
+            $max_tokens = $tools[$tool]['max_token'] + (int) config('openai.reasoning_headroom', 0);
+            $messages = [
+                ['role' => 'user', 'content' => $prompt],
+            ];
+
+            if (! empty(config('openai.base_url'))) {
+                //Custom/self-hosted endpoint: call it directly. Allows http:// local
+                //addresses and avoids proxy timeouts on long generations.
+                $response = \Illuminate\Support\Facades\Http::withToken(config('openai.api_key'))
+                    ->timeout(280)
+                    ->post(rtrim(config('openai.base_url'), '/') . '/chat/completions', [
+                        'model' => config('openai.model', 'gpt-3.5-turbo-1106'),
+                        'messages' => $messages,
+                        'max_tokens' => $max_tokens,
+                        'temperature' => 0,
+                    ]);
+
+                if ($response->failed()) {
+                    throw new \Exception('AI endpoint error: HTTP ' . $response->status() . ' ' . substr($response->body(), 0, 200));
+                }
+
+                $data = $response->json();
+                $text = $data['choices'][0]['message']['content'] ?? '';
+                $total_tokens = $data['usage']['total_tokens'] ?? 0;
+            } else {
+                $result = OpenAI::chat()->create([
+                    'model' => config('openai.model', 'gpt-3.5-turbo-1106'),
+                    'messages' => $messages,
+
+                    'max_tokens' => $max_tokens,
+                    'temperature' => 0
+                ]);
+                $text = $result->choices[0]->message->content;
+                $total_tokens = $result->usage->totalTokens;
+            }
 
             //save response in database
             $history = new AiAssistanceHistory;
@@ -241,7 +266,7 @@ class AiAssistanceController extends Controller
             $history->tool_type = $tools[$tool]['name'];
             $history->input_data = $input;
             $history->output_data = $text;
-            $history->tokens_used = $result->usage->totalTokens;
+            $history->tokens_used = $total_tokens;
             $history->save();
 
             //$output = 'sdd';
@@ -257,6 +282,7 @@ class AiAssistanceController extends Controller
         }
 
         //send response
+        return $output;
     }
 
     /**
@@ -281,6 +307,9 @@ class AiAssistanceController extends Controller
             }
 
             return Datatables::of($query)
+                ->addColumn('checkbox', function ($row) {
+                    return '<input type="checkbox" class="history-select" value="' . $row->id . '">';
+                })
                 ->editColumn('input_data', function ($row) {
 
                     $output = '';
@@ -295,7 +324,7 @@ class AiAssistanceController extends Controller
                 ->editColumn('created_at', function ($row) {
                     return $this->moduleUtil->format_date($row->created_at, true);
                 })
-                ->rawColumns(['input_data', 'output_data'])
+                ->rawColumns(['checkbox', 'input_data', 'output_data'])
                 ->make(true);
         }
 
@@ -303,5 +332,29 @@ class AiAssistanceController extends Controller
         $tools = collect($tools)->pluck('label', 'name');
         
         return view('aiassistance::history')->with(compact('tools'));
+    }
+
+    /**
+     * Delete selected history entries (belonging to the current business).
+     */
+    public function destroy(Request $request)
+    {
+        $business_id = request()->session()->get('user.business_id');
+
+        if (!(auth()->user()->can('superadmin') || ($this->moduleUtil->hasThePermissionInSubscription($business_id, 'aiassistance_module')))) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
+
+        if (empty($ids)) {
+            return ['success' => false, 'msg' => __('lang_v1.no_row_selected')];
+        }
+
+        AiAssistanceHistory::where('business_id', $business_id)
+            ->whereIn('id', $ids)
+            ->delete();
+
+        return ['success' => true, 'msg' => __('aiassistance::lang.history_deleted')];
     }
 }

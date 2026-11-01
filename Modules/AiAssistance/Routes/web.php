@@ -17,6 +17,7 @@ Route::middleware('web', 'SetSessionData', 'auth', 'language', 'timezone', 'Admi
     Route::get('/create/{tool}', 'AiAssistanceController@create');
     Route::post('/generate/{tool}', 'AiAssistanceController@generate');
     Route::get('/history', 'AiAssistanceController@history');
+    Route::delete('/history', 'AiAssistanceController@destroy');
 
     Route::get('install', [\Modules\AiAssistance\Http\Controllers\InstallController::class, 'index']);
     Route::post('install', [\Modules\AiAssistance\Http\Controllers\InstallController::class, 'install']);
