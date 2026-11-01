@@ -1214,14 +1214,18 @@ $(document).on('click', 'button#submit_purchase_form', function(e) {
         return false;
     }
 
-    if ($('#status').val() === 'received') {
-        var zero_quantity_input = $('#purchase_entry_table tbody .purchase_quantity').filter(function() {
-            return __read_number($(this)) <= 0;
-        }).first();
+    var purchase_quantity_inputs = $('#purchase_entry_table tbody .purchase_quantity');
+    purchase_quantity_inputs.closest('tr').removeClass('danger purchase-zero-quantity-row');
 
-        if (zero_quantity_input.length) {
+    if ($('#status').val() === 'received') {
+        var zero_quantity_inputs = purchase_quantity_inputs.filter(function() {
+            return __read_number($(this)) <= 0;
+        });
+
+        if (zero_quantity_inputs.length) {
+            zero_quantity_inputs.closest('tr').addClass('danger purchase-zero-quantity-row');
             toastr.warning($('#zero_quantity_purchase_warning').val());
-            zero_quantity_input.focus();
+            zero_quantity_inputs.first().focus();
             return false;
         }
     }
@@ -1307,6 +1311,12 @@ $(document).on('click', 'button#submit_purchase_form', function(e) {
     if ($('form#add_purchase_form').valid()) {
         $(this).attr('disabled', true);
         $('form#add_purchase_form').submit();
+    }
+});
+
+$(document).on('input change', '#purchase_entry_table tbody .purchase_quantity', function() {
+    if (__read_number($(this)) > 0) {
+        $(this).closest('tr').removeClass('danger purchase-zero-quantity-row');
     }
 });
 
@@ -1567,4 +1577,3 @@ $("#purchase_requisition_ids").on("select2:unselect", function (e) {
         }
     });
 });
-
