@@ -152,7 +152,7 @@ class LoginController extends Controller
             'attempts' => 0,
         ]);
 
-        $otpDelivery = $this->sendOtpCode($deliveryMethod, $deliveryTarget, $otp, $user);
+        $otpDelivery = $this->sendOtpCode($deliveryMethod, $deliveryTarget, $otp, $user, $request->getHost());
 
         if (! $otpDelivery['sent']) {
             $request->session()->forget('login_otp');
@@ -405,7 +405,7 @@ class LoginController extends Controller
         $otpData['email'] = $user->email;
         $request->session()->put('login_otp', $otpData);
 
-        $otpDelivery = $this->sendOtpCode($deliveryMethod, $deliveryTarget, $otp, $user);
+        $otpDelivery = $this->sendOtpCode($deliveryMethod, $deliveryTarget, $otp, $user, $request->getHost());
 
         if (! $otpDelivery['sent']) {
             return back()->withErrors([
@@ -429,7 +429,13 @@ class LoginController extends Controller
         ]);
     }
 
-    protected function sendOtpCode(string $deliveryMethod, string $deliveryTarget, string $otp, ?User $user = null): array
+    protected function sendOtpCode(
+        string $deliveryMethod,
+        string $deliveryTarget,
+        string $otp,
+        ?User $user = null,
+        ?string $originHost = null
+    ): array
     {
         if ($deliveryMethod === self::OTP_DELIVERY_EMAIL) {
             try {
@@ -448,7 +454,7 @@ class LoginController extends Controller
                 ]);
 
                 $smsTarget = $this->resolveOtpDeliveryTarget($user, self::OTP_DELIVERY_SMS);
-                if (! empty($smsTarget) && $this->smsService->sendLoginOtp($smsTarget, $otp, $user)) {
+                if (! empty($smsTarget) && $this->smsService->sendLoginOtp($smsTarget, $otp, $user, $originHost)) {
                     Log::info('Login OTP email delivery fell back to SMS', [
                         'email' => $deliveryTarget,
                         'phone' => $smsTarget,
@@ -471,7 +477,7 @@ class LoginController extends Controller
         }
 
         return [
-            'sent' => $this->smsService->sendLoginOtp($deliveryTarget, $otp, $user),
+            'sent' => $this->smsService->sendLoginOtp($deliveryTarget, $otp, $user, $originHost),
             'method' => self::OTP_DELIVERY_SMS,
             'target' => $deliveryTarget,
         ];

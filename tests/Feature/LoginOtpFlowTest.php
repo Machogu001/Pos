@@ -153,7 +153,10 @@ class LoginOtpFlowTest extends TestCase
         ]);
 
         $smsService = \Mockery::mock(MobileSasaSmsService::class);
-        $smsService->shouldReceive('sendLoginOtp')->once()->andReturn(true);
+        $smsService->shouldReceive('sendLoginOtp')
+            ->once()
+            ->with('254712345678', \Mockery::type('string'), \Mockery::type(User::class), 'pos.bremac.co.ke')
+            ->andReturn(true);
         $this->app->instance(MobileSasaSmsService::class, $smsService);
 
         $response = $this->post('/login', [

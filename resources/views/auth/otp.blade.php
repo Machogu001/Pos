@@ -105,9 +105,11 @@
         var resendButton = document.getElementById('otp-resend-button');
         var resendCountdown = document.getElementById('otp-resend-countdown');
         var resendTimer = null;
+        var otpAbortController = null;
+        var isSubmitting = false;
 
         function submitWhenComplete() {
-            if (!otpInput || !otpForm) {
+            if (!otpInput || !otpForm || isSubmitting) {
                 return;
             }
 
@@ -117,7 +119,16 @@
             }
 
             if (digitsOnly.length === 6) {
-                otpForm.submit();
+                isSubmitting = true;
+                if (otpAbortController) {
+                    otpAbortController.abort();
+                }
+
+                if (typeof otpForm.requestSubmit === 'function') {
+                    otpForm.requestSubmit();
+                } else {
+                    otpForm.submit();
+                }
             }
         }
 
@@ -185,8 +196,9 @@
                 otp: { transport: ['sms'] }
             };
 
-            if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
-                otpOptions.signal = AbortSignal.timeout(60000);
+            if (typeof AbortController !== 'undefined') {
+                otpAbortController = new AbortController();
+                otpOptions.signal = otpAbortController.signal;
             }
 
             navigator.credentials.get(otpOptions).then(function (credential) {
