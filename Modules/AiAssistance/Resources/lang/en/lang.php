@@ -51,7 +51,9 @@ return [
     'persuasive' => 'Persuasive',
     'professional' => 'Professional',
     'casual' => 'Casual',
-    'witty' => 'Witty'
+    'witty' => 'Witty',
+    'select_all' => 'Select all',
+    'history_deleted' => 'Selected history entries deleted successfully',
 ]
 
 ?>

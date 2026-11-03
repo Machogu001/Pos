@@ -583,6 +583,9 @@ class BusinessController extends Controller
         if ($this->mpesaPaymentsHasColumn('business_id')) {
             $attributes['business_id'] = $business->id;
         }
+        if ($this->mpesaPaymentsHasColumn('consumed_at') && empty($payment->consumed_at)) {
+            $attributes['consumed_at'] = now();
+        }
 
         $payment->fill($attributes);
         $payment->save();
@@ -694,13 +697,7 @@ class BusinessController extends Controller
 
     protected function mpesaPaymentsHasColumn(string $column): bool
     {
-        static $columnCache = [];
-
-        if (! array_key_exists($column, $columnCache)) {
-            $columnCache[$column] = DB::getSchemaBuilder()->hasColumn('mpesa_payments', $column);
-        }
-
-        return $columnCache[$column];
+        return DB::getSchemaBuilder()->hasColumn('mpesa_payments', $column);
     }
 
     /**

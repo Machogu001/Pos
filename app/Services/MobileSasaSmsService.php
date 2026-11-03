@@ -15,7 +15,7 @@ class MobileSasaSmsService
         $this->client = $client;
     }
 
-    public function sendLoginOtp(string $phoneNumber, string $otp, ?User $user = null): bool
+    public function sendLoginOtp(string $phoneNumber, string $otp, ?User $user = null, ?string $originHost = null): bool
     {
         $senderId = trim((string) config('services.mobilesasa.sender_id'));
         $token = trim((string) config('services.mobilesasa.token'));
@@ -27,7 +27,9 @@ class MobileSasaSmsService
 
         $message = 'Your login OTP is '.$otp.'. It expires in 5 minutes.';
 
-        $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
+        $appHost = $this->normalizeWebOtpHost(
+            $originHost ?: parse_url((string) config('app.url'), PHP_URL_HOST)
+        );
         if (! empty($appHost)) {
             $message .= "\n\n@{$appHost} #{$otp}";
         }
@@ -40,6 +42,17 @@ class MobileSasaSmsService
             'phone' => $phoneNumber,
             'user_id' => $user?->id,
         ], 'MobileSasa OTP delivery failed');
+    }
+
+    protected function normalizeWebOtpHost(?string $host): ?string
+    {
+        $host = strtolower(trim((string) $host));
+
+        if ($host === '' || ! preg_match('/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/', $host)) {
+            return null;
+        }
+
+        return $host;
     }
 
     public function sendRegistrationResumeInstructions(string $phoneNumber, string $accountReference, string $resumeUrl): bool

@@ -331,10 +331,16 @@ class PurchaseController extends Controller
             $enable_product_editing = (int) Business::where('id', $business_id)
                 ->value('enable_editing_product_from_purchase');
 
+            $currency_details = $this->transactionUtil->purchaseCurrencyDetails($business_id);
+            $purchases = $request->input('purchases', []);
+            $this->ensureReceivedPurchaseQuantitiesArePositive(
+                $transaction_data['status'],
+                $purchases,
+                $currency_details
+            );
+
             //Update business exchange rate.
             Business::update_business($business_id, ['p_exchange_rate' => ($transaction_data['exchange_rate'])]);
-
-            $currency_details = $this->transactionUtil->purchaseCurrencyDetails($business_id);
 
             //unformat input values
             $transaction_data['total_before_tax'] = $this->productUtil->num_uf($transaction_data['total_before_tax'], $currency_details) * $exchange_rate;
@@ -404,7 +410,6 @@ class PurchaseController extends Controller
             $transaction = Transaction::create($transaction_data);
 
             $purchase_lines = [];
-            $purchases = $request->input('purchases');
             $common_settings = $this->getBusinessCommonSettings($business_id);
             $lock_tax_override = $this->isPurchaseTaxOverrideLocked($common_settings);
 
@@ -697,6 +702,13 @@ class PurchaseController extends Controller
                 'shipping_charges', 'final_total',
                 'additional_notes', 'exchange_rate', 'pay_term_number', 'pay_term_type', 'purchase_order_ids', ]);
 
+            $purchases = $request->input('purchases', []);
+            $this->ensureReceivedPurchaseQuantitiesArePositive(
+                $update_data['status'],
+                $purchases,
+                $currency_details
+            );
+
             $exchange_rate = $update_data['exchange_rate'];
 
             //Reverse exchage rate and save
@@ -759,7 +771,6 @@ class PurchaseController extends Controller
             $payment_status = $this->transactionUtil->updatePaymentStatus($transaction->id);
             $transaction->payment_status = $payment_status;
 
-            $purchases = $request->input('purchases');
             $common_settings = $this->getBusinessCommonSettings($business_id);
             $lock_tax_override = $this->isPurchaseTaxOverrideLocked($common_settings);
 
@@ -1474,6 +1485,10 @@ class PurchaseController extends Controller
             $before_status = $transaction->status;
 
             $update_data['status'] = $request->input('status');
+            $this->ensureReceivedPurchaseQuantitiesArePositive(
+                $update_data['status'],
+                $transaction->purchase_lines
+            );
 
             DB::beginTransaction();
 
@@ -1506,5 +1521,26 @@ class PurchaseController extends Controller
         }
 
         return $output;
+    }
+
+    private function ensureReceivedPurchaseQuantitiesArePositive($status, $purchase_lines, $currency_details = null)
+    {
+        if ($status !== 'received') {
+            return;
+        }
+
+        foreach ($purchase_lines as $purchase_line) {
+            $quantity = is_array($purchase_line)
+                ? ($purchase_line['quantity'] ?? 0)
+                : $purchase_line->quantity;
+
+            if ($currency_details !== null) {
+                $quantity = $this->productUtil->num_uf($quantity, $currency_details);
+            }
+
+            if ((float) $quantity <= 0) {
+                throw new \Exception(__('lang_v1.zero_quantity_purchase_cannot_be_received'));
+            }
+        }
     }
 }

@@ -1491,6 +1491,7 @@ return [
     'add_as_sub_cat' => 'Add as sub-category',
     'import' => 'Import',
     'quantity_required' => 'Quantity required in row :row',
+    'zero_quantity_purchase_cannot_be_received' => 'Items with zero quantity cannot be received. Enter a quantity greater than zero or remove the item.',
     'date_ins' => 'Format: yyyy-mm-dd; Ex: 2021-11-25',
     'has_no_sell_from' => 'Has no sell from',
     'one_month' => 'One month',

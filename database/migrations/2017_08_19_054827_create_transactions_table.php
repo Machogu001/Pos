@@ -17,10 +17,10 @@ return new class extends Migration
             $table->increments('id');
             $table->integer('business_id')->unsigned();
             $table->foreign('business_id')->references('id')->on('business')->onDelete('cascade');
-            $table->enum('type', ['purchase', 'sell']);
-            $table->enum('status', ['received', 'pending', 'ordered', 'draft', 'final']);
-            $table->enum('payment_status', ['paid', 'due']);
-            $table->integer('contact_id')->unsigned();
+            $table->string('type')->nullable();
+            $table->string('status');
+            $table->enum('payment_status', ['paid', 'due', 'partial']);
+            $table->integer('contact_id')->unsigned()->nullable();
             $table->foreign('contact_id')->references('id')->on('contacts')->onDelete('cascade');
             $table->string('invoice_no')->nullable();
             $table->string('ref_no')->nullable();

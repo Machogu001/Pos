@@ -84,6 +84,16 @@ class MpesaCallbackController extends Controller
     }
 
     if ($payment->transaction_status !== 'pending') {
+        if (in_array($payment->transaction_status, ['paid', 'success'], true)
+            && MpesaPayment::normalizePaymentType($payment) === MpesaPayment::TYPE_SUBSCRIPTION) {
+            $activated = app(SubscriptionController::class)->activateSubscription($payment);
+            if (!$activated) {
+                return response()->json([
+                    'status' => 'Payment recorded but subscription activation is pending',
+                ], 500);
+            }
+        }
+
         Log::info("ℹ️ Payment already processed for CheckoutRequestID: $checkoutRequestID. Skipping...");
         return response()->json(['status' => 'Already processed'], 200);
     }
@@ -171,18 +181,23 @@ class MpesaCallbackController extends Controller
     }
 
     // Attempt to activate subscription only when the payment succeeded and is a subscription type
-    if ($resultCode == 0 && ($payment->payment_type ?? null) === 'subscription') {
+    if ($resultCode == 0 && MpesaPayment::normalizePaymentType($payment) === MpesaPayment::TYPE_SUBSCRIPTION) {
         try {
-            $subscriptionController = new SubscriptionController();
-            $activated = $subscriptionController->activateSubscription($payment);
+            $activated = app(SubscriptionController::class)->activateSubscription($payment);
 
             if ($activated) {
                 Log::info("✅ Subscription activated by API callback for payment ID: {$payment->id}");
             } else {
-                Log::info("ℹ️ Subscription not activated automatically for payment ID: {$payment->id} - will require manual sync or check.");
+                Log::error("Subscription activation failed for paid payment ID: {$payment->id}");
+                return response()->json([
+                    'status' => 'Payment recorded but subscription activation is pending',
+                ], 500);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Error activating subscription from API callback: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'Payment recorded but subscription activation is pending',
+            ], 500);
         }
     }
 

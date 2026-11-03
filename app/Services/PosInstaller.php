@@ -54,6 +54,7 @@ class PosInstaller
 
         $this->runArtisanStep($fresh ? 'migrate:fresh' : 'migrate', ['--force' => true], true, $logger);
         $this->runArtisanStep('module:migrate', ['--force' => true], true, $logger);
+        $this->assertRequiredSchema($logger);
         $this->seedBundledModules($logger);
         $this->runArtisanStep('module:publish', [], false, $logger);
         $this->runArtisanStep('db:seed', ['--force' => true], true, $logger);
@@ -64,6 +65,47 @@ class PosInstaller
         $this->runArtisanStep('package:discover', ['--ansi' => false], true, $logger);
         $this->runArtisanStep('optimize', [], false, $logger);
         $this->stampInstalledVersion();
+    }
+
+    public function assertRequiredSchema(?callable $logger = null): void
+    {
+        $requiredSchema = [
+            'users' => ['id', 'business_id'],
+            'business' => ['id', 'owner_id'],
+            'transactions' => ['id', 'business_id', 'type', 'status', 'final_total'],
+            'transaction_payments' => [
+                'id',
+                'transaction_id',
+                'business_id',
+                'amount',
+                'method',
+                'is_return',
+                'paid_on',
+                'created_by',
+            ],
+        ];
+
+        $missing = [];
+        foreach ($requiredSchema as $table => $columns) {
+            if (! Schema::hasTable($table)) {
+                $missing[] = $table . ' table';
+                continue;
+            }
+
+            foreach ($columns as $column) {
+                if (! Schema::hasColumn($table, $column)) {
+                    $missing[] = $table . '.' . $column;
+                }
+            }
+        }
+
+        if (! empty($missing)) {
+            throw new \RuntimeException(
+                'Installation database verification failed. Missing required schema: ' . implode(', ', $missing)
+            );
+        }
+
+        $this->emit($logger, 'line', 'Core database schema verified.');
     }
 
     private function prepareInstallEnvironment(?callable $logger = null): void

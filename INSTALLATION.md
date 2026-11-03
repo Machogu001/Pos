@@ -46,6 +46,7 @@ What the installer does:
 - Clears stale cache manifests
 - Runs core migrations
 - Runs module migrations
+- Verifies critical core tables and payment columns before seeding or reporting success
 - Publishes module assets
 - Seeds core data
 - Installs Passport clients
@@ -141,7 +142,7 @@ After installation, confirm:
 - `.env` exists in the project root
 - `APP_KEY` is present
 - Database connection works
-- `users`, `business`, and `admin_settings` tables exist
+- `users`, `business`, `admin_settings`, `transactions`, and `transaction_payments` tables exist
 - `storage/` is writable
 - `bootstrap/cache/` is writable
 - Login page loads

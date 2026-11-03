@@ -137,7 +137,10 @@ class ProductController extends BaseMobileController
         $query->select([
             'variations.id as variation_id',
             'products.id as product_id',
-            DB::raw("IF(pv.is_dummy = 0, CONCAT(products.name, ' (', pv.name, ':', variations.name, ')'), products.name) as product_name"),
+            'products.name as product_name',
+            'pv.is_dummy',
+            'pv.name as product_variation_name',
+            'variations.name as variation_name',
             'products.sku as product_sku',
             'variations.sub_sku',
             'products.type',
@@ -161,10 +164,15 @@ class ProductController extends BaseMobileController
 
     protected function productPayload($row, ?array $price = null): array
     {
+        $productName = $row->product_name;
+        if (! $row->is_dummy) {
+            $productName .= ' (' . $row->product_variation_name . ':' . $row->variation_name . ')';
+        }
+
         return [
             'variation_id' => (int) $row->variation_id,
             'product_id' => (int) $row->product_id,
-            'name' => $row->product_name,
+            'name' => $productName,
             'sku' => $row->sub_sku ?: $row->product_sku,
             'type' => $row->type,
             'unit' => $row->unit,

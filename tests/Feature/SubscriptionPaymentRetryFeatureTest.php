@@ -24,6 +24,8 @@ class SubscriptionPaymentRetryFeatureTest extends TestCase
             $table->string('email')->nullable();
             $table->string('username')->unique()->nullable();
             $table->string('password')->nullable();
+            $table->boolean('has_active_subscription')->default(false);
+            $table->dateTime('subscription_expires_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -42,6 +44,8 @@ class SubscriptionPaymentRetryFeatureTest extends TestCase
             $table->unsignedBigInteger('pending_invoice_transaction_id')->nullable();
             $table->unsignedBigInteger('pending_mpesa_payment_id')->nullable();
             $table->string('checkout_request_id')->nullable();
+            $table->string('mpesa_receipt')->nullable();
+            $table->dateTime('activated_at')->nullable();
             $table->timestamps();
         });
 
@@ -187,6 +191,73 @@ class SubscriptionPaymentRetryFeatureTest extends TestCase
         $this->assertSame(2, Subscription::count());
     }
 
+    /** @test */
+    public function a_paid_subscription_payment_activates_from_the_payment_date()
+    {
+        $controller = $this->app->make(\App\Http\Controllers\SubscriptionController::class);
+        $user = $this->makeUser();
+        $subscription = $this->makePendingSubscription($user);
+        $payment = $this->makePaidPayment($user, $subscription, '2026-04-12 14:30:00');
+
+        $this->assertTrue($controller->activateSubscription($payment));
+
+        $subscription->refresh();
+        $user->refresh();
+
+        $this->assertSame('active', $subscription->status);
+        $this->assertSame('2026-04-12', $subscription->start_date->format('Y-m-d'));
+        $this->assertSame('2026-05-12', $subscription->end_date->format('Y-m-d'));
+        $this->assertNotNull($subscription->activated_at);
+        $this->assertTrue($user->has_active_subscription);
+    }
+
+    /** @test */
+    public function retrying_activation_does_not_extend_an_active_subscription_twice()
+    {
+        $controller = $this->app->make(\App\Http\Controllers\SubscriptionController::class);
+        $user = $this->makeUser();
+        $subscription = $this->makePendingSubscription($user);
+        $payment = $this->makePaidPayment($user, $subscription, '2026-04-12 14:30:00');
+
+        $this->assertTrue($controller->activateSubscription($payment));
+        $firstEndDate = $subscription->fresh()->end_date->format('Y-m-d');
+
+        Carbon::setTestNow('2026-06-01 09:00:00');
+        $this->assertTrue($controller->activateSubscription($payment->fresh()));
+
+        $this->assertSame($firstEndDate, $subscription->fresh()->end_date->format('Y-m-d'));
+        Carbon::setTestNow();
+    }
+
+    /** @test */
+    public function a_duplicate_callback_retries_a_paid_but_inactive_subscription()
+    {
+        $user = $this->makeUser();
+        $subscription = $this->makePendingSubscription($user);
+        $payment = $this->makePaidPayment($user, $subscription, '2026-04-12 14:30:00');
+        $payment->update([
+            'merchant_request_id' => 'merchant-123',
+            'checkout_request_id' => 'checkout-123',
+        ]);
+
+        $request = \Illuminate\Http\Request::create('/api/mpesa/callback', 'POST', [
+            'Body' => [
+                'stkCallback' => [
+                    'MerchantRequestID' => 'merchant-123',
+                    'CheckoutRequestID' => 'checkout-123',
+                    'ResultCode' => 0,
+                    'ResultDesc' => 'Success',
+                ],
+            ],
+        ]);
+
+        $response = $this->app->make(\App\Http\Controllers\MpesaCallbackController::class)
+            ->handleCallback($request);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('active', $subscription->fresh()->status);
+    }
+
     private function makeUser(): User
     {
         return User::create([
@@ -210,6 +281,22 @@ class SubscriptionPaymentRetryFeatureTest extends TestCase
             'end_date' => Carbon::parse('2026-05-10 10:00:00'),
             'status' => 'pending',
             'is_renewal' => false,
+        ]);
+    }
+
+    private function makePaidPayment(User $user, Subscription $subscription, string $paidAt): MpesaPayment
+    {
+        return MpesaPayment::create([
+            'user_id' => $user->id,
+            'business_id' => $user->business_id,
+            'subscription_id' => $subscription->id,
+            'phone_number' => '254700000003',
+            'amount' => $subscription->amount,
+            'account_reference' => 'SUB' . $subscription->id . '-PAID',
+            'payment_type' => MpesaPayment::TYPE_SUBSCRIPTION,
+            'transaction_status' => 'paid',
+            'paid_at' => Carbon::parse($paidAt),
+            'mpesa_receipt_number' => 'TESTRECEIPT1',
         ]);
     }
 

@@ -97,24 +97,22 @@ class MobileDashboardApiTest extends TestCase
 
     private function fakeDashboardUser(int $businessId): object
     {
-        return new class($businessId) {
-            public int $business_id;
-
+        return new class($businessId) extends \App\User {
             public function __construct(int $businessId)
             {
+                parent::__construct();
                 $this->business_id = $businessId;
             }
 
-            public function can(string $permission): bool
+            public function can($abilities, $arguments = [])
             {
-                return $permission === 'dashboard.data';
+                return $abilities === 'dashboard.data';
             }
 
-            public function permitted_locations(int $businessId = null)
+            public function permitted_locations($businessId = null)
             {
                 return 'all';
             }
         };
     }
 }
-
