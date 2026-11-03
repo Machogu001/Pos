@@ -482,7 +482,29 @@ function get_contact_payments(url = null) {
     });
 }
 
-function get_contact_ledger() {
+var contact_ledger_request = null;
+var contact_ledger_request_id = 0;
+
+$(document).on('change', '#ledger_per_page', function() {
+    get_contact_ledger();
+});
+
+$(document).on('click', '#contact_ledger_pagination a', function(e) {
+    e.preventDefault();
+    var page = new URL(this.href, window.location.href).searchParams.get('page');
+    get_contact_ledger(page);
+});
+
+function get_contact_ledger(page) {
+
+    var request_id = ++contact_ledger_request_id;
+    if (contact_ledger_request) {
+        contact_ledger_request.abort();
+    }
+    $('#ledger_show_label').text(LANG.show);
+    $('#ledger_entries_label').text(LANG.entries);
+    $('#ledger_loading').text(LANG.table_loadingRecords).show();
+    $('#contact_ledger_div').attr('aria-busy', 'true');
 
     var start_date = '';
     var end_date = '';
@@ -502,26 +524,39 @@ function get_contact_ledger() {
         show_payments: show_payments,
         end_date: end_date,
         format: format,
-        location_id: location_id
+        location_id: location_id,
+        page: page || 1,
+        per_page: $('#ledger_per_page').val()
     }
-    $.ajax({
+    contact_ledger_request = $.ajax({
         url: '/contacts/ledger?contact_id={{$contact->id}}',
         data: data,
         dataType: 'html',
+        timeout: 60000,
         success: function(result) {
+            if (request_id !== contact_ledger_request_id) {
+                return;
+            }
             $('#contact_ledger_div')
                 .html(result);
             __currency_convert_recursively($('#contact_ledger_div'));
 
-            $('#ledger_table').DataTable({
-                searching: false,
-                ordering:false,
-                paging:true,
-                pageLength:50,
-                lengthMenu:[[10, 25, 50, 100], [10, 25, 50, 100]],
-                fixedHeader:false,
-                dom: 'ltip'
-            });
+            var info = $('#contact_ledger_pagination .ledger-page-info');
+            info.text(LANG.table_info.replace('_START_', info.data('start'))
+                .replace('_END_', info.data('end')).replace('_TOTAL_', info.data('total')));
+            $('#ledger_loading').hide();
+        },
+        error: function(xhr, status) {
+            if (status !== 'abort' && request_id === contact_ledger_request_id) {
+                $('#ledger_loading').text(@json(__('messages.something_went_wrong')));
+                toastr.error(@json(__('messages.something_went_wrong')));
+            }
+        },
+        complete: function() {
+            if (request_id === contact_ledger_request_id) {
+                contact_ledger_request = null;
+                $('#contact_ledger_div').attr('aria-busy', 'false');
+            }
         },
     });
 }

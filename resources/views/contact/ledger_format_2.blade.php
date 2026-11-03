@@ -35,12 +35,12 @@
 </div>
 <div class="col-md-12 col-sm-12 @if(!empty($for_pdf)) width-100 @endif">
 	@php
-		$amount_due = 0;
-		$current_due = 0;
-		$due_1_30_days = 0;
-		$due_30_60_days = 0;
-		$due_60_90_days = 0;
-		$due_over_90_days = 0;
+		$amount_due = $ledger_details['aging']['amount_due'] ?? 0;
+		$current_due = $ledger_details['aging']['current_due'] ?? 0;
+		$due_1_30_days = $ledger_details['aging']['due_1_30_days'] ?? 0;
+		$due_30_60_days = $ledger_details['aging']['due_30_60_days'] ?? 0;
+		$due_60_90_days = $ledger_details['aging']['due_60_90_days'] ?? 0;
+		$due_over_90_days = $ledger_details['aging']['due_over_90_days'] ?? 0;
 	@endphp
 	@if(!empty($for_pdf))
 	<br>
@@ -64,6 +64,8 @@
 						if (!empty($data['transaction_type']) && $data['transaction_type'] == 'ledger_discount') {
 							$data['total_due'] = -1 * $data['total_due'];
 						}
+					}
+					if(empty($ledger_details['aging']) && $data['payment_status'] != 'paid' && !empty($data['due_date'])) {
 						$amount_due += $data['total_due'];
 
 						$days_diff = $data['due_date']->diffInDays();
@@ -87,7 +89,7 @@
 					<td>@format_currency($data['total_due'])</td>
 				</tr>
 			@endforeach
-			@if(count($ledger_details['ledger']) < 5)
+			@if(empty($ledger_details['pagination']) && count($ledger_details['ledger']) < 5)
 				<tr style="border:hidden;"><td colspan="4">&nbsp;</td></tr>
 				<tr style="border:hidden;"><td colspan="4">&nbsp;</td></tr>
 				<tr style="border:hidden;"><td colspan="4">&nbsp;</td></tr>
@@ -129,3 +131,4 @@
 		</tr>
 	</table>
 </div>
+@include('contact.partials.ledger_pagination')

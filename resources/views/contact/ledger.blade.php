@@ -159,6 +159,8 @@
 	</div>
 </div>
 
+@include('contact.partials.ledger_pagination')
+
 <script>
 	$(document).ready(function() {
 

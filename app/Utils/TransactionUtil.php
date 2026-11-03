@@ -5924,7 +5924,7 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
     /**
      * Function to get ledger details
      */
-    public function getLedgerDetails($contact_id, $start, $end, $format = 'format_1', $location_id = null, $line_details = false)
+    public function getLedgerDetails($contact_id, $start, $end, $format = 'format_1', $location_id = null, $line_details = false, $pagination = null)
     {
         $business_id = request()->session()->get('user.business_id');
         //Get sum of totals before start date
@@ -5939,29 +5939,16 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
                 )->first();
 
         //Get payment totals before start date
-    $prev_payments = $this->__paymentQuery($contact_id, $start, null, $location_id)
-                ->select('transaction_payments.*', 'bl.name as location_name', 't.type as transaction_type', 't.sub_type as transaction_sub_type', 'is_advance')
-                    ->get();
-
-    $prev_total_invoice_paid = $prev_payments->where('transaction_type', 'sell')->where('is_return', 0)->where('transaction_sub_type', '!=', 'subscription_invoice')->sum('amount');
-        $prev_total_ob_paid = $prev_payments->where('transaction_type', 'opening_balance')->where('is_return', 0)->sum('amount');
-    $prev_total_sell_change_return = $prev_payments->where('transaction_type', 'sell')->where('is_return', 1)->where('transaction_sub_type', '!=', 'subscription_invoice')->sum('amount');
-        $prev_total_sell_change_return = ! empty($prev_total_sell_change_return) ? $prev_total_sell_change_return : 0;
-        $prev_total_invoice_paid -= $prev_total_sell_change_return;
-        $prev_total_purchase_paid = $prev_payments->where('transaction_type', 'purchase')->where('is_return', 0)->sum('amount');
-        $prev_total_sell_return_paid = $prev_payments->where('transaction_type', 'sell_return')->sum('amount');
-        $prev_total_purchase_return_paid = $prev_payments->where('transaction_type', 'purchase_return')->sum('amount');
+        $prev_payments = $this->getLedgerPaymentTotals($this->__paymentQuery($contact_id, $start, null, $location_id));
+        $prev_total_invoice_paid = $prev_payments->invoice_paid;
+        $prev_total_ob_paid = $prev_payments->opening_balance_paid;
+        $prev_total_purchase_paid = $prev_payments->purchase_paid;
+        $prev_total_sell_return_paid = $prev_payments->sell_return_paid;
+        $prev_total_purchase_return_paid = $prev_payments->purchase_return_paid;
         //$prev_total_advance_payment = $prev_payments->where('is_advance', 1)->sum('amount');
         $prev_total_advance_payment = $this->__paymentQuery($contact_id, $start, null, $location_id)
-                                        ->select('bl.name as location_name',
-                                                't.type as transaction_type',
-                                                'is_advance',
-                                                'transaction_payments.id',
-                                                DB::raw('(transaction_payments.amount - COALESCE((SELECT SUM(amount) from transaction_payments as TP where TP.parent_id = transaction_payments.id), 0)) as amount')
-                                        )
                                         ->where('is_advance', 1)
-                                        ->get()
-                                        ->sum('amount');
+                                        ->sum(DB::raw('(transaction_payments.amount - COALESCE((SELECT SUM(amount) from transaction_payments as TP where TP.parent_id = transaction_payments.id), 0))'));
 
         $total_prev_paid = $prev_total_invoice_paid + $prev_total_purchase_paid - $prev_total_sell_return_paid - $prev_total_purchase_return_paid + $prev_total_ob_paid + $prev_total_advance_payment;
 
@@ -5973,15 +5960,31 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
 
         $with = ['location'];
         if ($line_details) {
-            $with = ['location', 'sell_lines', 'sell_lines.sub_unit', 'sell_lines.product',
+            $with = ['location', 'sell_lines', 'sell_lines.sub_unit', 'sell_lines.product', 'sell_lines.product.brand',
+                'sell_lines.product.second_unit', 'sell_lines.modifiers.product', 'sell_lines.modifiers.variations',
                 'sell_lines.variations', 'sell_lines.product.unit', 'sell_lines.variations.product_variation',
                 'sell_lines.line_tax', 'purchase_lines', 'purchase_lines.product', 'purchase_lines.variations',
-                'purchase_lines.variations.product_variation', 'purchase_lines.line_tax',
+                'purchase_lines.variations.product_variation', 'purchase_lines.line_tax', 'purchase_lines.sub_unit',
                 'purchase_lines.product.unit', 'purchase_lines.product.unit.sub_units', ];
         }
-        //Get transaction totals between dates
+        $period_totals = $this->__transactionQuery($contact_id, $start, $end, $location_id)
+            ->selectRaw("SUM(CASE WHEN type = 'sell' AND (sub_type IS NULL OR sub_type != 'subscription_invoice') THEN final_total ELSE 0 END) as invoice,
+                SUM(CASE WHEN type = 'purchase' THEN final_total ELSE 0 END) as purchase,
+                SUM(CASE WHEN type = 'sell_return' THEN final_total ELSE 0 END) as sell_return,
+                SUM(CASE WHEN type = 'purchase_return' THEN final_total ELSE 0 END) as purchase_return,
+                SUM(CASE WHEN type = 'opening_balance' THEN final_total ELSE 0 END) as opening_balance,
+                SUM(CASE WHEN type = 'ledger_discount' THEN final_total ELSE 0 END) as ledger_discount")
+            ->first();
+
+        $ledger_page = null;
+        $page_balance = 0;
+        if ($pagination !== null) {
+            [$ledger_page, $page_balance] = $this->getLedgerPage($contact_id, $start, $end, $format, $location_id, $contact, $pagination);
+        }
+
+        //Get transactions for the requested page, keeping summary totals date-scoped.
         $transaction_query = $this->__transactionQuery($contact_id, $start, $end, $location_id)
-                            ->with(['location'])
+                            ->with($with)
                             ->select('transactions.*');
 
         if ($format == 'format_2') {
@@ -5990,24 +5993,25 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
                             ->groupBy('transactions.id');
         }
 
-        $transactions = $transaction_query->get();
+        $aging = null;
+        if ($ledger_page !== null) {
+            if ($format == 'format_2') {
+                $aging = $this->getLedgerAging(clone $transaction_query);
+            }
+            $transaction_query->whereIn('transactions.id', $ledger_page->getCollection()->where('source', 'transaction')->pluck('id'));
+        }
+
+        $transactions = $transaction_query->orderBy('transactions.id')->get();
         $transaction_types = Transaction::transactionTypes();
         $ledger = [];
 
-        $opening_balance = 0;
-        $opening_balance_paid = 0;
-        $ledger_discount = 0;
+        $opening_balance = $period_totals->opening_balance;
+        $ledger_discount = $period_totals->ledger_discount;
 
         foreach ($transactions as $transaction) {
             if ($transaction->type == 'opening_balance') {
                 //Skip opening balance, it will be added in the end
-                $opening_balance += $transaction->final_total;
-
                 continue;
-            }
-
-            if ($transaction->type == 'ledger_discount') {
-                $ledger_discount += $transaction->final_total;
             }
 
             $temp_array = [
@@ -6023,6 +6027,8 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
                 'others' => $transaction->additional_notes,
                 'transaction_id' => $transaction->id,
                 'transaction_type' => $transaction->type,
+                'entry_order' => 0,
+                'entry_id' => $transaction->id,
             ];
 
             if ($format == 'format_2') {
@@ -6054,17 +6060,21 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
             $ledger[] = $temp_array;
         }
 
-    $invoice_sum = $transactions->where('type', 'sell')
-            ->where('sub_type', '!=', 'subscription_invoice')
-            ->sum('final_total');
-        $purchase_sum = $transactions->where('type', 'purchase')->sum('final_total');
-        $sell_return_sum = $transactions->where('type', 'sell_return')->sum('final_total');
-        $purchase_return_sum = $transactions->where('type', 'purchase_return')->sum('final_total');
+        $invoice_sum = $period_totals->invoice;
+        $purchase_sum = $period_totals->purchase;
+        $sell_return_sum = $period_totals->sell_return;
+        $purchase_return_sum = $period_totals->purchase_return;
 
         //Get payment totals between dates
         if ($format == 'format_1' || $format == 'format_3') {
-            $payments = $this->__paymentQuery($contact_id, $start, $end, $location_id)
+            $payment_query = $this->__paymentQuery($contact_id, $start, $end, $location_id);
+            $payment_totals = $this->getLedgerPaymentTotals(clone $payment_query, false, $contact->type);
+            if ($ledger_page !== null) {
+                $payment_query->whereIn('transaction_payments.id', $ledger_page->getCollection()->where('source', 'payment')->pluck('id'));
+            }
+            $payments = $payment_query
                             ->select('transaction_payments.*', 'bl.name as location_name', 't.type as transaction_type', 't.ref_no', 't.invoice_no')
+                            ->orderBy('transaction_payments.id')
                             ->get();
         } else {
             $payments = [];
@@ -6072,20 +6082,10 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
 
         $paymentTypes = $this->payment_types(null, true, $business_id);
 
-        $total_reverse_payment = 0;
+        $opening_balance_paid = isset($payment_totals) ? $payment_totals->all_opening_balance_paid : 0;
+        $total_reverse_payment = isset($payment_totals) ? $payment_totals->reverse_paid : 0;
 
         foreach ($payments as $payment) {
-            if ($payment->transaction_type == 'opening_balance') {
-                $opening_balance_paid += $payment->amount;
-            }
-
-            if ($contact->type == 'customer' && $payment->is_advance == 0 && empty($payment->transaction_id) && $payment->payment_type == 'debit') {
-                $total_reverse_payment += $payment->amount;
-            }
-            if ($contact->type == 'supplier' && $payment->is_advance == 0 && empty($payment->transaction_id) && $payment->payment_type == 'credit') {
-                $total_reverse_payment += $payment->amount;
-            }
-
             //Hide all the adjusted payments because it has already been summed as advance payment
             if (! empty($payment->parent_id)) {
                 continue;
@@ -6117,31 +6117,22 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
                 'debit' => in_array($payment->transaction_type, ['purchase', 'sell_return']) || ($payment->is_advance == 1 && $contact->type == 'supplier') || (in_array($payment->transaction_type, ['sell', 'purchase_return', 'opening_balance']) && $payment->is_return == 1) || $payment->payment_type == 'debit' ? $payment->amount : '',
                 'credit' => (in_array($payment->transaction_type, ['sell', 'purchase_return', 'opening_balance']) || ($payment->is_advance == 1 && in_array($contact->type, ['customer', 'both']))) && $payment->is_return == 0 || $payment->payment_type == 'credit' ? $payment->amount : '',
                 'others' => $note,
+                'entry_order' => 1,
+                'entry_id' => $payment->id,
             ];
         }
 
         $total_excess_advance_payment = $this->__paymentQuery($contact_id, $start, $end, $location_id)
-                                    ->select(
-                                            DB::raw('(transaction_payments.amount - COALESCE((SELECT SUM(amount) from transaction_payments as TP where TP.parent_id = transaction_payments.id), 0)) as amount')
-                                    )
                                     ->where('is_advance', 1)
-                                    ->get()
-                                    ->sum('amount');
+                                    ->sum(DB::raw('(transaction_payments.amount - COALESCE((SELECT SUM(amount) from transaction_payments as TP where TP.parent_id = transaction_payments.id), 0))'));
         $total_advance_payment = $this->__paymentQuery($contact_id, $start, $end, $location_id)
-                                ->select(
-                                        DB::raw('SUM(transaction_payments.amount) as amount')
-                                )
                                 ->where('method', 'advance')
-                                ->get()
-                                ->sum('amount');
+                                ->sum('transaction_payments.amount');
 
-    $total_invoice_paid = ! empty($payments) ? $payments->where('transaction_type', 'sell')->where('is_return', 0)->where('transaction_sub_type', '!=', 'subscription_invoice')->sum('amount') : 0;
-    $total_sell_change_return = ! empty($payments) ? $payments->where('transaction_type', 'sell')->where('is_return', 1)->where('transaction_sub_type', '!=', 'subscription_invoice')->sum('amount') : 0;
-        $total_sell_change_return = ! empty($total_sell_change_return) ? $total_sell_change_return : 0;
-        $total_invoice_paid -= $total_sell_change_return;
-        $total_purchase_paid = ! empty($payments) ? $payments->where('transaction_type', 'purchase')->where('is_return', 0)->sum('amount') : 0;
-        $total_sell_return_paid = ! empty($payments) ? $payments->where('transaction_type', 'sell_return')->sum('amount') : 0;
-        $total_purchase_return_paid = ! empty($payments) ? $payments->where('transaction_type', 'purchase_return')->sum('amount') : 0;
+        $total_invoice_paid = isset($payment_totals) ? $payment_totals->invoice_paid : 0;
+        $total_purchase_paid = isset($payment_totals) ? $payment_totals->purchase_paid : 0;
+        $total_sell_return_paid = isset($payment_totals) ? $payment_totals->sell_return_paid : 0;
+        $total_purchase_return_paid = isset($payment_totals) ? $payment_totals->purchase_return_paid : 0;
 
         $total_invoice_paid += $opening_balance_paid;
 
@@ -6164,12 +6155,13 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
                 $t1 = strtotime($a['date']);
                 $t2 = strtotime($b['date']);
 
-                return $t1 - $t2;
+                return ($t1 <=> $t2) ?: ($a['entry_order'] <=> $b['entry_order']) ?: ($a['entry_id'] <=> $b['entry_id']);
             });
         }
 
         $total_opening_bal = $beginning_balance + $opening_balance_due;
-        if ($format != 'format_2') {
+        $include_opening_balance = $format != 'format_2' && ($ledger_page === null || $ledger_page->getCollection()->contains('source', 'opening_balance'));
+        if ($include_opening_balance) {
             //Add Beginning balance & openining balance to ledger
             $ledger = array_merge([[
                 'date' => $start,
@@ -6188,7 +6180,10 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
             ]], $ledger);
         }
 
-        $bal = 0;
+        $bal = $page_balance;
+        if ($ledger_page !== null && $format != 'format_2' && ! $include_opening_balance) {
+            $bal += $contact->type == 'supplier' ? abs($total_opening_bal) : ($contact->type == 'customer' ? -abs($total_opening_bal) : 0);
+        }
         foreach ($ledger as $key => $val) {
             $credit = ! empty($val['credit']) ? $val['credit'] : 0;
             $debit = ! empty($val['debit']) ? $val['debit'] : 0;
@@ -6227,28 +6222,12 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
         $overall_ledger_discount = $overall_transaction_sums->total_ledger_discount;
 
         //Get Overall transaction payment
-    $overall_payments = $this->__paymentQuery($contact_id, null, null, $location_id)
-                ->select('transaction_payments.*', 'bl.name as location_name', 't.type as transaction_type', 't.sub_type as transaction_sub_type', 'is_advance')
-                    ->get();
-    $overall_total_invoice_paid = $overall_payments->where('transaction_type', 'sell')->where('is_return', 0)->where('transaction_sub_type', '!=', 'subscription_invoice')->sum('amount');
-    $overall_total_ob_paid = $overall_payments->where('transaction_type', 'opening_balance')->where('is_return', 0)->sum('amount');
-    $overall_total_sell_change_return = $overall_payments->where('transaction_type', 'sell')->where('is_return', 1)->where('transaction_sub_type', '!=', 'subscription_invoice')->sum('amount');
-        $overall_total_sell_change_return = ! empty($overall_total_sell_change_return) ? $overall_total_sell_change_return : 0;
-        $overall_total_invoice_paid -= $overall_total_sell_change_return;
-        $overall_total_purchase_paid = $overall_payments->where('transaction_type', 'purchase')->where('is_return', 0)->sum('amount');
-        $overall_total_sell_return_paid = $overall_payments->where('transaction_type', 'sell_return')->sum('amount');
-        $overall_total_purchase_return_paid = $overall_payments->where('transaction_type', 'purchase_return')->sum('amount');
-        
-        $overall_total_advance_payment = $this->__paymentQuery($contact_id, null, null, $location_id)
-                                        ->select('bl.name as location_name',
-                                                't.type as transaction_type',
-                                                'is_advance',
-                                                'transaction_payments.id',
-                                                DB::raw('(transaction_payments.amount - COALESCE((SELECT SUM(amount) from transaction_payments as TP where TP.parent_id = transaction_payments.id), 0)) as amount')
-                                        )
-                                        ->where('is_advance', 1)
-                                        ->get()
-                                        ->sum('amount');
+        $overall_payments = $this->getLedgerPaymentTotals($this->__paymentQuery($contact_id, null, null, $location_id));
+        $overall_total_invoice_paid = $overall_payments->invoice_paid;
+        $overall_total_ob_paid = $overall_payments->opening_balance_paid;
+        $overall_total_purchase_paid = $overall_payments->purchase_paid;
+        $overall_total_sell_return_paid = $overall_payments->sell_return_paid;
+        $overall_total_purchase_return_paid = $overall_payments->purchase_return_paid;
 
         $total_overall_paid_customer = $overall_total_invoice_paid - $overall_total_sell_return_paid + $overall_total_ob_paid; //Add '+ $overall_total_advance_payment'
 
@@ -6257,6 +6236,8 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
 
         $output = [
             'ledger' => $ledger,
+            'pagination' => $ledger_page,
+            'aging' => $aging,
             'start_date' => $start_date,
             'end_date' => $end_date,
             'total_invoice' => $total_invoice,
@@ -6279,6 +6260,114 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
         return $output;
     }
 
+    private function getLedgerPaymentTotals($query, $exclude_subscriptions = true, $contact_type = null)
+    {
+        $invoice_condition = $exclude_subscriptions ? " AND (t.sub_type IS NULL OR t.sub_type != 'subscription_invoice')" : '';
+        $reverse_type = $contact_type == 'customer' ? 'debit' : ($contact_type == 'supplier' ? 'credit' : '');
+
+        return $query->selectRaw("
+            COALESCE(SUM(CASE WHEN t.type = 'sell'{$invoice_condition} THEN
+                CASE WHEN transaction_payments.is_return = 0 THEN transaction_payments.amount
+                    WHEN transaction_payments.is_return = 1 THEN -transaction_payments.amount ELSE 0 END ELSE 0 END), 0) as invoice_paid,
+            COALESCE(SUM(CASE WHEN t.type = 'opening_balance' AND transaction_payments.is_return = 0 THEN transaction_payments.amount ELSE 0 END), 0) as opening_balance_paid,
+            COALESCE(SUM(CASE WHEN t.type = 'opening_balance' THEN transaction_payments.amount ELSE 0 END), 0) as all_opening_balance_paid,
+            COALESCE(SUM(CASE WHEN t.type = 'purchase' AND transaction_payments.is_return = 0 THEN transaction_payments.amount ELSE 0 END), 0) as purchase_paid,
+            COALESCE(SUM(CASE WHEN t.type = 'sell_return' THEN transaction_payments.amount ELSE 0 END), 0) as sell_return_paid,
+            COALESCE(SUM(CASE WHEN t.type = 'purchase_return' THEN transaction_payments.amount ELSE 0 END), 0) as purchase_return_paid,
+            COALESCE(SUM(CASE WHEN transaction_payments.is_advance = 0 AND
+                (transaction_payments.transaction_id IS NULL OR transaction_payments.transaction_id = 0)
+                AND transaction_payments.payment_type = ? THEN transaction_payments.amount ELSE 0 END), 0) as reverse_paid",
+            [$reverse_type]
+        )->first();
+    }
+
+    private function getLedgerPage($contact_id, $start, $end, $format, $location_id, $contact, array $pagination)
+    {
+        $entries = $this->__transactionQuery($contact_id, $start, $end, $location_id)
+            ->where('transactions.type', '!=', 'opening_balance')
+            ->selectRaw("transactions.id, transactions.transaction_date as date, 'transaction' as source, 0 as source_order,
+                (CASE WHEN transactions.type IN ('purchase', 'sell_return') OR transactions.sub_type = 'sell_discount' THEN transactions.final_total ELSE 0 END)
+                - (CASE WHEN transactions.type IN ('sell', 'purchase_return') OR transactions.sub_type = 'purchase_discount' THEN transactions.final_total ELSE 0 END) as balance_change");
+
+        if ($format == 'format_2') {
+            $entries->whereRaw('transactions.final_total != COALESCE((SELECT SUM(tp.amount) FROM transaction_payments as tp WHERE tp.transaction_id = transactions.id), 0)');
+        } else {
+            $supplier = $contact->type == 'supplier' ? 1 : 0;
+            $customer = in_array($contact->type, ['customer', 'both']) ? 1 : 0;
+            $payments = $this->__paymentQuery($contact_id, $start, $end, $location_id)
+                ->where(function ($query) {
+                    $query->whereNull('transaction_payments.parent_id')->orWhere('transaction_payments.parent_id', 0);
+                })
+                ->selectRaw("transaction_payments.id, transaction_payments.paid_on as date, 'payment' as source, 1 as source_order,
+                    CASE WHEN transaction_payments.method = 'advance' THEN 0 ELSE
+                    (CASE WHEN ((t.type IN ('sell', 'purchase_return', 'opening_balance') OR (transaction_payments.is_advance = 1 AND {$customer} = 1))
+                        AND transaction_payments.is_return = 0) OR transaction_payments.payment_type = 'credit' THEN transaction_payments.amount ELSE 0 END)
+                    - (CASE WHEN t.type IN ('purchase', 'sell_return') OR (transaction_payments.is_advance = 1 AND {$supplier} = 1)
+                        OR (t.type IN ('sell', 'purchase_return', 'opening_balance') AND transaction_payments.is_return = 1)
+                        OR transaction_payments.payment_type = 'debit' THEN transaction_payments.amount ELSE 0 END) END as balance_change");
+            $entries->unionAll($payments->toBase());
+        }
+
+        if ($format == 'format_3') {
+            $entries->unionAll(DB::query()->selectRaw("0 as id, ? as date, 'opening_balance' as source, -1 as source_order, 0 as balance_change", [$start]));
+        }
+
+        $query = DB::query()->fromSub($entries->toBase(), 'ledger_entries');
+        $total = (clone $query)->count();
+        $per_page = $pagination['per_page'];
+        $page = min($pagination['page'], max(1, (int) ceil($total / $per_page)));
+        $items = (clone $query)->orderBy('date')->orderBy('source_order')->orderBy('id')
+            ->forPage($page, $per_page)->get();
+
+        $balance = 0;
+        if ($format != 'format_2' && $page > 1 && $items->isNotEmpty()) {
+            $first = $items->first();
+            $balance = $query->where(function ($query) use ($first) {
+                $query->where('date', '<', $first->date)
+                    ->orWhere(function ($query) use ($first) {
+                        $query->where('date', $first->date)
+                            ->where(function ($query) use ($first) {
+                                $query->where('source_order', '<', $first->source_order)
+                                    ->orWhere(function ($query) use ($first) {
+                                        $query->where('source_order', $first->source_order)->where('id', '<', $first->id);
+                                    });
+                            });
+                    });
+            })->sum('balance_change');
+        }
+
+        return [new \Illuminate\Pagination\LengthAwarePaginator($items, $total, $per_page, $page, [
+            'path' => request()->url(),
+            'query' => request()->except('page'),
+        ]), $balance];
+    }
+
+    private function getLedgerAging($query)
+    {
+        $aging = array_fill_keys(['amount_due', 'current_due', 'due_1_30_days', 'due_30_60_days', 'due_60_90_days', 'due_over_90_days'], 0);
+        $transactions = $query->setEagerLoads([])->select('transactions.id', 'transactions.type', 'transactions.final_total',
+            'transactions.payment_status', 'transactions.transaction_date', 'transactions.pay_term_type', 'transactions.pay_term_number')
+            ->selectRaw('COALESCE(SUM(tp.amount), 0) as total_paid')
+            ->orderBy('transactions.id')->cursor();
+
+        foreach ($transactions as $transaction) {
+            $due = $transaction->final_total - $transaction->total_paid;
+            if ($transaction->type == 'opening_balance' || empty($due) || $transaction->payment_status == 'paid') {
+                continue;
+            }
+            if ($transaction->type == 'ledger_discount') {
+                $due *= -1;
+            }
+            $days = $transaction->due_date->diffInDays();
+            $bucket = $days == 0 ? 'current_due' : ($days <= 30 ? 'due_1_30_days' :
+                ($days <= 60 ? 'due_30_60_days' : ($days <= 90 ? 'due_60_90_days' : 'due_over_90_days')));
+            $aging['amount_due'] += $due;
+            $aging[$bucket] += $due;
+        }
+
+        return $aging;
+    }
+
     /**
      * Query to get transaction totals for a customer
      */
@@ -6298,7 +6387,7 @@ protected function mapPurchaseSellForStocktakeReduction($business_id, $sell_line
                 '>=',
                 $start
             )
-                ->whereDate('transactions.transaction_date', '<=', $end)->get();
+                ->whereDate('transactions.transaction_date', '<=', $end);
         }
 
         if (! empty($location_id)) {
