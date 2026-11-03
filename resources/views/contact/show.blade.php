@@ -516,9 +516,11 @@ function get_contact_ledger() {
             $('#ledger_table').DataTable({
                 searching: false,
                 ordering:false,
-                paging:false,
+                paging:true,
+                pageLength:50,
+                lengthMenu:[[10, 25, 50, 100], [10, 25, 50, 100]],
                 fixedHeader:false,
-                dom: 't'
+                dom: 'ltip'
             });
         },
     });
