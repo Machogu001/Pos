@@ -9,6 +9,10 @@ class AdminSetting extends Model
 {
     use HasFactory;
 
+    protected $hidden = [
+        'business_central_secret',
+    ];
+
     protected $fillable = [
         'monthly_price',
         'quarterly_price',
@@ -85,6 +89,22 @@ class AdminSetting extends Model
         'top_selling_low_stock_alert_last_run_at',
         'top_selling_low_stock_alert_last_failed_at',
         'top_selling_low_stock_alert_last_failure_message',
+        'business_central_enabled',
+        'business_central_business_id',
+        'business_central_location_id',
+        'business_central_api_url',
+        'business_central_inventory_url',
+        'business_central_company_id',
+        'business_central_location_code',
+        'business_central_auth_type',
+        'business_central_username',
+        'business_central_secret',
+        'business_central_token_url',
+        'business_central_client_id',
+        'business_central_scope',
+        'business_central_last_sync_at',
+        'business_central_last_failed_at',
+        'business_central_last_error',
     ];
 
     protected $casts = [
@@ -104,5 +124,9 @@ class AdminSetting extends Model
         'top_selling_low_stock_alert_send_whatsapp' => 'boolean',
         'top_selling_low_stock_alert_last_run_at' => 'datetime',
         'top_selling_low_stock_alert_last_failed_at' => 'datetime',
+        'business_central_enabled' => 'boolean',
+        'business_central_secret' => 'encrypted',
+        'business_central_last_sync_at' => 'datetime',
+        'business_central_last_failed_at' => 'datetime',
     ];
 }

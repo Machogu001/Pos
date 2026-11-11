@@ -36,6 +36,7 @@ class EventServiceProvider extends ServiceProvider
         \App\Events\SellCreatedOrModified::class => [
             \App\Listeners\SyncSellDefaultAccountTransaction::class,
             'App\\Listeners\\SyncAccountingJournalEntryMapping@handleSell',
+            \App\Listeners\SyncSaleToBusinessCentral::class,
         ],
 
         \App\Events\ExpenseCreatedOrModified::class => [

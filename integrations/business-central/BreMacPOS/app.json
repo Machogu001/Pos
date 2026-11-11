@@ -1,0 +1,32 @@
+{
+  "id": "993621c8-8ee8-4efb-9a6a-a7675b54851e",
+  "name": "BreMac POS Integration",
+  "publisher": "BreMac",
+  "version": "1.0.0.0",
+  "brief": "Location-aware inventory API for BreMac POS",
+  "description": "Exposes open Business Central item ledger entries so BreMac POS can continuously synchronize location inventory.",
+  "privacyStatement": "",
+  "EULA": "",
+  "help": "",
+  "url": "",
+  "logo": "",
+  "dependencies": [],
+  "screenshots": [],
+  "platform": "24.0.0.0",
+  "application": "24.0.0.0",
+  "idRanges": [
+    {
+      "from": 70240,
+      "to": 70249
+    }
+  ],
+  "resourceExposurePolicy": {
+    "allowDebugging": true,
+    "allowDownloadingSource": false,
+    "includeSourceInSymbolFile": false
+  },
+  "runtime": "13.0",
+  "features": [
+    "NoImplicitWith"
+  ]
+}

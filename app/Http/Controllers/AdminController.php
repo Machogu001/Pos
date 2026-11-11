@@ -11,7 +11,9 @@ use App\Subscription;
 use App\AdminSetting;
 use App\Business;
 use App\BusinessLocation;
+use App\BusinessCentralLocationMapping;
 use App\Services\SellPostingAuditService;
+use Illuminate\Support\Facades\Schema;
 
 class AdminController extends Controller
 {
@@ -31,6 +33,9 @@ class AdminController extends Controller
 
     $user = auth()->user();
     $settings = AdminSetting::first() ?? new AdminSetting();
+    $businessCentralLocationMappings = Schema::hasTable('business_central_location_mappings')
+        ? BusinessCentralLocationMapping::all()->keyBy('pos_location_id')
+        : collect();
         $accountingBackfillStatus = $this->buildAccountingBackfillStatus($settings);
         $stockCostingBackfillStatus = $this->buildStockCostingBackfillStatus($settings);
         $topSellingLowStockAlertStatus = $this->buildTopSellingLowStockAlertStatus($settings);
@@ -98,6 +103,7 @@ class AdminController extends Controller
             'activeSubscriptions', 'pendingSubscriptions', 'monthlyRevenue',
             'sellPostingAuditSummary', 'accountingBackfillStatus', 'stockCostingBackfillStatus', 'topSellingLowStockAlertStatus',
             'schedulerBusinesses', 'schedulerLocations'
+            , 'businessCentralLocationMappings'
         ));
     }
 
@@ -160,6 +166,7 @@ class AdminController extends Controller
         'activeSubscriptions', 'pendingSubscriptions', 'monthlyRevenue',
         'sellPostingAuditSummary', 'accountingBackfillStatus', 'stockCostingBackfillStatus', 'topSellingLowStockAlertStatus',
         'schedulerBusinesses', 'schedulerLocations'
+        , 'businessCentralLocationMappings'
     ));
 }
 
@@ -785,6 +792,23 @@ class AdminController extends Controller
             'top_selling_low_stock_alert_whatsapp_message_param' => 'nullable|string|max:100',
             'run_top_selling_low_stock_now' => 'nullable|boolean',
             'run_top_selling_low_stock_dry_run' => 'nullable|boolean',
+            'business_central_enabled' => 'nullable|boolean',
+            'business_central_business_id' => 'nullable|required_if:business_central_enabled,1|integer|exists:business,id',
+            'business_central_location_id' => 'nullable|integer|exists:business_locations,id',
+            'business_central_api_url' => 'nullable|required_if:business_central_enabled,1|url|max:500',
+            'business_central_inventory_url' => 'nullable|required_if:business_central_enabled,1|url|max:500',
+            'business_central_company_id' => 'nullable|required_if:business_central_enabled,1|string|max:100',
+            'business_central_location_code' => 'nullable|string|max:20',
+            'business_central_location_mappings' => 'nullable|array',
+            'business_central_location_mappings.*.enabled' => 'nullable|boolean',
+            'business_central_location_mappings.*.bc_location_code' => 'nullable|string|max:20',
+            'business_central_auth_type' => 'nullable|required_if:business_central_enabled,1|in:basic,oauth2,bearer',
+            'business_central_username' => 'nullable|required_if:business_central_auth_type,basic|string|max:255',
+            'business_central_secret' => 'nullable|string|max:4000',
+            'business_central_token_url' => 'nullable|required_if:business_central_auth_type,oauth2|url|max:500',
+            'business_central_client_id' => 'nullable|required_if:business_central_auth_type,oauth2|string|max:255',
+            'business_central_scope' => 'nullable|required_if:business_central_auth_type,oauth2|string|max:500',
+            'run_business_central_sync_now' => 'nullable|boolean',
         ]);
 
         if ($request->input('top_selling_low_stock_alert_frequency') === 'twice_weekly') {
@@ -805,6 +829,33 @@ class AdminController extends Controller
         }
 
         $settings = AdminSetting::firstOrCreate([]);
+
+        if ($request->boolean('business_central_enabled')) {
+            if (! $request->filled('business_central_secret') && empty($settings->business_central_secret)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'business_central_secret' => 'Enter the Business Central password, client secret, or bearer token before enabling synchronization.',
+                ]);
+            }
+
+            $requestedMappings = collect($request->input('business_central_location_mappings', []))
+                ->filter(fn ($mapping) => ! empty($mapping['enabled']));
+            if ($requestedMappings->isEmpty()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'business_central_location_mappings' => 'Map at least one POS location to a Business Central location.',
+                ]);
+            }
+
+            foreach ($requestedMappings as $locationId => $mapping) {
+                $selectedLocation = BusinessLocation::find($locationId);
+                if ((int) $request->input('business_central_business_id') !== (int) optional($selectedLocation)->business_id
+                    || empty(trim((string) ($mapping['bc_location_code'] ?? '')))) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'business_central_location_mappings' => 'Every enabled mapping must use a POS location from the selected business and include its BC location code.',
+                    ]);
+                }
+            }
+        }
+
         // handle logo upload separately
         if ($request->hasFile('company_logo')) {
             try {
@@ -854,7 +905,52 @@ class AdminController extends Controller
             'top_selling_low_stock_alert_whatsapp_auth_token',
             'top_selling_low_stock_alert_whatsapp_phone_param',
             'top_selling_low_stock_alert_whatsapp_message_param',
+            'business_central_enabled',
+            'business_central_business_id',
+            'business_central_location_id',
+            'business_central_api_url',
+            'business_central_inventory_url',
+            'business_central_company_id',
+            'business_central_location_code',
+            'business_central_auth_type',
+            'business_central_username',
+            'business_central_token_url',
+            'business_central_client_id',
+            'business_central_scope',
         ]));
+
+        if ($request->filled('business_central_secret')) {
+            $settings->business_central_secret = $request->input('business_central_secret');
+            $settings->save();
+        }
+
+        if ($request->has('business_central_location_mappings')) {
+            $businessId = (int) $request->input('business_central_business_id');
+            $keptLocationIds = [];
+            foreach ($request->input('business_central_location_mappings', []) as $locationId => $mapping) {
+                if (empty($mapping['enabled'])) {
+                    continue;
+                }
+                $locationId = (int) $locationId;
+                $keptLocationIds[] = $locationId;
+                $locationCode = trim((string) $mapping['bc_location_code']);
+                $existingMapping = BusinessCentralLocationMapping::where('pos_location_id', $locationId)->first();
+                BusinessCentralLocationMapping::updateOrCreate(
+                    ['pos_location_id' => $locationId],
+                    [
+                        'business_id' => $businessId,
+                        'bc_location_code' => $locationCode,
+                        'bc_location_id' => $existingMapping && $existingMapping->bc_location_code === $locationCode
+                            ? $existingMapping->bc_location_id
+                            : null,
+                        'enabled' => true,
+                    ]
+                );
+            }
+            BusinessCentralLocationMapping::where('business_id', $businessId)
+                ->when(! empty($keptLocationIds), fn ($query) => $query->whereNotIn('pos_location_id', $keptLocationIds))
+                ->delete();
+        }
 
         // update payroll-related settings if present
         $payrollKeys = ['payroll_nssf_percent','payroll_shif_percent','payroll_housing_percent','payroll_tax_percent','payroll_personal_relief'];
@@ -948,6 +1044,7 @@ class AdminController extends Controller
             if (! empty($settings->top_selling_low_stock_alert_business_id)) {
                 $params['--business-id'] = (int) $settings->top_selling_low_stock_alert_business_id;
             }
+
             if ($request->boolean('run_top_selling_low_stock_dry_run')) {
                 $params['--dry-run'] = true;
             }
@@ -974,6 +1071,17 @@ class AdminController extends Controller
                 'toast_type' => $request->boolean('run_top_selling_low_stock_dry_run') ? 'info' : 'success',
                 'settings' => $settings->fresh(),
             ]);
+        }
+
+        if ($request->boolean('run_business_central_sync_now')) {
+            $exitCode = Artisan::call('business-central:sync');
+
+            return response()->json([
+                'success' => $exitCode === 0,
+                'message' => trim((string) Artisan::output()) ?: 'Business Central synchronization finished.',
+                'toast_type' => $exitCode === 0 ? 'success' : 'error',
+                'settings' => $settings->fresh(),
+            ], $exitCode === 0 ? 200 : 502);
         }
 
         return response()->json([

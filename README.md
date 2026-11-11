@@ -80,6 +80,24 @@ Deploy, update, and install flows also handle permission-cache reset failures mo
 gracefully so releases do not abort unnecessarily on environments with stricter
 filesystem or cache permissions.
 
+## Microsoft Dynamics 365 Business Central 240
+
+The POS can optionally use Business Central 240 as the system of record for products, customers, and branch inventory.
+
+- The integration is disabled by default, so existing POS behavior is unchanged until a superadmin enables it.
+- Products, prices, customers, blocked status, and location inventory synchronize from BC to POS.
+- Finalized POS sales synchronize to BC as posted sales invoices.
+- Each POS branch can map to a different BC location in the configured BC company.
+- Every sales invoice line carries the mapped BC `locationId`, so posting reduces stock from the correct BC location.
+- New BC items are normally available in POS within one scheduler cycle.
+
+Configure the integration from **Operations Hub → Dynamics 365 Business Central**.
+
+Documentation:
+
+- [Business Central user and administrator guide](docs/BUSINESS_CENTRAL.md)
+- [BC240 AL extension and deployment guide](integrations/business-central/README.md)
+
 ## MPESA Integrations
 
 This project adds support for using separate MPESA credentials for subscription payments versus regular POS/sell payments.

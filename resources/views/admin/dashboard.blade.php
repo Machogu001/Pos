@@ -437,6 +437,24 @@
                         <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">{{ __('payment.configure_etims_settings') }}</p>
                     </div>
                 </div>
+
+            </div>
+        </div>
+
+        <!-- Microsoft Dynamics 365 Business Central -->
+        <div class="tw-transition-all tw-duration-200 tw-bg-white tw-shadow-sm hover:tw-shadow-md tw-rounded-xl hover:tw--translate-y-0.5 tw-ring-1 tw-ring-gray-200 tw-cursor-pointer" onclick="openModal('businessCentralModal')">
+            <div class="tw-p-4 sm:tw-p-5">
+                <div class="tw-flex tw-items-center tw-gap-4">
+                    <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-full sm:tw-w-12 sm:tw-h-12 tw-shrink-0 {{ ($settings->business_central_enabled ?? false) ? 'tw-bg-green-100 tw-text-green-600' : 'tw-bg-gray-100 tw-text-gray-400' }}">
+                        <i class="fab fa-microsoft"></i>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                        <p class="tw-text-sm tw-font-medium tw-text-gray-500 tw-truncate">Dynamics 365 Business Central</p>
+                        <p class="tw-mt-0.5 tw-text-xs tw-text-gray-600 tw-line-clamp-2">
+                            {{ ($settings->business_central_enabled ?? false) ? 'Continuous synchronization enabled' : 'Disabled - POS works independently' }}
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1465,6 +1483,172 @@
         </div>
     </div>
 
+    <!-- Microsoft Dynamics 365 Business Central Modal -->
+    <div class="modal fade" id="businessCentralModal" tabindex="-1" aria-labelledby="businessCentralModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="businessCentralModalLabel">
+                        <i class="fab fa-microsoft me-2"></i>Dynamics 365 Business Central 240
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form action="{{ route('admin.settings.update') }}" method="POST" class="settings-form"
+                      onsubmit="return handleModalFormSubmit(event, this, 'businessCentralModal');">
+                    @csrf
+                    <input type="hidden" name="monthly_price" value="{{ $settings?->monthly_price ?? 0 }}">
+                    <input type="hidden" name="quarterly_price" value="{{ $settings?->quarterly_price ?? 0 }}">
+                    <input type="hidden" name="yearly_price" value="{{ $settings?->yearly_price ?? 0 }}">
+                    <input type="hidden" name="grace_period_days" value="{{ $settings?->grace_period_days ?? 7 }}">
+                    <input type="hidden" name="recent_limit" value="{{ $settings?->recent_limit ?? 5 }}">
+                    <input type="hidden" name="business_central_enabled" value="0">
+
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            When enabled, Business Central supplies products, customers, and stock to the selected POS location.
+                            Finalized POS sales are created and posted in Business Central. When disabled, existing POS behavior is unchanged.
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" name="business_central_enabled"
+                                   id="businessCentralEnabled" value="1"
+                                   {{ ($settings?->business_central_enabled ?? false) ? 'checked' : '' }}>
+                            <label class="form-check-label fw-bold" for="businessCentralEnabled">Enable Business Central as inventory system of record</label>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label">POS business</label>
+                                <select class="form-control" name="business_central_business_id" id="businessCentralBusiness">
+                                    <option value="">Select business</option>
+                                    @foreach(($schedulerBusinesses ?? collect()) as $business)
+                                        <option value="{{ $business->id }}" {{ (int) ($settings?->business_central_business_id ?? 0) === (int) $business->id ? 'selected' : '' }}>
+                                            {{ $business->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">Standard API v2.0 URL</label>
+                                <input type="url" class="form-control" name="business_central_api_url"
+                                       value="{{ $settings?->business_central_api_url ?? '' }}"
+                                       placeholder="https://bc-server:7048/BC240/api/v2.0">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">BC company ID</label>
+                                <input type="text" class="form-control" name="business_central_company_id"
+                                       value="{{ $settings?->business_central_company_id ?? '' }}" placeholder="Company GUID">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">BreMac inventory API collection URL</label>
+                                <input type="url" class="form-control" name="business_central_inventory_url"
+                                       value="{{ $settings?->business_central_inventory_url ?? '' }}"
+                                       placeholder="https://bc-server:7048/BC240/api/bremac/pos/v1.0/companies({company_id})/posInventoryEntries">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold">POS branch to Business Central location mapping</label>
+                                <div class="table-responsive border rounded">
+                                    <table class="table table-sm align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width: 90px;">Sync</th>
+                                                <th>POS business</th>
+                                                <th>POS branch/location</th>
+                                                <th>BC location code</th>
+                                                <th>Resolved BC location ID</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @forelse(($schedulerLocations ?? collect()) as $location)
+                                                @php($bcLocationMapping = ($businessCentralLocationMappings ?? collect())->get($location->id))
+                                                @php($locationBusiness = ($schedulerBusinesses ?? collect())->firstWhere('id', $location->business_id))
+                                                <tr>
+                                                    <td>
+                                                        <input type="hidden" name="business_central_location_mappings[{{ $location->id }}][enabled]" value="0">
+                                                        <input type="checkbox" class="form-check-input"
+                                                               name="business_central_location_mappings[{{ $location->id }}][enabled]" value="1"
+                                                               {{ !empty($bcLocationMapping?->enabled) ? 'checked' : '' }}>
+                                                    </td>
+                                                    <td>{{ $locationBusiness?->name ?? $location->business_id }}</td>
+                                                    <td>{{ $location->name }}</td>
+                                                    <td>
+                                                        <input type="text" class="form-control form-control-sm"
+                                                               name="business_central_location_mappings[{{ $location->id }}][bc_location_code]"
+                                                               value="{{ $bcLocationMapping?->bc_location_code ?? '' }}"
+                                                               placeholder="e.g. MAIN">
+                                                    </td>
+                                                    <td class="small text-muted">{{ $bcLocationMapping?->bc_location_id ?? 'Resolved on first sync' }}</td>
+                                                </tr>
+                                            @empty
+                                                <tr><td colspan="5" class="text-center text-muted">No POS locations are available.</td></tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <small class="text-muted">Each sale line is posted with the BC location ID mapped to the POS branch that created the sale.</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Authentication</label>
+                                <select class="form-control" name="business_central_auth_type" id="businessCentralAuthType">
+                                    @foreach(['basic' => 'Basic / Web Service Access Key', 'oauth2' => 'OAuth 2.0 client credentials', 'bearer' => 'Bearer token'] as $value => $label)
+                                        <option value="{{ $value }}" {{ ($settings?->business_central_auth_type ?? 'basic') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Username</label>
+                                <input type="text" class="form-control" name="business_central_username"
+                                       value="{{ $settings?->business_central_username ?? '' }}" autocomplete="off">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Password, client secret, or token</label>
+                                <input type="password" class="form-control" name="business_central_secret"
+                                       placeholder="{{ !empty($settings?->business_central_secret) ? 'Leave blank to keep current secret' : '' }}"
+                                       autocomplete="new-password">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">OAuth token URL (OAuth only)</label>
+                                <input type="url" class="form-control" name="business_central_token_url"
+                                       value="{{ $settings?->business_central_token_url ?? '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">OAuth client ID</label>
+                                <input type="text" class="form-control" name="business_central_client_id"
+                                       value="{{ $settings?->business_central_client_id ?? '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">OAuth scope</label>
+                                <input type="text" class="form-control" name="business_central_scope"
+                                       value="{{ $settings?->business_central_scope ?? '' }}">
+                            </div>
+                        </div>
+
+                        @if(!empty($settings?->business_central_last_sync_at))
+                            <div class="alert alert-light border mt-3 mb-0">
+                                Last successful sync: {{ $settings->business_central_last_sync_at }}
+                                @if(!empty($settings?->business_central_last_error))
+                                    <br><span class="text-danger">Last error: {{ $settings->business_central_last_error }}</span>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-outline-primary" name="run_business_central_sync_now" value="1">
+                            <i class="fas fa-sync me-2"></i>Save and sync now
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <span class="btn-text"><i class="fas fa-save me-2"></i>Save settings</span>
+                            <span class="btn-loading d-none"><span class="spinner-border spinner-border-sm"></span></span>
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Subscription Enforcement Modal -->
     <div class="modal fade" id="subscriptionEnforcementModal" tabindex="-1" aria-labelledby="subscriptionEnforcementModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-md">
@@ -2282,6 +2466,9 @@
             
             const formAction = '{{ route('admin.settings.update') }}';
             const formData = new FormData(form);
+            if (event.submitter && event.submitter.name) {
+                formData.set(event.submitter.name, event.submitter.value);
+            }
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
             
             // Show loading state
