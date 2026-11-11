@@ -1371,6 +1371,7 @@ return [
     'assigned_to' => 'Ditugaskan kepada',
     'has_no_sell_from' => 'Tidak ada penjualan dari',
     'delivery_note' => 'Lieferschein',
+    'zero_quantity_purchase_cannot_be_received' => 'Artikel mit einer Menge von null können nicht empfangen werden. Geben Sie eine Menge größer als null ein oder entfernen Sie den Artikel.',
     'above_mentioned_items_received_in_good_condition' => 'Die oben genannten Artikel wurden in gutem Zustand erhalten',
     'received_by' => 'Empfangen von',
     'enter_details_below_to_check_repair_status' => 'Geben Sie unten die Details ein, um den Reparaturstatus zu überprüfen',

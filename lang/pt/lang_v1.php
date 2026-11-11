@@ -1400,6 +1400,7 @@ return [
     'assigned_to' => 'Atribuído a',
     'has_no_sell_from' => 'Não tem vendas de',
     'delivery_note' => 'Nota de entrega',
+    'zero_quantity_purchase_cannot_be_received' => 'Não é possível receber itens com quantidade zero. Insira uma quantidade maior que zero ou remova o item.',
     'above_mentioned_items_received_in_good_condition' => 'Itens mencionados acima recebidos em bom estado',
     'received_by' => 'Recebido por',
     'enter_details_below_to_check_repair_status' => 'Insira os detalhes abaixo para verificar o Status do Reparo',

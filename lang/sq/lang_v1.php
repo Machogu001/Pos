@@ -1359,6 +1359,7 @@ return [
     'assigned_to' => 'Caktuar për',
     'has_no_sell_from' => 'Nuk ka shitje nga',
     'delivery_note' => 'Shënime dërgese',
+    'zero_quantity_purchase_cannot_be_received' => 'Artikujt me sasi zero nuk mund të pranohen. Vendosni një sasi më të madhe se zero ose hiqni artikullin.',
     'above_mentioned_items_received_in_good_condition' => 'Artikujt e përmendur më lart janë marrë në gjendje të mirë',
     'received_by' => 'Marrë nga',
     'enter_details_below_to_check_repair_status' => 'Futni detajet më poshtë për të kontrolluar statusin e riparimit',

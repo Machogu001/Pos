@@ -1372,6 +1372,7 @@ return [
     'assigned_to' => 'Assigné à',
     'has_no_sell_from' => "N'a pas de vente depuis",
     'delivery_note' => 'Bon de livraison',
+    'zero_quantity_purchase_cannot_be_received' => 'Les articles dont la quantité est nulle ne peuvent pas être réceptionnés. Saisissez une quantité supérieure à zéro ou supprimez l’article.',
     'above_mentioned_items_received_in_good_condition' => 'Les articles mentionnés ci-dessus ont été reçus en bon état',
     'received_by' => 'Reçu par',
     'enter_details_below_to_check_repair_status' => "Entrez les détails ci-dessous pour vérifier l'état de la réparation",

@@ -1374,6 +1374,7 @@ return [
     'assigned_to' => 'Ditugaskan kepada',
     'has_no_sell_from' => 'Tidak ada penjualan dari',
     'delivery_note' => 'Catatan Pengiriman',
+    'zero_quantity_purchase_cannot_be_received' => 'Barang dengan jumlah nol tidak dapat diterima. Masukkan jumlah lebih dari nol atau hapus barang tersebut.',
     'above_mentioned_items_received_in_good_condition' => 'Item yang disebutkan di atas diterima dalam kondisi baik',
     'received_by' => 'Diterima oleh',
     'enter_details_below_to_check_repair_status' => 'Masukkan detail di bawah untuk memeriksa Status Perbaikan',

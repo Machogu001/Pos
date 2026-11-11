@@ -1379,6 +1379,7 @@ return [
     'assigned_to' => 'مخصص لـ',
     'has_no_sell_from' => 'لا يوجد مبيعات من',
     'delivery_note' => 'مذكرة توصيل',
+    'zero_quantity_purchase_cannot_be_received' => 'لا يمكن استلام الأصناف التي كميتها صفر. أدخل كمية أكبر من صفر أو أزل الصنف.',
     'above_mentioned_items_received_in_good_condition' => 'تم استلام العناصر المذكورة أعلاه في حالة جيدة',
     'received_by' => 'استلم من قبل',
     'enter_details_below_to_check_repair_status' => 'أدخل التفاصيل أدناه للتحقق من حالة الإصلاح',

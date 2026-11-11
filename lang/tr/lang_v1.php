@@ -1376,6 +1376,7 @@ return [
     'assigned_to' => 'Atanmış kişi',
     'has_no_sell_from' => 'Satışı yok',
     'delivery_note' => 'Teslimat Notu',
+    'zero_quantity_purchase_cannot_be_received' => 'Miktarı sıfır olan ürünler teslim alınamaz. Sıfırdan büyük bir miktar girin veya ürünü kaldırın.',
     'above_mentioned_items_received_in_good_condition' => 'Yukarıda bahsedilen ürünler iyi durumda alındı',
     'received_by' => 'Tarafından alındı',
     'enter_details_below_to_check_repair_status' => 'Tamir Durumunu kontrol etmek için aşağıdaki detayları girin',

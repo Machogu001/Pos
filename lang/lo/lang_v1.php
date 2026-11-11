@@ -1442,6 +1442,7 @@ return [
     'assigned_to' => 'ຖືກມອບມາ',
     'has_no_sell_from' => 'ບໍ່ມີການຂາຍຈາກ',
     'delivery_note' => 'ໝາຍການຈັດສົ່ງ',
+    'zero_quantity_purchase_cannot_be_received' => 'ບໍ່ສາມາດຮັບສິນຄ້າທີ່ມີຈຳນວນເປັນສູນໄດ້. ປ້ອນຈຳນວນທີ່ຫຼາຍກວ່າສູນ ຫຼື ລຶບລາຍການນັ້ນ.',
     'above_mentioned_items_received_in_good_condition' => 'ລາຍການທີ່ເລີຍບັນຊີກ່ຽວກັບແຊບ',
     'received_by' => 'ແລ້ວໄດ້ຮັບແລ້ວ',
     'enter_details_below_to_check_repair_status' => 'ໃສ່ລາຍລະອຽດຂ້າງລຸ່ມເພື່ອກວດສອບສະຖານະການສ້ອມແປງ',

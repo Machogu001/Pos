@@ -1370,6 +1370,7 @@ return [
     'assigned_to' => 'Toegewezen aan',
     'has_no_sell_from' => 'Heeft geen verkoop van',
     'delivery_note' => 'Afleveringsbon',
+    'zero_quantity_purchase_cannot_be_received' => 'Artikelen met een hoeveelheid van nul kunnen niet worden ontvangen. Voer een hoeveelheid groter dan nul in of verwijder het artikel.',
     'above_mentioned_items_received_in_good_condition' => 'Bovenstaande vermelde items ontvangen in goede staat',
     'received_by' => 'Ontvangen door',
     'enter_details_below_to_check_repair_status' => 'Voer hieronder de details in om de reparatiestatus te controleren',

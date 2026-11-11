@@ -1414,6 +1414,7 @@ return [
     'assigned_to' => '分配给',
     'has_no_sell_from' => '没有销售来自',
     'delivery_note' => '交货单',
+    'zero_quantity_purchase_cannot_be_received' => '数量为零的商品无法接收。请输入大于零的数量，或移除该商品。',
     'above_mentioned_items_received_in_good_condition' => '以上提到的物品在良好的条件下收到',
     'received_by' => '接收者',
     'enter_details_below_to_check_repair_status' => '在下面输入详细信息以检查维修状态',
