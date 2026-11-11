@@ -138,6 +138,7 @@ The system supports mapping individual payments (including Sell and Purchase pay
 - Account detail responses disable browser caching and reset stale DataTables state to avoid empty Journal Entries tables after deploys or upgrades
 - Ledger queries are schema-safe for installs where `account_transactions.deleted_at` does not exist
 - Sell posting audit logs were reduced to actionable cases only: missing postings, successful repair, and repair failure
+- Contact ledgers load 50 records per page from the server, with 10, 25, 50, and 100 record options. Summaries and statement aging cover the full selected date range; PDF and emailed ledgers remain complete.
 
 Any future schema or accounting-related changes should be accompanied by a brief note in this section or in a dedicated Markdown file.
 

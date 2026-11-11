@@ -125,3 +125,4 @@
 	</table>
 	</div>
 </div>
+@include('contact.partials.ledger_pagination')

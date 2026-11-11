@@ -48,5 +48,17 @@
             <button type="button" class="btn btn-default btn-xs" id="send_ledger"><i class="fas fa-envelope"></i></button>
         </div>
     </div>
-    <div id="contact_ledger_div"></div>
+    <div class="col-md-12">
+        <div class="form-group">
+            <label for="ledger_per_page" id="ledger_show_label"></label>
+            <select id="ledger_per_page" class="form-control input-sm" style="display: inline-block; width: auto;">
+                @foreach([10, 25, 50, 100] as $page_size)
+                    <option value="{{ $page_size }}" @if($page_size == 50) selected @endif>{{ $page_size }}</option>
+                @endforeach
+            </select>
+            <span id="ledger_entries_label"></span>
+        </div>
+        <div id="ledger_loading" role="status" aria-live="polite" style="display: none;"></div>
+    </div>
+    <div id="contact_ledger_div" aria-busy="false"></div>
 </div>

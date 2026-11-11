@@ -1288,7 +1288,7 @@ class ContactController extends Controller
 
         $start_date = request()->start_date;
         $end_date = request()->end_date;
-        $format = request()->format;
+        $format = request()->input('format', 'format_1');
         $location_id = request()->location_id;
 
         $contact = Contact::find($contact_id);
@@ -1312,7 +1312,19 @@ class ContactController extends Controller
 
         $line_details = $format == 'format_3' ? true : false;
 
-        $ledger_details = $this->transactionUtil->getLedgerDetails($contact_id, $start_date, $end_date, $format, $location_id, $line_details);
+        $pagination = null;
+        if (request()->input('action') != 'pdf') {
+            request()->validate([
+                'page' => ['nullable', 'integer', 'min:1'],
+                'per_page' => ['nullable', 'integer', 'in:10,25,50,100'],
+            ]);
+            $pagination = [
+                'page' => (int) (request()->input('page') ?? 1),
+                'per_page' => (int) (request()->input('per_page') ?? 50),
+            ];
+        }
+
+        $ledger_details = $this->transactionUtil->getLedgerDetails($contact_id, $start_date, $end_date, $format, $location_id, $line_details, $pagination);
 
         $location = null;
         if (! empty($location_id)) {
