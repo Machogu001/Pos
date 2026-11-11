@@ -10,7 +10,7 @@ class SyncBusinessCentral extends Command
 {
     protected $signature = 'business-central:sync';
 
-    protected $description = 'Synchronize BC products, customers, inventory, and pending POS sales';
+    protected $description = 'Synchronize BC products, contacts, salespeople, inventory, and pending POS sales';
 
     public function handle(BusinessCentralSyncService $service): int
     {
@@ -23,9 +23,11 @@ class SyncBusinessCentral extends Command
             }
 
             $this->info(sprintf(
-                'Synchronized %d items, %d customers, %d inventory rows, and %d sales.',
+                'Synchronized %d items, %d customers, %d vendors, %d salespeople, %d inventory rows, and %d sales.',
                 $result['items'],
                 $result['customers'],
+                $result['vendors'],
+                $result['salespeople'],
                 $result['inventory'],
                 $result['sales']
             ));

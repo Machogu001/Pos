@@ -5,6 +5,7 @@ namespace App\Services;
 use App\AdminSetting;
 use App\BusinessCentralMapping;
 use App\BusinessCentralLocationMapping;
+use App\BusinessCentralSalesperson;
 use App\Contact;
 use App\Product;
 use App\Transaction;
@@ -37,7 +38,15 @@ class BusinessCentralSyncService
     public function syncAll(): array
     {
         if (! $this->enabledFor()) {
-            return ['enabled' => false, 'items' => 0, 'customers' => 0, 'inventory' => 0, 'sales' => 0];
+            return [
+                'enabled' => false,
+                'items' => 0,
+                'customers' => 0,
+                'vendors' => 0,
+                'salespeople' => 0,
+                'inventory' => 0,
+                'sales' => 0,
+            ];
         }
 
         try {
@@ -45,6 +54,8 @@ class BusinessCentralSyncService
                 'enabled' => true,
                 'items' => $this->syncItems(),
                 'customers' => $this->syncCustomers(),
+                'vendors' => $this->syncVendors(),
+                'salespeople' => $this->syncSalespeople(),
                 'inventory' => $this->syncInventory(),
                 'sales' => $this->syncPendingSales(),
             ];
@@ -85,9 +96,27 @@ class BusinessCentralSyncService
             $bcLocationId = $this->resolveBcLocationId($locationMapping);
 
             $transaction->loadMissing(['contact', 'sell_lines.product', 'sell_lines.variations']);
-            $customerNumber = trim((string) optional($transaction->contact)->custom_field1);
+            $customerMapping = BusinessCentralMapping::where('business_id', $transaction->business_id)
+                ->where('entity_type', 'customer')
+                ->where('local_id', $transaction->contact_id)
+                ->where('status', 'synced')
+                ->first();
+            $customerNumber = trim((string) ($customerMapping->bc_number ?? optional($transaction->contact)->custom_field1));
             if ($customerNumber === '') {
-                throw new RuntimeException('The sale customer has no Business Central customer number in contact custom field 1.');
+                throw new RuntimeException('The sale customer is not synchronized with Business Central.');
+            }
+
+            $salesperson = BusinessCentralSalesperson::where('business_id', $transaction->business_id)
+                ->where('pos_user_id', $transaction->created_by)
+                ->where('available_in_bc', true)
+                ->where('blocked', false)
+                ->first();
+            if (! $salesperson) {
+                $userName = optional(User::find($transaction->created_by))->user_full_name
+                    ?: 'user ID '.$transaction->created_by;
+                throw new RuntimeException(
+                    'POS user '.$userName.' is not mapped to an active Business Central salesperson.'
+                );
             }
 
             $client = $this->client();
@@ -123,6 +152,7 @@ class BusinessCentralSyncService
                 'invoiceDate' => $invoiceDate,
                 'postingDate' => $invoiceDate,
                 'externalDocumentNumber' => (string) $transaction->invoice_no,
+                'salesperson' => $salesperson->code,
             ]);
             $mapping->update([
                 'bc_id' => $invoice['id'] ?? null,
@@ -324,7 +354,7 @@ class BusinessCentralSyncService
                 'custom_field1' => $number,
             ]);
             $contact->fill([
-                'type' => 'customer',
+                'type' => $contact->type === 'supplier' ? 'both' : ($contact->type ?: 'customer'),
                 'name' => $customer['displayName'] ?: $number,
                 'contact_id' => $number,
                 'tax_number' => $customer['taxRegistrationNumber'] ?? null,
@@ -344,6 +374,108 @@ class BusinessCentralSyncService
             $this->markSynced('customer', $contact->id, $customer['id'] ?? null, $number);
             $count++;
         }
+
+        return $count;
+    }
+
+    public function syncVendors(): int
+    {
+        $vendors = $this->client()->getCollection('vendors', [
+            '$select' => 'id,number,displayName,addressLine1,addressLine2,city,state,country,postalCode,phoneNumber,email,taxRegistrationNumber,blocked',
+        ]);
+        $businessId = (int) $this->settings->business_central_business_id;
+        $creatorId = $this->creatorId($businessId);
+        $count = 0;
+
+        foreach ($vendors as $vendor) {
+            $number = trim((string) ($vendor['number'] ?? ''));
+            if ($number === '') {
+                continue;
+            }
+
+            $mapping = BusinessCentralMapping::where('business_id', $businessId)
+                ->where('entity_type', 'vendor')
+                ->where(function ($query) use ($vendor, $number) {
+                    $query->where('bc_number', $number);
+                    if (! empty($vendor['id'])) {
+                        $query->orWhere('bc_id', $vendor['id']);
+                    }
+                })
+                ->first();
+            $contact = $mapping ? Contact::withTrashed()->find($mapping->local_id) : null;
+            if (! $contact) {
+                $contact = Contact::withTrashed()
+                    ->where('business_id', $businessId)
+                    ->where('type', 'supplier')
+                    ->where('contact_id', $number)
+                    ->first();
+            }
+            $contact = $contact ?: new Contact(['business_id' => $businessId]);
+            $contact->fill([
+                'type' => $contact->type === 'customer' ? 'both' : ($contact->type ?: 'supplier'),
+                'supplier_business_name' => $vendor['displayName'] ?: $number,
+                'name' => $vendor['displayName'] ?: $number,
+                'contact_id' => $number,
+                'tax_number' => $vendor['taxRegistrationNumber'] ?? null,
+                'address_line_1' => $vendor['addressLine1'] ?? null,
+                'address_line_2' => $vendor['addressLine2'] ?? null,
+                'city' => $vendor['city'] ?? null,
+                'state' => $vendor['state'] ?? null,
+                'country' => $vendor['country'] ?? null,
+                'zip_code' => $vendor['postalCode'] ?? null,
+                'mobile' => $vendor['phoneNumber'] ?: '-',
+                'email' => $vendor['email'] ?? null,
+                'contact_status' => ! empty($vendor['blocked']) ? 'inactive' : 'active',
+                'created_by' => $contact->created_by ?: $creatorId,
+            ]);
+            $contact->deleted_at = null;
+            $contact->save();
+            $this->markSynced('vendor', $contact->id, $vendor['id'] ?? null, $number);
+            $count++;
+        }
+
+        return $count;
+    }
+
+    public function syncSalespeople(): int
+    {
+        $rows = $this->client()->getCollection('salespeoplePurchasers', [
+            '$select' => 'id,code,displayName,email,phoneNo,blocked',
+        ]);
+        $businessId = (int) $this->settings->business_central_business_id;
+        $seenIds = [];
+        $count = 0;
+
+        foreach ($rows as $row) {
+            $bcId = trim((string) ($row['id'] ?? ''));
+            $code = trim((string) ($row['code'] ?? ''));
+            if ($bcId === '' || $code === '') {
+                continue;
+            }
+
+            $salesperson = BusinessCentralSalesperson::where('business_id', $businessId)
+                ->where(function ($query) use ($bcId, $code) {
+                    $query->where('bc_id', $bcId)->orWhere('code', $code);
+                })
+                ->first() ?: new BusinessCentralSalesperson(['business_id' => $businessId]);
+            $salesperson->fill([
+                'bc_id' => $bcId,
+                'code' => $code,
+                'display_name' => $row['displayName'] ?: $code,
+                'email' => $row['email'] ?? null,
+                'phone_number' => $row['phoneNo'] ?? null,
+                'blocked' => (bool) ($row['blocked'] ?? false),
+                'available_in_bc' => true,
+                'last_synced_at' => now(),
+            ]);
+            $salesperson->save();
+            $seenIds[] = $salesperson->id;
+            $count++;
+        }
+
+        BusinessCentralSalesperson::where('business_id', $businessId)
+            ->when(! empty($seenIds), fn ($query) => $query->whereNotIn('id', $seenIds))
+            ->update(['available_in_bc' => false]);
 
         return $count;
     }

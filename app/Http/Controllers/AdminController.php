@@ -12,6 +12,7 @@ use App\AdminSetting;
 use App\Business;
 use App\BusinessLocation;
 use App\BusinessCentralLocationMapping;
+use App\BusinessCentralSalesperson;
 use App\Services\SellPostingAuditService;
 use Illuminate\Support\Facades\Schema;
 
@@ -35,6 +36,20 @@ class AdminController extends Controller
     $settings = AdminSetting::first() ?? new AdminSetting();
     $businessCentralLocationMappings = Schema::hasTable('business_central_location_mappings')
         ? BusinessCentralLocationMapping::all()->keyBy('pos_location_id')
+        : collect();
+    $businessCentralBusinessId = (int) ($settings->business_central_business_id ?? 0);
+    $businessCentralSalespeople = Schema::hasTable('business_central_salespeople')
+        ? BusinessCentralSalesperson::where('business_id', $businessCentralBusinessId)
+            ->where('available_in_bc', true)
+            ->orderBy('display_name')
+            ->get()
+        : collect();
+    $businessCentralUsers = $businessCentralBusinessId
+        ? User::where('business_id', $businessCentralBusinessId)
+            ->where('status', 'active')
+            ->orderBy('first_name')
+            ->orderBy('username')
+            ->get()
         : collect();
         $accountingBackfillStatus = $this->buildAccountingBackfillStatus($settings);
         $stockCostingBackfillStatus = $this->buildStockCostingBackfillStatus($settings);
@@ -103,7 +118,7 @@ class AdminController extends Controller
             'activeSubscriptions', 'pendingSubscriptions', 'monthlyRevenue',
             'sellPostingAuditSummary', 'accountingBackfillStatus', 'stockCostingBackfillStatus', 'topSellingLowStockAlertStatus',
             'schedulerBusinesses', 'schedulerLocations'
-            , 'businessCentralLocationMappings'
+            , 'businessCentralLocationMappings', 'businessCentralSalespeople', 'businessCentralUsers'
         ));
     }
 
@@ -166,7 +181,7 @@ class AdminController extends Controller
         'activeSubscriptions', 'pendingSubscriptions', 'monthlyRevenue',
         'sellPostingAuditSummary', 'accountingBackfillStatus', 'stockCostingBackfillStatus', 'topSellingLowStockAlertStatus',
         'schedulerBusinesses', 'schedulerLocations'
-        , 'businessCentralLocationMappings'
+        , 'businessCentralLocationMappings', 'businessCentralSalespeople', 'businessCentralUsers'
     ));
 }
 
@@ -802,6 +817,8 @@ class AdminController extends Controller
             'business_central_location_mappings' => 'nullable|array',
             'business_central_location_mappings.*.enabled' => 'nullable|boolean',
             'business_central_location_mappings.*.bc_location_code' => 'nullable|string|max:20',
+            'business_central_salesperson_mappings' => 'nullable|array',
+            'business_central_salesperson_mappings.*' => 'nullable|integer|exists:business_central_salespeople,id',
             'business_central_auth_type' => 'nullable|required_if:business_central_enabled,1|in:basic,oauth2,bearer',
             'business_central_username' => 'nullable|required_if:business_central_auth_type,basic|string|max:255',
             'business_central_secret' => 'nullable|string|max:4000',
@@ -950,6 +967,33 @@ class AdminController extends Controller
             BusinessCentralLocationMapping::where('business_id', $businessId)
                 ->when(! empty($keptLocationIds), fn ($query) => $query->whereNotIn('pos_location_id', $keptLocationIds))
                 ->delete();
+        }
+
+        if ($request->has('business_central_salesperson_mappings')
+            && Schema::hasTable('business_central_salespeople')) {
+            $businessId = (int) $request->input('business_central_business_id');
+            $assignments = collect($request->input('business_central_salesperson_mappings', []))
+                ->filter(fn ($salespersonId) => $salespersonId !== null && $salespersonId !== '');
+            if ($assignments->values()->duplicates()->isNotEmpty()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'business_central_salesperson_mappings' => 'A Business Central salesperson can only be assigned to one POS user.',
+                ]);
+            }
+
+            BusinessCentralSalesperson::where('business_id', $businessId)->update(['pos_user_id' => null]);
+            foreach ($assignments as $userId => $salespersonId) {
+                $user = User::where('business_id', $businessId)->find($userId);
+                $salesperson = BusinessCentralSalesperson::where('business_id', $businessId)
+                    ->where('available_in_bc', true)
+                    ->where('blocked', false)
+                    ->find($salespersonId);
+                if (! $user || ! $salesperson) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'business_central_salesperson_mappings' => 'Every mapping must use an active POS user and an active BC salesperson from the selected business.',
+                    ]);
+                }
+                $salesperson->update(['pos_user_id' => $user->id]);
+            }
         }
 
         // update payroll-related settings if present

@@ -6,7 +6,7 @@ BreMac POS can connect to Business Central 240 without changing normal POS behav
 
 When enabled:
 
-- BC owns products, customers, prices, blocked status, and inventory.
+- BC owns products, customers, vendors, salespeople, prices, blocked status, and inventory.
 - POS synchronizes BC master data and stock continuously.
 - POS sends finalized sales to BC and posts them as sales invoices.
 - POS branches map to BC locations, ensuring sales reduce stock from the correct warehouse.
@@ -24,7 +24,9 @@ The current integration supports one BC company with multiple mapped BC location
 7. Enter the BreMac inventory API URL.
 8. Configure authentication.
 9. Enable each POS branch that should synchronize and enter its exact BC location code.
-10. Select **Save and sync now**.
+10. Select **Save and sync now** to import BC master data.
+11. Reopen the card and map every POS user who makes sales to an active BC salesperson.
+12. Save the settings again.
 
 If the integration is disabled, the scheduler and sale listener skip BC processing and POS continues to work independently.
 
@@ -58,7 +60,7 @@ BC is authoritative. Later changes to the name, unit, cost, selling price, or bl
 
 ## Customer synchronization
 
-BC customers synchronize to POS customers. The BC customer number is stored in POS contact custom field 1 and is required when a POS sale is sent to BC.
+All BC customers synchronize to POS customers. The BC customer number is stored in POS contact custom field 1 and in the integration mapping used when a POS sale is sent to BC.
 
 Customer details synchronized include:
 
@@ -68,6 +70,25 @@ Customer details synchronized include:
 - City, state, country, and postal code
 - Phone and email
 - Blocked/active status
+
+## Vendor synchronization
+
+All BC vendors synchronize one way from BC to POS suppliers. Vendor number, display name, tax number, address, phone, email, and blocked status are updated on each synchronization. POS does not create or update vendors in BC.
+
+Customer and vendor mappings are stored separately, so a BC customer number and BC vendor number can be tracked independently.
+
+## Salesperson mapping
+
+The standard BC `salespeoplePurchasers` API supplies the salesperson list. Synchronization does not create POS login accounts and does not create salespeople in BC.
+
+In Operations Hub, map each active POS user to one active BC salesperson code. A BC salesperson can be assigned to only one POS user. The mapping is stored by BC record ID and code rather than relying on a potentially duplicated display name.
+
+If a POS user is not mapped, or the selected salesperson is blocked or no longer available in BC:
+
+- The sale remains finalized in POS.
+- BC synchronization fails with an explicit mapping error.
+- No fallback or incorrect salesperson is used.
+- After correcting the mapping, **Save and sync now** or the scheduler retries the sale.
 
 ## Inventory synchronization
 
@@ -84,14 +105,15 @@ Only finalized `sell` transactions are synchronized. Subscription invoices are e
 For each sale:
 
 1. POS locates the mapping for the transaction's POS location.
-2. POS resolves the BC customer number from contact custom field 1.
-3. POS creates a BC sales invoice using the POS invoice number as the external document number.
-4. POS creates each invoice line using the item SKU/BC item number.
-5. Each line receives the mapped BC `locationId`.
-6. POS invokes the BC posting action.
-7. BC creates the posted invoice and updates inventory for the mapped location.
+2. POS resolves the BC customer number from its synchronization mapping.
+3. POS resolves the transaction creator to the configured BC salesperson.
+4. POS creates a BC sales invoice using the POS invoice number as the external document number and sends the salesperson code.
+5. POS creates each invoice line using the item SKU/BC item number.
+6. Each line receives the mapped BC `locationId`.
+7. POS invokes the BC posting action.
+8. BC creates the posted invoice and updates inventory for the mapped location.
 
-An unmapped branch or missing customer/item number creates an explicit synchronization failure. POS does not silently use a default BC warehouse.
+An unmapped branch, user, customer, or item creates an explicit synchronization failure. POS does not silently use a default BC warehouse or salesperson.
 
 ## Synchronization frequency
 
@@ -105,8 +127,10 @@ The command synchronizes:
 
 1. Items
 2. Customers
-3. Inventory for every enabled branch mapping
-4. Pending or retryable finalized sales
+3. Vendors
+4. Salespeople
+5. Inventory for every enabled branch mapping
+6. Pending or retryable finalized sales
 
 Use **Save and sync now** to run it immediately after changing configuration.
 
@@ -129,9 +153,11 @@ After enabling:
 1. Create a test item in BC and confirm it appears in POS.
 2. Add inventory to two BC locations and confirm each POS branch shows only its mapped quantity.
 3. Synchronize a BC customer and use it in a POS test sale.
-4. Finalize one sale in each POS branch.
-5. Confirm each BC posted invoice line has the expected location.
-6. Confirm BC inventory decreases only in that location.
+4. Synchronize a BC vendor and confirm it appears as a POS supplier.
+5. Map the test POS user to a BC salesperson.
+6. Finalize one sale in each POS branch.
+7. Confirm each BC posted invoice has the expected salesperson and each line has the expected location.
+8. Confirm BC inventory decreases only in that location.
 
 ## Troubleshooting
 
@@ -152,7 +178,8 @@ Confirm the scheduler is running, the item has a number, and the integration acc
 Confirm:
 
 - The POS branch is mapped.
-- The POS customer came from BC or has the correct BC customer number in custom field 1.
+- The POS customer came from BC and has a synchronized mapping.
+- The POS user who created the sale is mapped to an active BC salesperson.
 - Every sold SKU exists in BC.
 - The integration account can create and post sales invoices.
 

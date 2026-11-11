@@ -82,11 +82,11 @@ filesystem or cache permissions.
 
 ## Microsoft Dynamics 365 Business Central 240
 
-The POS can optionally use Business Central 240 as the system of record for products, customers, and branch inventory.
+The POS can optionally use Business Central 240 as the system of record for products, customers, vendors, salespeople, and branch inventory.
 
 - The integration is disabled by default, so existing POS behavior is unchanged until a superadmin enables it.
-- Products, prices, customers, blocked status, and location inventory synchronize from BC to POS.
-- Finalized POS sales synchronize to BC as posted sales invoices.
+- Products, prices, customers, vendors, salespeople, blocked status, and location inventory synchronize from BC to POS.
+- Finalized POS sales synchronize to BC as posted sales invoices with the logged-in POS user's mapped BC salesperson code.
 - Each POS branch can map to a different BC location in the configured BC company.
 - Every sales invoice line carries the mapped BC `locationId`, so posting reduces stock from the correct BC location.
 - New BC items are normally available in POS within one scheduler cycle.

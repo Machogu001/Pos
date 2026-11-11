@@ -1507,8 +1507,9 @@
 
                     <div class="modal-body">
                         <div class="alert alert-info">
-                            When enabled, Business Central supplies products, customers, and stock to the selected POS location.
-                            Finalized POS sales are created and posted in Business Central. When disabled, existing POS behavior is unchanged.
+                            When enabled, Business Central supplies products, customers, vendors, salespeople, and stock to POS.
+                            Finalized POS sales are posted with the BC salesperson mapped to the logged-in POS user.
+                            When disabled, existing POS behavior is unchanged.
                         </div>
 
                         <div class="form-check form-switch mb-3">
@@ -1588,6 +1589,51 @@
                                     </table>
                                 </div>
                                 <small class="text-muted">Each sale line is posted with the BC location ID mapped to the POS branch that created the sale.</small>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold">POS user to Business Central salesperson mapping</label>
+                                <div class="table-responsive border rounded">
+                                    <table class="table table-sm align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>POS user</th>
+                                                <th>Username</th>
+                                                <th>Business Central salesperson</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @forelse(($businessCentralUsers ?? collect()) as $posUser)
+                                                @php($assignedSalesperson = ($businessCentralSalespeople ?? collect())->firstWhere('pos_user_id', $posUser->id))
+                                                <tr>
+                                                    <td>{{ $posUser->user_full_name ?: $posUser->username }}</td>
+                                                    <td>{{ $posUser->username }}</td>
+                                                    <td>
+                                                        <select class="form-control form-control-sm"
+                                                                name="business_central_salesperson_mappings[{{ $posUser->id }}]">
+                                                            <option value="">Not mapped</option>
+                                                            @foreach(($businessCentralSalespeople ?? collect()) as $salesperson)
+                                                                <option value="{{ $salesperson->id }}"
+                                                                    {{ (int) ($assignedSalesperson?->id ?? 0) === (int) $salesperson->id ? 'selected' : '' }}
+                                                                    {{ $salesperson->blocked ? 'disabled' : '' }}>
+                                                                    {{ $salesperson->display_name }} ({{ $salesperson->code }}){{ $salesperson->blocked ? ' - blocked' : '' }}
+                                                                </option>
+                                                            @endforeach
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                            @empty
+                                                <tr>
+                                                    <td colspan="3" class="text-center text-muted">
+                                                        Save and sync first to import BC salespeople, then reopen this card to map POS users.
+                                                    </td>
+                                                </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <small class="text-muted">
+                                    Sales from an unmapped POS user remain completed in POS, but their BC synchronization fails until the user is mapped and the sync is retried.
+                                </small>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Authentication</label>

@@ -8,12 +8,12 @@ For day-to-day configuration and operating behavior, see [the Business Central a
 
 The integration uses:
 
-- Business Central standard API v2.0 for items, customers, locations, sales invoices, sales invoice lines, and invoice posting.
+- Business Central standard API v2.0 for items, customers, vendors, salespeople/purchasers, locations, sales invoices, sales invoice lines, and invoice posting.
 - The included BreMac custom API for location-filtered open Item Ledger Entries.
 - Laravel's scheduler for continuous synchronization.
 - Persistent POS-to-BC entity and location mappings for idempotency and branch-safe stock synchronization.
 
-BC remains the system of record for product master data, customers, and physical inventory. POS remains the point where cashiers finalize sales.
+BC remains the system of record for product master data, customers, vendors, salespeople, and physical inventory. POS remains the point where cashiers finalize sales.
 
 ## Included AL objects
 
@@ -36,7 +36,7 @@ The inventory API exposes open Item Ledger Entries with item number, location co
 
 The integration account also needs standard API permissions to:
 
-- Read companies, locations, items, customers, and posted sales invoices.
+- Read companies, locations, items, customers, vendors, salespeople/purchasers, and posted sales invoices.
 - Create and delete draft sales invoices.
 - Create sales invoice lines.
 - Post sales invoices.
@@ -95,6 +95,9 @@ The command exits successfully without contacting BC when the integration is dis
 | Blocked item | Inactive product |
 | Customer number | Contact custom field 1 and contact ID |
 | Customer display name and details | POS customer |
+| Vendor number and details | POS supplier and vendor mapping |
+| Salesperson/purchaser ID and code | Imported salesperson available for POS user mapping |
+| POS transaction creator | Mapped BC salesperson on the sales invoice |
 | Location GUID/code | Configured POS branch/location mapping |
 | Remaining Item Ledger Entry quantity | POS branch quantity available |
 | POS invoice number | BC external document number |
@@ -117,6 +120,7 @@ Inventory synchronization runs independently for every enabled mapping. Before a
 - Non-idempotent POST requests are not automatically retried.
 - If line creation fails, POS attempts to remove the incomplete BC draft.
 - Unmapped POS branches fail explicitly instead of using the wrong BC location.
+- Unmapped POS users fail explicitly instead of using the wrong BC salesperson.
 - Failed sales remain recorded in POS and are retried by the scheduler when it is safe to do so.
 
 ## Deployment
@@ -134,6 +138,7 @@ Required migrations create:
 - Business Central configuration columns on `admin_settings`
 - `business_central_mappings`
 - `business_central_location_mappings`
+- `business_central_salespeople`
 
 ## Troubleshooting
 
@@ -158,5 +163,6 @@ Required migrations create:
 - Confirm the sale is final and is not a subscription invoice.
 - Confirm its POS branch has an enabled BC mapping.
 - Confirm the customer has a BC customer number in POS contact custom field 1.
+- Confirm the transaction creator is mapped to an active BC salesperson in Operations Hub.
 - Confirm every sold item SKU exists as a BC item number.
 - Check `storage/logs/laravel.log` and the Operations Hub last synchronization error.

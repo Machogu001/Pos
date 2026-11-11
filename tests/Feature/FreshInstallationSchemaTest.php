@@ -29,6 +29,16 @@ class FreshInstallationSchemaTest extends TestCase
             'paid_on',
             'created_by',
         ]));
+        $this->assertTrue(Schema::hasColumns('business_central_salespeople', [
+            'business_id',
+            'pos_user_id',
+            'bc_id',
+            'code',
+            'display_name',
+            'blocked',
+            'available_in_bc',
+            'last_synced_at',
+        ]));
     }
 
     public function test_command_line_fresh_reinstall_recreates_the_required_schema()
