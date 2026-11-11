@@ -1370,6 +1370,7 @@ return [
     'assigned_to' => 'सौंपा गया',
     'has_no_sell_from' => 'से कोई बिक्री नहीं है',
     'delivery_note' => 'डिलीवरी नोट',
+    'zero_quantity_purchase_cannot_be_received' => 'शून्य मात्रा वाली वस्तुएँ प्राप्त नहीं की जा सकतीं। शून्य से अधिक मात्रा दर्ज करें या वस्तु हटा दें।',
     'above_mentioned_items_received_in_good_condition' => 'उपर उल्लिखित आइटम सुरक्षित स्थिति में प्राप्त हुए',
     'received_by' => 'द्वारा प्राप्त',
     'enter_details_below_to_check_repair_status' => 'मरम्मत की स्थिति की जांच के लिए नीचे दिए गए विवरण दर्ज करें',

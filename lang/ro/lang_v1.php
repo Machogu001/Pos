@@ -1410,6 +1410,7 @@ return [
     'assigned_to' => 'Alocat către',
     'has_no_sell_from' => 'Nu are vânzări de la',
     'delivery_note' => 'Nota de livrare',
+    'zero_quantity_purchase_cannot_be_received' => 'Articolele cu cantitate zero nu pot fi recepționate. Introduceți o cantitate mai mare decât zero sau eliminați articolul.',
     'above_mentioned_items_received_in_good_condition' => 'Articolele menționate mai sus au fost primite în stare bună',
     'received_by' => 'Primit de',
     'enter_details_below_to_check_repair_status' => 'Introduceți detaliile de mai jos pentru a verifica starea reparației',

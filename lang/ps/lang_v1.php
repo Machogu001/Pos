@@ -1382,6 +1382,7 @@ return [
     'assigned_to' => 'غیر مختصر شوی',
     'has_no_sell_from' => 'د لکه چې پلور شوی نه لري',
     'delivery_note' => 'د پیرل یادښت',
+    'zero_quantity_purchase_cannot_be_received' => 'هغه توکي چې اندازه یې صفر وي، نه شي ترلاسه کېدای. له صفر څخه زیاته اندازه دننه کړئ یا توکی لرې کړئ.',
     'above_mentioned_items_received_in_good_condition' => 'د پښتو بندګان چې په ښه حالت کې مونږ ته راغلۍ شوې',
     'received_by' => 'له لارې ملرې',
     'enter_details_below_to_check_repair_status' => 'د ترمیم وضعیت چیک کولو لپاره لاندې معلومات دننه کړئ',

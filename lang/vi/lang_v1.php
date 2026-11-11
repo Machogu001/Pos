@@ -1385,6 +1385,7 @@ return [
     'assigned_to' => 'Được giao cho',
     'has_no_sell_from' => 'Không có bán từ',
     'delivery_note' => 'Chú thích giao hàng',
+    'zero_quantity_purchase_cannot_be_received' => 'Không thể nhận các mặt hàng có số lượng bằng không. Hãy nhập số lượng lớn hơn không hoặc xóa mặt hàng.',
     'above_mentioned_items_received_in_good_condition' => 'Các mục đã nói ở trên đã được nhận trong tình trạng tốt',
     'received_by' => 'Được nhận bởi',
     'enter_details_below_to_check_repair_status' => 'Nhập chi tiết bên dưới để kiểm tra Trạng thái Sửa chữa',
