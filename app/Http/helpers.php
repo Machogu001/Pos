@@ -60,22 +60,65 @@ if (! function_exists('pos_release_manifest')) {
     }
 }
 
+if (! function_exists('pos_release_commit')) {
+    function pos_release_commit(): ?string
+    {
+        $repoRoot = escapeshellarg(base_path());
+        $commit = trim((string) @shell_exec("cd {$repoRoot} && git rev-parse --verify HEAD 2>/dev/null"));
+
+        return preg_match('/^[a-f0-9]{40,64}$/i', $commit) ? $commit : null;
+    }
+}
+
+if (! function_exists('pos_increment_patch_version')) {
+    function pos_increment_patch_version(string $version): string
+    {
+        $version = ltrim(trim($version), 'vV');
+        if (! preg_match('/^(\d+)\.(\d+)(?:\.(\d+))?(?:[-+][0-9A-Za-z.-]+)?$/', $version, $matches)) {
+            throw new \InvalidArgumentException("Cannot increment non-semantic release version: {$version}");
+        }
+
+        return $matches[1].'.'.$matches[2].'.'.((int) ($matches[3] ?? 0) + 1);
+    }
+}
+
+if (! function_exists('pos_release_version_for_commit')) {
+    function pos_release_version_for_commit(?string $commit, ?array $manifest, ?string $baseVersion): string
+    {
+        $manifestVersion = trim((string) ($manifest['version'] ?? ''));
+        if ($commit !== null && $manifestVersion !== '') {
+            $manifestVersion = ltrim($manifestVersion, 'vV');
+            $baseVersion = ltrim(trim((string) $baseVersion), 'vV');
+
+            if ($baseVersion !== '' && version_compare($baseVersion, $manifestVersion, '>')) {
+                return $baseVersion;
+            }
+
+            if (($manifest['source_commit'] ?? null) === $commit) {
+                return $manifestVersion;
+            }
+
+            return pos_increment_patch_version($manifestVersion);
+        }
+
+        $baseVersion = trim((string) $baseVersion);
+
+        return $baseVersion !== '' ? ltrim($baseVersion, 'vV') : '13.3';
+    }
+}
+
 if (! function_exists('pos_release_version')) {
     function pos_release_version(): string
     {
+        $manifest = pos_release_manifest();
+        $commit = pos_release_commit();
+
         $envVersion = trim((string) env('APP_VERSION', ''));
-        if ($envVersion !== '') {
-            return ltrim($envVersion, 'vV');
-        }
-
         $repoRoot = escapeshellarg(base_path());
-
         $tag = trim((string) @shell_exec("cd {$repoRoot} && git describe --tags --abbrev=0 2>/dev/null"));
-        if ($tag !== '') {
-            return ltrim($tag, "vV");
-        }
+        $baseVersion = $envVersion !== '' ? $envVersion : ($tag !== '' ? $tag : '13.3');
 
-        return '13.3';
+        return pos_release_version_for_commit($commit, $manifest, $baseVersion);
     }
 }
 

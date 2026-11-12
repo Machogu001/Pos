@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Services\PosInstaller;
 use App\Utils\InstallUtil;
 use Composer\Semver\Comparator;
+use Dotenv\Dotenv;
+use Illuminate\Database\Connectors\MySqlConnector;
 use Illuminate\Http\Request;
+use Illuminate\Support\Env;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -51,14 +54,21 @@ class InstallController extends Controller
                 return redirect()->route('login');
             }
 
-            // If .env already exists, treat installer as completed and redirect.
-            // This avoids exposing install screens on live systems.
-            if (file_exists(base_path('.env')) || $this->isInstalledCompletely()) {
+            $envPath = base_path('.env');
+            $pendingHash = session('install.pending_env_hash');
+            $resumingWizard = $request->routeIs('install.installAlternate')
+                && is_string($pendingHash)
+                && is_file($envPath)
+                && is_readable($envPath)
+                && hash_equals($pendingHash, hash_file('sha256', $envPath))
+                && ! $this->isInstalledCompletely();
+
+            if (file_exists($envPath) && ! $resumingWizard) {
                 return redirect()->route('login');
             }
 
             return $next($request);
-        })->except(['updateConfirmation', 'update']);
+        });
 
         //Check if mac based activation key is required or not.
         $this->macActivationKeyChecker = false;
@@ -66,8 +76,6 @@ class InstallController extends Controller
             include_once __DIR__.'/MacActivationKeyChecker.php';
             $this->macActivationKeyChecker = $mac_is_enabled;
         }
-
-        $this->installSettings();
     }
 
     /**
@@ -158,12 +166,12 @@ class InstallController extends Controller
         $output = [];
 
         //Check for php version
-        $output['php'] = (PHP_MAJOR_VERSION >= 7 && PHP_MINOR_VERSION >= 1) ? true : false;
+        $output['php'] = version_compare(PHP_VERSION, '8.0.0', '>=');
         $output['php_version'] = PHP_VERSION;
 
         //Check for php extensions
         $output['openssl'] = extension_loaded('openssl') ? true : false;
-        $output['pdo'] = extension_loaded('pdo') ? true : false;
+        $output['pdo'] = extension_loaded('pdo') && extension_loaded('pdo_mysql');
         $output['mbstring'] = extension_loaded('mbstring') ? true : false;
         $output['tokenizer'] = extension_loaded('tokenizer') ? true : false;
         $output['xml'] = extension_loaded('xml') ? true : false;
@@ -238,17 +246,19 @@ class InstallController extends Controller
             $input['APP_DEBUG'] = 'false';
             $input['APP_URL'] = url('/');
             $input['APP_ENV'] = 'live';
+            $input['SESSION_COOKIE'] = config('session.cookie');
 
             //Check for database details
-            $mysql_link = @mysqli_connect($input['DB_HOST'], $input['DB_USERNAME'], $input['DB_PASSWORD'], $input['DB_DATABASE'], $input['DB_PORT']);
-            if (mysqli_connect_errno()) {
-                $msg = '<b>ERROR</b>: Failed to connect to MySQL: '.mysqli_connect_error();
-                $msg .= "<br/>Provide correct details for 'Database Host', 'Database Port', 'Database Name', 'Database Username', 'Database Password'.";
-
-                return redirect()
-                    ->back()
-                    ->with('error', $msg);
-            }
+            app(MySqlConnector::class)->connect(array_replace(
+                config('database.connections.mysql'),
+                [
+                    'host' => $input['DB_HOST'],
+                    'port' => $input['DB_PORT'],
+                    'database' => $input['DB_DATABASE'],
+                    'username' => $input['DB_USERNAME'],
+                    'password' => $input['DB_PASSWORD'] ?? '',
+                ]
+            ));
 
             //Check for activation key
             if ($this->macActivationKeyChecker) {
@@ -270,11 +280,20 @@ class InstallController extends Controller
 
             $env_lines = file($envPathExample);
             foreach ($input as $index => $value) {
+                $replacement = $index.'="'.str_replace(
+                    ['\\', '"', '$', "\r", "\n"],
+                    ['\\\\', '\\"', '\\$', '', '\\n'],
+                    (string) $value
+                ).'"'.PHP_EOL;
+                $found = false;
                 foreach ($env_lines as $key => $line) {
-                    //Check if present then replace it.
-                    if (strpos($line, $index) !== false) {
-                        $env_lines[$key] = $index.'="'.$value.'"'.PHP_EOL;
+                    if (preg_match('/^\s*'.preg_quote($index, '/').'\s*=/', $line)) {
+                        $env_lines[$key] = $replacement;
+                        $found = true;
                     }
+                }
+                if (! $found) {
+                    $env_lines[] = $replacement;
                 }
             }
 
@@ -284,15 +303,18 @@ class InstallController extends Controller
             $write_success = @file_put_contents($envPath, $envContent) !== false;
 
             if ($write_success) {
+                $this->loadWizardEnvironment();
                 // Artisan commands
                 $this->runArtisanCommands();
 
+                session()->forget('install.pending_env_hash');
                 session(['install.just_completed' => true]);
 
                 return redirect()->route('install.success');
             }
 
             $this->deleteEnv();
+            session(['install.pending_env_hash' => hash('sha256', $envContent)]);
 
             return view('install.envText')
                 ->with(compact('envContent', 'envPath'));
@@ -327,8 +349,10 @@ class InstallController extends Controller
                     ->with('error', 'Looks like you haven\'t created the .env file '.$envPath);
             }
 
+            $this->loadWizardEnvironment();
             $this->runArtisanCommands();
 
+            session()->forget('install.pending_env_hash');
             session(['install.just_completed' => true]);
 
             return redirect()->route('install.success');
@@ -343,6 +367,20 @@ class InstallController extends Controller
             return redirect()->back()
                 ->with('error', 'Something went wrong, please try again!!');
         }
+    }
+
+    private function loadWizardEnvironment(): void
+    {
+        Dotenv::create(Env::getRepository(), base_path())->load();
+        config([
+            'database' => require config_path('database.php'),
+            'app.name' => env('APP_NAME'),
+            'app.url' => env('APP_URL'),
+            'app.env' => env('APP_ENV'),
+            'app.debug' => filter_var(env('APP_DEBUG', false), FILTER_VALIDATE_BOOLEAN),
+            'app.key' => env('APP_KEY'),
+        ]);
+        DB::purge();
     }
 
     public function success()

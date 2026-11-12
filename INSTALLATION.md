@@ -13,7 +13,7 @@ Both paths run the same backend workflow through `App\Services\PosInstaller` so 
 
 ## Prerequisites
 
-- PHP with the extensions required by the browser installer check: `openssl`, `pdo`, `mbstring`, `tokenizer`, `xml`, `curl`, `zip`, `gd`
+- PHP 8.0 or later with the extensions required by the browser installer check: `openssl`, `pdo`, `pdo_mysql`, `mbstring`, `tokenizer`, `xml`, `curl`, `zip`, `gd`
 - MySQL or MariaDB database
 - Writable `storage/` and `bootstrap/cache/`
 - A populated `.env.example` file in the project root
@@ -31,6 +31,16 @@ Use this path when you have shell access and want the most direct, repeatable in
 ```bash
 php artisan pos:install --force
 ```
+
+On Linux servers where CLI and PHP-FPM use different accounts, use the
+permission-safe wrapper instead:
+
+```bash
+sudo bash scripts/deploy_as_web_user.sh www-data --install --force
+```
+
+Replace `www-data` with the actual PHP worker account. The wrapper repairs
+runtime ownership before Laravel starts and runs the installer as that account.
 
 Optional full reinstall for disposable or empty databases only:
 
@@ -53,6 +63,7 @@ What the installer does:
 - Resets permission cache when possible
 - Runs package discovery and optimize
 - Stamps the installed app version in the database
+- Verifies runtime permissions again after generating caches and compiled views
 
 ## Browser Installation Wizard
 
@@ -64,7 +75,20 @@ Use this path when you want a guided install flow.
 4. Let the wizard generate `.env` and run the installation
 5. Review the final health-check summary and continue to login
 
+On a new Linux server, prepare runtime ownership before opening the wizard:
+
+```bash
+sudo bash scripts/deploy_as_web_user.sh www-data --prepare
+```
+
+This only repairs and verifies runtime permissions; it does not run migrations
+or require an environment file. The web wizard cannot change ownership of
+files owned by another account without this administrator step.
+
 If the web server cannot write `.env`, the wizard shows the exact file content to paste manually, then resumes the same backend install flow after `.env` is saved.
+Manual continuation is limited to the originating wizard session and the
+generated environment content. Existing installations remain locked, while
+the completion page stays available once after a successful installation.
 
 Installer routes lock automatically after a successful installation to prevent accidental reuse.
 
@@ -89,19 +113,23 @@ Processes cannot repair files owned by another account without OS permission.
 Installation/deployment stops with an actionable error instead of claiming
 success when repair fails.
 
-For this existing production installation, after deploying the code:
+For this existing production installation, after deploying the code, use the
+deployment wrapper for each CLI deployment. It repairs runtime paths with
+administrator privileges, verifies them as the PHP worker, and runs Artisan as
+that worker so new cache/view files retain compatible ownership:
 
 ```bash
 cd /var/www/pos
-sudo php scripts/repair_runtime_permissions.php www-data
-sudo -u www-data php scripts/repair_runtime_permissions.php www-data
+sudo bash scripts/deploy_as_web_user.sh www-data
 ```
 
-Replace `www-data` with the actual PHP worker account. This standalone repair
-does not bootstrap Laravel, clear idempotency keys, delete cache files, or
-create a sale/payment. It can therefore repair the permissions even when
-Artisan cannot start. Do not use `chmod 777`. On Windows, filesystem ACLs
-must permit the PHP process to write; Unix ownership/modes are not applied.
+Replace `www-data` with the actual PHP worker account. To pass deployment
+options, place them after the account, for example
+`sudo bash scripts/deploy_as_web_user.sh www-data --fresh --force`.
+The standalone `scripts/repair_runtime_permissions.php` remains available for
+repair-only use when Artisan cannot start. Do not use `chmod 777`. On Windows,
+filesystem ACLs must permit the PHP process to write; Unix ownership/modes are
+not applied.
 
 ### 1. Register the Laravel scheduler
 
@@ -151,7 +179,7 @@ After installation, confirm:
 ## Maintenance Notes
 
 - Use `php artisan pos:setup --force` for safe post-install repair of directories, symlinks, Passport keys, log files, and cache state.
-- Use `php artisan pos:deploy --force` for normal code deploys.
+- Use `sudo bash scripts/deploy_as_web_user.sh www-data --force` for normal CLI code deploys.
 - Avoid documenting raw `migrate` plus partial `db:seed` sequences as the primary install path, because that drifts away from the supported installer flow.
 - If install behavior changes, update both this runbook and the browser success page messaging in the same change.
 

@@ -14,8 +14,9 @@ use Spatie\Permission\PermissionRegistrar;
  * Idempotent deployment command. Use after git pull / package updates.
  * Safe to run multiple times. Does NOT wipe the database.
  *
- *   php artisan pos:deploy
- *   php artisan pos:deploy --fresh   # WARNING: drops all tables + re-seeds
+ *   sudo bash scripts/deploy_as_web_user.sh www-data
+ *   sudo bash scripts/deploy_as_web_user.sh www-data --fresh --force
+ *       # WARNING: drops all tables + re-seeds
  *
  * Sequence (--fresh):
  *   1. pos:setup          — dirs, symlinks, Passport keys, cache clear
@@ -36,12 +37,16 @@ use Spatie\Permission\PermissionRegistrar;
  *   6. db:seed PermissionsTableSeeder — add any new permissions
  *   7. permission:cache-reset
  *   8. optimize
+ *
+ * When a new Git commit is deployed on the release server, its patch version
+ * advances once and is recorded with the generated release package.
  */
 class DeployCommand extends Command
 {
     protected $signature   = 'pos:deploy
                                 {--fresh : Drop all tables and re-seed (use on a fresh database only)}
-                                {--force : Skip confirmation prompts}';
+                                {--force : Skip confirmation prompts}
+                                {--release-version= : Installed version provided by an update package}';
 
     protected $description = 'Run all deployment steps: migrate, publish assets, seed, cache.';
 
@@ -175,7 +180,11 @@ class DeployCommand extends Command
         // Stamp installed version so the in-app update banner resolves correctly
         $this->step('stamp app_version', function () {
             try {
-                $version = function_exists('pos_release_version') ? pos_release_version() : config('author.app_version', '0');
+                $version = trim((string) $this->option('release-version'));
+                if ($version === '') {
+                    $version = function_exists('pos_release_version') ? pos_release_version() : config('author.app_version', '0');
+                }
+
                 System::updateOrCreate(
                     ['key' => 'app_version'],
                     ['value' => $version]

@@ -42,7 +42,8 @@ class PackageReleaseCommand extends Command
 
     public function handle(): int
     {
-        $version = $this->option('pkg-version') ?: config('author.app_version', '0');
+        $version = $this->option('pkg-version')
+            ?: (function_exists('pos_release_version') ? pos_release_version() : config('author.app_version', '0'));
         $outDir  = storage_path('app/releases');
         $zipFile = "{$outDir}/v{$version}.zip";
 
@@ -111,11 +112,12 @@ class PackageReleaseCommand extends Command
 
         // Write manifest so the release-info endpoint can serve it.
         $manifest = [
-            'version'     => $version,
-            'filename'    => "v{$version}.zip",
-            'sha256'      => $sha256,
-            'size_kb'     => $sizeKb,
-            'packaged_at' => now()->toIso8601String(),
+            'version'       => $version,
+            'filename'      => "v{$version}.zip",
+            'sha256'        => $sha256,
+            'size_kb'       => $sizeKb,
+            'packaged_at'   => now()->toIso8601String(),
+            'source_commit' => function_exists('pos_release_commit') ? pos_release_commit() : null,
         ];
         file_put_contents("{$outDir}/manifest.json", json_encode($manifest, JSON_PRETTY_PRINT));
 

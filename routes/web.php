@@ -79,7 +79,7 @@ use App\Http\Controllers\AccountingDashboardStubController;
 |
 */
 
-include_once 'install_r.php';
+require __DIR__.'/install_r.php';
 
 // Dynamic manifest route to include business name from session when available.
 // This helps show a branded name in the install prompt. If your webserver

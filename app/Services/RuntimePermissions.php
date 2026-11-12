@@ -175,6 +175,6 @@ class RuntimePermissions
     private function failed(string $path): void
     {
         throw new RuntimeException('Cannot repair/write runtime path: '.$path
-            .'. Run scripts/repair_runtime_permissions.php as an administrator with the actual PHP worker username; do not use chmod 777.');
+            .'. Run sudo bash scripts/deploy_as_web_user.sh <php-worker-user> to repair permissions and deploy; do not use chmod 777.');
     }
 }

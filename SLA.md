@@ -159,7 +159,7 @@ All changes to the production system follow this process:
 ```bash
 cd /var/www/pos
 git pull origin main
-php artisan pos:deploy          # migrate, publish, seed perms, optimize
+sudo bash scripts/deploy_as_web_user.sh www-data  # repair runtime permissions, then deploy as PHP worker
 sudo systemctl reload apache2   # reload (not restart) to clear OPcache gracefully
 ```
 
@@ -167,22 +167,22 @@ sudo systemctl reload apache2   # reload (not restart) to clear OPcache graceful
 ```bash
 # 1. Configure .env (DB, APP_KEY, M-Pesa credentials, etc.)
 # 2. Run:
-php artisan pos:deploy --fresh --force
+sudo bash scripts/deploy_as_web_user.sh www-data --fresh --force
 # 3. Open browser → register business → roles are created automatically
 ```
 
 **Emergency rollback:**
 ```bash
 git revert <commit> && git push origin main
-php artisan pos:deploy
+sudo bash scripts/deploy_as_web_user.sh www-data
 ```
 
 ### 10.3 Key Artisan Commands Reference
 
 | Command | Purpose |
 |---------|---------|
-| `php artisan pos:deploy` | Full update deployment (non-destructive) |
-| `php artisan pos:deploy --fresh --force` | Fresh install deployment |
+| `sudo bash scripts/deploy_as_web_user.sh www-data` | Repair runtime permissions and deploy as the PHP worker |
+| `sudo bash scripts/deploy_as_web_user.sh www-data --fresh --force` | Fresh install deployment |
 | `php artisan pos:setup` | Re-run dir/symlink/key setup only |
 | `php artisan queue:work` | Start queue worker |
 | `php artisan schedule:run` | Run due scheduled jobs |

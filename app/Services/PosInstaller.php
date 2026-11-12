@@ -65,6 +65,7 @@ class PosInstaller
         $this->runArtisanStep('package:discover', ['--ansi' => false], true, $logger);
         $this->runArtisanStep('optimize', [], false, $logger);
         $this->stampInstalledVersion();
+        app(RuntimePermissions::class)->repair(base_path(), env('POS_WEB_USER'));
     }
 
     public function assertRequiredSchema(?callable $logger = null): void

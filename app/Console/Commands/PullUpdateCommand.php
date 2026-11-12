@@ -160,7 +160,10 @@ class PullUpdateCommand extends Command
 
         // ── 6. Deploy ─────────────────────────────────────────────────
         $this->line('==> Running pos:deploy…');
-        $exitCode = Artisan::call('pos:deploy', ['--force' => true]);
+        $exitCode = Artisan::call('pos:deploy', [
+            '--force' => true,
+            '--release-version' => $remoteVersion,
+        ]);
         $this->line(Artisan::output());
 
         if ($exitCode !== 0) {

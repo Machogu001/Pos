@@ -68,6 +68,23 @@ class RuntimePermissionsTest extends TestCase
         }
     }
 
+    public function testRepairsViewsGeneratedAfterInitialSetup(): void
+    {
+        $service = new RuntimePermissions;
+        $service->repair($this->root, $this->currentUser());
+        $view = $this->root.'/storage/framework/views/compiled.php';
+        file_put_contents($view, 'compiled-view');
+        chmod($view, 0644);
+
+        $service->repair($this->root, $this->currentUser());
+
+        $this->assertSame('compiled-view', file_get_contents($view));
+        if (PHP_OS_FAMILY !== 'Windows') {
+            clearstatcache(true, $view);
+            $this->assertSame(0664, fileperms($view) & 07777);
+        }
+    }
+
     public function testRejectsUnknownWorkerBeforeChangingFiles(): void
     {
         $this->expectException(\RuntimeException::class);

@@ -81,6 +81,8 @@
                       If ownership prevents repair, run the helper above as an administrator.
                       Pass the actual PHP worker username as its argument when it is not <code>www-data</code>.
                       The helper repairs ownership and runs the scheduler as that same account.</p>
+                    <p>For future command-line deployments, repair permissions and deploy as the PHP worker:</p>
+                    <pre style="background:#f5f5f5;padding:10px;">sudo bash {{ base_path('scripts/deploy_as_web_user.sh') }} www-data</pre>
 
                     <p><strong>{{ __('ui.1_register_the_laravel_scheduler_required_for_subscriptions_m_pesa_checks_reminders') }}</strong></p>
                     <pre style="background:#f5f5f5;padding:10px;"># Included in the helper script above.</pre>
