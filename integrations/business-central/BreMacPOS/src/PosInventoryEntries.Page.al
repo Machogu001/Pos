@@ -1,4 +1,4 @@
-page 70240 "BreMac POS Inventory Entries"
+page 50242 "BreMac POS Inventory Entries"
 {
     PageType = API;
     APIPublisher = 'bremac';

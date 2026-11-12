@@ -1,4 +1,4 @@
-permissionset 70240 "BreMac POS API"
+permissionset 50240 "BreMac POS API"
 {
     Assignable = true;
     Caption = 'BreMac POS API';

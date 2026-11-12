@@ -1,4 +1,4 @@
-codeunit 70241 "BreMac POS Integration"
+codeunit 50241 "BreMac POS Integration"
 {
     procedure CalculateLocationInventory(ItemNumber: Code[20]; LocationCode: Code[10]): Decimal
     var
