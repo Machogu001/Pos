@@ -99,11 +99,16 @@ $(document).ready(function() {
             },
         },
         templateResult: function (data) { 
+            if (data.loading) {
+                return data.text;
+            }
+
             var template = '';
             if (data.supplier_business_name) {
                 template += data.supplier_business_name + "<br>";
             }
-            template += data.text + "<br>" + LANG.mobile + ": " + data.mobile;
+            template += '<strong>' + data.text + '</strong>';
+            template += '<br>' + LANG.mobile + ': ' + (data.mobile || '-');
 
             if (typeof(data.total_rp) != "undefined") {
                 var rp = data.total_rp ? data.total_rp : 0;
@@ -112,7 +117,7 @@ $(document).ready(function() {
 
             return  template;
         },
-        minimumInputLength: 1,
+        minimumInputLength: 0,
         language: {
             inputTooShort: function (args) {
                 return LANG.please_enter + args.minimum + LANG.or_more_characters;
@@ -133,6 +138,18 @@ $(document).ready(function() {
         escapeMarkup: function(markup) {
             return markup;
         },
+    });
+    $('#customer_id').on('select2:open', function() {
+        var searchInput = document.querySelector(
+            '.select2-container--open .select2-search__field'
+        );
+        if (searchInput) {
+            searchInput.placeholder = 'Search by customer name, ID, or mobile';
+            searchInput.setAttribute(
+                'aria-label',
+                'Search by customer name, ID, or mobile'
+            );
+        }
     });
     $('#customer_id').on('select2:select', function(e) {
         var data = e.params.data;
@@ -901,6 +918,22 @@ $(document).ready(function() {
                             });
                             $('#modal_payment').modal('hide');
                             toastr.success(result.msg);
+                            if (
+                                result.business_central_sync &&
+                                result.business_central_sync.enabled &&
+                                result.business_central_sync.success === false
+                            ) {
+                                if (typeof window.showBusinessCentralError === 'function') {
+                                    window.showBusinessCentralError(
+                                        result.business_central_sync.message
+                                    );
+                                } else {
+                                    toastr.warning(
+                                        result.business_central_sync.message,
+                                        'Business Central'
+                                    );
+                                }
+                            }
 
                             reset_pos_form();
 
@@ -909,6 +942,14 @@ $(document).ready(function() {
                                 pos_print(result.receipt);
                             }
                         } else {
+                            if (
+                                result.integration === 'business_central' &&
+                                typeof window.showBusinessCentralError === 'function'
+                            ) {
+                                window.showBusinessCentralError(result.msg);
+                                enable_pos_form_actions();
+                                return;
+                            }
                             // If server returned the generic message, log full result for debugging
                             if (result.msg && result.msg.indexOf('Something went wrong') !== -1) {
                                 console.error('Finalize returned generic error:', result);

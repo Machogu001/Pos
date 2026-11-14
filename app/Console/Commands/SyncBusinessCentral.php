@@ -23,10 +23,11 @@ class SyncBusinessCentral extends Command
             }
 
             $this->info(sprintf(
-                'Synchronized %d items, %d customers, %d vendors, %d salespeople, %d inventory rows, and %d sales.',
+                'Synchronized %d items, %d customers, %d vendors, %d purchase invoices, %d salespeople, %d inventory rows, and %d sales.',
                 $result['items'],
                 $result['customers'],
                 $result['vendors'],
+                $result['purchases'],
                 $result['salespeople'],
                 $result['inventory'],
                 $result['sales']

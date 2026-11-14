@@ -799,6 +799,8 @@ Route::middleware(['setData', 'auth', 'SetSessionData', 'language', 'timezone'])
     Route::get('/download-purchase-order/{id}/pdf', [PurchaseOrderController::class, 'downloadPdf'])->name('purchaseOrder.downloadPdf');
     Route::get('/sells/{id}', [SellController::class, 'show']);
     Route::get('/sells/{transaction_id}/print', [SellPosController::class, 'printInvoice'])->name('sell.printInvoice');
+    Route::get('/sells/{transaction_id}/business-central-invoice', [SellPosController::class, 'printBusinessCentralInvoice'])
+        ->name('sell.printBusinessCentralInvoice');
     Route::get('/download-sells/{transaction_id}/pdf', [SellPosController::class, 'downloadPdf'])->name('sell.downloadPdf');
     Route::get('/download-quotation/{id}/pdf', [SellPosController::class, 'downloadQuotationPdf'])
         ->name('quotation.downloadPdf');
@@ -912,6 +914,7 @@ Route::prefix('admin')->middleware(['auth', 'admin', 'AdminSidebarMenu'])->group
 
     // Settings
     Route::post('/settings/update', [AdminController::class, 'updateSettings'])->name('admin.settings.update');
+    Route::post('/settings/business-central/companies', [AdminController::class, 'getBusinessCentralCompanies'])->name('admin.settings.business-central.companies');
     Route::post('/settings/toggle-subscription-requirement', [AdminController::class, 'toggleSubscriptionRequirement'])->name('admin.settings.toggle-subscription-requirement');
     Route::post('/settings/update-subscription-mpesa', [AdminController::class, 'updateSubscriptionMpesaCredentials'])->name('admin.settings.update-subscription-mpesa');
     Route::get('/settings/preview-registration-email', [AdminController::class, 'previewRegistrationEmail'])->name('admin.settings.previewRegistrationEmail');

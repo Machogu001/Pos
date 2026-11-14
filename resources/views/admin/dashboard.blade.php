@@ -1504,6 +1504,7 @@
                     <input type="hidden" name="grace_period_days" value="{{ $settings?->grace_period_days ?? 7 }}">
                     <input type="hidden" name="recent_limit" value="{{ $settings?->recent_limit ?? 5 }}">
                     <input type="hidden" name="business_central_enabled" value="0">
+                    <input type="hidden" name="business_central_require_sale_sync" value="0">
 
                     <div class="modal-body">
                         <div class="alert alert-info">
@@ -1517,6 +1518,19 @@
                                    id="businessCentralEnabled" value="1"
                                    {{ ($settings?->business_central_enabled ?? false) ? 'checked' : '' }}>
                             <label class="form-check-label fw-bold" for="businessCentralEnabled">Enable Business Central as inventory system of record</label>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox"
+                                   name="business_central_require_sale_sync"
+                                   id="businessCentralRequireSaleSync" value="1"
+                                   {{ ($settings?->business_central_require_sale_sync ?? false) ? 'checked' : '' }}>
+                            <label class="form-check-label fw-bold" for="businessCentralRequireSaleSync">
+                                Require successful BC posting before saving a POS sale
+                            </label>
+                            <small class="form-text text-muted d-block">
+                                When enabled, any BC error cancels and rolls back the POS sale. When disabled, POS saves the sale and retries BC automatically.
+                            </small>
                         </div>
 
                         <div class="row g-3">
@@ -1538,15 +1552,49 @@
                                        placeholder="https://bc-server:7048/BC240/api/v2.0">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">BC company ID</label>
-                                <input type="text" class="form-control" name="business_central_company_id"
-                                       value="{{ $settings?->business_central_company_id ?? '' }}" placeholder="Company GUID">
+                                <label class="form-label">Business Central company</label>
+                                <div class="input-group">
+                                    <select class="form-control" name="business_central_company_id" id="businessCentralCompany"
+                                            onchange="syncBusinessCentralCompanyName(this)">
+                                        <option value="">Load and select a company</option>
+                                        @if(!empty($settings?->business_central_company_id))
+                                            <option value="{{ $settings->business_central_company_id }}" selected>
+                                                {{ $settings?->business_central_company_name ?: 'Saved Business Central company' }}
+                                            </option>
+                                        @endif
+                                    </select>
+                                    <input type="hidden" name="business_central_company_name" id="businessCentralCompanyName"
+                                           value="{{ $settings?->business_central_company_name ?? '' }}">
+                                    <span class="input-group-btn">
+                                        <button type="button" class="btn btn-outline-secondary" id="loadBusinessCentralCompanies"
+                                                onclick="loadBusinessCentralCompanies(this)">
+                                            <i class="fas fa-cloud-download-alt"></i> Load
+                                        </button>
+                                    </span>
+                                </div>
+                                <small class="text-muted" id="businessCentralCompanyStatus">
+                                    Enter connection details, then load companies.
+                                </small>
                             </div>
                             <div class="col-12">
                                 <label class="form-label">BreMac inventory API collection URL</label>
                                 <input type="url" class="form-control" name="business_central_inventory_url"
                                        value="{{ $settings?->business_central_inventory_url ?? '' }}"
                                        placeholder="https://bc-server:7048/BC240/api/bremac/pos/v1.0/companies({company_id})/posInventoryEntries">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">BC salesperson OData collection URL</label>
+                                <input type="url" class="form-control" name="business_central_salespeople_url"
+                                       value="{{ $settings?->business_central_salespeople_url ?? '' }}"
+                                       placeholder="https://bc-server:7048/BC240/ODataV4/Company('COMPANY')/SalespeoplePurchasers">
+                                <small class="text-muted">Optional. Use this for BC versions that do not expose salespeoplePurchasers in the standard API.</small>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">BreMac POS sales codeunit URL</label>
+                                <input type="url" class="form-control" name="business_central_sales_codeunit_url"
+                                       value="{{ $settings?->business_central_sales_codeunit_url ?? '' }}"
+                                       placeholder="https://bc-server:7047/BC240/WS/COMPANY/Codeunit/BreMacPOSSalesIntegration">
+                                <small class="text-muted">Optional. When configured, finalized POS sales use this location-aware BC24 SOAP service.</small>
                             </div>
                             <div class="col-12">
                                 <label class="form-label fw-bold">POS branch to Business Central location mapping</label>
@@ -1682,7 +1730,8 @@
                     </div>
                     <div class="modal-footer">
                         <button type="submit" class="btn btn-outline-primary" name="run_business_central_sync_now" value="1">
-                            <i class="fas fa-sync me-2"></i>Save and sync now
+                            <span class="btn-text"><i class="fas fa-sync me-2"></i>Save and sync now</span>
+                            <span class="btn-loading d-none"><span class="spinner-border spinner-border-sm"></span></span>
                         </button>
                         <button type="submit" class="btn btn-primary">
                             <span class="btn-text"><i class="fas fa-save me-2"></i>Save settings</span>
@@ -2518,15 +2567,25 @@
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
             
             // Show loading state
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const btnText = submitBtn.querySelector('.btn-text');
-            const btnLoading = submitBtn.querySelector('.btn-loading');
+            const submitBtn = event.submitter instanceof HTMLButtonElement
+                ? event.submitter
+                : form.querySelector('button[type="submit"]');
+            const submitButtons = Array.from(form.querySelectorAll('button[type="submit"]'));
+            const submitButtonStates = submitButtons.map(button => button.disabled);
+            const btnText = submitBtn?.querySelector('.btn-text');
+            const btnLoading = submitBtn?.querySelector('.btn-loading');
+
+            if (!submitBtn) {
+                return false;
+            }
             
             if (btnText && btnLoading) {
                 btnText.classList.add('d-none');
                 btnLoading.classList.remove('d-none');
             }
-            submitBtn.disabled = true;
+            submitButtons.forEach(button => {
+                button.disabled = true;
+            });
             
             // Trigger bands collection before submit if in payroll modal
             if (modalId === 'payrollModal') {
@@ -2547,7 +2606,9 @@
                         btnText.classList.remove('d-none');
                         btnLoading.classList.add('d-none');
                     }
-                    submitBtn.disabled = false;
+                    submitButtons.forEach((button, index) => {
+                        button.disabled = submitButtonStates[index];
+                    });
                     return false;
                 }
             }
@@ -2607,10 +2668,82 @@
                     btnText.classList.remove('d-none');
                     btnLoading.classList.add('d-none');
                 }
-                submitBtn.disabled = false;
+                submitButtons.forEach((button, index) => {
+                    button.disabled = submitButtonStates[index];
+                });
             });
             
             return false;
+        }
+
+        async function loadBusinessCentralCompanies(button) {
+            const form = button.closest('form');
+            const select = form?.querySelector('#businessCentralCompany');
+            const status = form?.querySelector('#businessCentralCompanyStatus');
+            if (!form || !select || !status) {
+                return;
+            }
+
+            const originalHtml = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Loading';
+            status.textContent = 'Connecting to Business Central...';
+
+            try {
+                const formData = new FormData(form);
+                const response = await fetch('{{ route('admin.settings.business-central.companies') }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    const validationMessage = data.errors
+                        ? Object.values(data.errors).flat()[0]
+                        : null;
+                    throw new Error(validationMessage || data.message || 'Could not load Business Central companies.');
+                }
+
+                const selectedCompanyId = select.value;
+                select.replaceChildren(new Option('Select a Business Central company', ''));
+                data.companies.forEach(company => {
+                    select.add(new Option(company.label, company.id, false, company.id === selectedCompanyId));
+                });
+
+                if (data.companies.length === 1) {
+                    select.value = data.companies[0].id;
+                } else if (!data.companies.some(company => company.id === selectedCompanyId)) {
+                    select.value = '';
+                }
+                syncBusinessCentralCompanyName(select);
+
+                status.textContent = data.message;
+                if (typeof showToast === 'function') {
+                    showToast(data.companies.length ? 'success' : 'warning', data.message);
+                }
+            } catch (error) {
+                status.textContent = error.message;
+                if (typeof showToast === 'function') {
+                    showToast('error', error.message);
+                }
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalHtml;
+            }
+        }
+
+        function syncBusinessCentralCompanyName(select) {
+            const nameInput = select.closest('form')?.querySelector('#businessCentralCompanyName');
+            if (!nameInput) {
+                return;
+            }
+
+            const selectedOption = select.options[select.selectedIndex];
+            nameInput.value = select.value && selectedOption ? selectedOption.text.trim() : '';
         }
 
         /**

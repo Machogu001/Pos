@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Account;
 use App\Business;
+use App\BusinessCentralMapping;
 use App\BusinessLocation;
 use App\Contact;
 use App\CustomerGroup;
@@ -23,6 +24,7 @@ use App\Utils\ModuleUtil;
 use App\Utils\ProductUtil;
 use App\Utils\TransactionUtil;
 use App\Warranty;
+use App\Services\BusinessCentralSyncService;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -884,6 +886,15 @@ class SellController extends Controller
         }
         $status_color_in_activity = Transaction::sales_order_statuses();
         $sales_orders = $sell->salesOrders();
+        $businessCentralSaleMapping = null;
+        if (app(BusinessCentralSyncService::class)->enabledFor((int) $business_id)) {
+            $businessCentralSaleMapping = BusinessCentralMapping::where('business_id', $business_id)
+                ->where('entity_type', 'sale')
+                ->where('local_id', $sell->id)
+                ->where('status', 'synced')
+                ->whereNotNull('bc_id')
+                ->first();
+        }
 
         // Check if request is AJAX (modal view) or direct URL (full page view)
         if (request()->ajax()) {
@@ -901,7 +912,8 @@ class SellController extends Controller
                     'statuses',
                     'status_color_in_activity',
                     'sales_orders',
-                    'line_taxes'
+                    'line_taxes',
+                    'businessCentralSaleMapping'
                 ));
         } else {
             return view('sale_pos.show_fullpage')
@@ -918,7 +930,8 @@ class SellController extends Controller
                     'statuses',
                     'status_color_in_activity',
                     'sales_orders',
-                    'line_taxes'
+                    'line_taxes',
+                    'businessCentralSaleMapping'
                 ));
         }
     }

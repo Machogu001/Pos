@@ -30,6 +30,7 @@ namespace App\Http\Controllers;
 use App\Account;
 use App\Brands;
 use App\Business;
+use App\BusinessCentralMapping;
 use App\BusinessLocation;
 use App\Category;
 use App\Contact;
@@ -55,6 +56,9 @@ use App\Utils\TransactionUtil;
 use App\Variation;
 use App\Warranty;
 use App\Services\SellPostingAuditService;
+use App\AdminSetting;
+use App\Services\BusinessCentralClient;
+use App\Services\BusinessCentralSyncService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -66,6 +70,7 @@ use Stripe\Charge;
 use Stripe\Stripe;
 use Yajra\DataTables\Facades\DataTables;
 use App\Events\SellCreatedOrModified;
+use App\Exceptions\BusinessCentralSaleSyncFailed;
 
 class SellPosController extends Controller
 {
@@ -436,6 +441,8 @@ class SellPosController extends Controller
         if (!$is_direct_sale && $this->cashRegisterUtil->countOpenedRegister() == 0) {
             return redirect()->action([\App\Http\Controllers\CashRegisterController::class, 'create']);
         }
+
+        $businessCentralSync = null;
 
         try {
             $input = $request->except('_token');
@@ -937,9 +944,37 @@ class SellPosController extends Controller
 
                 $this->transactionUtil->activityLog($transaction, 'added');
 
+                $businessCentralService = app(BusinessCentralSyncService::class);
+                if (($input['status'] ?? null) === 'final'
+                    && $businessCentralService->requiresSuccessfulSaleSyncFor((int) $business_id)) {
+                    try {
+                        $businessCentralService->syncSale($transaction);
+                        $businessCentralSync = [
+                            'integration' => 'business_central',
+                            'enabled' => true,
+                            'success' => true,
+                        ];
+                    } catch (\Throwable $e) {
+                        $businessCentralError = mb_substr(trim(strip_tags($e->getMessage())), 0, 500);
+                        throw new BusinessCentralSaleSyncFailed(
+                            'Sale was not saved in POS because Business Central rejected it: '
+                            .$businessCentralError,
+                            0,
+                            $e
+                        );
+                    }
+                }
+
                 DB::commit();
 
-                SellCreatedOrModified::dispatch($transaction);
+                $eventResponses = SellCreatedOrModified::dispatch($transaction);
+                foreach ($eventResponses as $eventResponse) {
+                    if (is_array($eventResponse)
+                        && ($eventResponse['integration'] ?? null) === 'business_central') {
+                        $businessCentralSync = $eventResponse;
+                        break;
+                    }
+                }
 
                 if (($input['status'] ?? null) === 'final') {
                     $reconcileResult = $this->sellPostingAuditService->reconcileTransaction($transaction->fresh() ?? $transaction);
@@ -973,8 +1008,18 @@ class SellPosController extends Controller
 
                 if ($request->input('is_save_and_print') == 1) {
                     $url = $this->transactionUtil->getInvoiceUrl($transaction->id, $business_id);
+                    $response = redirect()->to($url . '?print_on_load=true');
+                    if (($businessCentralSync['enabled'] ?? false)
+                        && ($businessCentralSync['success'] ?? null) === false) {
+                        $response->with('status', [
+                            'success' => 1,
+                            'toast_type' => 'warning',
+                            'integration' => 'business_central',
+                            'msg' => $businessCentralSync['message'],
+                        ]);
+                    }
 
-                    return redirect()->to($url . '?print_on_load=true');
+                    return $response;
                 }
 
                 $msg = trans('sale.pos_sale_added');
@@ -1008,6 +1053,16 @@ class SellPosController extends Controller
 
                 $output = ['success' => 1, 'msg' => $msg, 'receipt' => $receipt];
 
+                if (($businessCentralSync['enabled'] ?? false)
+                    && ($businessCentralSync['success'] ?? null) === false) {
+                    $output['business_central_sync'] = $businessCentralSync;
+                    if ($is_direct_sale) {
+                        $output['toast_type'] = 'warning';
+                        $output['integration'] = 'business_central';
+                        $output['msg'] .= ' '.$businessCentralSync['message'];
+                    }
+                }
+
                 if (!empty($whatsapp_link)) {
                     $output['whatsapp_link'] = $whatsapp_link;
                 }
@@ -1029,10 +1084,17 @@ class SellPosController extends Controller
             if (get_class($e) == \App\Exceptions\AdvanceBalanceNotAvailable::class) {
                 $msg = $e->getMessage();
             }
+            if ($e instanceof BusinessCentralSaleSyncFailed) {
+                $msg = $e->getMessage();
+            }
 
             $output = ['success' => 0,
                 'msg' => $msg,
             ];
+            if ($e instanceof BusinessCentralSaleSyncFailed) {
+                $output['integration'] = 'business_central';
+                $output['toast_type'] = 'error';
+            }
             // Also log the output form we will send to client for easier debugging
             \Log::info('SellPosController::store returning (exception)', ['output' => $output, 'exception_message' => $e->getMessage(), 'user_id' => $user_id ?? null]);
         }
@@ -2458,6 +2520,7 @@ class SellPosController extends Controller
                     return $output;
                 }
 
+                $business_id = (int) $transaction->business_id;
                 $printer_type = 'browser';
                 if (!empty(request()->input('check_location')) && request()->input('check_location') == true) {
                     $printer_type = $transaction->location->receipt_printer_type;
@@ -2482,6 +2545,55 @@ class SellPosController extends Controller
 
             return $output;
         }
+    }
+
+    public function printBusinessCentralInvoice(Request $request, $transaction_id)
+    {
+        abort_unless(auth()->user()->can('print_invoice'), 403, 'Unauthorized action.');
+
+        $query = Transaction::where('id', $transaction_id)
+            ->where('type', 'sell')
+            ->where('status', 'final');
+        if (auth()->user()->role !== 'admin') {
+            $query->where('business_id', $request->session()->get('user.business_id'));
+        }
+        $transaction = $query->firstOrFail();
+
+        $service = app(BusinessCentralSyncService::class);
+        abort_unless(
+            $service->enabledFor((int) $transaction->business_id),
+            404,
+            'Business Central integration is not enabled for this business.'
+        );
+
+        $mapping = BusinessCentralMapping::where('business_id', $transaction->business_id)
+            ->where('entity_type', 'sale')
+            ->where('local_id', $transaction->id)
+            ->where('status', 'synced')
+            ->whereNotNull('bc_id')
+            ->firstOrFail();
+
+        try {
+            $pdf = (new BusinessCentralClient(AdminSetting::firstOrFail()))
+                ->salesInvoicePdf($mapping->bc_id);
+        } catch (\Throwable $e) {
+            \Log::warning('Business Central invoice PDF download failed.', [
+                'transaction_id' => $transaction->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            abort(502, 'Business Central could not provide this invoice PDF: '
+                .mb_substr(trim(strip_tags($e->getMessage())), 0, 500));
+        }
+
+        $invoiceNumber = $mapping->bc_number ?: $transaction->invoice_no;
+        $filename = 'BC-Invoice-'.preg_replace('/[^A-Za-z0-9._-]+/', '-', $invoiceNumber).'.pdf';
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     /**

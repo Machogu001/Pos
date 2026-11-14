@@ -13,6 +13,8 @@ use App\Business;
 use App\BusinessLocation;
 use App\BusinessCentralLocationMapping;
 use App\BusinessCentralSalesperson;
+use App\Services\BusinessCentralClient;
+use App\Services\BusinessCentralSyncService;
 use App\Services\SellPostingAuditService;
 use Illuminate\Support\Facades\Schema;
 
@@ -720,6 +722,79 @@ class AdminController extends Controller
     // ============================
     // SETTINGS
     // ============================
+    public function getBusinessCentralCompanies(Request $request)
+    {
+        $this->authorize('admin');
+
+        $validated = $request->validate([
+            'business_central_api_url' => 'required|url|max:500',
+            'business_central_auth_type' => 'required|in:basic,oauth2,bearer',
+            'business_central_username' => 'nullable|required_if:business_central_auth_type,basic|string|max:255',
+            'business_central_secret' => 'nullable|string|max:4000',
+            'business_central_token_url' => 'nullable|required_if:business_central_auth_type,oauth2|url|max:500',
+            'business_central_client_id' => 'nullable|required_if:business_central_auth_type,oauth2|string|max:255',
+            'business_central_scope' => 'nullable|required_if:business_central_auth_type,oauth2|string|max:500',
+        ]);
+
+        $storedSettings = AdminSetting::first();
+        $secret = $request->filled('business_central_secret')
+            ? $validated['business_central_secret']
+            : ($storedSettings?->business_central_secret ?? null);
+        if (empty($secret)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Enter the Business Central password, client secret, or bearer token before loading companies.',
+            ], 422);
+        }
+
+        $connectionSettings = $storedSettings ? clone $storedSettings : new AdminSetting();
+        foreach ([
+            'business_central_api_url',
+            'business_central_auth_type',
+            'business_central_username',
+            'business_central_token_url',
+            'business_central_client_id',
+            'business_central_scope',
+        ] as $field) {
+            $connectionSettings->{$field} = $validated[$field] ?? null;
+        }
+        $connectionSettings->business_central_secret = $secret;
+
+        try {
+            $companies = collect((new BusinessCentralClient($connectionSettings))->companies())
+                ->filter(fn ($company) => ! empty($company['id']))
+                ->map(function ($company) {
+                    $name = trim((string) ($company['name'] ?? ''));
+                    $displayName = trim((string) ($company['displayName'] ?? ''));
+                    $label = $displayName ?: ($name ?: (string) $company['id']);
+                    if ($name !== '' && $displayName !== '' && $name !== $displayName) {
+                        $label .= ' ('.$name.')';
+                    }
+
+                    return [
+                        'id' => (string) $company['id'],
+                        'label' => $label,
+                    ];
+                })
+                ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
+                ->values();
+
+            return response()->json([
+                'success' => true,
+                'companies' => $companies,
+                'message' => trans_choice('{0} No Business Central companies found|{1} One Business Central company loaded|[2,*] :count Business Central companies loaded', $companies->count(), [
+                    'count' => $companies->count(),
+                ]),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not load Business Central companies: '
+                    .mb_substr(trim(strip_tags($e->getMessage())), 0, 500),
+            ], 502);
+        }
+    }
+
     public function updateSettings(Request $request)
     {
         $this->authorize('admin');
@@ -808,11 +883,15 @@ class AdminController extends Controller
             'run_top_selling_low_stock_now' => 'nullable|boolean',
             'run_top_selling_low_stock_dry_run' => 'nullable|boolean',
             'business_central_enabled' => 'nullable|boolean',
+            'business_central_require_sale_sync' => 'nullable|boolean',
             'business_central_business_id' => 'nullable|required_if:business_central_enabled,1|integer|exists:business,id',
             'business_central_location_id' => 'nullable|integer|exists:business_locations,id',
             'business_central_api_url' => 'nullable|required_if:business_central_enabled,1|url|max:500',
             'business_central_inventory_url' => 'nullable|required_if:business_central_enabled,1|url|max:500',
+            'business_central_salespeople_url' => 'nullable|url|max:500',
+            'business_central_sales_codeunit_url' => 'nullable|url|max:500',
             'business_central_company_id' => 'nullable|required_if:business_central_enabled,1|string|max:100',
+            'business_central_company_name' => 'nullable|string|max:255',
             'business_central_location_code' => 'nullable|string|max:20',
             'business_central_location_mappings' => 'nullable|array',
             'business_central_location_mappings.*.enabled' => 'nullable|boolean',
@@ -923,11 +1002,15 @@ class AdminController extends Controller
             'top_selling_low_stock_alert_whatsapp_phone_param',
             'top_selling_low_stock_alert_whatsapp_message_param',
             'business_central_enabled',
+            'business_central_require_sale_sync',
             'business_central_business_id',
             'business_central_location_id',
             'business_central_api_url',
             'business_central_inventory_url',
+            'business_central_salespeople_url',
+            'business_central_sales_codeunit_url',
             'business_central_company_id',
+            'business_central_company_name',
             'business_central_location_code',
             'business_central_auth_type',
             'business_central_username',
@@ -939,6 +1022,20 @@ class AdminController extends Controller
         if ($request->filled('business_central_secret')) {
             $settings->business_central_secret = $request->input('business_central_secret');
             $settings->save();
+        }
+
+        if ($request->has('business_central_enabled')
+            && ! $request->boolean('business_central_enabled')
+            && ! empty($settings->business_central_business_id)) {
+            $businessCentralSyncService = app(BusinessCentralSyncService::class);
+            if (method_exists($businessCentralSyncService, 'ensureDefaultWalkInCustomer')) {
+                $businessCentralSyncService
+                    ->ensureDefaultWalkInCustomer((int) $settings->business_central_business_id);
+            } else {
+                \Log::warning('Business Central was disabled while an older service class was cached; the scheduled sync will restore the POS walk-in customer.', [
+                    'business_id' => (int) $settings->business_central_business_id,
+                ]);
+            }
         }
 
         if ($request->has('business_central_location_mappings')) {

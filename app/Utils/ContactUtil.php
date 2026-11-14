@@ -84,6 +84,13 @@ class ContactUtil extends Util
                         'contacts.*'
                     )->first();
 
+        if (! empty($contact)) {
+            $contact->total_sale_due = $this->businessCentralBalanceDueOverride($contact)
+                ?? ((float) $contact->total_invoice - (float) $contact->invoice_received);
+            $contact->total_purchase_due = $this->businessCentralPurchaseBalanceDueOverride($contact)
+                ?? ((float) $contact->total_purchase - (float) $contact->purchase_paid);
+        }
+
         return $contact;
     }
 

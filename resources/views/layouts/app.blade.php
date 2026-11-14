@@ -273,6 +273,27 @@
                     if (el && typeof el.play === 'function') { el.currentTime = 0; el.play(); }
                 } catch(e) {}
             };
+            window.showBusinessCentralError = function(message) {
+                window.playWarning();
+                if (window.Swal) {
+                    return Swal.fire({
+                        icon: 'warning',
+                        title: 'Business Central Sync Failed',
+                        text: message,
+                        confirmButtonText: 'I understand',
+                        allowOutsideClick: false
+                    });
+                }
+                if (window.toastr) {
+                    toastr.warning(message, 'Business Central Sync Failed', {
+                        closeButton: true,
+                        timeOut: 0,
+                        extendedTimeOut: 0
+                    });
+                    return;
+                }
+                alert(message);
+            };
         </script>
         @if($flashMsg)
         <script>
@@ -283,13 +304,18 @@
                     // status can be an array like {success: true, msg: '...'} or a plain string
                     if (raw && typeof raw === 'object') {
                         msg  = raw.msg  ?? raw.message ?? JSON.stringify(raw);
-                        type = (raw.success === true || raw.success === 1) ? 'success' : 'error';
+                        type = raw.toast_type ?? ((raw.success === true || raw.success === 1) ? 'success' : 'error');
+                        if (!['success', 'warning', 'error', 'info'].includes(type)) {
+                            type = 'error';
+                        }
                     } else {
                         msg  = raw;
                         type = 'success';
                     }
                     if (msg) {
-                        if (typeof window.showToast === 'function') {
+                        if (raw && raw.integration === 'business_central' && ['warning', 'error'].includes(type)) {
+                            window.showBusinessCentralError(msg);
+                        } else if (typeof window.showToast === 'function') {
                             window.showToast(type, msg);
                         } else if (window.Swal) {
                             const Toast = Swal.mixin({
@@ -301,10 +327,13 @@
                             });
                             Toast.fire({ icon: type, title: msg });
                         } else if (window.toastr) {
-                            type === 'success' ? toastr.success(msg) : toastr.error(msg);
+                            toastr[type](msg);
                         }
-                        if (type === 'success') window.playSuccess();
-                        else window.playError();
+                        if (!(raw && raw.integration === 'business_central' && ['warning', 'error'].includes(type))) {
+                            if (type === 'success') window.playSuccess();
+                            else if (type === 'warning') window.playWarning();
+                            else window.playError();
+                        }
                     }
                 } catch(e) {}
             })();

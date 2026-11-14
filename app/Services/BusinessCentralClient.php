@@ -20,15 +20,59 @@ class BusinessCentralClient
         $url = $absoluteUrl ?: $this->resourceUrl($resource);
 
         do {
-            $response = $this->request()->retry(2, 300)->get($url, $query);
+            $response = $this->request()->retry(2, 300, null, false)->get($url, $query);
             $this->ensureSuccessful($response, 'read '.$resource);
             $data = $response->json();
+            if (! is_array($data) || ! array_key_exists('value', $data)) {
+                throw new RuntimeException('Business Central returned an invalid JSON collection while reading '.$resource.'.');
+            }
             $rows = array_merge($rows, $data['value'] ?? []);
             $url = $data['@odata.nextLink'] ?? null;
             $query = [];
         } while ($url);
 
         return $rows;
+    }
+
+    public function companies(): array
+    {
+        $url = rtrim((string) $this->settings->business_central_api_url, '/').'/companies';
+
+        return $this->getCollection('companies', [
+            '$select' => 'id,name,displayName',
+        ], $url);
+    }
+
+    public function salesInvoicePdf(string $invoiceId): string
+    {
+        $invoiceId = trim($invoiceId, "{} \t\n\r\0\x0B");
+        $resource = 'salesInvoices('.rawurlencode($invoiceId).')/pdfDocument';
+        $response = $this->request()->get($this->resourceUrl($resource));
+        $this->ensureSuccessful($response, 'read sales invoice PDF');
+
+        if (str_starts_with((string) $response->header('Content-Type'), 'application/pdf')) {
+            return $response->body();
+        }
+
+        $data = $response->json();
+        $document = is_array($data['value'] ?? null)
+            ? ($data['value'][0] ?? [])
+            : $data;
+        $contentUrl = $document['pdfDocumentContent@odata.mediaReadLink']
+            ?? $document['content@odata.mediaReadLink']
+            ?? null;
+        if (empty($contentUrl)) {
+            throw new RuntimeException('Business Central returned no PDF content link for this sales invoice.');
+        }
+
+        $contentResponse = $this->request()->get($contentUrl);
+        $this->ensureSuccessful($contentResponse, 'download sales invoice PDF');
+        $pdf = $contentResponse->body();
+        if ($pdf === '') {
+            throw new RuntimeException('Business Central returned an empty sales invoice PDF.');
+        }
+
+        return $pdf;
     }
 
     public function post(string $resource, array $payload): array
@@ -83,6 +127,95 @@ class BusinessCentralClient
         }
 
         return $this->getCollection('posInventoryEntries', $query, $url);
+    }
+
+    public function itemUnits(): array
+    {
+        $inventoryUrl = (string) $this->settings->business_central_inventory_url;
+        $url = preg_replace(
+            '~/posInventoryEntries/?(?:\?.*)?$~i',
+            '/posItemUnits',
+            $inventoryUrl
+        );
+        if (empty($url) || $url === $inventoryUrl) {
+            $apiUrl = rtrim((string) $this->settings->business_central_api_url, '/');
+            $customApiBase = preg_replace(
+                '~/api/v2\.0$~i',
+                '/api/bremac/pos/v1.0',
+                $apiUrl
+            );
+            if (empty($customApiBase) || $customApiBase === $apiUrl) {
+                throw new RuntimeException(
+                    'The Business Central API URL must end with api/v2.0 to resolve posItemUnits.'
+                );
+            }
+            $url = $customApiBase.'/companies('
+                .rawurlencode((string) $this->settings->business_central_company_id)
+                .')/posItemUnits';
+        } else {
+            $url = str_replace(
+                '{company_id}',
+                rawurlencode((string) $this->settings->business_central_company_id),
+                $url
+            );
+        }
+        if (empty($url)) {
+            throw new RuntimeException(
+                'The Business Central posItemUnits URL could not be resolved.'
+            );
+        }
+
+        return $this->getCollection('posItemUnits', [
+            '$select' => 'id,itemNumber,code,qtyPerUnitOfMeasure,lastModifiedDateTime',
+        ], $url);
+    }
+
+    public function salespeople(): array
+    {
+        $url = trim((string) $this->settings->business_central_salespeople_url);
+        if ($url !== '') {
+            return $this->getCollection('salespeople', [], $url);
+        }
+
+        return $this->getCollection('salespeoplePurchasers', [
+            '$select' => 'id,code,displayName,email,phoneNo,blocked',
+        ]);
+    }
+
+    public function hasSalesCodeunit(): bool
+    {
+        return trim((string) $this->settings->business_central_sales_codeunit_url) !== '';
+    }
+
+    public function postSale(array $payload): array
+    {
+        $url = trim((string) $this->settings->business_central_sales_codeunit_url);
+        if ($url === '') {
+            throw new RuntimeException('The Business Central POS sales codeunit URL is not configured.');
+        }
+
+        $serviceName = basename((string) parse_url($url, PHP_URL_PATH));
+        if ($serviceName === '') {
+            throw new RuntimeException('The Business Central POS sales codeunit URL has no service name.');
+        }
+        $namespace = 'urn:microsoft-dynamics-schemas/codeunit/'.$serviceName;
+        $document = new \DOMDocument('1.0', 'UTF-8');
+        $envelope = $document->createElementNS('http://schemas.xmlsoap.org/soap/envelope/', 'soap:Envelope');
+        $body = $document->createElementNS('http://schemas.xmlsoap.org/soap/envelope/', 'soap:Body');
+        $operation = $document->createElementNS($namespace, 'PostSaleV4');
+        $saleJson = $document->createElement('saleJson');
+        $saleJson->appendChild($document->createTextNode(json_encode($payload, JSON_THROW_ON_ERROR)));
+        $operation->appendChild($saleJson);
+        $body->appendChild($operation);
+        $envelope->appendChild($body);
+        $document->appendChild($envelope);
+
+        $response = $this->request()
+            ->withHeaders(['SOAPAction' => $namespace.':PostSaleV4'])
+            ->withBody($document->saveXML(), 'text/xml; charset=utf-8')
+            ->post($url);
+
+        return $this->parseSoapResponse($response, 'post POS sale');
     }
 
     public function resourceUrl(string $resource): string
@@ -145,5 +278,37 @@ class BusinessCentralClient
         throw new RuntimeException(
             'Business Central could not '.$operation.' (HTTP '.$response->status().'): '.mb_substr($message, 0, 1000)
         );
+    }
+
+    protected function parseSoapResponse($response, string $operation): array
+    {
+        $document = new \DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        $loaded = $document->loadXML((string) $response->body(), LIBXML_NONET);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        if (! $loaded) {
+            throw new RuntimeException('Business Central returned invalid SOAP XML while attempting to '.$operation.'.');
+        }
+
+        $xpath = new \DOMXPath($document);
+        $fault = $xpath->query('//*[local-name()="faultstring"]')->item(0);
+        if (! $response->successful() || $fault) {
+            $message = $fault?->textContent ?: 'HTTP '.$response->status();
+            throw new RuntimeException('Business Central could not '.$operation.': '.mb_substr($message, 0, 1000));
+        }
+
+        $returnValue = $xpath->query('//*[local-name()="return_value"]')->item(0);
+        if (! $returnValue) {
+            throw new RuntimeException('Business Central returned no result while attempting to '.$operation.'.');
+        }
+
+        $result = json_decode($returnValue->textContent, true, 512, JSON_THROW_ON_ERROR);
+        if (! is_array($result) || empty($result['success'])) {
+            throw new RuntimeException('Business Central returned an unsuccessful result while attempting to '.$operation.'.');
+        }
+
+        return $result;
     }
 }

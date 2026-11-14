@@ -1424,6 +1424,11 @@ class Util
      */
     public function getContactDue($contact_id, $business_id = null)
     {
+        $bc_balance_due = $this->getBusinessCentralBalanceDue($contact_id, $business_id);
+        if ($bc_balance_due !== null) {
+            return $bc_balance_due;
+        }
+
         $query = Contact::where('contacts.id', $contact_id)
             ->join('transactions AS t', 'contacts.id', '=', 't.contact_id')
             ->whereIn('t.type', ['sell', 'opening_balance', 'purchase'])
@@ -1443,6 +1448,73 @@ class Util
         $due = $contact_payments->total_invoice + $contact_payments->total_purchase - $contact_payments->total_paid - $contact_payments->purchase_paid + $contact_payments->opening_balance - $contact_payments->opening_balance_paid;
 
         return $due;
+    }
+
+    /**
+     * Returns the synced BC Current Balance for a BC customer when the
+     * integration is enabled for its business, otherwise null.
+     */
+    protected function getBusinessCentralBalanceDue($contact_id, $business_id = null): ?float
+    {
+        try {
+            $contact = Contact::where('id', $contact_id)
+                ->when(! empty($business_id), fn ($query) => $query->where('business_id', $business_id))
+                ->whereNotNull('bc_balance_due')
+                ->select('bc_balance_due', 'business_id')
+                ->first();
+
+            return $this->businessCentralBalanceDueOverride($contact);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns the BC Current Balance from an already-loaded contact row when
+     * the integration is enabled for its business, otherwise null.
+     */
+    public function businessCentralBalanceDueOverride($contact): ?float
+    {
+        try {
+            if (empty($contact) || ! isset($contact->bc_balance_due) || $contact->bc_balance_due === null) {
+                return null;
+            }
+
+            $settings = \App\AdminSetting::first();
+            if (empty($settings)
+                || ! (bool) $settings->business_central_enabled
+                || (int) $settings->business_central_business_id !== (int) $contact->business_id) {
+                return null;
+            }
+
+            return (float) $contact->bc_balance_due;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns the BC vendor Balance Due (LCY) from an already-loaded contact
+     * row when the integration is enabled for its business, otherwise null.
+     */
+    public function businessCentralPurchaseBalanceDueOverride($contact): ?float
+    {
+        try {
+            if (empty($contact) || ! isset($contact->bc_purchase_balance_due) || $contact->bc_purchase_balance_due === null) {
+                return null;
+            }
+
+            $settings = \App\AdminSetting::first();
+            if (empty($settings)
+                || ! (bool) $settings->business_central_enabled
+                || (int) $settings->business_central_business_id !== (int) $contact->business_id) {
+                return null;
+            }
+
+            return (float) $contact->bc_purchase_balance_due;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     public function getDays()
