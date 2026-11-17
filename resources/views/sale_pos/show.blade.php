@@ -450,9 +450,9 @@
     @can('print_invoice')
       <a href="#" class="print-invoice tw-dw-btn tw-dw-btn-primary tw-text-white" data-href="{{route('sell.printInvoice', [$sell->id])}}"><i class="fa fa-print" aria-hidden="true"></i> @lang("lang_v1.print_invoice")</a>
       @if(!empty($businessCentralSaleMapping))
-        <a href="{{ route('sell.printBusinessCentralInvoice', [$sell->id]) }}" target="_blank"
-           class="tw-dw-btn tw-dw-btn-info tw-text-white">
-          <i class="fab fa-microsoft" aria-hidden="true"></i> BC Invoice
+        <a href="#" data-href="{{ route('sell.printBusinessCentralInvoice', [$sell->id]) }}"
+           class="print-bc-invoice tw-dw-btn tw-dw-btn-info tw-text-white">
+          <i class="fab fa-microsoft" aria-hidden="true"></i> Print BC Posted Invoice
         </a>
       @endif
     @endcan

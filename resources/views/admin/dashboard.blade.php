@@ -906,13 +906,25 @@
     </div>
 
     <!-- System Modal -->
+    @php
+        $systemSchedulesEnabled = collect([
+            (bool) ($settings?->auto_close_register ?? false),
+            (bool) ($settings?->accounting_backfill_enabled ?? false),
+            (bool) ($settings?->stock_costing_backfill_enabled ?? false),
+            (bool) ($settings?->top_selling_low_stock_alert_enabled ?? false),
+        ])->filter()->count();
+    @endphp
     <div class="modal fade" id="systemModal" tabindex="-1" aria-labelledby="systemModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header py-2" style="background:linear-gradient(135deg,#17a2b8 0%,#138496 100%);">
-                    <h6 class="modal-title text-white mb-0" id="systemModalLabel">
-                        <i class="fas fa-server me-2"></i>{{ __('payment.system') }} {{ __('messages.settings') }}
-                    </h6>
+            <div class="modal-content sys-modal">
+                <div class="modal-header sys-modal-header text-white">
+                    <div class="d-flex align-items-center">
+                        <span class="sys-brand-icon"><i class="fas fa-server"></i></span>
+                        <div>
+                            <h5 class="modal-title mb-0" id="systemModalLabel">{{ __('payment.system') }} {{ __('messages.settings') }}</h5>
+                            <small class="sys-header-subtitle">Automation, maintenance schedules, and operational controls</small>
+                        </div>
+                    </div>
                     <button type="button" class="close text-white" data-dismiss="modal" aria-label="{{ __('payment.close') }}">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -924,32 +936,86 @@
                     <input type="hidden" name="quarterly_price" value="{{ $settings?->quarterly_price ?? 0 }}">
                     <input type="hidden" name="yearly_price" value="{{ $settings?->yearly_price ?? 0 }}">
 
-                    <div class="modal-body py-3 px-4" style="background:#f8fafc;">
+                    <div class="modal-body sys-modal-body">
+                        <div class="sys-overview mb-3">
+                            <div>
+                                <h6 class="mb-1 fw-bold">System automation</h6>
+                                <p class="small text-muted mb-0">Configure each operational task independently. Changes apply after saving.</p>
+                            </div>
+                            <div class="sys-overview-stats">
+                                <span class="sys-overview-pill">
+                                    <i class="fas fa-clock"></i>
+                                    {{ $systemSchedulesEnabled }} of 4 schedules enabled
+                                </span>
+                                <span class="sys-overview-pill {{ ($settings?->auto_renewal ?? false) ? 'is-success' : '' }}">
+                                    <i class="fas fa-sync-alt"></i>
+                                    Auto renewal {{ ($settings?->auto_renewal ?? false) ? 'enabled' : 'disabled' }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="row sys-setup-workspace">
+                            <div class="col-lg-3 mb-3 sys-setup-sidebar">
+                                <div class="list-group sys-setup-nav">
+                                    <a href="#sys-setup-general" class="list-group-item list-group-item-action active"
+                                       onclick="navigateSystemSetup(this, 'sys-setup-general'); return false;">
+                                        <span class="sys-nav-icon"><i class="fas fa-sliders-h"></i></span>
+                                        <span><strong>{{ __('lang_v1.general') }}</strong><small>Renewal and display defaults</small></span>
+                                    </a>
+                                    <a href="#sys-setup-register" class="list-group-item list-group-item-action"
+                                       onclick="navigateSystemSetup(this, 'sys-setup-register'); return false;">
+                                        <span class="sys-nav-icon"><i class="fas fa-cash-register"></i></span>
+                                        <span><strong>Register closing</strong><small>Daily automatic close</small></span>
+                                    </a>
+                                    <a href="#sys-setup-accounting" class="list-group-item list-group-item-action"
+                                       onclick="navigateSystemSetup(this, 'sys-setup-accounting'); return false;">
+                                        <span class="sys-nav-icon"><i class="fas fa-calculator"></i></span>
+                                        <span><strong>Accounting backfill</strong><small>Ledger repair schedule</small></span>
+                                    </a>
+                                    <a href="#sys-setup-stock-costing" class="list-group-item list-group-item-action"
+                                       onclick="navigateSystemSetup(this, 'sys-setup-stock-costing'); return false;">
+                                        <span class="sys-nav-icon"><i class="fas fa-boxes"></i></span>
+                                        <span><strong>Stock costing</strong><small>Costing repair schedule</small></span>
+                                    </a>
+                                    <a href="#sys-setup-low-stock" class="list-group-item list-group-item-action"
+                                       onclick="navigateSystemSetup(this, 'sys-setup-low-stock'); return false;">
+                                        <span class="sys-nav-icon"><i class="fas fa-bell"></i></span>
+                                        <span><strong>Low-stock alerts</strong><small>Recipients and frequency</small></span>
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div class="col-lg-9 sys-setup-content">
 
                         {{-- ── General ─────────────────────────────────────────────── --}}
-                        <div class="sys-section-card mb-3">
+                        <div class="sys-section-card sys-tab-pane sys-tab-active mb-3" id="sys-setup-general">
                             <div class="sys-section-title">
                                 <i class="fas fa-sliders-h me-1"></i>{{ __('lang_v1.general') }}
                             </div>
-                            <div class="row g-2 align-items-end">
-                                <div class="col-auto" style="padding-top:1.5rem;">
-                                    <div class="form-check form-switch mb-0">
-                                        <input class="form-check-input" type="checkbox" name="auto_renewal"
+                            <div class="sys-general-grid">
+                                <div class="bc-toggle-card">
+                                    <div class="bc-toggle-copy">
+                                        <label class="fw-bold mb-1" for="auto_renewal">{{ __('payment.enable_auto_renewal') }}</label>
+                                        <small class="text-muted d-block">Automatically renew eligible subscriptions using the configured renewal rules.</small>
+                                    </div>
+                                    <div class="bc-toggle-control">
+                                        <input class="bc-toggle-input" type="checkbox" name="auto_renewal"
                                                id="auto_renewal" value="1"
                                                {{ ($settings?->auto_renewal ?? false) ? 'checked' : '' }}>
-                                        <label for="auto_renewal" class="form-check-label fw-medium" style="font-size:.85rem;">
-                                            {{ __('payment.enable_auto_renewal') }}
+                                        <label class="bc-toggle-slider" for="auto_renewal">
+                                            <span class="sr-only">{{ __('payment.enable_auto_renewal') }}</span>
                                         </label>
+                                        <span class="bc-toggle-state" aria-hidden="true"></span>
                                     </div>
                                 </div>
-                                <div class="col-sm-3">
+                                <div>
                                     <label class="form-label mb-1 fw-medium" style="font-size:.8rem;">{{ __('payment.grace_period_days') }}</label>
-                                    <input type="number" class="form-control form-control-sm" name="grace_period_days"
+                                    <input type="number" class="form-control" name="grace_period_days"
                                            value="{{ $settings?->grace_period_days ?? 7 }}" required>
                                 </div>
-                                <div class="col-sm-3">
+                                <div>
                                     <label class="form-label mb-1 fw-medium" style="font-size:.8rem;">{{ __('payment.recent_records_limit') }}</label>
-                                    <input type="number" min="1" max="100" class="form-control form-control-sm" name="recent_limit"
+                                    <input type="number" min="1" max="100" class="form-control" name="recent_limit"
                                            value="{{ $settings?->recent_limit ?? 5 }}" required>
                                     <small class="text-muted" style="font-size:.72rem;">{{ __('payment.controls_how_many_recent') }}</small>
                                 </div>
@@ -957,14 +1023,14 @@
                         </div>
 
                         {{-- ── Scheduled Tasks ─────────────────────────────────────── --}}
-                        <div class="sys-section-card">
+                        <div class="sys-section-card sys-scheduled-shell d-none">
                             <div class="sys-section-title">
                                 <i class="fas fa-clock me-1"></i>{{ __('lang_v1.scheduled_tasks') ?? 'Scheduled Tasks' }}
                             </div>
                             <div class="row g-3">
 
                                 {{-- Card 1: Auto-close Register --}}
-                                <div class="col-lg-4 col-md-6">
+                                <div class="col-12 sys-tab-pane" id="sys-setup-register">
                                     <input type="hidden" name="auto_close_register" value="0">
                                     <div class="sched-card h-100">
                                         <div class="sched-card__head">
@@ -991,7 +1057,7 @@
                                 </div>
 
                                 {{-- Card 2: Accounting Backfill --}}
-                                <div class="col-lg-4 col-md-6">
+                                <div class="col-12 sys-tab-pane" id="sys-setup-accounting">
                                     <input type="hidden" name="accounting_backfill_enabled" value="0">
                                     <div class="sched-card h-100">
                                         <div class="sched-card__head">
@@ -1033,7 +1099,7 @@
                                 </div>
 
                                 {{-- Card 3: Stock Costing Backfill --}}
-                                <div class="col-lg-4 col-md-12">
+                                <div class="col-12 sys-tab-pane" id="sys-setup-stock-costing">
                                     <input type="hidden" name="stock_costing_backfill_enabled" value="0">
                                     <input type="hidden" name="run_stock_costing_backfill_now" id="runStockCostingBackfillNow" value="0">
                                     <input type="hidden" name="run_stock_costing_backfill_dry_run" id="runStockCostingBackfillDryRun" value="0">
@@ -1110,7 +1176,7 @@
                                     </div>
                                 </div>
 
-                                <div class="col-12">
+                                <div class="col-12 sys-tab-pane" id="sys-setup-low-stock">
                                     <input type="hidden" name="top_selling_low_stock_alert_enabled" value="0">
                                     <input type="hidden" name="top_selling_low_stock_alert_send_in_app" value="0">
                                     <input type="hidden" name="top_selling_low_stock_alert_send_email" value="0">
@@ -1278,14 +1344,16 @@
                             </div>{{-- /row --}}
                         </div>{{-- /sys-section-card --}}
 
+                            </div>{{-- /sys-setup-content --}}
+                        </div>{{-- /sys-setup-workspace --}}
                     </div>{{-- /modal-body --}}
 
-                    <div class="modal-footer py-2">
-                        <button type="submit" class="btn btn-sm btn-info px-4">
+                    <div class="modal-footer sys-modal-footer">
+                        <button type="button" class="btn btn-light border me-auto" data-dismiss="modal">{{ __('payment.close') }}</button>
+                        <button type="submit" class="btn btn-info px-4">
                             <span class="btn-text">{{ __('payment.update_settings') }}</span>
                             <span class="btn-loading d-none"><span class="spinner-border spinner-border-sm" role="status"></span></span>
                         </button>
-                        <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">{{ __('payment.close') }}</button>
                     </div>
                 </form>
             </div>
@@ -1359,12 +1427,16 @@
 
     <!-- eTIMS Integration Modal -->
     <div class="modal fade" id="etimsModal" tabindex="-1" aria-labelledby="etimsModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title" id="etimsModalLabel">
-                        <i class="fas fa-exchange-alt me-2"></i>{{ __('payment.etims_integration_settings') }}
-                    </h5>
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content etims-modal">
+                <div class="modal-header etims-modal-header text-white">
+                    <div class="d-flex align-items-center">
+                        <span class="etims-brand-icon"><i class="fas fa-exchange-alt"></i></span>
+                        <div>
+                            <h5 class="modal-title mb-0" id="etimsModalLabel">{{ __('payment.etims_integration_settings') }}</h5>
+                            <small class="etims-header-subtitle">Tax transmission connection, document rules, and tax-code guidance</small>
+                        </div>
+                    </div>
                     <button type="button" class="close text-white" data-dismiss="modal" aria-label="{{ __('payment.close') }}">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -1378,96 +1450,168 @@
                     <input type="hidden" name="yearly_price" value="{{ $settings?->yearly_price ?? 0 }}">
                     <input type="hidden" name="grace_period_days" value="{{ $settings?->grace_period_days ?? 7 }}">
                     <input type="hidden" name="recent_limit" value="{{ $settings?->recent_limit ?? 5 }}">
+                    <input type="hidden" name="etims_auto_transmit" value="0">
+                    <input type="hidden" name="etims_transmit_subscriptions" value="0">
+                    <input type="hidden" name="etims_transmit_registrations" value="0">
                     
-                    <div class="modal-body">
-                        <div class="alert alert-info border-0">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>{{ __('payment.configure_etims_api_integration') }}</strong>
-                            <br><small class="text-dark">{{ __('payment.etims_integration_help') }}</small>
-                        </div>
-
-                        <div class="row g-3 mb-3">
-                            <div class="col-12">
-                                <label class="form-label fw-medium">{{ __('payment.etims_api_url_label') }}</label>
-                                <input type="url" class="form-control" name="etims_api_url" 
-                                       value="{{ $settings?->etims_api_url ?? '' }}" 
-                                       placeholder="{{ __('payment.etims_api_url_placeholder') }}">
-                                <small class="text-muted">{{ __('payment.etims_api_url_help') }}</small>
-                            </div>
-                        </div>
-
-                        <div class="row g-3 mb-3">
-                            <div class="col-12">
-                                <label class="form-label fw-medium">{{ __('payment.api_token') }}</label>
-                                <textarea class="form-control" name="etims_api_token" rows="3" 
-                                          placeholder="{{ __('payment.etims_api_token_placeholder') }}">{{ $settings?->etims_api_token ?? '' }}</textarea>
-                                <small class="text-muted">{{ __('payment.etims_api_token_help') }}</small>
-                            </div>
-                        </div>
-
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label fw-medium">{{ __('payment.branch_id') }}</label>
-                                <input type="text" class="form-control" name="etims_branch_id" 
-                                       value="{{ $settings?->etims_branch_id ?? '' }}" 
-                                       placeholder="{{ __('payment.etims_branch_id_placeholder') }}" maxlength="10">
-                                <small class="text-muted">{{ __('payment.etims_branch_id_help') }}</small>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-medium">{{ __('payment.auto_transmit_products') }}</label>
-                                <div class="form-check form-switch mt-2">
-                                    <input class="form-check-input" type="checkbox" name="etims_auto_transmit" 
-                                           id="etimsAutoTransmit" value="1"
-                                           {{ ($settings?->etims_auto_transmit ?? false) ? 'checked' : '' }}>
-                                    <label class="form-check-label" for="etimsAutoTransmit">
-                                        {{ __('payment.automatically_transmit_product_sales') }}
-                                    </label>
+                    <div class="modal-body etims-modal-body">
+                        @php
+                            $etimsConfiguredFields = collect([
+                                $settings?->etims_api_url,
+                                $settings?->etims_api_token,
+                                $settings?->etims_branch_id,
+                            ])->filter(fn ($value) => !empty($value))->count();
+                            $etimsReadiness = (int) round(($etimsConfiguredFields / 3) * 100);
+                        @endphp
+                        <div class="etims-overview mb-3">
+                            <div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <h6 class="mb-0 fw-bold">{{ __('payment.configure_etims_api_integration') }}</h6>
+                                    <span class="etims-readiness-value">{{ $etimsReadiness }}%</span>
                                 </div>
-                                <small class="text-muted">{{ __('payment.auto_transmit_products_help') }}</small>
+                                <p class="small text-muted mb-0 mt-1">{{ __('payment.etims_integration_help') }}</p>
                             </div>
+                            <span class="etims-state-pill {{ $etimsReadiness === 100 ? 'is-ready' : '' }}">
+                                <i class="fas {{ $etimsReadiness === 100 ? 'fa-check-circle' : 'fa-tools' }}"></i>
+                                {{ $etimsReadiness === 100 ? 'Connection configured' : 'Setup incomplete' }}
+                            </span>
+                        </div>
+                        <div class="progress etims-readiness-progress mb-3">
+                            <div class="progress-bar" role="progressbar" style="width: {{ $etimsReadiness }}%;"
+                                 aria-valuenow="{{ $etimsReadiness }}" aria-valuemin="0" aria-valuemax="100"></div>
                         </div>
 
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label fw-medium">{{ __('payment.transmit_subscriptions') }}</label>
-                                <div class="form-check form-switch mt-2">
-                                    <input class="form-check-input" type="checkbox" name="etims_transmit_subscriptions" 
-                                           id="etimsTransmitSubscriptions" value="1"
-                                           {{ ($settings?->etims_transmit_subscriptions ?? false) ? 'checked' : '' }}>
-                                    <label class="form-check-label" for="etimsTransmitSubscriptions">
-                                        {{ __('payment.include_subscription_invoices') }}
-                                    </label>
+                        <div class="row etims-setup-workspace">
+                            <div class="col-lg-3 mb-3 etims-setup-sidebar">
+                                <div class="list-group etims-setup-nav">
+                                    <a href="#etims-setup-connection" class="list-group-item list-group-item-action active"
+                                       onclick="navigateEtimsSetup(this, 'etims-setup-connection'); return false;">
+                                        <span class="etims-nav-icon"><i class="fas fa-plug"></i></span>
+                                        <span><strong>Connection</strong><small>API, token, and branch</small></span>
+                                    </a>
+                                    <a href="#etims-setup-transmission" class="list-group-item list-group-item-action"
+                                       onclick="navigateEtimsSetup(this, 'etims-setup-transmission'); return false;">
+                                        <span class="etims-nav-icon"><i class="fas fa-paper-plane"></i></span>
+                                        <span><strong>Transmission rules</strong><small>Choose documents to send</small></span>
+                                    </a>
+                                    <a href="#etims-setup-tax-codes" class="list-group-item list-group-item-action"
+                                       onclick="navigateEtimsSetup(this, 'etims-setup-tax-codes'); return false;">
+                                        <span class="etims-nav-icon"><i class="fas fa-percent"></i></span>
+                                        <span><strong>Tax codes</strong><small>Reference and guidance</small></span>
+                                    </a>
                                 </div>
-                                <small class="text-muted">{{ __('payment.transmit_subscriptions_help') }}</small>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-medium">{{ __('payment.transmit_registrations') }}</label>
-                                <div class="form-check form-switch mt-2">
-                                    <input class="form-check-input" type="checkbox" name="etims_transmit_registrations" 
-                                           id="etimsTransmitRegistrations" value="1"
-                                           {{ ($settings?->etims_transmit_registrations ?? false) ? 'checked' : '' }}>
-                                    <label class="form-check-label" for="etimsTransmitRegistrations">
-                                        {{ __('payment.include_registration_payments') }}
-                                    </label>
-                                </div>
-                                <small class="text-muted">{{ __('payment.transmit_registrations_help') }}</small>
-                            </div>
-                        </div>
 
-                        <div class="alert alert-light border">
-                            <div class="text-dark">
-                                <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
-                                <strong>{{ __('payment.tax_code_information') }}</strong>
+                            <div class="col-lg-9 etims-setup-content">
+                                <div class="etims-tab-pane etims-tab-active" id="etims-setup-connection">
+                                    <div class="etims-section-card">
+                                        <div class="etims-section-heading">
+                                            <span><i class="fas fa-plug"></i></span>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold">Connect to the eTIMS service</h6>
+                                                <small class="text-muted">Enter the credentials supplied by your eTIMS integration provider.</small>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-medium">{{ __('payment.etims_api_url_label') }}</label>
+                                            <input type="url" class="form-control" name="etims_api_url"
+                                                   value="{{ $settings?->etims_api_url ?? '' }}"
+                                                   placeholder="{{ __('payment.etims_api_url_placeholder') }}">
+                                            <small class="text-muted">{{ __('payment.etims_api_url_help') }}</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-medium">{{ __('payment.api_token') }}</label>
+                                            <textarea class="form-control" name="etims_api_token" rows="3"
+                                                      placeholder="{{ __('payment.etims_api_token_placeholder') }}">{{ $settings?->etims_api_token ?? '' }}</textarea>
+                                            <small class="text-muted">{{ __('payment.etims_api_token_help') }}</small>
+                                        </div>
+                                        <div>
+                                            <label class="form-label fw-medium">{{ __('payment.branch_id') }}</label>
+                                            <input type="text" class="form-control" name="etims_branch_id"
+                                                   value="{{ $settings?->etims_branch_id ?? '' }}"
+                                                   placeholder="{{ __('payment.etims_branch_id_placeholder') }}" maxlength="10">
+                                            <small class="text-muted">{{ __('payment.etims_branch_id_help') }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="etims-tab-pane" id="etims-setup-transmission">
+                                    <div class="etims-section-card">
+                                        <div class="etims-section-heading">
+                                            <span><i class="fas fa-paper-plane"></i></span>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold">Choose what POS sends automatically</h6>
+                                                <small class="text-muted">Green switches are enabled; gray switches are disabled.</small>
+                                            </div>
+                                        </div>
+                                        <div class="bc-toggle-card mb-3">
+                                            <div class="bc-toggle-copy">
+                                                <label class="fw-bold mb-1" for="etimsAutoTransmit">{{ __('payment.automatically_transmit_product_sales') }}</label>
+                                                <small class="text-muted d-block">{{ __('payment.auto_transmit_products_help') }}</small>
+                                            </div>
+                                            <div class="bc-toggle-control">
+                                                <input class="bc-toggle-input" type="checkbox" name="etims_auto_transmit"
+                                                       id="etimsAutoTransmit" value="1"
+                                                       {{ ($settings?->etims_auto_transmit ?? false) ? 'checked' : '' }}>
+                                                <label class="bc-toggle-slider" for="etimsAutoTransmit"><span class="sr-only">{{ __('payment.auto_transmit_products') }}</span></label>
+                                                <span class="bc-toggle-state" aria-hidden="true"></span>
+                                            </div>
+                                        </div>
+                                        <div class="bc-toggle-card mb-3">
+                                            <div class="bc-toggle-copy">
+                                                <label class="fw-bold mb-1" for="etimsTransmitSubscriptions">{{ __('payment.include_subscription_invoices') }}</label>
+                                                <small class="text-muted d-block">{{ __('payment.transmit_subscriptions_help') }}</small>
+                                            </div>
+                                            <div class="bc-toggle-control">
+                                                <input class="bc-toggle-input" type="checkbox" name="etims_transmit_subscriptions"
+                                                       id="etimsTransmitSubscriptions" value="1"
+                                                       {{ ($settings?->etims_transmit_subscriptions ?? false) ? 'checked' : '' }}>
+                                                <label class="bc-toggle-slider" for="etimsTransmitSubscriptions"><span class="sr-only">{{ __('payment.transmit_subscriptions') }}</span></label>
+                                                <span class="bc-toggle-state" aria-hidden="true"></span>
+                                            </div>
+                                        </div>
+                                        <div class="bc-toggle-card">
+                                            <div class="bc-toggle-copy">
+                                                <label class="fw-bold mb-1" for="etimsTransmitRegistrations">{{ __('payment.include_registration_payments') }}</label>
+                                                <small class="text-muted d-block">{{ __('payment.transmit_registrations_help') }}</small>
+                                            </div>
+                                            <div class="bc-toggle-control">
+                                                <input class="bc-toggle-input" type="checkbox" name="etims_transmit_registrations"
+                                                       id="etimsTransmitRegistrations" value="1"
+                                                       {{ ($settings?->etims_transmit_registrations ?? false) ? 'checked' : '' }}>
+                                                <label class="bc-toggle-slider" for="etimsTransmitRegistrations"><span class="sr-only">{{ __('payment.transmit_registrations') }}</span></label>
+                                                <span class="bc-toggle-state" aria-hidden="true"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="etims-tab-pane" id="etims-setup-tax-codes">
+                                    <div class="etims-section-card">
+                                        <div class="etims-section-heading">
+                                            <span><i class="fas fa-percent"></i></span>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold">{{ __('payment.tax_code_information') }}</h6>
+                                                <small class="text-muted">Use the correct tax category when configuring products and services.</small>
+                                            </div>
+                                        </div>
+                                        <div class="etims-tax-code-list">
+                                            <div><span class="etims-tax-badge">A</span><p>{{ __('payment.tax_code_a_description') }}</p></div>
+                                            <div><span class="etims-tax-badge">B</span><p>{{ __('payment.tax_code_b_description') }}</p></div>
+                                            <div><span class="etims-tax-badge">E</span><p>{{ __('payment.tax_code_e_description') }}</p></div>
+                                        </div>
+                                        <div class="alert alert-warning mb-0 mt-3">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            {{ __('payment.tax_code_summary_note') }}
+                                        </div>
+                                    </div>
+                                    </div>
+                                </div>
                             </div>
-                            <ul class="mb-0 mt-2 small">
-                                <li>{{ __('payment.tax_code_a_description') }}</li>
-                                <li>{{ __('payment.tax_code_b_description') }}</li>
-                                <li>{{ __('payment.tax_code_e_description') }}</li>
-                            </ul>
-                            <small class="d-block mt-2">{{ __('payment.tax_code_summary_note') }}</small>
                         </div>
                     </div>
-                    <div class="modal-footer">
+                    <div class="modal-footer etims-modal-footer">
+                        <button type="button" class="btn btn-light border me-auto" data-dismiss="modal">{{ __('payment.close') }}</button>
                         <button type="submit" class="btn btn-success px-4">
                             <span class="btn-text">
                                 <i class="fas fa-save me-2"></i>{{ __('payment.save_etims_settings') }}
@@ -1476,7 +1620,6 @@
                                 <span class="spinner-border spinner-border-sm" role="status"></span>
                             </span>
                         </button>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('payment.close') }}</button>
                     </div>
                 </form>
             </div>
@@ -1484,13 +1627,34 @@
     </div>
 
     <!-- Microsoft Dynamics 365 Business Central Modal -->
+    @php
+        $bcLocationMappings = $businessCentralLocationMappings ?? collect();
+        $bcLocationTotal = ($schedulerLocations ?? collect())->count();
+        $bcLocationMapped = ($schedulerLocations ?? collect())->filter(function ($location) use ($bcLocationMappings) {
+            return !empty($bcLocationMappings->get($location->id)?->enabled);
+        })->count();
+        $bcUserTotal = ($businessCentralUsers ?? collect())->count();
+        $bcUserMapped = ($businessCentralSalespeople ?? collect())->whereNotNull('pos_user_id')->count();
+        $bcReadinessChecks = [
+            !empty($settings?->business_central_api_url) && !empty($settings?->business_central_auth_type),
+            !empty($settings?->business_central_company_id),
+            $bcLocationTotal > 0 && $bcLocationMapped > 0,
+            $bcUserTotal > 0 && $bcUserMapped === $bcUserTotal,
+        ];
+        $bcReadinessPercent = (int) round((collect($bcReadinessChecks)->filter()->count() / count($bcReadinessChecks)) * 100);
+    @endphp
     <div class="modal fade" id="businessCentralModal" tabindex="-1" aria-labelledby="businessCentralModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="businessCentralModalLabel">
-                        <i class="fab fa-microsoft me-2"></i>Dynamics 365 Business Central 240
-                    </h5>
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content bc-modal">
+                <div class="modal-header bc-modal-header text-white">
+                    <div class="d-flex align-items-center">
+                        <span class="bc-brand-icon"><i class="fab fa-microsoft"></i></span>
+                        <div>
+                            <h5 class="modal-title mb-0" id="businessCentralModalLabel">Dynamics 365 Business Central</h5>
+                            <small class="bc-header-subtitle">Inventory, sales, customers, vendors, and financial documents</small>
+                        </div>
+                        <span class="badge bc-version-badge ms-3">Dynamics 365 Business Central</span>
+                    </div>
                     <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -1506,229 +1670,413 @@
                     <input type="hidden" name="business_central_enabled" value="0">
                     <input type="hidden" name="business_central_require_sale_sync" value="0">
 
-                    <div class="modal-body">
-                        <div class="alert alert-info">
-                            When enabled, Business Central supplies products, customers, vendors, salespeople, and stock to POS.
-                            Finalized POS sales are posted with the BC salesperson mapped to the logged-in POS user.
-                            When disabled, existing POS behavior is unchanged.
-                        </div>
-
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" name="business_central_enabled"
-                                   id="businessCentralEnabled" value="1"
-                                   {{ ($settings?->business_central_enabled ?? false) ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold" for="businessCentralEnabled">Enable Business Central as inventory system of record</label>
-                        </div>
-
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox"
-                                   name="business_central_require_sale_sync"
-                                   id="businessCentralRequireSaleSync" value="1"
-                                   {{ ($settings?->business_central_require_sale_sync ?? false) ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold" for="businessCentralRequireSaleSync">
-                                Require successful BC posting before saving a POS sale
-                            </label>
-                            <small class="form-text text-muted d-block">
-                                When enabled, any BC error cancels and rolls back the POS sale. When disabled, POS saves the sale and retries BC automatically.
-                            </small>
-                        </div>
-
-                        <div class="row g-3">
-                            <div class="col-12">
-                                <label class="form-label">POS business</label>
-                                <select class="form-control" name="business_central_business_id" id="businessCentralBusiness">
-                                    <option value="">Select business</option>
-                                    @foreach(($schedulerBusinesses ?? collect()) as $business)
-                                        <option value="{{ $business->id }}" {{ (int) ($settings?->business_central_business_id ?? 0) === (int) $business->id ? 'selected' : '' }}>
-                                            {{ $business->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-8">
-                                <label class="form-label">Standard API v2.0 URL</label>
-                                <input type="url" class="form-control" name="business_central_api_url"
-                                       value="{{ $settings?->business_central_api_url ?? '' }}"
-                                       placeholder="https://bc-server:7048/BC240/api/v2.0">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Business Central company</label>
-                                <div class="input-group">
-                                    <select class="form-control" name="business_central_company_id" id="businessCentralCompany"
-                                            onchange="syncBusinessCentralCompanyName(this)">
-                                        <option value="">Load and select a company</option>
-                                        @if(!empty($settings?->business_central_company_id))
-                                            <option value="{{ $settings->business_central_company_id }}" selected>
-                                                {{ $settings?->business_central_company_name ?: 'Saved Business Central company' }}
-                                            </option>
-                                        @endif
-                                    </select>
-                                    <input type="hidden" name="business_central_company_name" id="businessCentralCompanyName"
-                                           value="{{ $settings?->business_central_company_name ?? '' }}">
-                                    <span class="input-group-btn">
-                                        <button type="button" class="btn btn-outline-secondary" id="loadBusinessCentralCompanies"
-                                                onclick="loadBusinessCentralCompanies(this)">
-                                            <i class="fas fa-cloud-download-alt"></i> Load
-                                        </button>
-                                    </span>
+                    <div class="modal-body bc-modal-body">
+                        <div class="bc-readiness-panel mb-3">
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <h6 class="mb-0 fw-bold">Setup readiness</h6>
+                                        <span class="bc-readiness-value">{{ $bcReadinessPercent }}%</span>
+                                    </div>
+                                    <p class="text-muted small mb-0 mt-1">Complete the numbered sections, save your settings, then run synchronization.</p>
                                 </div>
-                                <small class="text-muted" id="businessCentralCompanyStatus">
-                                    Enter connection details, then load companies.
-                                </small>
+                                <span class="bc-state-pill {{ ($settings?->business_central_enabled ?? false) ? 'is-enabled' : 'is-disabled' }}">
+                                    <i class="fas {{ ($settings?->business_central_enabled ?? false) ? 'fa-check-circle' : 'fa-pause-circle' }}"></i>
+                                    {{ ($settings?->business_central_enabled ?? false) ? 'Integration enabled' : 'Integration disabled' }}
+                                </span>
                             </div>
-                            <div class="col-12">
-                                <label class="form-label">BreMac inventory API collection URL</label>
-                                <input type="url" class="form-control" name="business_central_inventory_url"
-                                       value="{{ $settings?->business_central_inventory_url ?? '' }}"
-                                       placeholder="https://bc-server:7048/BC240/api/bremac/pos/v1.0/companies({company_id})/posInventoryEntries">
+                            <div class="progress bc-readiness-progress mt-3">
+                                <div class="progress-bar" role="progressbar" style="width: {{ $bcReadinessPercent }}%;"
+                                     aria-valuenow="{{ $bcReadinessPercent }}" aria-valuemin="0" aria-valuemax="100"></div>
                             </div>
-                            <div class="col-12">
-                                <label class="form-label">BC salesperson OData collection URL</label>
-                                <input type="url" class="form-control" name="business_central_salespeople_url"
-                                       value="{{ $settings?->business_central_salespeople_url ?? '' }}"
-                                       placeholder="https://bc-server:7048/BC240/ODataV4/Company('COMPANY')/SalespeoplePurchasers">
-                                <small class="text-muted">Optional. Use this for BC versions that do not expose salespeoplePurchasers in the standard API.</small>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">BreMac POS sales codeunit URL</label>
-                                <input type="url" class="form-control" name="business_central_sales_codeunit_url"
-                                       value="{{ $settings?->business_central_sales_codeunit_url ?? '' }}"
-                                       placeholder="https://bc-server:7047/BC240/WS/COMPANY/Codeunit/BreMacPOSSalesIntegration">
-                                <small class="text-muted">Optional. When configured, finalized POS sales use this location-aware BC24 SOAP service.</small>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label fw-bold">POS branch to Business Central location mapping</label>
-                                <div class="table-responsive border rounded">
-                                    <table class="table table-sm align-middle mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th style="width: 90px;">Sync</th>
-                                                <th>POS business</th>
-                                                <th>POS branch/location</th>
-                                                <th>BC location code</th>
-                                                <th>Resolved BC location ID</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @forelse(($schedulerLocations ?? collect()) as $location)
-                                                @php($bcLocationMapping = ($businessCentralLocationMappings ?? collect())->get($location->id))
-                                                @php($locationBusiness = ($schedulerBusinesses ?? collect())->firstWhere('id', $location->business_id))
-                                                <tr>
-                                                    <td>
-                                                        <input type="hidden" name="business_central_location_mappings[{{ $location->id }}][enabled]" value="0">
-                                                        <input type="checkbox" class="form-check-input"
-                                                               name="business_central_location_mappings[{{ $location->id }}][enabled]" value="1"
-                                                               {{ !empty($bcLocationMapping?->enabled) ? 'checked' : '' }}>
-                                                    </td>
-                                                    <td>{{ $locationBusiness?->name ?? $location->business_id }}</td>
-                                                    <td>{{ $location->name }}</td>
-                                                    <td>
-                                                        <input type="text" class="form-control form-control-sm"
-                                                               name="business_central_location_mappings[{{ $location->id }}][bc_location_code]"
-                                                               value="{{ $bcLocationMapping?->bc_location_code ?? '' }}"
-                                                               placeholder="e.g. MAIN">
-                                                    </td>
-                                                    <td class="small text-muted">{{ $bcLocationMapping?->bc_location_id ?? 'Resolved on first sync' }}</td>
-                                                </tr>
-                                            @empty
-                                                <tr><td colspan="5" class="text-center text-muted">No POS locations are available.</td></tr>
-                                            @endforelse
-                                        </tbody>
-                                    </table>
+                            <div class="row g-2 mt-2">
+                                <div class="col-6 col-lg-3">
+                                    <div class="bc-check-tile {{ $bcReadinessChecks[0] ? 'is-complete' : '' }}">
+                                        <i class="fas {{ $bcReadinessChecks[0] ? 'fa-check-circle' : 'fa-plug' }}"></i>
+                                        <span><strong>Connection</strong><small>{{ $bcReadinessChecks[0] ? 'Configured' : 'Needs setup' }}</small></span>
+                                    </div>
                                 </div>
-                                <small class="text-muted">Each sale line is posted with the BC location ID mapped to the POS branch that created the sale.</small>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label fw-bold">POS user to Business Central salesperson mapping</label>
-                                <div class="table-responsive border rounded">
-                                    <table class="table table-sm align-middle mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>POS user</th>
-                                                <th>Username</th>
-                                                <th>Business Central salesperson</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @forelse(($businessCentralUsers ?? collect()) as $posUser)
-                                                @php($assignedSalesperson = ($businessCentralSalespeople ?? collect())->firstWhere('pos_user_id', $posUser->id))
-                                                <tr>
-                                                    <td>{{ $posUser->user_full_name ?: $posUser->username }}</td>
-                                                    <td>{{ $posUser->username }}</td>
-                                                    <td>
-                                                        <select class="form-control form-control-sm"
-                                                                name="business_central_salesperson_mappings[{{ $posUser->id }}]">
-                                                            <option value="">Not mapped</option>
-                                                            @foreach(($businessCentralSalespeople ?? collect()) as $salesperson)
-                                                                <option value="{{ $salesperson->id }}"
-                                                                    {{ (int) ($assignedSalesperson?->id ?? 0) === (int) $salesperson->id ? 'selected' : '' }}
-                                                                    {{ $salesperson->blocked ? 'disabled' : '' }}>
-                                                                    {{ $salesperson->display_name }} ({{ $salesperson->code }}){{ $salesperson->blocked ? ' - blocked' : '' }}
-                                                                </option>
-                                                            @endforeach
-                                                        </select>
-                                                    </td>
-                                                </tr>
-                                            @empty
-                                                <tr>
-                                                    <td colspan="3" class="text-center text-muted">
-                                                        Save and sync first to import BC salespeople, then reopen this card to map POS users.
-                                                    </td>
-                                                </tr>
-                                            @endforelse
-                                        </tbody>
-                                    </table>
+                                <div class="col-6 col-lg-3">
+                                    <div class="bc-check-tile {{ $bcReadinessChecks[1] ? 'is-complete' : '' }}">
+                                        <i class="fas {{ $bcReadinessChecks[1] ? 'fa-check-circle' : 'fa-building' }}"></i>
+                                        <span><strong>Company</strong><small>{{ $bcReadinessChecks[1] ? ($settings?->business_central_company_name ?: 'Selected') : 'Not selected' }}</small></span>
+                                    </div>
                                 </div>
-                                <small class="text-muted">
-                                    Sales from an unmapped POS user remain completed in POS, but their BC synchronization fails until the user is mapped and the sync is retried.
-                                </small>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Authentication</label>
-                                <select class="form-control" name="business_central_auth_type" id="businessCentralAuthType">
-                                    @foreach(['basic' => 'Basic / Web Service Access Key', 'oauth2' => 'OAuth 2.0 client credentials', 'bearer' => 'Bearer token'] as $value => $label)
-                                        <option value="{{ $value }}" {{ ($settings?->business_central_auth_type ?? 'basic') === $value ? 'selected' : '' }}>{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Username</label>
-                                <input type="text" class="form-control" name="business_central_username"
-                                       value="{{ $settings?->business_central_username ?? '' }}" autocomplete="off">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Password, client secret, or token</label>
-                                <input type="password" class="form-control" name="business_central_secret"
-                                       placeholder="{{ !empty($settings?->business_central_secret) ? 'Leave blank to keep current secret' : '' }}"
-                                       autocomplete="new-password">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">OAuth token URL (OAuth only)</label>
-                                <input type="url" class="form-control" name="business_central_token_url"
-                                       value="{{ $settings?->business_central_token_url ?? '' }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">OAuth client ID</label>
-                                <input type="text" class="form-control" name="business_central_client_id"
-                                       value="{{ $settings?->business_central_client_id ?? '' }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">OAuth scope</label>
-                                <input type="text" class="form-control" name="business_central_scope"
-                                       value="{{ $settings?->business_central_scope ?? '' }}">
+                                <div class="col-6 col-lg-3">
+                                    <div class="bc-check-tile {{ $bcReadinessChecks[2] ? 'is-complete' : '' }}">
+                                        <i class="fas {{ $bcReadinessChecks[2] ? 'fa-check-circle' : 'fa-map-marker-alt' }}"></i>
+                                        <span><strong>Locations</strong><small>{{ $bcLocationMapped }} of {{ $bcLocationTotal }} enabled</small></span>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-lg-3">
+                                    <div class="bc-check-tile {{ $bcReadinessChecks[3] ? 'is-complete' : '' }}">
+                                        <i class="fas {{ $bcReadinessChecks[3] ? 'fa-check-circle' : 'fa-user-tag' }}"></i>
+                                        <span><strong>Salespeople</strong><small>{{ $bcUserMapped }} of {{ $bcUserTotal }} mapped</small></span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        @if(!empty($settings?->business_central_last_sync_at))
-                            <div class="alert alert-light border mt-3 mb-0">
-                                Last successful sync: {{ $settings->business_central_last_sync_at }}
-                                @if(!empty($settings?->business_central_last_error))
-                                    <br><span class="text-danger">Last error: {{ $settings->business_central_last_error }}</span>
-                                @endif
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 bc-sync-summary mb-3">
+                            <div>
+                                <strong><i class="fas fa-history me-1 text-primary"></i> Synchronization status</strong>
+                                <span class="text-muted small ms-1">
+                                    {{ !empty($settings?->business_central_last_sync_at) ? 'Last successful sync: '.$settings->business_central_last_sync_at : 'No successful synchronization recorded yet.' }}
+                                </span>
+                            </div>
+                        </div>
+
+                        @if(!empty($settings?->business_central_last_error))
+                            <div class="alert alert-danger d-flex align-items-start">
+                                <i class="fas fa-exclamation-circle mt-1 me-2"></i>
+                                <div><strong>Last synchronization error</strong><br>{{ $settings->business_central_last_error }}</div>
                             </div>
                         @endif
+
+                        <div class="row bc-setup-workspace">
+                            <div class="col-lg-3 mb-3 bc-setup-sidebar">
+                                <div class="list-group bc-setup-nav">
+                                    <a href="#bc-setup-behavior" class="list-group-item list-group-item-action active"
+                                       onclick="navigateBusinessCentralSetup(this, 'bc-setup-behavior'); return false;">
+                                        <span class="bc-nav-number">1</span><span><strong>Integration mode</strong><small>Business and sale policy</small></span>
+                                    </a>
+                                    <a href="#bc-setup-connection" class="list-group-item list-group-item-action"
+                                       onclick="navigateBusinessCentralSetup(this, 'bc-setup-connection'); return false;">
+                                        <span class="bc-nav-number">2</span><span><strong>Connection</strong><small>API and authentication</small></span>
+                                    </a>
+                                    <a href="#bc-setup-services" class="list-group-item list-group-item-action"
+                                       onclick="navigateBusinessCentralSetup(this, 'bc-setup-services'); return false;">
+                                        <span class="bc-nav-number">3</span><span><strong>BC services</strong><small>Company and endpoints</small></span>
+                                    </a>
+                                    <a href="#bc-setup-locations" class="list-group-item list-group-item-action"
+                                       onclick="navigateBusinessCentralSetup(this, 'bc-setup-locations'); return false;">
+                                        <span class="bc-nav-number">4</span><span><strong>Locations</strong><small>Branch mapping</small></span>
+                                    </a>
+                                    <a href="#bc-setup-salespeople" class="list-group-item list-group-item-action"
+                                       onclick="navigateBusinessCentralSetup(this, 'bc-setup-salespeople'); return false;">
+                                        <span class="bc-nav-number">5</span><span><strong>Salespeople</strong><small>User mapping</small></span>
+                                    </a>
+                                    <a href="#bc-setup-invoices" class="list-group-item list-group-item-action"
+                                       onclick="navigateBusinessCentralSetup(this, 'bc-setup-invoices'); return false;">
+                                        <span class="bc-nav-number">6</span><span><strong>Invoice reports</strong><small>Registered and walk-in</small></span>
+                                    </a>
+                                </div>
+                                <div class="alert alert-info small mt-3 mb-0">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Business Central supplies master data and stock. POS sends finalized sales back to BC.
+                                </div>
+                            </div>
+
+                            <div class="col-lg-9 bc-setup-content">
+                                <div class="card bc-step-card bc-step-active mb-3" id="bc-setup-behavior">
+                                    <div class="card-header bg-white d-flex align-items-center">
+                                        <span class="badge bg-primary rounded-circle me-2">1</span>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold">Choose the integration mode</h6>
+                                            <small class="text-muted">Select the POS business and decide how sales behave when BC is unavailable.</small>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">POS business</label>
+                                            <select class="form-control" name="business_central_business_id" id="businessCentralBusiness">
+                                                <option value="">Select the business to connect</option>
+                                                @foreach(($schedulerBusinesses ?? collect()) as $business)
+                                                    <option value="{{ $business->id }}" {{ (int) ($settings?->business_central_business_id ?? 0) === (int) $business->id ? 'selected' : '' }}>
+                                                        {{ $business->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="bc-toggle-card mb-3">
+                                            <div class="bc-toggle-copy">
+                                                <label class="fw-bold mb-1" for="businessCentralEnabled">Use Business Central as the inventory system of record</label>
+                                                <small class="text-muted d-block">When disabled, POS continues to work independently and no BC synchronization runs.</small>
+                                            </div>
+                                            <div class="bc-toggle-control">
+                                                <input class="bc-toggle-input" type="checkbox" name="business_central_enabled"
+                                                       id="businessCentralEnabled" value="1"
+                                                       {{ ($settings?->business_central_enabled ?? false) ? 'checked' : '' }}>
+                                                <label class="bc-toggle-slider" for="businessCentralEnabled">
+                                                    <span class="sr-only">Toggle Business Central integration</span>
+                                                </label>
+                                                <span class="bc-toggle-state" aria-hidden="true"></span>
+                                            </div>
+                                        </div>
+                                        <div class="bc-toggle-card">
+                                            <div class="bc-toggle-copy">
+                                                <label class="fw-bold mb-1" for="businessCentralRequireSaleSync">Require BC posting before completing a POS sale</label>
+                                                <small class="text-muted d-block">
+                                                    <strong>On:</strong> a BC error cancels the sale. <strong>Off (recommended):</strong> POS saves the sale and retries BC automatically.
+                                                </small>
+                                            </div>
+                                            <div class="bc-toggle-control">
+                                                <input class="bc-toggle-input" type="checkbox"
+                                                       name="business_central_require_sale_sync"
+                                                       id="businessCentralRequireSaleSync" value="1"
+                                                       {{ ($settings?->business_central_require_sale_sync ?? false) ? 'checked' : '' }}>
+                                                <label class="bc-toggle-slider" for="businessCentralRequireSaleSync">
+                                                    <span class="sr-only">Toggle required BC posting</span>
+                                                </label>
+                                                <span class="bc-toggle-state" aria-hidden="true"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="card bc-step-card mb-3" id="bc-setup-connection">
+                                    <div class="card-header bg-white d-flex align-items-center">
+                                        <span class="badge bg-primary rounded-circle me-2">2</span>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold">Enter connection and sign-in details</h6>
+                                            <small class="text-muted">These credentials are used to load companies and synchronize data.</small>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row g-3">
+                                            <div class="col-12">
+                                                <label class="form-label fw-bold">Standard API v2.0 URL</label>
+                                                <input type="url" class="form-control" name="business_central_api_url"
+                                                       value="{{ $settings?->business_central_api_url ?? '' }}"
+                                                       placeholder="https://bc-server:7048/{instance}/api/v2.0">
+                                                <small class="text-muted">Base URL only; do not add a company ID or resource name.</small>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Authentication method</label>
+                                                <select class="form-control" name="business_central_auth_type" id="businessCentralAuthType"
+                                                        onchange="toggleBusinessCentralAuthFields()">
+                                                    @foreach(['basic' => 'Basic / Web Service Access Key', 'oauth2' => 'OAuth 2.0 client credentials', 'bearer' => 'Bearer token'] as $value => $label)
+                                                        <option value="{{ $value }}" {{ ($settings?->business_central_auth_type ?? 'basic') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 bc-auth-basic">
+                                                <label class="form-label fw-bold">Username</label>
+                                                <input type="text" class="form-control" name="business_central_username"
+                                                       value="{{ $settings?->business_central_username ?? '' }}" autocomplete="off">
+                                                <small class="text-muted">Required for Basic authentication.</small>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold" id="businessCentralSecretLabel">Password, secret, or token</label>
+                                                <input type="password" class="form-control" name="business_central_secret"
+                                                       placeholder="{{ !empty($settings?->business_central_secret) ? 'Leave blank to keep current secret' : 'Enter credential' }}"
+                                                       autocomplete="new-password">
+                                            </div>
+                                            <div class="col-md-6 bc-auth-oauth">
+                                                <label class="form-label">OAuth token URL <span class="text-muted">(OAuth only)</span></label>
+                                                <input type="url" class="form-control" name="business_central_token_url"
+                                                       value="{{ $settings?->business_central_token_url ?? '' }}"
+                                                       placeholder="https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token">
+                                            </div>
+                                            <div class="col-md-3 bc-auth-oauth">
+                                                <label class="form-label">OAuth client ID</label>
+                                                <input type="text" class="form-control" name="business_central_client_id"
+                                                       value="{{ $settings?->business_central_client_id ?? '' }}">
+                                            </div>
+                                            <div class="col-md-3 bc-auth-oauth">
+                                                <label class="form-label">OAuth scope</label>
+                                                <input type="text" class="form-control" name="business_central_scope"
+                                                       value="{{ $settings?->business_central_scope ?? '' }}"
+                                                       placeholder="https://api.businesscentral.dynamics.com/.default">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="card bc-step-card mb-3" id="bc-setup-services">
+                                    <div class="card-header bg-white d-flex align-items-center">
+                                        <span class="badge bg-primary rounded-circle me-2">3</span>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold">Select the BC company and configure services</h6>
+                                            <small class="text-muted">Load companies after completing steps 1 and 2.</small>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Business Central company</label>
+                                            <div class="input-group">
+                                                <select class="form-control" name="business_central_company_id" id="businessCentralCompany"
+                                                        onchange="syncBusinessCentralCompanyName(this)">
+                                                    <option value="">Load and select a company</option>
+                                                    @if(!empty($settings?->business_central_company_id))
+                                                        <option value="{{ $settings->business_central_company_id }}" selected>
+                                                            {{ $settings?->business_central_company_name ?: 'Saved Business Central company' }}
+                                                        </option>
+                                                    @endif
+                                                </select>
+                                                <input type="hidden" name="business_central_company_name" id="businessCentralCompanyName"
+                                                       value="{{ $settings?->business_central_company_name ?? '' }}">
+                                                <span class="input-group-btn">
+                                                    <button type="button" class="btn btn-outline-primary" id="loadBusinessCentralCompanies"
+                                                            onclick="loadBusinessCentralCompanies(this)">
+                                                        <i class="fas fa-cloud-download-alt me-1"></i>Load companies
+                                                    </button>
+                                                </span>
+                                            </div>
+                                            <small class="text-muted" id="businessCentralCompanyStatus">Enter connection details, then load companies.</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Inventory API collection URL</label>
+                                            <input type="url" class="form-control" name="business_central_inventory_url"
+                                                   value="{{ $settings?->business_central_inventory_url ?? '' }}"
+                                                   placeholder="https://bc-server:7048/{instance}/api/bremac/pos/v1.0/companies({company_id})/posInventoryEntries">
+                                            <small class="text-muted">Endpoint used to import Business Central inventory quantities into POS.</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Salespeople OData collection URL <span class="badge bg-light text-dark border">Optional</span></label>
+                                            <input type="url" class="form-control" name="business_central_salespeople_url"
+                                                   value="{{ $settings?->business_central_salespeople_url ?? '' }}"
+                                                   placeholder="https://bc-server:7048/{instance}/ODataV4/Company('COMPANY')/SalespeoplePurchasers">
+                                            <small class="text-muted">Only needed when the standard API does not expose salespeoplePurchasers.</small>
+                                        </div>
+                                        <div>
+                                            <label class="form-label fw-bold">BreMac POS sales codeunit URL <span class="badge bg-light text-dark border">Recommended</span></label>
+                                            <input type="url" class="form-control" name="business_central_sales_codeunit_url"
+                                                   value="{{ $settings?->business_central_sales_codeunit_url ?? '' }}"
+                                                   placeholder="https://bc-server:7047/{instance}/WS/COMPANY/Codeunit/BreMacPOSSalesIntegration">
+                                            <small class="text-muted">Required for location-aware Business Central sale posting and configured BC invoice reports.</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="card bc-step-card mb-3" id="bc-setup-locations">
+                                    <div class="card-header bg-white d-flex align-items-center">
+                                        <span class="badge bg-primary rounded-circle me-2">4</span>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold">Map POS branches to BC locations</h6>
+                                            <small class="text-muted">Enable each branch that should synchronize and enter its BC location code.</small>
+                                        </div>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="table-responsive">
+                                            <table class="table table-hover table-sm align-middle mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="ps-3" style="width: 80px;">Sync</th>
+                                                        <th>POS business</th>
+                                                        <th>POS branch</th>
+                                                        <th>BC location code</th>
+                                                        <th>Resolved BC location ID</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @forelse(($schedulerLocations ?? collect()) as $location)
+                                                        @php($bcLocationMapping = ($businessCentralLocationMappings ?? collect())->get($location->id))
+                                                        @php($locationBusiness = ($schedulerBusinesses ?? collect())->firstWhere('id', $location->business_id))
+                                                        <tr>
+                                                            <td class="ps-3">
+                                                                <input type="hidden" name="business_central_location_mappings[{{ $location->id }}][enabled]" value="0">
+                                                                <input type="checkbox" class="form-check-input"
+                                                                       name="business_central_location_mappings[{{ $location->id }}][enabled]" value="1"
+                                                                       aria-label="Synchronize {{ $location->name }}"
+                                                                       {{ !empty($bcLocationMapping?->enabled) ? 'checked' : '' }}>
+                                                            </td>
+                                                            <td>{{ $locationBusiness?->name ?? $location->business_id }}</td>
+                                                            <td class="fw-medium">{{ $location->name }}</td>
+                                                            <td>
+                                                                <input type="text" class="form-control form-control-sm"
+                                                                       name="business_central_location_mappings[{{ $location->id }}][bc_location_code]"
+                                                                       value="{{ $bcLocationMapping?->bc_location_code ?? '' }}"
+                                                                       placeholder="e.g. MAIN">
+                                                            </td>
+                                                            <td class="small text-muted">{{ $bcLocationMapping?->bc_location_id ?? 'Resolved on first sync' }}</td>
+                                                        </tr>
+                                                    @empty
+                                                        <tr><td colspan="5" class="text-center text-muted py-4">No POS locations are available.</td></tr>
+                                                    @endforelse
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="card bc-step-card mb-3" id="bc-setup-salespeople">
+                                    <div class="card-header bg-white d-flex align-items-center">
+                                        <span class="badge bg-primary rounded-circle me-2">5</span>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold">Map POS users to BC salespeople</h6>
+                                            <small class="text-muted">Each user who finalizes sales must have an active BC salesperson.</small>
+                                        </div>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="table-responsive">
+                                            <table class="table table-hover table-sm align-middle mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="ps-3">POS user</th>
+                                                        <th>Username</th>
+                                                        <th>Business Central salesperson</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @forelse(($businessCentralUsers ?? collect()) as $posUser)
+                                                        @php($assignedSalesperson = ($businessCentralSalespeople ?? collect())->firstWhere('pos_user_id', $posUser->id))
+                                                        <tr>
+                                                            <td class="ps-3 fw-medium">{{ $posUser->user_full_name ?: $posUser->username }}</td>
+                                                            <td>{{ $posUser->username }}</td>
+                                                            <td>
+                                                                <select class="form-control form-control-sm"
+                                                                        name="business_central_salesperson_mappings[{{ $posUser->id }}]">
+                                                                    <option value="">Not mapped</option>
+                                                                    @foreach(($businessCentralSalespeople ?? collect()) as $salesperson)
+                                                                        <option value="{{ $salesperson->id }}"
+                                                                            {{ (int) ($assignedSalesperson?->id ?? 0) === (int) $salesperson->id ? 'selected' : '' }}
+                                                                            {{ $salesperson->blocked ? 'disabled' : '' }}>
+                                                                            {{ $salesperson->display_name }} ({{ $salesperson->code }}){{ $salesperson->blocked ? ' - blocked' : '' }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                    @empty
+                                                        <tr>
+                                                            <td colspan="3" class="text-center text-muted py-4">
+                                                                Save and sync first to import BC salespeople, then return here to map POS users.
+                                                            </td>
+                                                        </tr>
+                                                    @endforelse
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer bg-light small">
+                                        <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+                                        Sales completed by an unmapped user remain in POS, but BC synchronization fails until the user is mapped and the sale is retried.
+                                    </div>
+                                </div>
+
+                                <div class="card bc-step-card mb-0" id="bc-setup-invoices">
+                                    <div class="card-header bg-white d-flex align-items-center">
+                                        <span class="badge bg-primary rounded-circle me-2">6</span>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold">Configure BC invoice reports</h6>
+                                            <small class="text-muted">Leave either value blank to use the documented fallback behavior.</small>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Registered customer report ID</label>
+                                                <input type="number" min="1" class="form-control" name="business_central_invoice_report_id"
+                                                       value="{{ $settings?->business_central_invoice_report_id ?? '' }}"
+                                                       placeholder="50100">
+                                                <small class="text-muted">Blank uses the BC S.Invoice report selection.</small>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Unregistered customer report ID</label>
+                                                <input type="number" min="1" class="form-control" name="business_central_unregistered_invoice_report_id"
+                                                       value="{{ $settings?->business_central_unregistered_invoice_report_id ?? '' }}"
+                                                       placeholder="50101">
+                                                <small class="text-muted">Blank uses the registered customer report for everyone.</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="modal-footer">
+                    <div class="modal-footer bc-modal-footer">
+                        <button type="button" class="btn btn-light border me-auto" data-dismiss="modal">Close</button>
                         <button type="submit" class="btn btn-outline-primary" name="run_business_central_sync_now" value="1">
                             <span class="btn-text"><i class="fas fa-sync me-2"></i>Save and sync now</span>
                             <span class="btn-loading d-none"><span class="spinner-border spinner-border-sm"></span></span>
@@ -1737,7 +2085,6 @@
                             <span class="btn-text"><i class="fas fa-save me-2"></i>Save settings</span>
                             <span class="btn-loading d-none"><span class="spinner-border spinner-border-sm"></span></span>
                         </button>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                     </div>
                 </form>
             </div>
@@ -2004,6 +2351,565 @@
 @section('styles')
     <link rel="stylesheet" href="{{ asset('css/admin-dashboard.css') }}">
     <style>
+        /* eTIMS setup */
+        .etims-modal {
+            border: 0;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 28px 70px rgba(15, 23, 42, .28);
+        }
+        .etims-modal-header {
+            border: 0;
+            padding: 16px 20px;
+            background: linear-gradient(120deg, #14532d 0%, #15803d 55%, #0f766e 100%);
+        }
+        .etims-brand-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            margin-right: 12px;
+            border: 1px solid rgba(255, 255, 255, .2);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, .13);
+            font-size: 1.1rem;
+        }
+        .etims-header-subtitle {
+            color: rgba(255, 255, 255, .75);
+        }
+        .etims-modal-body {
+            background: #f3f6fa;
+        }
+        .etims-overview {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 16px 18px;
+            border: 1px solid #dce5ef;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #fff 0%, #f0fdf4 100%);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+        }
+        .etims-readiness-value {
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: #dcfce7;
+            color: #166534;
+            font-size: .75rem;
+            font-weight: 800;
+        }
+        .etims-state-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: #e2e8f0;
+            color: #475569;
+            font-size: .8rem;
+            font-weight: 700;
+        }
+        .etims-state-pill.is-ready {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .etims-readiness-progress {
+            height: 7px;
+            border-radius: 999px;
+            background: #e2e8f0;
+        }
+        .etims-readiness-progress .progress-bar {
+            border-radius: inherit;
+            background: linear-gradient(90deg, #16a34a 0%, #0f766e 100%);
+        }
+        .etims-setup-sidebar {
+            align-self: flex-start;
+        }
+        .etims-setup-nav {
+            overflow: hidden;
+            border: 1px solid #dce5ef;
+            border-radius: 12px;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
+        }
+        .etims-setup-nav .list-group-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 13px 12px;
+            border-right: 0;
+            border-left: 3px solid transparent;
+            color: #475569;
+        }
+        .etims-setup-nav .list-group-item strong,
+        .etims-setup-nav .list-group-item small {
+            display: block;
+        }
+        .etims-setup-nav .list-group-item strong {
+            font-size: .82rem;
+        }
+        .etims-setup-nav .list-group-item small {
+            margin-top: 1px;
+            color: #94a3b8;
+            font-size: .68rem;
+        }
+        .etims-setup-nav .list-group-item.active {
+            border-color: #16a34a;
+            background: #f0fdf4;
+            color: #166534;
+        }
+        .etims-nav-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 30px;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: #e2e8f0;
+            color: #475569;
+            font-size: .75rem;
+        }
+        .etims-setup-nav .active .etims-nav-icon {
+            background: #16a34a;
+            color: #fff;
+        }
+        .etims-setup-content {
+            overflow-y: auto;
+            max-height: calc(100vh - 340px);
+            padding-right: 8px;
+        }
+        .etims-tab-pane {
+            display: none;
+        }
+        .etims-tab-pane.etims-tab-active {
+            display: block;
+            animation: etimsTabEnter .18s ease-out;
+        }
+        .etims-section-card {
+            padding: 18px;
+            border: 1px solid #dce5ef;
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 7px 20px rgba(15, 23, 42, .05);
+        }
+        .etims-section-heading {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            margin-bottom: 18px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #e8eef5;
+        }
+        .etims-section-heading > span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: #dcfce7;
+            color: #15803d;
+        }
+        .etims-section-card .form-control {
+            border-color: #cbd5e1;
+            border-radius: 8px;
+        }
+        .etims-section-card .form-control:focus {
+            border-color: #16a34a;
+            box-shadow: 0 0 0 3px rgba(22, 163, 74, .12);
+        }
+        .etims-tax-code-list {
+            display: grid;
+            gap: 10px;
+        }
+        .etims-tax-code-list > div {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 11px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #f8fafc;
+        }
+        .etims-tax-code-list p {
+            margin: 0;
+            color: #475569;
+            font-size: .82rem;
+        }
+        .etims-tax-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 30px;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: #16a34a;
+            color: #fff;
+            font-size: .78rem;
+            font-weight: 800;
+        }
+        .etims-modal-footer {
+            border-top: 1px solid #dce5ef;
+            background: #fff;
+            box-shadow: 0 -8px 22px rgba(15, 23, 42, .04);
+        }
+        @keyframes etimsTabEnter {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 991.98px) {
+            .etims-setup-nav {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+            .etims-setup-nav .list-group-item {
+                border-left-width: 0;
+            }
+            .etims-setup-content {
+                overflow: visible;
+                max-height: none;
+                padding-right: 15px;
+            }
+        }
+        @media (max-width: 575.98px) {
+            .etims-overview {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+            .etims-setup-nav {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Business Central setup */
+        .bc-modal {
+            border: 0;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 28px 70px rgba(15, 23, 42, .28);
+        }
+        .bc-modal-header {
+            border: 0;
+            padding: 16px 20px;
+            background: linear-gradient(120deg, #0f3b67 0%, #075985 55%, #0f766e 100%);
+        }
+        .bc-brand-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            margin-right: 12px;
+            border: 1px solid rgba(255, 255, 255, .2);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, .13);
+            font-size: 1.25rem;
+        }
+        .bc-header-subtitle {
+            color: rgba(255, 255, 255, .75);
+        }
+        .bc-version-badge {
+            border: 1px solid rgba(255, 255, 255, .24);
+            background: rgba(255, 255, 255, .14);
+            color: #fff;
+        }
+        .bc-modal-body {
+            background: #f3f6fa;
+        }
+        .bc-readiness-panel {
+            padding: 18px;
+            border: 1px solid #dce5ef;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #fff 0%, #f7fbff 100%);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+        }
+        .bc-readiness-value {
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: #e0f2fe;
+            color: #075985;
+            font-size: .75rem;
+            font-weight: 800;
+        }
+        .bc-state-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            font-size: .8rem;
+            font-weight: 700;
+        }
+        .bc-state-pill.is-enabled {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .bc-state-pill.is-disabled {
+            background: #e2e8f0;
+            color: #475569;
+        }
+        .bc-readiness-progress {
+            height: 7px;
+            border-radius: 999px;
+            background: #e2e8f0;
+        }
+        .bc-readiness-progress .progress-bar {
+            border-radius: inherit;
+            background: linear-gradient(90deg, #0284c7 0%, #0f766e 100%);
+        }
+        .bc-check-tile {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-height: 58px;
+            padding: 9px 11px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #fff;
+            color: #64748b;
+        }
+        .bc-check-tile > i {
+            width: 18px;
+            text-align: center;
+        }
+        .bc-check-tile span,
+        .bc-check-tile small {
+            display: block;
+            min-width: 0;
+        }
+        .bc-check-tile strong {
+            display: block;
+            color: #334155;
+            font-size: .78rem;
+        }
+        .bc-check-tile small {
+            overflow: hidden;
+            max-width: 145px;
+            color: #64748b;
+            font-size: .7rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .bc-check-tile.is-complete {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+            color: #16a34a;
+        }
+        .bc-sync-summary {
+            padding: 10px 14px;
+            border: 1px solid #dbeafe;
+            border-radius: 10px;
+            background: #eff6ff;
+        }
+        .bc-toggle-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 15px 16px;
+            border: 1px solid #dce5ef;
+            border-radius: 11px;
+            background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+        }
+        .bc-toggle-copy {
+            flex: 1;
+            min-width: 0;
+        }
+        .bc-toggle-copy label {
+            color: #1e293b;
+            cursor: pointer;
+        }
+        .bc-toggle-control {
+            display: flex;
+            flex: 0 0 auto;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .bc-toggle-input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .bc-toggle-slider {
+            position: relative;
+            display: block;
+            width: 54px;
+            height: 30px;
+            margin: 0;
+            border: 1px solid #94a3b8;
+            border-radius: 999px;
+            background: #cbd5e1;
+            cursor: pointer;
+            transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease;
+        }
+        .bc-toggle-slider::after {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 2px 5px rgba(15, 23, 42, .28);
+            content: "";
+            transition: transform .2s ease;
+        }
+        .bc-toggle-input:checked + .bc-toggle-slider {
+            border-color: #16a34a;
+            background: #22c55e;
+        }
+        .bc-toggle-input:checked + .bc-toggle-slider::after {
+            transform: translateX(24px);
+        }
+        .bc-toggle-input:focus-visible + .bc-toggle-slider {
+            box-shadow: 0 0 0 4px rgba(2, 132, 199, .18);
+        }
+        .bc-toggle-state {
+            color: #64748b;
+            font-size: .66rem;
+            font-weight: 800;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+        .bc-toggle-state::before {
+            content: "Disabled";
+        }
+        .bc-toggle-input:checked + .bc-toggle-slider + .bc-toggle-state {
+            color: #15803d;
+        }
+        .bc-toggle-input:checked + .bc-toggle-slider + .bc-toggle-state::before {
+            content: "Enabled";
+        }
+        .bc-setup-nav {
+            overflow: hidden;
+            border: 1px solid #dce5ef;
+            border-radius: 12px;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
+        }
+        .bc-setup-nav .list-group-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            border-right: 0;
+            border-left: 3px solid transparent;
+            color: #475569;
+        }
+        .bc-setup-nav .list-group-item strong,
+        .bc-setup-nav .list-group-item small {
+            display: block;
+        }
+        .bc-setup-nav .list-group-item strong {
+            font-size: .82rem;
+        }
+        .bc-setup-nav .list-group-item small {
+            margin-top: 1px;
+            color: #94a3b8;
+            font-size: .68rem;
+        }
+        .bc-setup-nav .list-group-item.active {
+            border-color: #0284c7;
+            background: #eff6ff;
+            color: #075985;
+        }
+        .bc-nav-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 28px;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: #e2e8f0;
+            color: #475569;
+            font-size: .75rem;
+            font-weight: 800;
+        }
+        .bc-setup-nav .active .bc-nav-number {
+            background: #0284c7;
+            color: #fff;
+        }
+        .bc-step-card {
+            display: none;
+            scroll-margin-top: 12px;
+            border: 1px solid #dce5ef;
+            border-radius: 12px;
+            box-shadow: 0 7px 20px rgba(15, 23, 42, .05);
+        }
+        .bc-step-card.bc-step-active {
+            display: block;
+            animation: bcStepEnter .18s ease-out;
+        }
+        .bc-setup-content {
+            overflow-y: auto;
+            max-height: calc(100vh - 390px);
+            padding-right: 8px;
+        }
+        .bc-setup-sidebar {
+            align-self: flex-start;
+        }
+        @keyframes bcStepEnter {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .bc-step-card > .card-header {
+            padding: 14px 16px;
+            border-bottom-color: #e8eef5;
+            border-radius: 12px 12px 0 0;
+        }
+        .bc-step-card .form-control {
+            border-color: #cbd5e1;
+            border-radius: 8px;
+            min-height: 38px;
+        }
+        .bc-step-card .form-control:focus {
+            border-color: #0284c7;
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, .12);
+        }
+        .bc-step-card table thead th {
+            border-top: 0;
+            color: #64748b;
+            font-size: .72rem;
+            text-transform: uppercase;
+            letter-spacing: .035em;
+        }
+        .bc-modal-footer {
+            border-top: 1px solid #dce5ef;
+            background: #fff;
+            box-shadow: 0 -8px 22px rgba(15, 23, 42, .04);
+        }
+        @media (max-width: 991.98px) {
+            .bc-setup-nav {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .bc-setup-nav .list-group-item {
+                border-left-width: 0;
+            }
+            .bc-setup-content {
+                overflow: visible;
+                max-height: none;
+                padding-right: 15px;
+            }
+        }
+        @media (max-width: 575.98px) {
+            .bc-toggle-card {
+                align-items: flex-start;
+            }
+        }
+
         /* ── OTP-style switch (shared with manage_user/edit) ── */
         .otp-card {
             padding: 14px 16px;
@@ -2042,11 +2948,151 @@
         .otp-card__status.is-off { background: #e5e7eb; color: #374151; }
 
             /* ── System modal redesign ────────────────────────────────── */
+            .sys-modal {
+                border: 0;
+                border-radius: 16px;
+                overflow: hidden;
+                box-shadow: 0 28px 70px rgba(15, 23, 42, .28);
+            }
+            .sys-modal-header {
+                border: 0;
+                padding: 16px 20px;
+                background: linear-gradient(120deg, #0f172a 0%, #155e75 58%, #0f766e 100%);
+            }
+            .sys-brand-icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 42px;
+                height: 42px;
+                margin-right: 12px;
+                border: 1px solid rgba(255, 255, 255, .2);
+                border-radius: 12px;
+                background: rgba(255, 255, 255, .13);
+                font-size: 1.1rem;
+            }
+            .sys-header-subtitle {
+                color: rgba(255, 255, 255, .75);
+            }
+            .sys-modal-body {
+                background: #f3f6fa;
+            }
+            .sys-overview {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 16px;
+                padding: 16px 18px;
+                border: 1px solid #dce5ef;
+                border-radius: 14px;
+                background: linear-gradient(135deg, #fff 0%, #f0fdfa 100%);
+                box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+            }
+            .sys-overview-stats {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+                gap: 8px;
+            }
+            .sys-overview-pill {
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+                padding: 7px 10px;
+                border-radius: 999px;
+                background: #e2e8f0;
+                color: #475569;
+                font-size: .75rem;
+                font-weight: 700;
+            }
+            .sys-overview-pill.is-success {
+                background: #dcfce7;
+                color: #166534;
+            }
+            .sys-setup-sidebar {
+                align-self: flex-start;
+            }
+            .sys-setup-nav {
+                overflow: hidden;
+                border: 1px solid #dce5ef;
+                border-radius: 12px;
+                box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
+            }
+            .sys-setup-nav .list-group-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 12px;
+                border-right: 0;
+                border-left: 3px solid transparent;
+                color: #475569;
+            }
+            .sys-setup-nav .list-group-item strong,
+            .sys-setup-nav .list-group-item small {
+                display: block;
+            }
+            .sys-setup-nav .list-group-item strong {
+                font-size: .82rem;
+            }
+            .sys-setup-nav .list-group-item small {
+                margin-top: 1px;
+                color: #94a3b8;
+                font-size: .68rem;
+            }
+            .sys-setup-nav .list-group-item.active {
+                border-color: #0891b2;
+                background: #ecfeff;
+                color: #155e75;
+            }
+            .sys-nav-icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                flex: 0 0 30px;
+                width: 30px;
+                height: 30px;
+                border-radius: 8px;
+                background: #e2e8f0;
+                color: #475569;
+                font-size: .75rem;
+            }
+            .sys-setup-nav .active .sys-nav-icon {
+                background: #0891b2;
+                color: #fff;
+            }
+            .sys-setup-content {
+                overflow-y: auto;
+                max-height: calc(100vh - 330px);
+                padding-right: 8px;
+            }
+            .sys-tab-pane {
+                display: none;
+            }
+            .sys-tab-pane.sys-tab-active {
+                display: block;
+                animation: sysTabEnter .18s ease-out;
+            }
+            .sys-general-grid {
+                display: grid;
+                grid-template-columns: minmax(0, 2fr) minmax(150px, .7fr) minmax(180px, .9fr);
+                gap: 14px;
+                align-items: start;
+            }
+            .sys-modal-footer {
+                border-top: 1px solid #dce5ef;
+                background: #fff;
+                box-shadow: 0 -8px 22px rgba(15, 23, 42, .04);
+            }
+            @keyframes sysTabEnter {
+                from { opacity: 0; transform: translateY(4px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
             .sys-section-card {
                 background: #fff;
                 border: 1px solid #e2e8f0;
-                border-radius: 10px;
-                padding: 14px 16px;
+                border-radius: 12px;
+                padding: 16px;
+                box-shadow: 0 7px 20px rgba(15, 23, 42, .05);
             }
             .sys-section-title {
                 font-size: .78rem;
@@ -2130,6 +3176,32 @@
             }
             .sched-card__sel  { max-width: 100%; }
             .sched-card__time { max-width: 105px; }
+            @media (max-width: 991.98px) {
+                .sys-setup-nav {
+                    display: grid;
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                }
+                .sys-setup-nav .list-group-item {
+                    border-left-width: 0;
+                }
+                .sys-setup-content {
+                    overflow: visible;
+                    max-height: none;
+                    padding-right: 15px;
+                }
+                .sys-general-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+            @media (max-width: 575.98px) {
+                .sys-overview {
+                    align-items: flex-start;
+                    flex-direction: column;
+                }
+                .sys-overview-stats {
+                    justify-content: flex-start;
+                }
+            }
         .otp-switch {
             position: relative;
             display: inline-block;
@@ -2539,6 +3611,10 @@
          */
         function openModal(modalId) {
             $('#' + modalId).modal('show');
+
+            if (modalId === 'businessCentralModal') {
+                toggleBusinessCentralAuthFields();
+            }
             
             // Initialize bands editor when payroll modal opens
             if (modalId === 'payrollModal') {
@@ -2549,6 +3625,78 @@
                         window.bandsEditorInitialized = true;
                     }
                 }, 100);
+            }
+        }
+
+        function navigateBusinessCentralSetup(link, sectionId) {
+            document.querySelectorAll('#businessCentralModal .bc-setup-nav .list-group-item').forEach(function(item) {
+                item.classList.remove('active');
+            });
+            link.classList.add('active');
+
+            document.querySelectorAll('#businessCentralModal .bc-step-card').forEach(function(section) {
+                section.classList.remove('bc-step-active');
+            });
+            document.getElementById(sectionId)?.classList.add('bc-step-active');
+
+            const content = document.querySelector('#businessCentralModal .bc-setup-content');
+            if (content) {
+                content.scrollTop = 0;
+            }
+        }
+
+        function navigateSystemSetup(link, sectionId) {
+            document.querySelectorAll('#systemModal .sys-setup-nav .list-group-item').forEach(function(item) {
+                item.classList.remove('active');
+            });
+            link.classList.add('active');
+
+            document.querySelectorAll('#systemModal .sys-tab-pane').forEach(function(section) {
+                section.classList.remove('sys-tab-active');
+            });
+
+            const scheduledShell = document.querySelector('#systemModal .sys-scheduled-shell');
+            const isGeneral = sectionId === 'sys-setup-general';
+            scheduledShell?.classList.toggle('d-none', isGeneral);
+            document.getElementById(sectionId)?.classList.add('sys-tab-active');
+
+            const content = document.querySelector('#systemModal .sys-setup-content');
+            if (content) {
+                content.scrollTop = 0;
+            }
+        }
+
+        function navigateEtimsSetup(link, sectionId) {
+            document.querySelectorAll('#etimsModal .etims-setup-nav .list-group-item').forEach(function(item) {
+                item.classList.remove('active');
+            });
+            link.classList.add('active');
+
+            document.querySelectorAll('#etimsModal .etims-tab-pane').forEach(function(section) {
+                section.classList.remove('etims-tab-active');
+            });
+            document.getElementById(sectionId)?.classList.add('etims-tab-active');
+
+            const content = document.querySelector('#etimsModal .etims-setup-content');
+            if (content) {
+                content.scrollTop = 0;
+            }
+        }
+
+        function toggleBusinessCentralAuthFields() {
+            const authType = document.getElementById('businessCentralAuthType')?.value || 'basic';
+            document.querySelectorAll('#businessCentralModal .bc-auth-basic').forEach(function(field) {
+                field.classList.toggle('d-none', authType !== 'basic');
+            });
+            document.querySelectorAll('#businessCentralModal .bc-auth-oauth').forEach(function(field) {
+                field.classList.toggle('d-none', authType !== 'oauth2');
+            });
+
+            const secretLabel = document.getElementById('businessCentralSecretLabel');
+            if (secretLabel) {
+                secretLabel.textContent = authType === 'oauth2'
+                    ? 'OAuth client secret'
+                    : (authType === 'bearer' ? 'Bearer token' : 'Password / Web Service Access Key');
             }
         }
         

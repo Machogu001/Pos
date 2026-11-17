@@ -38,7 +38,33 @@
             $('#invoice_content').printThis();
         });
     });
-    @if(!empty(request()->input('print_on_load')))
+    @if(!empty($bc_invoice_url))
+        //Business Central mode: load and print the BC report instead of the
+        //POS receipt. On BC refusal the error is shown and nothing prints.
+        function bcPrintError(msg){
+            msg = msg || 'Business Central could not provide this invoice printout.';
+            if (window.toastr) { toastr.error(msg); } else { alert(msg); }
+        }
+        $(window).on('load', function(){
+            $.ajax({
+                method: 'GET',
+                url: '{{ $bc_invoice_url }}?format=html',
+                dataType: 'json',
+                success: function(result){
+                    if (result && result.success == 1 && result.html) {
+                        $('#invoice_content').html(result.html);
+                        @if(!empty(request()->input('print_on_load')))
+                            //Small delay lets the report page images render
+                            setTimeout(function(){ $('#invoice_content').printThis(); }, 250);
+                        @endif
+                    } else {
+                        bcPrintError(result && result.msg);
+                    }
+                },
+                error: function(){ bcPrintError(); }
+            });
+        });
+    @elseif(!empty(request()->input('print_on_load')))
         $(window).on('load', function(){
             $('#invoice_content').printThis();
         });

@@ -382,6 +382,86 @@ function __sum_stock(table, class_name, label_direction = 'right') {
     return stock_html;
 }
 
+//Prints the posted Business Central invoice so the printout uses the pure
+//BC report layout. Loads the report pages as images into the receipt
+//section and opens the normal print dialog (no new tab), exactly like
+//non-integrated receipt printing. On BC refusal (e.g. missing reprint
+//permission) the BC error is shown and nothing else is printed.
+function __print_bc_invoice(bc_invoice_url) {
+    var url = bc_invoice_url + (bc_invoice_url.indexOf('?') === -1 ? '?' : '&') + 'format=html';
+    //Rendering can take a while on the BC side; show progress so the user
+    //knows the print dialog is on its way.
+    var progress_toast = typeof toastr !== 'undefined'
+        ? toastr.info('Preparing the Business Central invoice…', '', { timeOut: 0, extendedTimeOut: 0 })
+        : null;
+    var clear_progress = function() {
+        if (progress_toast && typeof toastr !== 'undefined') {
+            toastr.clear(progress_toast);
+        }
+    };
+    $.ajax({
+        method: 'GET',
+        url: url,
+        dataType: 'json',
+        success: function(result) {
+            clear_progress();
+            if (!result || result.success != 1 || !result.html) {
+                __bc_print_error(result && result.msg);
+                return;
+            }
+
+            $('#receipt_section').html(result.html);
+
+            var title = document.title;
+            if (result.print_title) {
+                document.title = result.print_title;
+            }
+
+            var do_print = function() {
+                setTimeout(function() {
+                    window.print();
+                    setTimeout(function() {
+                        document.title = title;
+                    }, 1200);
+                }, 100);
+            };
+
+            //Wait for any still-loading page images before printing.
+            var imgs = document.getElementById('receipt_section').getElementsByTagName('img');
+            var pending = 0;
+            var img_done = function() {
+                pending--;
+                if (pending <= 0) {
+                    do_print();
+                }
+            };
+            [].forEach.call(imgs, function(img) {
+                if (!img.complete) {
+                    pending++;
+                    img.addEventListener('load', img_done, false);
+                    img.addEventListener('error', img_done, false);
+                }
+            });
+            if (pending === 0) {
+                do_print();
+            }
+        },
+        error: function() {
+            clear_progress();
+            __bc_print_error();
+        },
+    });
+}
+
+function __bc_print_error(msg) {
+    msg = msg || 'Business Central could not provide this invoice printout.';
+    if (typeof toastr !== 'undefined') {
+        toastr.error(msg);
+    } else {
+        alert(msg);
+    }
+}
+
 function __print_receipt(section_id = null) {
     if (section_id) {
         var imgs = document.getElementById(section_id).getElementsByTagName("img");

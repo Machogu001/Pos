@@ -18,11 +18,11 @@
 
 @section('content')
 <!-- Content Header (Page header) -->
-<section class="content-header">
+<section class="content-header @if(!empty($bc_inline_entry)) bc-ui @endif">
     <h1 class="tw-text-xl md:tw-text-3xl tw-font-bold tw-text-black">{{$title}}</h1>
 </section>
 <!-- Main content -->
-<section class="content no-print">
+<section class="content no-print @if(!empty($bc_inline_entry)) bc-ui @endif">
 <input type="hidden" id="amount_rounding_method" value="{{$pos_settings['amount_rounding_method'] ?? ''}}">
 @if(!empty($pos_settings['allow_overselling']))
 	<input type="hidden" id="is_overselling_allowed">
@@ -61,8 +61,61 @@
 	 @endif
 	<div class="row">
 		<div class="col-md-12 col-sm-12">
-			@component('components.widget', ['class' => 'box-solid'])
+			@if(!empty($bc_inline_entry))
+				<div class="bc-fasttab-header bc-fasttab-toggle" id="bc_general_toggle" role="button" tabindex="0">
+					<span>General</span>
+					<span class="bc-fasttab-state"><i class="fa fa-chevron-up"></i> Show less</span>
+				</div>
+			@endif
+			@component('components.widget', ['class' => 'box-solid', 'id' => !empty($bc_inline_entry) ? 'bc_general_card' : null])
 				{!! Form::hidden('location_id', !empty($default_location) ? $default_location->id : null , ['id' => 'location_id', 'data-receipt_printer_type' => !empty($default_location->receipt_printer_type) ? $default_location->receipt_printer_type : 'browser', 'data-default_payment_accounts' => !empty($default_location) ? $default_location->default_payment_accounts : '']); !!}
+
+				@if(!empty($bc_inline_entry))
+					{{-- Business Central style General field grid; values follow the selected customer/location --}}
+					<div class="bc-general-grid">
+						<div class="bc-field">
+							<label>Customer No.</label>
+							<div class="bc-value" id="bc_info_customer_no">—</div>
+						</div>
+						<div class="bc-field">
+							<label>Sell-to Customer Name</label>
+							<div class="bc-value" id="bc_info_customer_name">—</div>
+						</div>
+						<div class="bc-field">
+							<label>Phone No.</label>
+							<div class="bc-value" id="bc_info_phone">—</div>
+						</div>
+						<div class="bc-field">
+							<label>Email</label>
+							<div class="bc-value" id="bc_info_email">—</div>
+						</div>
+						<div class="bc-field">
+							<label>Address</label>
+							<div class="bc-value" id="bc_info_address">—</div>
+						</div>
+						<div class="bc-field">
+							<label>City</label>
+							<div class="bc-value" id="bc_info_city">—</div>
+						</div>
+						<div class="bc-field">
+							<label>Document Date</label>
+							<div class="bc-value">{{ $default_datetime }}</div>
+						</div>
+						<div class="bc-field">
+							<label>Posting Date</label>
+							<div class="bc-value">{{ $default_datetime }}</div>
+						</div>
+						<div class="bc-field">
+							<label>Salesperson Code</label>
+							<div class="bc-value">{{ $bc_salesperson_code ?: '—' }}</div>
+						</div>
+						<div class="bc-field">
+							<label>Location Code</label>
+							<div class="bc-value" id="bc_info_location_code">{{ $bc_location_codes[$default_location->id ?? 0] ?? '—' }}</div>
+						</div>
+					</div>
+					<div class="clearfix"></div>
+				@endif
 
 				@if(!empty($price_groups))
 					@if(count($price_groups) > 1)
@@ -132,12 +185,14 @@
 							<span class="input-group-addon">
 								<i class="fa fa-user"></i>
 							</span>
+							{{-- With BC enabled the customer starts blank so the user
+							searches and selects the BC-synced customer each time --}}
 							<input type="hidden" id="default_customer_id" 
-							value="{{ $walk_in_customer['id']}}" >
+							value="{{ !empty($bc_inline_entry) ? '' : $walk_in_customer['id'] }}" >
 							<input type="hidden" id="default_customer_name" 
-							value="{{ $walk_in_customer['name']}}" >
-							<input type="hidden" id="default_customer_balance" value="{{ $walk_in_customer['balance'] ?? ''}}" >
-							<input type="hidden" id="default_customer_address" value="{{ $walk_in_customer['shipping_address'] ?? ''}}" >
+							value="{{ !empty($bc_inline_entry) ? '' : $walk_in_customer['name'] }}" >
+							<input type="hidden" id="default_customer_balance" value="{{ !empty($bc_inline_entry) ? '' : ($walk_in_customer['balance'] ?? '') }}" >
+							<input type="hidden" id="default_customer_address" value="{{ !empty($bc_inline_entry) ? '' : ($walk_in_customer['shipping_address'] ?? '') }}" >
 							@if(!empty($walk_in_customer['price_calculation_type']) && $walk_in_customer['price_calculation_type'] == 'selling_price_group')
 								<input type="hidden" id="default_selling_price_group" 
 							value="{{ $walk_in_customer['selling_price_group_id'] ?? ''}}" >
@@ -155,7 +210,7 @@
 						@lang('lang_v1.billing_address'):
 					</strong>
 					<div id="billing_address_div">
-						{!! $walk_in_customer['contact_address'] ?? '' !!}
+						{!! !empty($bc_inline_entry) ? '' : ($walk_in_customer['contact_address'] ?? '') !!}
 					</div>
 					<br>
 					<strong>
@@ -177,13 +232,15 @@
 					@endphp
 		              {!! Form::label('pay_term_number', __('contact.pay_term') . ':') !!} @show_tooltip(__('tooltip.pay_term'))
 		              <br/>
-		              {!! Form::number('pay_term_number', $walk_in_customer['pay_term_number'], ['class' => 'form-control width-40 pull-left', 'placeholder' => __('contact.pay_term'), 'required' => $is_pay_term_required]); !!}
+		              {{-- In BC mode the payment terms come from the BC customer and are not editable --}}
+		              {!! Form::number('pay_term_number', $walk_in_customer['pay_term_number'], ['class' => 'form-control width-40 pull-left', 'placeholder' => __('contact.pay_term'), 'required' => $is_pay_term_required, 'readonly' => !empty($bc_inline_entry)]); !!}
 
-		              {!! Form::select('pay_term_type', 
-		              	['months' => __('lang_v1.months'), 
-		              		'days' => __('lang_v1.days')], 
-		              		$walk_in_customer['pay_term_type'], 
-		              	['class' => 'form-control width-60 pull-left','placeholder' => __('messages.please_select'), 'required' => $is_pay_term_required]); !!}
+		              {!! Form::select(
+		                  'pay_term_type',
+		                  ['months' => __('lang_v1.months'), 'days' => __('lang_v1.days')],
+		                  $walk_in_customer['pay_term_type'],
+		                  ['class' => 'form-control width-60 pull-left' . (!empty($bc_inline_entry) ? ' bc-locked-select' : ''), 'placeholder' => __('messages.please_select'), 'required' => $is_pay_term_required, 'tabindex' => !empty($bc_inline_entry) ? '-1' : null]
+		              ); !!}
 		            </div>
 		          </div>
 		        </div>
@@ -221,7 +278,9 @@
 					<div class="@if(!empty($commission_agent)) col-sm-3 @else col-sm-4 @endif">
 						<div class="form-group">
 							{!! Form::label('status', __('sale.status') . ':*') !!}
-							{!! Form::select('status', $statuses, null, ['class' => 'form-control select2', 'placeholder' => __('messages.please_select'), 'required']); !!}
+							{{-- BC mode defaults to final: only final sales post to Business
+							Central; draft/quotation/proforma are saved in POS only --}}
+							{!! Form::select('status', $statuses, !empty($bc_inline_entry) ? 'final' : null, ['class' => 'form-control select2', 'placeholder' => __('messages.please_select'), 'required']); !!}
 						</div>
 					</div>
 				@endif
@@ -234,7 +293,8 @@
 					</div>
 				@endif
 					@can('edit_invoice_number')
-					<div class="col-sm-3">
+					{{-- Hidden in BC mode: the invoice number is always auto-generated --}}
+					<div class="col-sm-3 @if(!empty($bc_inline_entry)) hide @endif">
 						<div class="form-group">
 							{!! Form::label('invoice_no', $sale_type == 'sales_order' ? __('restaurant.order_no') : __('sale.invoice_no') . ':') !!}
 							{!! Form::text('invoice_no', null, ['class' => 'form-control', 'placeholder' => $sale_type == 'sales_order' ? __('restaurant.order_no') : __('sale.invoice_no')]); !!}
@@ -320,7 +380,8 @@
 				        </div>
 				    </div>
 		        @endif
-		        <div class="col-sm-3">
+		        {{-- Hidden in BC mode: documents live on the BC posted invoice --}}
+		        <div class="col-sm-3 @if(!empty($bc_inline_entry)) hide @endif">
 	                <div class="form-group">
 	                    {!! Form::label('upload_document', __('purchase.attach_document') . ':') !!}
 	                    {!! Form::file('sell_document', ['id' => 'upload_document', 'accept' => implode(',', array_keys(config('constants.document_upload_mimes_types')))]); !!}
@@ -336,7 +397,7 @@
 					<div class="col-sm-3">
 						<div class="form-group">
 							{!! Form::label('sales_order_ids', __('lang_v1.sales_order').':') !!}
-							{!! Form::select('sales_order_ids[]', [], null, ['class' => 'form-control select2', 'multiple', 'id' => 'sales_order_ids']); !!}
+							{!! Form::select('sales_order_ids[]', [], null, ['class' => 'form-control select2', 'multiple', 'id' => 'sales_order_ids', 'style' => 'width: 100%;']); !!}
 						</div>
 					</div>
 					<div class="clearfix"></div>
@@ -348,6 +409,9 @@
 		        @endif
 			@endcomponent
 
+			@if(!empty($bc_inline_entry))
+				<div class="bc-fasttab-header">Lines</div>
+			@endif
 			@component('components.widget', ['class' => 'box-solid'])
 				<div class="col-sm-10 col-sm-offset-1">
 					<div class="form-group">
@@ -382,43 +446,102 @@
 					<div class="table-responsive">
 					<table class="table table-condensed table-bordered table-striped table-responsive" id="pos_table">
 						<thead>
-							<tr>
-								<th class="text-center">	
-									@lang('sale.product')
-								</th>
-								<th class="text-center">
-									@lang('sale.qty')
-								</th>
-								@if(!empty($pos_settings['inline_service_staff']))
-									<th class="text-center">
-										@lang('restaurant.service_staff')
+							@if(!empty($bc_inline_entry))
+								{{-- Business Central sales line column layout --}}
+								<tr>
+									<th class="text-center">No.</th>
+									<th class="text-center">Description</th>
+									<th class="text-center">Unit of Measure</th>
+									<th class="text-center">Quantity</th>
+									@if(!empty($pos_settings['inline_service_staff']))
+										<th class="text-center">
+											@lang('restaurant.service_staff')
+										</th>
+									@endif
+									<th class="text-center @if(!auth()->user()->can('edit_product_price_from_sale_screen')) hide @endif">Unit Price</th>
+									<th class="text-center">Line Discount</th>
+									<th class="text-center {{$hide_tax}}">
+										@lang('sale.tax')
 									</th>
-								@endif
-								<th class="@if(!auth()->user()->can('edit_product_price_from_sale_screen')) hide @endif">
-									@lang('sale.unit_price')
-								</th>
-								<th class="@if(!auth()->user()->can('edit_product_discount_from_sale_screen')) hide @endif">
-									@lang('receipt.discount')
-								</th>
-								<th class="text-center {{$hide_tax}}">
-									@lang('sale.tax')
-								</th>
-								<th class="text-center {{$hide_tax}}">
-									@lang('sale.price_inc_tax')
-								</th>
-								@if(!empty($common_settings['enable_product_warranty']))
-									<th>@lang('lang_v1.warranty')</th>
-								@endif
-								<th class="text-center">
-									@lang('sale.subtotal')
-								</th>
-								<th class="text-center"><i class="fas fa-times" aria-hidden="true"></i></th>
-							</tr>
+									<th class="text-center {{$hide_tax}}">
+										@lang('sale.price_inc_tax')
+									</th>
+									@if(!empty($common_settings['enable_product_warranty']))
+										<th>@lang('lang_v1.warranty')</th>
+									@endif
+									<th class="text-center">Line Amount</th>
+									<th class="text-center"><i class="fas fa-times" aria-hidden="true"></i></th>
+								</tr>
+							@else
+								<tr>
+									<th class="text-center" scope="col">
+										@lang('sale.product')
+									</th>
+									<th class="text-center">
+										@lang('sale.qty')
+									</th>
+									@if(!empty($pos_settings['inline_service_staff']))
+										<th class="text-center">
+											@lang('restaurant.service_staff')
+										</th>
+									@endif
+									<th class="@if(!auth()->user()->can('edit_product_price_from_sale_screen')) hide @endif">
+										@lang('sale.unit_price')
+									</th>
+									<th class="@if(!auth()->user()->can('edit_product_discount_from_sale_screen')) hide @endif">
+										@lang('receipt.discount')
+									</th>
+									<th class="text-center {{$hide_tax}}">
+										@lang('sale.tax')
+									</th>
+									<th class="text-center {{$hide_tax}}">
+										@lang('sale.price_inc_tax')
+									</th>
+									@if(!empty($common_settings['enable_product_warranty']))
+										<th>@lang('lang_v1.warranty')</th>
+									@endif
+									<th class="text-center">
+										@lang('sale.subtotal')
+									</th>
+									<th class="text-center"><i class="fas fa-times" aria-hidden="true"></i></th>
+								</tr>
+							@endif
+							@if(!empty($bc_inline_entry))
+								@php
+									// Columns after qty: unit price, discount, tax, price inc. tax, line amount, remove (+ optional ones)
+									$bc_entry_colspan = 6;
+									if (!empty($pos_settings['inline_service_staff'])) {
+										$bc_entry_colspan++;
+									}
+									if (!empty($common_settings['enable_product_warranty'])) {
+										$bc_entry_colspan++;
+									}
+								@endphp
+								<tr id="bc_inline_entry_row">
+									{{-- Spans the No. and Description columns --}}
+									<td class="pos-product-cell" colspan="2">
+										<input type="text" id="bc_inline_product_search" class="form-control"
+											placeholder="{{ __('lang_v1.search_product_placeholder') }}"
+											autocomplete="off"
+											@if(is_null($default_location)) disabled @endif>
+									</td>
+									<td class="pos-uom-cell">
+										<input type="text" class="form-control" disabled tabindex="-1" placeholder="UOM">
+									</td>
+									<td class="pos-qty-cell">
+										<input type="text" class="form-control" disabled tabindex="-1" placeholder="@lang('sale.qty')">
+									</td>
+									<td colspan="{{ $bc_entry_colspan }}" class="text-muted" style="vertical-align: middle; font-weight: normal;">
+										<small><i class="fa fa-level-down" aria-hidden="true"></i> @lang('sale.product') &rarr; @lang('sale.qty') &rarr; <i class="fa fa-plus" aria-hidden="true"></i></small>
+									</td>
+								</tr>
+							@endif
 						</thead>
 						<tbody></tbody>
 					</table>
 					</div>
-					<div class="table-responsive">
+					{{-- Hidden in BC mode: totals are managed/synced via Business Central --}}
+					<div class="table-responsive @if(!empty($bc_inline_entry)) hide @endif">
 					<table class="table table-condensed table-bordered table-striped">
 						<tr>
 							<td>
@@ -433,9 +556,43 @@
 						</tr>
 					</table>
 					</div>
+					@if(!empty($bc_inline_entry))
+						{{-- Business Central style invoice totals --}}
+						<div class="row">
+							<div class="col-md-4 col-md-offset-8 col-sm-6 col-sm-offset-6">
+								<div class="bc-totals-panel">
+									<div class="bc-total-row">
+										<span class="bc-total-label">Subtotal Excl. VAT</span>
+										<span id="bc_subtotal_excl">0.00</span>
+									</div>
+									<div class="bc-total-row">
+										<span class="bc-total-label">Inv. Discount Amount Excl. VAT</span>
+										<span id="bc_inv_discount">0.00</span>
+									</div>
+									<div class="bc-total-row">
+										<span class="bc-total-label">Invoice Discount %</span>
+										<span id="bc_invoice_discount_pct">0</span>
+									</div>
+									<div class="bc-total-row">
+										<span class="bc-total-label">Total Excl. VAT</span>
+										<span id="bc_total_excl">0.00</span>
+									</div>
+									<div class="bc-total-row">
+										<span class="bc-total-label">Total VAT</span>
+										<span id="bc_total_vat">0.00</span>
+									</div>
+									<div class="bc-total-row bc-total-grand">
+										<span class="bc-total-label">Total Incl. VAT</span>
+										<span id="bc_total_incl">0.00</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					@endif
 				</div>
 			@endcomponent
-			@component('components.widget', ['class' => 'box-solid'])
+			{{-- Discount, order tax and sell note: hidden in BC mode, defaults still submitted --}}
+			@component('components.widget', ['class' => 'box-solid' . (!empty($bc_inline_entry) ? ' hide' : '')])
 				<div class="col-md-4  @if($sale_type == 'sales_order') hide @endif">
 			        <div class="form-group">
 			            {!! Form::label('discount_type', __('sale.discount_type') . ':*' ) !!}
@@ -528,7 +685,8 @@
 			    </div>
 				<input type="hidden" name="is_direct_sale" value="1">
 			@endcomponent
-			@component('components.widget', ['class' => 'box-solid'])
+			{{-- Shipping and total payable: hidden in BC mode, defaults still submitted --}}
+			@component('components.widget', ['class' => 'box-solid' . (!empty($bc_inline_entry) ? ' hide' : '')])
 			<div class="col-md-4">
 				<div class="form-group">
 		            {!! Form::label('shipping_details', __('sale.shipping_details')) !!}
@@ -771,7 +929,10 @@
 	@endphp
 	@if((empty($status) || (!in_array($status, ['quotation', 'draft'])) || $is_enabled_download_pdf) && $sale_type != 'sales_order')
 		@can('sell.payments')
-			@component('components.widget', ['class' => 'box-solid', 'id' => $payment_body_id, 'title' => __('purchase.add_payment')])
+			{{-- Outer wrapper keeps the payment section hidden in BC mode even when
+			page JS toggles the 'hide' class on #payment_rows_div itself --}}
+			<div class="@if(!empty($bc_inline_entry)) hide @endif">
+			@component('components.widget', ['class' => 'box-solid' . (!empty($bc_inline_entry) ? ' hide' : ''), 'id' => $payment_body_id, 'title' => __('purchase.add_payment')])
 			@if($is_enabled_download_pdf)
 				<div class="well row">
 					<div class="col-md-6">
@@ -871,14 +1032,15 @@
 				</div>
 			@endif
 			@endcomponent
+			</div>
 		@endcan
 	@endif
 	
 	<div class="row">
 		{!! Form::hidden('is_save_and_print', 0, ['id' => 'is_save_and_print']); !!}
 		<div class="col-sm-12 text-center tw-mt-4">
-			<button type="button" id="submit-sell" class="tw-dw-btn tw-dw-btn-primary tw-dw-btn-lg tw-text-white">@lang('messages.save')</button>
-			<button type="button" id="save-and-print" class="tw-dw-btn tw-dw-btn-success tw-dw-btn-lg tw-text-white">@lang('lang_v1.save_and_print')</button>
+			<button type="button" id="submit-sell" class="tw-dw-btn tw-dw-btn-primary tw-dw-btn-lg tw-text-white">Post</button>
+			<button type="button" id="save-and-print" class="tw-dw-btn tw-dw-btn-success tw-dw-btn-lg tw-text-white">Post & Print</button>
 		</div>
 	</div>
 	
@@ -958,6 +1120,15 @@
 		min-width: 290px;
 	}
 
+	#pos_table .pos-itemno-cell {
+		min-width: 110px;
+		white-space: nowrap;
+	}
+
+	#pos_table .pos-uom-cell {
+		min-width: 110px;
+	}
+
 	#pos_table .pos-product-summary {
 		min-width: 0;
 	}
@@ -1027,6 +1198,264 @@
 	#pos_table .pos-subtotal-cell {
 		white-space: nowrap;
 	}
+
+@if(!empty($bc_inline_entry))
+	/* ---- Business Central (Fluent) look, active while BC integration is enabled ---- */
+	.bc-ui,
+	.bc-ui .form-control,
+	.bc-ui .btn,
+	.bc-ui label,
+	.bc-ui table,
+	.bc-ui h1 {
+		font-family: "Segoe UI", "Segoe UI Web (West European)", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+	}
+
+	.bc-ui h1 {
+		font-weight: 600 !important;
+		color: #323130 !important;
+	}
+
+	/* Flat white cards with a thin gray border, like BC FastTab panels */
+	.bc-ui .box-solid {
+		box-shadow: none !important;
+		border: 1px solid #e1dfdd !important;
+		border-radius: 2px !important;
+		transform: none !important;
+	}
+
+	.bc-ui .box-solid:hover {
+		box-shadow: none !important;
+		transform: none !important;
+	}
+
+	.bc-ui .bc-fasttab-header {
+		font-size: 16px;
+		font-weight: 600;
+		color: #323130;
+		margin: 2px 2px 6px;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.bc-ui .bc-fasttab-toggle {
+		cursor: pointer;
+	}
+
+	.bc-ui .bc-fasttab-toggle .bc-fasttab-state {
+		font-size: 12px;
+		font-weight: 400;
+		color: #0078d4;
+	}
+
+	.bc-ui .bc-fasttab-toggle .bc-fasttab-state i {
+		font-size: 10px;
+	}
+
+	.bc-ui .bc-totals-panel {
+		border: 1px solid #e1dfdd;
+		border-radius: 2px;
+		background: #faf9f8;
+		padding: 10px 14px;
+		margin-top: 8px;
+	}
+
+	.bc-ui .bc-totals-panel .bc-total-row {
+		display: flex;
+		justify-content: space-between;
+		gap: 16px;
+		padding: 3px 0;
+		font-size: 13px;
+		color: #323130;
+	}
+
+	.bc-ui .bc-totals-panel .bc-total-row .bc-total-label {
+		color: #605e5c;
+	}
+
+	.bc-ui .bc-totals-panel .bc-total-row.bc-total-grand {
+		font-weight: 600;
+		border-top: 1px solid #e1dfdd;
+		margin-top: 4px;
+		padding-top: 6px;
+	}
+
+	.bc-ui label {
+		color: #605e5c;
+		font-weight: 400;
+		font-size: 12px;
+	}
+
+	.bc-ui .bc-locked-select {
+		pointer-events: none;
+	}
+
+	/* Keep select2 widgets full width of their column (avoids squeezed boxes) */
+	.bc-ui .form-group .select2-container {
+		width: 100% !important;
+	}
+
+	/* BC General FastTab field grid: small gray label above the value */
+	.bc-ui .bc-general-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+		gap: 2px 28px;
+		margin: 0 0 14px;
+	}
+
+	.bc-ui .bc-general-grid .bc-field {
+		padding: 4px 0 3px;
+		border-bottom: 1px solid #f3f2f1;
+	}
+
+	.bc-ui .bc-general-grid label {
+		display: block;
+		margin: 0;
+	}
+
+	.bc-ui .bc-general-grid .bc-value {
+		font-size: 13px;
+		color: #323130;
+		min-height: 18px;
+		word-break: break-word;
+	}
+
+	/* Collapsed General FastTab: only the BC summary grid stays visible */
+	.bc-ui #bc_general_card.bc-collapsed .tw-py-2 > *:not(.bc-general-grid) {
+		display: none !important;
+	}
+
+	.bc-ui #bc_general_card.bc-collapsed .bc-general-grid {
+		margin-bottom: 0;
+	}
+
+	.bc-ui .form-control {
+		border-radius: 2px;
+	}
+
+	.bc-ui .form-control:focus {
+		border-color: #0078d4;
+		box-shadow: none;
+	}
+
+	/* BC-style lines grid: light horizontal rules only, no striping */
+	.bc-ui #pos_table,
+	.bc-ui #pos_table.table-bordered {
+		border: none !important;
+	}
+
+	.bc-ui #pos_table.table-bordered > thead > tr > th,
+	.bc-ui #pos_table.table-bordered > thead > tr > td,
+	.bc-ui #pos_table.table-bordered > tbody > tr > td {
+		border: none;
+		border-bottom: 1px solid #edebe9;
+	}
+
+	.bc-ui #pos_table > thead > tr > th {
+		background: #ffffff;
+		color: #605e5c;
+		font-weight: 600;
+		font-size: 12px;
+		border-bottom: 1px solid #8a8886;
+		vertical-align: bottom;
+	}
+
+	.bc-ui #pos_table.table-striped > tbody > tr:nth-of-type(odd) {
+		background: #ffffff;
+	}
+
+	.bc-ui #pos_table > tbody > tr:hover {
+		background: #f3f2f1;
+	}
+
+	/* Grid cells look like plain text until hovered/focused, like the BC grid */
+	.bc-ui #pos_table .form-control {
+		border: 1px solid transparent;
+		box-shadow: none;
+		background: transparent;
+		border-radius: 2px;
+		font-size: 13px;
+	}
+
+	.bc-ui #pos_table input.form-control {
+		height: 28px;
+		padding: 2px 6px;
+	}
+
+	.bc-ui #pos_table .form-control:hover:not([readonly]):not([disabled]),
+	.bc-ui #pos_table .form-control:focus {
+		background: #ffffff;
+		border-color: #c8c6c4;
+	}
+
+	.bc-ui #pos_table .form-control:focus {
+		border-color: #0078d4;
+	}
+
+	.bc-ui #pos_table input.form-control[readonly],
+	.bc-ui #pos_table select.form-control[disabled] {
+		color: #323130;
+		background: transparent;
+		border-color: transparent;
+		cursor: default;
+		-webkit-appearance: none;
+		-moz-appearance: none;
+		appearance: none;
+	}
+
+	/* BC has no +/- quantity steppers */
+	.bc-ui #pos_table .quantity-down,
+	.bc-ui #pos_table .quantity-up {
+		display: none;
+	}
+
+	.bc-ui #pos_table .input-group.input-number {
+		width: 100%;
+	}
+
+	/* The always-on-top entry row keeps visible input borders, like BC's new line */
+	.bc-ui #bc_inline_entry_row .form-control {
+		border: 1px solid #c8c6c4;
+		background: #ffffff;
+	}
+
+	.bc-ui #bc_inline_entry_row .form-control:focus {
+		border-color: #0078d4;
+	}
+
+	.bc-ui #bc_inline_entry_row input[disabled] {
+		border: 1px dashed #e1dfdd;
+		background: #faf9f8;
+	}
+
+	/* Fluent blue action buttons */
+	.bc-ui .btn-primary,
+	.bc-ui .tw-dw-btn-primary {
+		background-color: #0078d4 !important;
+		border-color: #0078d4 !important;
+		border-radius: 2px !important;
+	}
+
+	.bc-ui .btn-primary:hover,
+	.bc-ui .tw-dw-btn-primary:hover {
+		background-color: #106ebe !important;
+		border-color: #106ebe !important;
+	}
+
+	.bc-ui .tw-dw-btn-success {
+		background-color: #107c10 !important;
+		border-color: #107c10 !important;
+		border-radius: 2px !important;
+	}
+
+	/* Product suggestion dropdown highlight in Fluent blue instead of teal */
+	.ui-menu .ui-menu-item-wrapper.ui-state-active,
+	.ui-menu .ui-menu-item-wrapper.ui-state-focus {
+		background: #0078d4;
+		border-color: #0078d4;
+		box-shadow: none;
+	}
+@endif
 </style>
 
 @stop
@@ -1124,6 +1553,90 @@
 			if($('.payment_types_dropdown').length){
 				$('.payment_types_dropdown').change();
 			}
+
+			@if(!empty($bc_inline_entry))
+				//The sale date always stays the current date in BC mode: the
+				//input is readonly, so removing the picker locks it entirely.
+				var bc_td_picker = $('#transaction_date').data('DateTimePicker');
+				if (bc_td_picker) {
+					bc_td_picker.destroy();
+				}
+
+				//Business Central style General info grid
+				var bc_location_codes = @json($bc_location_codes);
+				var bc_customer_location_code = null;
+
+				function bc_info_text(value) {
+					return value && String(value).trim() !== '' && value !== '-' ? value : '\u2014';
+				}
+
+				function bc_update_location_code() {
+					var code = bc_customer_location_code;
+					if (!code) {
+						code = bc_location_codes[$('#location_id').val()] || null;
+					}
+					$('#bc_info_location_code').text(bc_info_text(code));
+				}
+
+				$('#customer_id').on('select2:select', function(e) {
+					var data = e.params.data || {};
+					bc_customer_location_code = data.bc_location_code || null;
+					$('#bc_info_customer_no').text(bc_info_text(data.contact_number));
+					$('#bc_info_customer_name').text(bc_info_text(data.contact_name));
+					$('#bc_info_phone').text(bc_info_text(data.mobile));
+					$('#bc_info_email').text(bc_info_text(data.email));
+					$('#bc_info_address').text(bc_info_text(data.address_line_1));
+					$('#bc_info_city').text(bc_info_text(data.city));
+					bc_update_location_code();
+					//Customer chosen: flip the General card to its summary view
+					bc_set_general_collapsed(true);
+				});
+
+				$('#select_location_id').on('change', bc_update_location_code);
+
+				//Business Central style invoice totals panel
+				function bc_update_totals() {
+					var subtotal = typeof get_subtotal === 'function' ? get_subtotal() : 0;
+					var discount_type = $('#discount_type').val();
+					var discount_input = __read_number($('#discount_amount')) || 0;
+					var discount = __calculate_amount(discount_type, discount_input, subtotal) || 0;
+					var total_excl = subtotal - discount;
+					var vat = 0;
+					if ($('#tax_rate_id').val()) {
+						vat = __calculate_amount('percentage', __read_number($('#tax_calculation_amount')), total_excl) || 0;
+					}
+					var total_incl = total_excl + vat;
+					if ($('input#final_total_input').length && $('input#final_total_input').val()) {
+						total_incl = __read_number($('input#final_total_input'));
+					}
+
+					$('#bc_subtotal_excl').text(__currency_trans_from_en(subtotal, true));
+					$('#bc_inv_discount').text(__currency_trans_from_en(discount, true));
+					$('#bc_invoice_discount_pct').text(discount_type == 'percentage' ? __number_f(discount_input) : 0);
+					$('#bc_total_excl').text(__currency_trans_from_en(total_excl, true));
+					$('#bc_total_vat').text(__currency_trans_from_en(vat, true));
+					$('#bc_total_incl').text(__currency_trans_from_en(total_incl, true));
+				}
+				$(document).on('invoice_total_calculated', bc_update_totals);
+				bc_update_totals();
+
+				//Collapse/expand the General section like BC's Show more/Show
+				//less: collapsed keeps only the BC summary grid visible
+				function bc_set_general_collapsed(collapsed) {
+					$('#bc_general_card').toggleClass('bc-collapsed', collapsed);
+					$('#bc_general_toggle .bc-fasttab-state').html(
+						collapsed
+							? '<i class="fa fa-chevron-down"></i> Show more'
+							: '<i class="fa fa-chevron-up"></i> Show less'
+					);
+				}
+				$('#bc_general_toggle').on('click keypress', function(e) {
+					if (e.type == 'keypress' && e.which != 13 && e.which != 32) {
+						return;
+					}
+					bc_set_general_collapsed(!$('#bc_general_card').hasClass('bc-collapsed'));
+				});
+			@endif
 
     	});
     </script>

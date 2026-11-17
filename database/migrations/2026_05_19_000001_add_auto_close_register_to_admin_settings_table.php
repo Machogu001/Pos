@@ -16,7 +16,7 @@ return new class extends Migration
             ? 'etims_auto_transmit'
             : null;
 
-        Schema::table('admin_settings', function (Blueprint $table) {
+        Schema::table('admin_settings', function (Blueprint $table) use ($afterColumn) {
             if (! Schema::hasColumn('admin_settings', 'auto_close_register')) {
                 $column = $table->boolean('auto_close_register')->default(false);
 

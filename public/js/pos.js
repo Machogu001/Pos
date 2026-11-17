@@ -320,6 +320,130 @@ $(document).ready(function() {
         };
     }
 
+    //Business Central style inline item entry on the add sale items table.
+    //Flow: pick an item (Enter) -> cursor moves to the qty column -> Enter on qty
+    //jumps to the next line's item column. Cursor stays on the item column until
+    //an item is added.
+    if ($('#bc_inline_product_search').length) {
+        var __bc_inline_focus_qty = function(variation_id) {
+            //Newest rows are prepended, so the latest match is the first one
+            var qty_input = $('#pos_table tbody tr')
+                .filter(function() {
+                    return (
+                        $(this)
+                            .find('.row_variation_id')
+                            .val() == variation_id
+                    );
+                })
+                .first()
+                .find('input.pos_quantity');
+
+            if (qty_input.length) {
+                qty_input.focus().select();
+            } else {
+                $('#bc_inline_product_search').focus();
+            }
+        };
+
+        $('#bc_inline_product_search').autocomplete({
+            delay: 500,
+            minLength: 2,
+            autoFocus: true,
+            source: function(request, response) {
+                var price_group = '';
+                var search_fields = [];
+                $('.search_fields:checked').each(function(i) {
+                    search_fields[i] = $(this).val();
+                });
+
+                if ($('#price_group').length > 0) {
+                    price_group = $('#price_group').val();
+                }
+                $.getJSON(
+                    '/products/list',
+                    {
+                        price_group: price_group,
+                        location_id: $('input#location_id').val(),
+                        term: request.term,
+                        not_for_selling: 0,
+                        search_fields: search_fields
+                    },
+                    response
+                );
+            },
+            response: function(event, ui) {
+                if (ui.content.length == 0) {
+                    toastr.error(LANG.no_products_found);
+                    $('#bc_inline_product_search').select();
+                }
+            },
+            focus: function(event, ui) {
+                if (ui.item.qty_available <= 0) {
+                    return false;
+                }
+            },
+            select: function(event, ui) {
+                var searched_term = $(this).val();
+                var is_overselling_allowed = false;
+                if ($('input#is_overselling_allowed').length) {
+                    is_overselling_allowed = true;
+                }
+                var for_so = false;
+                if ($('#sale_type').length && $('#sale_type').val() == 'sales_order') {
+                    for_so = true;
+                }
+
+                var is_draft = false;
+                if (
+                    $('input#status') &&
+                    ($('input#status').val() == 'quotation' ||
+                        $('input#status').val() == 'draft')
+                ) {
+                    is_draft = true;
+                }
+
+                if (
+                    ui.item.enable_stock != 1 ||
+                    ui.item.qty_available > 0 ||
+                    is_overselling_allowed ||
+                    for_so ||
+                    is_draft
+                ) {
+                    $(this).val('');
+
+                    //Pre select lot number only if the searched term is same as the lot number
+                    var purchase_line_id =
+                        ui.item.purchase_line_id && searched_term == ui.item.lot_number
+                            ? ui.item.purchase_line_id
+                            : null;
+                    //pos_product_row is synchronous, so the row exists after this call
+                    pos_product_row(ui.item.variation_id, purchase_line_id);
+
+                    //Item added: move the cursor to the qty column of its row
+                    __bc_inline_focus_qty(ui.item.variation_id);
+                } else {
+                    alert(LANG.out_of_stock);
+                    $('#bc_inline_product_search').focus();
+                }
+                return false;
+            },
+        });
+
+        //Reuse the rich suggestion rendering of the main product search
+        if ($('#search_product').length) {
+            $('#bc_inline_product_search').autocomplete('instance')._renderItem = $(
+                '#search_product'
+            ).autocomplete('instance')._renderItem;
+        }
+
+        //Enter never leaves the item column until an item is added
+        $('#bc_inline_product_search').on('keydown', function(e) {
+            if (e.which == 13) {
+                e.preventDefault();
+            }
+        });
+    }
+
     //Update line total and check for quantity not greater than max quantity
     $('table#pos_table tbody').on('change', 'input.pos_quantity', function() {
         if (sell_form_validator) {
@@ -1406,7 +1530,14 @@ $(document).ready(function() {
         var key = e.which;
         if (key == 13) {
             // the enter key code
-            $('#search_product').focus();
+            if ($('#bc_inline_product_search').length) {
+                //Qty is the last entry column: update the line and jump to the
+                //next line's item column
+                $(this).change();
+                $('#bc_inline_product_search').focus();
+            } else {
+                $('#search_product').focus();
+            }
         }
     });
 
@@ -1817,19 +1948,29 @@ function pos_product_row(variation_id = null, purchase_line_id = null, weighing_
                 quantity: quantity,
                 is_sales_order: is_sales_order,
                 disable_qty_alert: disable_qty_alert,
-                is_draft: is_draft
+                is_draft: is_draft,
+                bc_line_layout: $('#bc_inline_product_search').length > 0 ? 1 : 0
             },
             dataType: 'json',
             success: function(result) {
                 if (result.success) {
-                    $('table#pos_table tbody')
-                        .append(result.html_content)
-                        .find('input.pos_quantity');
+                    //In BC inline entry mode new rows go in at the top, right
+                    //below the entry row; otherwise they are appended at the bottom
+                    var bc_inline_mode = $('#bc_inline_product_search').length > 0;
+                    if (bc_inline_mode) {
+                        $('table#pos_table tbody').prepend(result.html_content);
+                    } else {
+                        $('table#pos_table tbody').append(result.html_content);
+                    }
                     //increment row count
                     $('input#product_row_count').val(parseInt(product_row) + 1);
-                    var this_row = $('table#pos_table tbody')
-                        .find('tr')
-                        .last();
+                    var this_row = bc_inline_mode
+                        ? $('table#pos_table tbody')
+                              .find('tr')
+                              .first()
+                        : $('table#pos_table tbody')
+                              .find('tr')
+                              .last();
                     pos_each_row(this_row);
 
                     //For initial discount if present
@@ -1844,10 +1985,7 @@ function pos_product_row(variation_id = null, purchase_line_id = null, weighing_
                     }
 
                     if (result.enable_sr_no == '1') {
-                        var new_row = $('table#pos_table tbody')
-                            .find('tr')
-                            .last();
-                        new_row.find('.row_edit_product_price_model').modal('show');
+                        this_row.find('.row_edit_product_price_model').modal('show');
                     }
 
                     round_row_to_iraqi_dinnar(this_row);
@@ -1859,15 +1997,16 @@ function pos_product_row(variation_id = null, purchase_line_id = null, weighing_
 
                     //Used in restaurant module
                     if (result.html_modifier) {
-                        $('table#pos_table tbody')
-                            .find('tr')
-                            .last()
-                            .find('td:first')
-                            .append(result.html_modifier);
+                        this_row.find('td:first').append(result.html_modifier);
                     }
 
-                    //scroll bottom of items list
-                    $(".pos_product_div").animate({ scrollTop: $('.pos_product_div').prop("scrollHeight")}, 1000);
+                    if (bc_inline_mode) {
+                        //Keep the entry row and the new line in view at the top
+                        $('.pos_product_div').animate({ scrollTop: 0 }, 1000);
+                    } else {
+                        //scroll bottom of items list
+                        $(".pos_product_div").animate({ scrollTop: $('.pos_product_div').prop("scrollHeight")}, 1000);
+                    }
                 } else {
                     toastr.error(result.msg);
                     $('input#search_product')
@@ -2180,7 +2319,7 @@ function reset_pos_form(){
     if ($('#status').length > 0 && $('#status').is(":visible")) {
         $('#status').val('').trigger('change');
     }
-    if ($('#transaction_date').length > 0) {
+    if ($('#transaction_date').length > 0 && $('#transaction_date').data("DateTimePicker")) {
         $('#transaction_date').data("DateTimePicker").date(moment());
     }
     if ($('.paid_on').length > 0) {
@@ -2332,6 +2471,10 @@ function pos_print(receipt) {
             }, 700);
         }
 
+    } else if (receipt.bc_invoice_url) {
+        //Print the posted Business Central invoice (pure BC report layout).
+        //On BC refusal the BC error is shown; nothing else is printed.
+        __print_bc_invoice(receipt.bc_invoice_url);
     } else if (receipt.html_content != '') {
         var title = document.title;
         if (typeof receipt.print_title != 'undefined') {
@@ -2912,7 +3055,8 @@ $("#sales_order_ids").on("select2:select", function (e) {
         async: false,
         data: {
             product_row: product_row,
-            sales_order_id: sales_order_id
+            sales_order_id: sales_order_id,
+            bc_line_layout: $('#bc_inline_product_search').length > 0 ? 1 : 0
         },
         dataType: 'json',
         success: function(result) {

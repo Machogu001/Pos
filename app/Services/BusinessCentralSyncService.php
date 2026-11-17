@@ -49,6 +49,33 @@ class BusinessCentralSyncService
             && (bool) $this->settings->business_central_require_sale_sync;
     }
 
+    /**
+     * POS location mapped to the customer's BC Location Code, so a sale can be
+     * booked (and its stock reduced) at the location/branch the customer
+     * belongs to on the BC side. Null when BC is disabled, the customer has no
+     * BC location, or no enabled mapping matches it.
+     */
+    public function posLocationIdForContact(int $businessId, int $contactId): ?int
+    {
+        if ($contactId <= 0 || ! $this->enabledFor($businessId)) {
+            return null;
+        }
+
+        $bcLocationCode = trim((string) Contact::where('business_id', $businessId)
+            ->where('id', $contactId)
+            ->value('bc_location_code'));
+        if ($bcLocationCode === '') {
+            return null;
+        }
+
+        $mapping = BusinessCentralLocationMapping::where('business_id', $businessId)
+            ->where('enabled', true)
+            ->get()
+            ->first(fn ($candidate) => strcasecmp(trim((string) $candidate->bc_location_code), $bcLocationCode) === 0);
+
+        return $mapping ? (int) $mapping->pos_location_id : null;
+    }
+
     public function syncAll(): array
     {
         if (! $this->enabledFor()) {
@@ -440,6 +467,25 @@ class BusinessCentralSyncService
         $customers = $this->client()->getCollection('customers', [
             '$select' => 'id,number,displayName,addressLine1,addressLine2,city,state,country,postalCode,phoneNumber,email,taxRegistrationNumber,creditLimit,paymentTermsId,balanceDue,blocked',
         ]);
+
+        //Customer BC Location Codes come from the BreMac POS extension page;
+        //when it is not deployed, existing POS values are kept untouched.
+        $locationsByNumber = null;
+        try {
+            $locationsByNumber = [];
+            foreach ($this->client()->customerLocations() as $row) {
+                $rowNumber = trim((string) ($row['number'] ?? ''));
+                if ($rowNumber !== '') {
+                    $locationsByNumber[$rowNumber] = trim((string) ($row['locationCode'] ?? ''));
+                }
+            }
+        } catch (Throwable $e) {
+            $locationsByNumber = null;
+            Log::warning('Business Central customer locations are unavailable; keeping existing POS values.', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         $paymentTerms = $this->paymentTermsById();
         $businessId = (int) $this->settings->business_central_business_id;
         $creatorId = $this->creatorId($businessId);
@@ -500,6 +546,9 @@ class BusinessCentralSyncService
             if ($payTerm !== null) {
                 $contact->pay_term_number = $payTerm['number'];
                 $contact->pay_term_type = $payTerm['type'];
+            }
+            if (is_array($locationsByNumber)) {
+                $contact->bc_location_code = ($locationsByNumber[$number] ?? '') ?: null;
             }
             $contact->deleted_at = null;
             $contact->save();

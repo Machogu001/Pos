@@ -1,12 +1,14 @@
 codeunit 50243 "BreMac POS Sales Integration"
 {
     Permissions = tabledata Customer = R,
+        tabledata "Custom Report Selection" = R,
         tabledata Item = R,
         tabledata "Item Unit of Measure" = R,
         tabledata Location = R,
+        tabledata "Report Selections" = R,
         tabledata "Sales Header" = RIMD,
         tabledata "Sales Line" = RIMD,
-        tabledata "Sales Invoice Header" = R,
+        tabledata "Sales Invoice Header" = RM,
         tabledata "Salesperson/Purchaser" = R;
 
     procedure PostSale(SaleJson: Text): Text
@@ -33,6 +35,240 @@ codeunit 50243 "BreMac POS Sales Integration"
         exit(PostSale(SaleJson));
     end;
 
+    procedure GetPostedInvoicePdf(InvoiceId: Text): Text
+    var
+        SalesInvoiceHeader: Record "Sales Invoice Header";
+    begin
+        FindPostedInvoiceById(InvoiceId, SalesInvoiceHeader);
+        exit(PostedInvoicePdfResponse(SalesInvoiceHeader));
+    end;
+
+    procedure GetPostedInvoicePdfV2(InvoiceId: Text; ReportId: Integer): Text
+    var
+        SalesInvoiceHeader: Record "Sales Invoice Header";
+    begin
+        FindPostedInvoiceById(InvoiceId, SalesInvoiceHeader);
+        if ReportId <= 0 then
+            exit(PostedInvoicePdfResponse(SalesInvoiceHeader));
+        exit(PostedInvoiceReportPdfResponse(SalesInvoiceHeader, ReportId));
+    end;
+
+    procedure GetPostedInvoicePdfV3(InvoiceId: Text; RegisteredReportId: Integer; UnregisteredReportId: Integer): Text
+    var
+        SalesInvoiceHeader: Record "Sales Invoice Header";
+        ReportId: Integer;
+    begin
+        FindPostedInvoiceById(InvoiceId, SalesInvoiceHeader);
+        if CustomerIsRegistered(SalesInvoiceHeader."Bill-to Customer No.") then
+            ReportId := RegisteredReportId
+        else
+            ReportId := UnregisteredReportId;
+        if ReportId <= 0 then
+            exit(PostedInvoicePdfResponse(SalesInvoiceHeader));
+        exit(PostedInvoiceReportPdfResponse(SalesInvoiceHeader, ReportId));
+    end;
+
+    /// <summary>
+    /// Authorizes and registers a reprint of a posted sales invoice before
+    /// POS requests a fresh rendered PDF, so fields such as "No. Printed"
+    /// contain the newly assigned copy number. Raise an Error from the
+    /// OnBeforeAuthorizePostedInvoiceReprint
+    /// subscriber (or from a "Sales Inv.-Printed" subscriber) to refuse the
+    /// reprint; the POS then shows the error and prints nothing.
+    /// </summary>
+    procedure AuthorizePostedInvoiceReprint(InvoiceId: Text): Text
+    var
+        SalesInvoiceHeader: Record "Sales Invoice Header";
+        SalesInvPrinted: Codeunit "Sales Inv.-Printed";
+        Response: JsonObject;
+        ResponseText: Text;
+    begin
+        FindPostedInvoiceById(InvoiceId, SalesInvoiceHeader);
+        OnBeforeAuthorizePostedInvoiceReprint(SalesInvoiceHeader);
+        // Registers the print exactly like the posted invoice Print action:
+        // increments "No. Printed" and runs the standard print subscribers.
+        SalesInvPrinted.Run(SalesInvoiceHeader);
+        Response.Add('success', true);
+        Response.Add('id', Format(SalesInvoiceHeader.SystemId));
+        Response.Add('number', SalesInvoiceHeader."No.");
+        Response.Add('noPrinted', SalesInvoiceHeader."No. Printed");
+        Response.WriteTo(ResponseText);
+        exit(ResponseText);
+    end;
+
+    [IntegrationEvent(false, false)]
+    local procedure OnBeforeAuthorizePostedInvoiceReprint(var SalesInvoiceHeader: Record "Sales Invoice Header")
+    begin
+    end;
+
+    local procedure CustomerIsRegistered(CustomerNo: Code[20]): Boolean
+    var
+        Customer: Record Customer;
+        CustomerRecRef: RecordRef;
+        FlagFieldRef: FieldRef;
+        FlagFieldNo: Integer;
+        IsRegistered: Boolean;
+    begin
+        if CustomerNo = '' then
+            exit(false);
+        if not Customer.Get(CustomerNo) then
+            exit(false);
+
+        FlagFieldNo := FindRegisteredFlagFieldNo();
+        if FlagFieldNo = 0 then
+            Error('No boolean "Registered" field was found on the Business Central Customer table.');
+
+        CustomerRecRef.GetTable(Customer);
+        FlagFieldRef := CustomerRecRef.Field(FlagFieldNo);
+        IsRegistered := FlagFieldRef.Value();
+        exit(IsRegistered);
+    end;
+
+    local procedure FindRegisteredFlagFieldNo(): Integer
+    var
+        FieldRec: Record Field;
+    begin
+        // Resolve the custom "Registered" flag dynamically so this extension
+        // does not need a compile-time dependency on the extension owning it.
+        FieldRec.SetRange(TableNo, Database::Customer);
+        FieldRec.SetRange(Type, FieldRec.Type::Boolean);
+        FieldRec.SetRange(FieldName, 'Registered');
+        if FieldRec.FindFirst() then
+            exit(FieldRec."No.");
+
+        FieldRec.SetRange(FieldName);
+        FieldRec.SetFilter(FieldName, '@*registered*');
+        if FieldRec.FindFirst() then
+            exit(FieldRec."No.");
+
+        exit(0);
+    end;
+
+    local procedure GetBranchCodeFromLocation(Location: Record Location): Text
+    var
+        LocationRecRef: RecordRef;
+        BranchFieldRef: FieldRef;
+        BranchFieldNo: Integer;
+    begin
+        BranchFieldNo := FindBranchCodeFieldNo(Database::Location);
+        if BranchFieldNo = 0 then
+            exit('');
+        LocationRecRef.GetTable(Location);
+        BranchFieldRef := LocationRecRef.Field(BranchFieldNo);
+        exit(Format(BranchFieldRef.Value()));
+    end;
+
+    local procedure ApplyBranchCodeToHeader(var SalesHeader: Record "Sales Header"; BranchCode: Text)
+    var
+        HeaderRecRef: RecordRef;
+    begin
+        if BranchCode = '' then
+            exit;
+        HeaderRecRef.GetTable(SalesHeader);
+        if SetBranchCodeField(HeaderRecRef, FindBranchCodeFieldNo(Database::"Sales Header"), BranchCode) then
+            HeaderRecRef.SetTable(SalesHeader);
+    end;
+
+    local procedure SetBranchCodeField(var RecRef: RecordRef; BranchFieldNo: Integer; BranchCode: Text): Boolean
+    var
+        BranchFieldRef: FieldRef;
+    begin
+        if (BranchFieldNo = 0) or (BranchCode = '') then
+            exit(false);
+        BranchFieldRef := RecRef.Field(BranchFieldNo);
+        BranchFieldRef.Validate(CopyStr(BranchCode, 1, BranchFieldRef.Length()));
+        exit(true);
+    end;
+
+    local procedure FindBranchCodeFieldNo(TableNo: Integer): Integer
+    var
+        FieldRec: Record Field;
+    begin
+        // The Branch Code is a customization; resolve it dynamically so this
+        // extension needs no compile-time dependency on the extension owning it.
+        FieldRec.SetRange(TableNo, TableNo);
+        FieldRec.SetRange(FieldName, 'Branch Code');
+        if FieldRec.FindFirst() then
+            exit(FieldRec."No.");
+
+        FieldRec.SetRange(FieldName);
+        FieldRec.SetFilter(FieldName, '@*branch*code*');
+        if FieldRec.FindFirst() then
+            exit(FieldRec."No.");
+
+        exit(0);
+    end;
+
+    local procedure FindPostedInvoiceById(InvoiceId: Text; var SalesInvoiceHeader: Record "Sales Invoice Header")
+    var
+        InvoiceSystemId: Guid;
+    begin
+        InvoiceId := DelChr(InvoiceId, '<>', ' ');
+        if InvoiceId = '' then
+            Error('The posted sales invoice id is required.');
+
+        if Evaluate(InvoiceSystemId, InvoiceId) then
+            if SalesInvoiceHeader.GetBySystemId(InvoiceSystemId) then
+                exit;
+
+        if SalesInvoiceHeader.Get(CopyStr(InvoiceId, 1, MaxStrLen(SalesInvoiceHeader."No."))) then
+            exit;
+
+        Error('Posted sales invoice %1 was not found in Business Central.', InvoiceId);
+    end;
+
+    local procedure PostedInvoicePdfResponse(SalesInvoiceHeader: Record "Sales Invoice Header"): Text
+    var
+        ReportSelections: Record "Report Selections";
+        TempBlob: Codeunit "Temp Blob";
+    begin
+        SalesInvoiceHeader.SetRecFilter();
+        // Render through the same report-selection pipeline as the posted
+        // invoice Print action so the PDF uses the configured report and any
+        // per-customer custom report layouts, not the Print/Send API default.
+        ReportSelections.GetPdfReportForCust(
+            TempBlob,
+            Enum::"Report Selection Usage"::"S.Invoice",
+            SalesInvoiceHeader,
+            SalesInvoiceHeader."Bill-to Customer No.");
+        if not TempBlob.HasValue() then
+            Error('Business Central rendered an empty report PDF for posted invoice %1.', SalesInvoiceHeader."No.");
+        exit(BuildPdfResponse(SalesInvoiceHeader, TempBlob));
+    end;
+
+    local procedure PostedInvoiceReportPdfResponse(SalesInvoiceHeader: Record "Sales Invoice Header"; ReportId: Integer): Text
+    var
+        TempBlob: Codeunit "Temp Blob";
+        InvoiceRecordRef: RecordRef;
+        PdfOutStream: OutStream;
+    begin
+        SalesInvoiceHeader.SetRecFilter();
+        InvoiceRecordRef.GetTable(SalesInvoiceHeader);
+        TempBlob.CreateOutStream(PdfOutStream);
+        // Renders the specific report object with its active layout, exactly
+        // as running that report directly in Business Central.
+        Report.SaveAs(ReportId, '', ReportFormat::Pdf, PdfOutStream, InvoiceRecordRef);
+        if not TempBlob.HasValue() then
+            Error('Business Central rendered an empty PDF with report %1 for posted invoice %2.', ReportId, SalesInvoiceHeader."No.");
+        exit(BuildPdfResponse(SalesInvoiceHeader, TempBlob));
+    end;
+
+    local procedure BuildPdfResponse(SalesInvoiceHeader: Record "Sales Invoice Header"; var TempBlob: Codeunit "Temp Blob"): Text
+    var
+        Base64Convert: Codeunit "Base64 Convert";
+        PdfInStream: InStream;
+        Response: JsonObject;
+        ResponseText: Text;
+    begin
+        TempBlob.CreateInStream(PdfInStream);
+        Response.Add('success', true);
+        Response.Add('id', Format(SalesInvoiceHeader.SystemId));
+        Response.Add('number', SalesInvoiceHeader."No.");
+        Response.Add('pdfBase64', Base64Convert.ToBase64(PdfInStream));
+        Response.WriteTo(ResponseText);
+        exit(ResponseText);
+    end;
+
     local procedure ExecutePostSale(SaleJson: Text; var DraftNo: Code[20]; var ResponseJson: Text)
     var
         Customer: Record Customer;
@@ -45,6 +281,7 @@ codeunit 50243 "BreMac POS Sales Integration"
         CustomerNumber: Code[20];
         ExternalDocumentNumber: Code[35];
         LocationCode: Code[10];
+        BranchCode: Text;
         PostingDate: Date;
         SalespersonCode: Code[20];
     begin
@@ -57,9 +294,15 @@ codeunit 50243 "BreMac POS Sales Integration"
         Lines := GetRequiredArray(Payload, 'lines');
 
         Customer.Get(CustomerNumber);
+        // The customer's assigned BC Location Code wins; the POS-mapped
+        // location is only the fallback for customers without one.
+        if Customer."Location Code" <> '' then
+            LocationCode := Customer."Location Code";
         Salesperson.Get(SalespersonCode);
         Salesperson.TestField(Blocked, false);
         Location.Get(LocationCode);
+        // The Branch Code goes hand in hand with the chosen location.
+        BranchCode := GetBranchCodeFromLocation(Location);
 
         if FindPostedInvoice(ExternalDocumentNumber, CustomerNumber, SalesInvoiceHeader) then begin
             ResponseJson := PostedInvoiceResponse(SalesInvoiceHeader);
@@ -78,13 +321,14 @@ codeunit 50243 "BreMac POS Sales Integration"
         SalesHeader.Validate("Salesperson Code", SalespersonCode);
         SalesHeader.Validate("Location Code", LocationCode);
         SalesHeader."Location Code" := LocationCode;
+        ApplyBranchCodeToHeader(SalesHeader, BranchCode);
         SalesHeader.Ship := true;
         SalesHeader.Invoice := true;
         SalesHeader.Modify(true);
         SalesHeader.Get(SalesHeader."Document Type"::Order, DraftNo);
         SalesHeader.TestField("Location Code", LocationCode);
 
-        InsertLines(SalesHeader, Lines, LocationCode);
+        InsertLines(SalesHeader, Lines, LocationCode, BranchCode);
         SalesHeader.Get(SalesHeader."Document Type"::Order, DraftNo);
         SalesHeader."Location Code" := LocationCode;
         SalesHeader.Modify(false);
@@ -98,16 +342,18 @@ codeunit 50243 "BreMac POS Sales Integration"
         DraftNo := '';
     end;
 
-    local procedure InsertLines(SalesHeader: Record "Sales Header"; Lines: JsonArray; LocationCode: Code[10])
+    local procedure InsertLines(SalesHeader: Record "Sales Header"; Lines: JsonArray; LocationCode: Code[10]; BranchCode: Text)
     var
         Item: Record Item;
         ItemUnitOfMeasure: Record "Item Unit of Measure";
         SalesLine: Record "Sales Line";
+        LineRecRef: RecordRef;
         LineObject: JsonObject;
         LineToken: JsonToken;
         DiscountAmount: Decimal;
         DiscountPercent: Decimal;
         ItemNumber: Code[20];
+        LineBranchFieldNo: Integer;
         LineIndex: Integer;
         LineNo: Integer;
         Quantity: Decimal;
@@ -116,6 +362,9 @@ codeunit 50243 "BreMac POS Sales Integration"
     begin
         if Lines.Count() = 0 then
             Error('The POS sale must contain at least one line.');
+
+        if BranchCode <> '' then
+            LineBranchFieldNo := FindBranchCodeFieldNo(Database::"Sales Line");
 
         for LineIndex := 0 to Lines.Count() - 1 do begin
             Lines.Get(LineIndex, LineToken);
@@ -153,6 +402,11 @@ codeunit 50243 "BreMac POS Sales Integration"
             else
                 if DiscountAmount <> 0 then
                     SalesLine.Validate("Line Discount Amount", DiscountAmount);
+            if LineBranchFieldNo <> 0 then begin
+                LineRecRef.GetTable(SalesLine);
+                if SetBranchCodeField(LineRecRef, LineBranchFieldNo, BranchCode) then
+                    LineRecRef.SetTable(SalesLine);
+            end;
             SalesLine.Modify(true);
         end;
     end;

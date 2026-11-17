@@ -949,6 +949,10 @@ class ContactController extends Controller
             $contacts->select(
                 'contacts.id',
                 DB::raw("IF(contacts.contact_id IS NULL OR contacts.contact_id='', contacts.name, CONCAT(contacts.name, ' (', contacts.contact_id, ')')) AS text"),
+                'contacts.contact_id as contact_number',
+                'contacts.name as contact_name',
+                'contacts.email',
+                'contacts.bc_location_code',
                 'mobile',
                 'address_line_1',
                 'address_line_2',

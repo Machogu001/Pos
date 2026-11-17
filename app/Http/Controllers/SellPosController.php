@@ -526,6 +526,22 @@ class SellPosController extends Controller
 
                 $user_id = $request->session()->get('user.id');
 
+                //With BC enabled, book the Add Sale at the POS location mapped
+                //to the customer's BC Location Code so stock reduces there and
+                //the sale belongs to that location/branch on both sides.
+                if ($is_direct_sale && ! empty($input['contact_id'])) {
+                    $bcSaleLocationId = app(BusinessCentralSyncService::class)
+                        ->posLocationIdForContact((int) $business_id, (int) $input['contact_id']);
+                    if (! empty($bcSaleLocationId) && (int) $input['location_id'] !== $bcSaleLocationId) {
+                        \Log::info('Business Central customer location applied to sale.', [
+                            'contact_id' => $input['contact_id'],
+                            'from_location_id' => $input['location_id'],
+                            'to_location_id' => $bcSaleLocationId,
+                        ]);
+                        $input['location_id'] = $bcSaleLocationId;
+                    }
+                }
+
                 $discount = ['discount_type' => $input['discount_type'],
                     'discount_amount' => $input['discount_amount'],
                 ];
@@ -1007,6 +1023,17 @@ class SellPosController extends Controller
                 }
 
                 if ($request->input('is_save_and_print') == 1) {
+                    //With BC enabled and the sale synced, stay in POS and print
+                    //the BC report through the in-page browser print dialog
+                    //instead of opening the public invoice page.
+                    $bc_print_url = $this->businessCentralInvoiceUrl((int) $business_id, (int) $transaction->id);
+                    if (! empty($bc_print_url)) {
+                        return redirect()
+                            ->action([\App\Http\Controllers\SellController::class, 'index'])
+                            ->with('status', $output ?? ['success' => 1, 'msg' => trans('sale.pos_sale_added')])
+                            ->with('bc_print_url', $bc_print_url);
+                    }
+
                     $url = $this->transactionUtil->getInvoiceUrl($transaction->id, $business_id);
                     $response = redirect()->to($url . '?print_on_load=true');
                     if (($businessCentralSync['enabled'] ?? false)
@@ -1217,6 +1244,15 @@ class SellPosController extends Controller
         }
 
         $output['print_title'] = $receipt_details->invoice_no;
+
+        //Prefer the Business Central posted invoice report layout when available.
+        if ($receipt_printer_type != 'printer') {
+            $bc_invoice_url = $this->businessCentralInvoiceUrl((int) $business_id, (int) $transaction_id);
+            if (!empty($bc_invoice_url)) {
+                $output['bc_invoice_url'] = $bc_invoice_url;
+            }
+        }
+
         //If print type browser - return the content, printer - return printer config data, and invoice format config
         if ($receipt_printer_type == 'printer') {
             $output['print_type'] = 'printer';
@@ -1229,6 +1265,37 @@ class SellPosController extends Controller
         }
 
         return $output;
+    }
+
+    /**
+     * Returns the secure print URL of the posted Business Central invoice
+     * when the integration is enabled and the sale is synced, else null.
+     */
+    private function businessCentralInvoiceUrl(int $business_id, int $transaction_id): ?string
+    {
+        try {
+            if (!app(BusinessCentralSyncService::class)->enabledFor($business_id)) {
+                return null;
+            }
+
+            $has_synced_invoice = BusinessCentralMapping::where('business_id', $business_id)
+                ->where('entity_type', 'sale')
+                ->where('local_id', $transaction_id)
+                ->where('status', 'synced')
+                ->whereNotNull('bc_id')
+                ->exists();
+
+            return $has_synced_invoice
+                ? route('sell.printBusinessCentralInvoice', ['transaction_id' => $transaction_id])
+                : null;
+        } catch (\Throwable $e) {
+            \Log::warning('Could not resolve Business Central invoice print URL.', [
+                'transaction_id' => $transaction_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     /**
@@ -2303,6 +2370,12 @@ class SellPosController extends Controller
         } else {
             $is_cg = !empty($cg->id) ? true : false;
 
+            //Business Central style line layout, requested only by the Add Sale
+            //page when the BC inline entry row is present; re-checked server side
+            $bc_line_layout = ! empty($is_direct_sell)
+                && request()->boolean('bc_line_layout')
+                && app(BusinessCentralSyncService::class)->enabledFor((int) $business_id);
+
             $discount = $this->productUtil->getProductDiscount($product, $business_id, $location_id, $is_cg, $price_group, $variation_id);
 
             if ($is_direct_sell) {
@@ -2314,7 +2387,7 @@ class SellPosController extends Controller
             }
 
             $output['html_content'] = view('sale_pos.product_row')
-                ->with(compact('product', 'row_count', 'tax_dropdown', 'enabled_modules', 'pos_settings', 'sub_units', 'discount', 'waiters', 'edit_discount', 'edit_price', 'purchase_line_id', 'warranties', 'quantity', 'is_direct_sell', 'so_line', 'is_sales_order', 'last_sell_line'))
+                ->with(compact('product', 'row_count', 'tax_dropdown', 'enabled_modules', 'pos_settings', 'sub_units', 'discount', 'waiters', 'edit_discount', 'edit_price', 'purchase_line_id', 'warranties', 'quantity', 'is_direct_sell', 'so_line', 'is_sales_order', 'last_sell_line', 'bc_line_layout'))
                 ->render();
         }
 
@@ -2574,19 +2647,60 @@ class SellPosController extends Controller
             ->firstOrFail();
 
         try {
-            $pdf = (new BusinessCentralClient(AdminSetting::firstOrFail()))
-                ->salesInvoicePdf($mapping->bc_id);
+            $settings = AdminSetting::firstOrFail();
+            $client = new BusinessCentralClient($settings);
+
+            //No fallback to another report or the Print/Send API layout:
+            //if BC refuses (e.g. the user lacks reprint permission), the BC
+            //error is surfaced instead of printing a different document.
+            if ($client->hasSalesCodeunit()) {
+                $pdf = $client->reprintSalesInvoiceReportPdf($mapping->bc_id);
+            } else {
+                //Standard API path: no caching, so BC re-checks read permission
+                //on every print.
+                $pdf = $client->salesInvoicePdf($mapping->bc_id);
+            }
         } catch (\Throwable $e) {
             \Log::warning('Business Central invoice PDF download failed.', [
                 'transaction_id' => $transaction->id,
                 'error' => $e->getMessage(),
             ]);
 
-            abort(502, 'Business Central could not provide this invoice PDF: '
-                .mb_substr(trim(strip_tags($e->getMessage())), 0, 500));
+            $bcMessage = mb_substr(trim(strip_tags($e->getMessage())), 0, 500);
+
+            if ($request->input('format') === 'html') {
+                return response()->json(['success' => 0,
+                    'msg' => $bcMessage !== '' ? $bcMessage : 'Business Central could not provide this invoice PDF.']);
+            }
+
+            abort(502, 'Business Central could not provide this invoice PDF: '.$bcMessage);
         }
 
         $invoiceNumber = $mapping->bc_number ?: $transaction->invoice_no;
+
+        //In-page printable version: the BC report pages as images, printed
+        //through the normal receipt section so the print dialog pops up
+        //exactly like non-integrated receipts (no new tab).
+        if ($request->input('format') === 'html') {
+            try {
+                $html = $this->businessCentralPdfToPrintableHtml($pdf);
+
+                return response()->json([
+                    'success' => 1,
+                    'html' => $html,
+                    'print_title' => $invoiceNumber,
+                ]);
+            } catch (\Throwable $e) {
+                \Log::warning('Business Central invoice PDF to image conversion failed.', [
+                    'transaction_id' => $transaction->id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return response()->json(['success' => 0,
+                    'msg' => 'The Business Central invoice could not be prepared for printing.']);
+            }
+        }
+
         $filename = 'BC-Invoice-'.preg_replace('/[^A-Za-z0-9._-]+/', '-', $invoiceNumber).'.pdf';
 
         return response($pdf, 200, [
@@ -2594,6 +2708,52 @@ class SellPosController extends Controller
             'Content-Disposition' => 'inline; filename="'.$filename.'"',
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    /**
+     * Converts a BC invoice PDF into print-ready HTML (one full-width image
+     * per page) using poppler's pdftoppm.
+     */
+    private function businessCentralPdfToPrintableHtml(string $pdf): string
+    {
+        $cacheKey = 'bc-invoice-print-html-'.md5($pdf);
+
+        return \Cache::remember($cacheKey, now()->addHours(12), function () use ($pdf) {
+            $pdfPath = tempnam(sys_get_temp_dir(), 'bcinv');
+            $pagePrefix = $pdfPath.'_pg';
+            try {
+                file_put_contents($pdfPath, $pdf);
+
+                $process = new \Symfony\Component\Process\Process([
+                    'pdftoppm', '-png', '-r', '150', $pdfPath, $pagePrefix,
+                ]);
+                $process->setTimeout(60);
+                $process->mustRun();
+
+                $pages = glob($pagePrefix.'-*.png') ?: [];
+                sort($pages, SORT_NATURAL);
+                if (empty($pages)) {
+                    throw new \RuntimeException('pdftoppm produced no pages for the BC invoice PDF.');
+                }
+
+                $html = '<div class="bc-invoice-pages">';
+                $lastIndex = count($pages) - 1;
+                foreach ($pages as $index => $page) {
+                    $style = 'width:100%;display:block;'
+                        .($index < $lastIndex ? 'page-break-after:always;' : '');
+                    $html .= '<img src="data:image/png;base64,'
+                        .base64_encode((string) file_get_contents($page))
+                        .'" style="'.$style.'">';
+                }
+
+                return $html.'</div>';
+            } finally {
+                @unlink($pdfPath);
+                foreach (glob($pagePrefix.'-*.png') ?: [] as $page) {
+                    @unlink($page);
+                }
+            }
+        });
     }
 
     /**
@@ -2758,8 +2918,16 @@ class SellPosController extends Controller
 
             $title = $transaction->business->name . ' | ' . $transaction->invoice_no;
 
+            //Authenticated users with print rights get the BC report instead of
+            //the POS receipt (e.g. Add Sale "save and print"); guest links keep
+            //the POS receipt since the BC print endpoint requires auth.
+            $bc_invoice_url = null;
+            if (auth()->check() && auth()->user()->can('print_invoice') && !empty($receipt['bc_invoice_url'])) {
+                $bc_invoice_url = $receipt['bc_invoice_url'];
+            }
+
             return view('sale_pos.partials.show_invoice')
-                ->with(compact('receipt', 'title', 'payment_link'));
+                ->with(compact('receipt', 'title', 'payment_link', 'bc_invoice_url'));
         } else {
             exit(__('messages.something_went_wrong'));
         }

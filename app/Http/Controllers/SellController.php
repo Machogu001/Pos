@@ -98,6 +98,15 @@ class SellController extends Controller
             $sale_type = ! empty(request()->input('sale_type')) ? request()->input('sale_type') : 'sell';
 
             $sells = $this->transactionUtil->getListSells($business_id, $sale_type);
+            $sells->addSelect([
+                'business_central_invoice_available' => BusinessCentralMapping::selectRaw('1')
+                    ->whereColumn('business_central_mappings.local_id', 'transactions.id')
+                    ->whereColumn('business_central_mappings.business_id', 'transactions.business_id')
+                    ->where('business_central_mappings.entity_type', 'sale')
+                    ->where('business_central_mappings.status', 'synced')
+                    ->whereNotNull('business_central_mappings.bc_id')
+                    ->limit(1),
+            ]);
 
             // only display sell invoice we add it because project invoive show in sell list
             if($sale_type == 'sell'){
@@ -431,6 +440,10 @@ class SellController extends Controller
                                 $html .= '<li><a href="#" class="print-invoice" data-href="'.route('sell.printInvoice', [$row->id]).'"><i class="fas fa-print" aria-hidden="true"></i> '.__('lang_v1.print_invoice').'</a></li>
                                     <li><a href="#" class="print-invoice" data-href="'.route('sell.printInvoice', [$row->id]).'?package_slip=true"><i class="fas fa-file-alt" aria-hidden="true"></i> '.__('lang_v1.packing_slip').'</a></li>';
 
+                                if (! empty($row->business_central_invoice_available)) {
+                                    $html .= '<li><a href="'.route('sell.printBusinessCentralInvoice', [$row->id]).'" target="_blank"><i class="fab fa-microsoft" aria-hidden="true"></i> Print BC Posted Invoice</a></li>';
+                                }
+
                                 $html .= '<li><a href="#" class="print-invoice" data-href="'.route('sell.printInvoice', [$row->id]).'?delivery_note=true"><i class="fas fa-file-alt" aria-hidden="true"></i> '.__('lang_v1.delivery_note').'</a></li>';
                             }
                             $html .= '<li class="divider"></li>';
@@ -762,6 +775,21 @@ class SellController extends Controller
 
         $change_return = $this->dummyPaymentLine;
 
+        //Business Central style inline item entry on the items table
+        $bc_inline_entry = app(BusinessCentralSyncService::class)->enabledFor((int) $business_id);
+
+        //Data for the BC-style General section
+        $bc_salesperson_code = null;
+        $bc_location_codes = [];
+        if ($bc_inline_entry) {
+            $bc_salesperson_code = \App\BusinessCentralSalesperson::where('business_id', $business_id)
+                ->where('pos_user_id', auth()->id())
+                ->value('code');
+            $bc_location_codes = \App\BusinessCentralLocationMapping::where('business_id', $business_id)
+                ->where('enabled', true)
+                ->pluck('bc_location_code', 'pos_location_id');
+        }
+
         return view('sell.create')
             ->with(compact(
                 'business_details',
@@ -789,7 +817,10 @@ class SellController extends Controller
                 'is_order_request_enabled',
                 'users',
                 'default_price_group_id',
-                'change_return'
+                'change_return',
+                'bc_inline_entry',
+                'bc_salesperson_code',
+                'bc_location_codes'
             ));
     }
 

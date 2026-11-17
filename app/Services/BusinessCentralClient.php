@@ -10,6 +10,13 @@ use RuntimeException;
 
 class BusinessCentralClient
 {
+    /**
+     * Rendering and transferring invoice report PDFs regularly takes longer
+     * than regular API calls (BC renders the report, then streams it base64
+     * encoded), so PDF operations use a longer HTTP timeout.
+     */
+    protected const PDF_TIMEOUT = 300;
+
     public function __construct(protected AdminSetting $settings)
     {
     }
@@ -47,7 +54,7 @@ class BusinessCentralClient
     {
         $invoiceId = trim($invoiceId, "{} \t\n\r\0\x0B");
         $resource = 'salesInvoices('.rawurlencode($invoiceId).')/pdfDocument';
-        $response = $this->request()->get($this->resourceUrl($resource));
+        $response = $this->request(self::PDF_TIMEOUT)->get($this->resourceUrl($resource));
         $this->ensureSuccessful($response, 'read sales invoice PDF');
 
         if (str_starts_with((string) $response->header('Content-Type'), 'application/pdf')) {
@@ -65,7 +72,7 @@ class BusinessCentralClient
             throw new RuntimeException('Business Central returned no PDF content link for this sales invoice.');
         }
 
-        $contentResponse = $this->request()->get($contentUrl);
+        $contentResponse = $this->request(self::PDF_TIMEOUT)->get($contentUrl);
         $this->ensureSuccessful($contentResponse, 'download sales invoice PDF');
         $pdf = $contentResponse->body();
         if ($pdf === '') {
@@ -131,10 +138,33 @@ class BusinessCentralClient
 
     public function itemUnits(): array
     {
+        return $this->getCollection('posItemUnits', [
+            '$select' => 'id,itemNumber,code,qtyPerUnitOfMeasure,lastModifiedDateTime',
+        ], $this->bremacPosEntityUrl('posItemUnits'));
+    }
+
+    /**
+     * Customer numbers with their assigned BC Location Code, exposed by the
+     * BreMac POS extension; the standard customers API has no location field.
+     */
+    public function customerLocations(): array
+    {
+        return $this->getCollection('posCustomerLocations', [
+            '$select' => 'id,number,locationCode,lastModifiedDateTime',
+        ], $this->bremacPosEntityUrl('posCustomerLocations'));
+    }
+
+    /**
+     * Resolves the URL of a BreMac POS extension API entity set, preferring
+     * the configured inventory URL's base and falling back to deriving the
+     * custom API path from the standard api/v2.0 URL.
+     */
+    protected function bremacPosEntityUrl(string $entitySet): string
+    {
         $inventoryUrl = (string) $this->settings->business_central_inventory_url;
         $url = preg_replace(
             '~/posInventoryEntries/?(?:\?.*)?$~i',
-            '/posItemUnits',
+            '/'.$entitySet,
             $inventoryUrl
         );
         if (empty($url) || $url === $inventoryUrl) {
@@ -146,12 +176,12 @@ class BusinessCentralClient
             );
             if (empty($customApiBase) || $customApiBase === $apiUrl) {
                 throw new RuntimeException(
-                    'The Business Central API URL must end with api/v2.0 to resolve posItemUnits.'
+                    'The Business Central API URL must end with api/v2.0 to resolve '.$entitySet.'.'
                 );
             }
             $url = $customApiBase.'/companies('
                 .rawurlencode((string) $this->settings->business_central_company_id)
-                .')/posItemUnits';
+                .')/'.$entitySet;
         } else {
             $url = str_replace(
                 '{company_id}',
@@ -161,13 +191,11 @@ class BusinessCentralClient
         }
         if (empty($url)) {
             throw new RuntimeException(
-                'The Business Central posItemUnits URL could not be resolved.'
+                'The Business Central '.$entitySet.' URL could not be resolved.'
             );
         }
 
-        return $this->getCollection('posItemUnits', [
-            '$select' => 'id,itemNumber,code,qtyPerUnitOfMeasure,lastModifiedDateTime',
-        ], $url);
+        return $url;
     }
 
     public function salespeople(): array
@@ -189,6 +217,84 @@ class BusinessCentralClient
 
     public function postSale(array $payload): array
     {
+        return $this->callSalesCodeunit(
+            'PostSaleV4',
+            ['saleJson' => json_encode($payload, JSON_THROW_ON_ERROR)],
+            'post POS sale'
+        );
+    }
+
+    /**
+     * Asks BC to authorize and register a reprint of a posted invoice without
+     * rendering the report again. BC enforces its reprint rules and increments
+     * the invoice's "No. Printed" counter; a refusal throws.
+     */
+    public function authorizeSalesInvoiceReprint(string $invoiceId): array
+    {
+        return $this->callSalesCodeunit(
+            'AuthorizePostedInvoiceReprint',
+            ['invoiceId' => trim($invoiceId)],
+            'authorize a posted sales invoice reprint'
+        );
+    }
+
+    /**
+     * Registers the reprint in BC before rendering a fresh PDF so report
+     * fields such as "No. Printed" contain the newly assigned copy number.
+     */
+    public function reprintSalesInvoiceReportPdf(string $invoiceId): string
+    {
+        $this->authorizeSalesInvoiceReprint($invoiceId);
+
+        return $this->salesInvoiceReportPdf($invoiceId);
+    }
+
+    /**
+     * Renders the posted sales invoice through the BC report-selection
+     * pipeline (the Print action), returning the exact BC report PDF.
+     */
+    public function salesInvoiceReportPdf(string $invoiceId): string
+    {
+        $registeredReportId = (int) ($this->settings->business_central_invoice_report_id ?? 0);
+        $unregisteredReportId = (int) ($this->settings->business_central_unregistered_invoice_report_id ?? 0);
+        if ($unregisteredReportId > 0) {
+            //BC picks the report from the customer's Registered flag.
+            $result = $this->callSalesCodeunit(
+                'GetPostedInvoicePdfV3',
+                [
+                    'invoiceId' => trim($invoiceId),
+                    'registeredReportId' => (string) $registeredReportId,
+                    'unregisteredReportId' => (string) $unregisteredReportId,
+                ],
+                'render posted sales invoice report PDF',
+                self::PDF_TIMEOUT
+            );
+        } elseif ($registeredReportId > 0) {
+            $result = $this->callSalesCodeunit(
+                'GetPostedInvoicePdfV2',
+                ['invoiceId' => trim($invoiceId), 'reportId' => (string) $registeredReportId],
+                'render posted sales invoice report PDF',
+                self::PDF_TIMEOUT
+            );
+        } else {
+            $result = $this->callSalesCodeunit(
+                'GetPostedInvoicePdf',
+                ['invoiceId' => trim($invoiceId)],
+                'render posted sales invoice report PDF',
+                self::PDF_TIMEOUT
+            );
+        }
+
+        $pdf = base64_decode((string) ($result['pdfBase64'] ?? ''), true);
+        if ($pdf === false || $pdf === '' || ! str_starts_with($pdf, '%PDF')) {
+            throw new RuntimeException('Business Central returned an invalid report PDF for this sales invoice.');
+        }
+
+        return $pdf;
+    }
+
+    protected function callSalesCodeunit(string $operation, array $parameters, string $operationLabel, int $timeout = 30): array
+    {
         $url = trim((string) $this->settings->business_central_sales_codeunit_url);
         if ($url === '') {
             throw new RuntimeException('The Business Central POS sales codeunit URL is not configured.');
@@ -202,20 +308,22 @@ class BusinessCentralClient
         $document = new \DOMDocument('1.0', 'UTF-8');
         $envelope = $document->createElementNS('http://schemas.xmlsoap.org/soap/envelope/', 'soap:Envelope');
         $body = $document->createElementNS('http://schemas.xmlsoap.org/soap/envelope/', 'soap:Body');
-        $operation = $document->createElementNS($namespace, 'PostSaleV4');
-        $saleJson = $document->createElement('saleJson');
-        $saleJson->appendChild($document->createTextNode(json_encode($payload, JSON_THROW_ON_ERROR)));
-        $operation->appendChild($saleJson);
-        $body->appendChild($operation);
+        $operationElement = $document->createElementNS($namespace, $operation);
+        foreach ($parameters as $name => $value) {
+            $parameterElement = $document->createElement($name);
+            $parameterElement->appendChild($document->createTextNode((string) $value));
+            $operationElement->appendChild($parameterElement);
+        }
+        $body->appendChild($operationElement);
         $envelope->appendChild($body);
         $document->appendChild($envelope);
 
-        $response = $this->request()
-            ->withHeaders(['SOAPAction' => $namespace.':PostSaleV4'])
+        $response = $this->request($timeout)
+            ->withHeaders(['SOAPAction' => $namespace.':'.$operation])
             ->withBody($document->saveXML(), 'text/xml; charset=utf-8')
             ->post($url);
 
-        return $this->parseSoapResponse($response, 'post POS sale');
+        return $this->parseSoapResponse($response, $operationLabel);
     }
 
     public function resourceUrl(string $resource): string
@@ -226,9 +334,9 @@ class BusinessCentralClient
         return $base.'/companies('.$companyId.')/'.ltrim($resource, '/');
     }
 
-    protected function request(): PendingRequest
+    protected function request(int $timeout = 30): PendingRequest
     {
-        $request = Http::acceptJson()->asJson()->timeout(30);
+        $request = Http::acceptJson()->asJson()->timeout($timeout);
         $authType = $this->settings->business_central_auth_type ?: 'basic';
 
         if ($authType === 'basic') {

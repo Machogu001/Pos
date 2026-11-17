@@ -295,6 +295,17 @@
                 alert(message);
             };
         </script>
+        @if(session('bc_print_url'))
+        <script>
+            //Post & Print with BC: load the posted BC invoice report into the
+            //receipt section and open the normal browser print dialog.
+            $(function() {
+                if (typeof __print_bc_invoice === 'function') {
+                    __print_bc_invoice(@json(session('bc_print_url')));
+                }
+            });
+        </script>
+        @endif
         @if($flashMsg)
         <script>
             (function(){

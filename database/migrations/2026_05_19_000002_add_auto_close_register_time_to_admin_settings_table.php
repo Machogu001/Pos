@@ -16,7 +16,7 @@ return new class extends Migration
             ? 'auto_close_register'
             : null;
 
-        Schema::table('admin_settings', function (Blueprint $table) {
+        Schema::table('admin_settings', function (Blueprint $table) use ($afterColumn) {
             if (! Schema::hasColumn('admin_settings', 'auto_close_register_time')) {
                 $column = $table->string('auto_close_register_time', 5)->default('23:59');
 

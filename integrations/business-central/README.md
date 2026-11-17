@@ -1,6 +1,6 @@
-# Business Central 240 integration deployment
+# Dynamics 365 Business Central integration deployment
 
-This directory contains the AL extension required by the BreMac POS integration with Microsoft Dynamics 365 Business Central 240.
+This directory contains the AL extension required by the BreMac POS integration with Microsoft Dynamics 365 Business Central.
 
 For day-to-day configuration and operating behavior, see [the Business Central administrator guide](../../docs/BUSINESS_CENTRAL.md).
 
@@ -20,15 +20,21 @@ BC remains the system of record for product master data, customers, vendors, sal
 The `BreMacPOS` AL project contains:
 
 - `BreMac POS Inventory Entries` API page
+- `BreMac POS Item Units` API page
 - `BreMac POS Integration` codeunit
+- `BreMac POS Sales Integration` codeunit
 - `BreMac POS API` permission set
 
 The inventory API exposes open Item Ledger Entries with item number, location code, and remaining quantity. POS aggregates those entries by item and mapped location.
 
+The sales codeunit atomically posts POS sales and exposes `GetPostedInvoicePdf` (report-selection render), `GetPostedInvoicePdfV2` (render a specific report ID), and `GetPostedInvoicePdfV3` (render one of two report IDs depending on the customer's custom boolean `Registered` flag, resolved dynamically on the Customer table). When the sales codeunit web service is configured, POS invoice printing uses these report PDFs. Operations Hub can set a registered-customer report ID (e.g. 50100) and an unregistered-customer report ID (e.g. 50101).
+
+Every print first calls `AuthorizePostedInvoiceReprint`, which runs the standard `Sales Inv.-Printed` registration and increments the invoice's `No. Printed` counter. POS then requests a freshly rendered report so copy-number fields contain the new value. To refuse reprints, raise an `Error` from a `Sales Inv.-Printed` subscriber or `OnBeforeAuthorizePostedInvoiceReprint`; POS shows the BC error and prints nothing. There is no cached-PDF, standard API `pdfDocument`, or POS-receipt fallback when the sales codeunit is configured.
+
 ## Build and publish the extension
 
 1. Open `BreMacPOS` in Visual Studio Code with the Microsoft AL Language extension.
-2. Create or update `.vscode/launch.json` for the BC240 server instance.
+2. Create or update `.vscode/launch.json` for the target Business Central server instance.
 3. Download symbols.
 4. Build the extension.
 5. Publish and install the generated `.app` package.
@@ -46,16 +52,16 @@ The integration account also needs standard API permissions to:
 Standard API:
 
 ```text
-https://SERVER:PORT/BC240/api/v2.0
+https://SERVER:PORT/{instance}/api/v2.0
 ```
 
 BreMac inventory API:
 
 ```text
-https://SERVER:PORT/BC240/api/bremac/pos/v1.0/companies({company_id})/posInventoryEntries
+https://SERVER:PORT/{instance}/api/bremac/pos/v1.0/companies({company_id})/posInventoryEntries
 ```
 
-Keep the literal `{company_id}` placeholder in the inventory URL. POS replaces it with the configured company GUID.
+Replace `{instance}` with the Business Central server instance name. Keep the literal `{company_id}` placeholder in the inventory URL; POS replaces it with the configured company GUID.
 
 ## Authentication
 
@@ -122,6 +128,12 @@ Inventory synchronization runs independently for every enabled mapping. Before a
 - Unmapped POS branches fail explicitly instead of using the wrong BC location.
 - Unmapped POS users fail explicitly instead of using the wrong BC salesperson.
 - Failed sales remain recorded in POS and are retried by the scheduler when it is safe to do so.
+
+## Sale location and branch resolution
+
+When posting a sale, the codeunit chooses the BC location as follows: if the BC customer card has a **Location Code** assigned, that location is used; otherwise the POS-mapped BC location code is the fallback. The **Branch Code** goes hand in hand with the chosen location — the codeunit reads the custom `Branch Code` field from the chosen Location record (resolved dynamically by field name, so no compile-time dependency on the customization) and validates it onto the sales header and every sales line when those tables carry a matching field. If the environment has no `Branch Code` customization, posting proceeds with the location only.
+
+POS mirrors the same rule: customer sync imports each customer's BC Location Code (exposed by the extension's `posCustomerLocations` API page) into `contacts.bc_location_code`, and when an Add Sale is saved for a customer whose BC location maps to an enabled POS location mapping, POS books the sale at that POS location — stock reduces there and the sale belongs to that location/branch on both sides. Customers without a BC location, unmapped BC locations, and environments without the deployed page keep the POS-selected location.
 
 ## Deployment
 

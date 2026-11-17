@@ -2,7 +2,7 @@
   "id": "993621c8-8ee8-4efb-9a6a-a7675b54851e",
   "name": "BreMac POS Integration",
   "publisher": "BreMac",
-  "version": "1.1.8.0",
+  "version": "1.2.2.0",
   "brief": "Location-aware inventory and sales integration for BreMac POS",
   "description": "Exposes Business Central location inventory and atomically posts location-aware BreMac POS sales.",
   "privacyStatement": "",

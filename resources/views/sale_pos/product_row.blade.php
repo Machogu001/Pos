@@ -14,6 +14,10 @@
 @endforeach
 
 <tr class="product_row" data-row_index="{{$row_count}}" @if(!empty($so_line)) data-so_id="{{$so_line->transaction_id}}" @endif>
+	@if(!empty($bc_line_layout))
+		{{-- Business Central layout: item number in its own "No." column --}}
+		<td class="pos-itemno-cell">{{$product->sub_sku}}</td>
+	@endif
 	<td class="pos-product-cell">
 		@if(!empty($so_line))
 			<input type="hidden" 
@@ -21,7 +25,12 @@
 			value="{{$so_line->id}}">
 		@endif
 		@php
-			$product_name = $product->product_name . '<br/>' . $product->sub_sku ;
+			if(!empty($bc_line_layout)){
+				// SKU is shown in the "No." column already
+				$product_name = $product->product_name;
+			} else {
+				$product_name = $product->product_name . '<br/>' . $product->sub_sku ;
+			}
 			if(!empty($product->brand)){ $product_name .= ' ' . $product->brand ;}
 		@endphp
 
@@ -158,7 +167,7 @@
 			}
 		@endphp
 		@if(!empty($product->lot_numbers) && empty($is_sales_order))
-			<select class="form-control lot_number input-sm" name="products[{{$row_count}}][lot_no_line_id]" @if(!empty($product->transaction_sell_lines_id)) disabled @endif>
+			<select class="form-control lot_number input-sm" name="products[{{$row_count}}][lot_no_line_id]" @if(!empty($product->transaction_sell_lines_id) || !empty($bc_line_layout)) disabled @endif>
 				<option value="">@lang('lang_v1.lot_n_expiry')</option>
 				@foreach($product->lot_numbers as $lot_number)
 					@php
@@ -191,13 +200,19 @@
 		@endif
 	@endif
 		@if(!empty($is_direct_sell))
-	 		<div class="pos-product-note">
-	 		<textarea class="form-control" name="products[{{$row_count}}][sell_line_note]" rows="2">{{$sell_line_note}}</textarea>
+			<div class="pos-product-note @if(!empty($bc_line_layout)) hide @endif">
+			<textarea class="form-control" name="products[{{$row_count}}][sell_line_note]" rows="2" @if(!empty($bc_line_layout)) readonly @endif>{{$sell_line_note}}</textarea>
   		<p class="help-block"><small>@lang('lang_v1.sell_line_description_help')</small></p>
 	 		</div>
 	@endif
 	</td>
 
+	@if(!empty($bc_line_layout))
+		{{-- Business Central layout: unit of measure in its own column, before qty --}}
+		<td class="pos-uom-cell">
+			@include('sale_pos.partials.line_unit_selector')
+		</td>
+	@endif
 	<td class="pos-qty-cell">
 		{{-- If edit then transaction sell lines will be present --}}
 		@if(!empty($product->transaction_sell_lines_id))
@@ -258,18 +273,8 @@
 		</div>
 		
 		<input type="hidden" name="products[{{$row_count}}][product_unit_id]" value="{{$product->unit_id}}">
-		@if(count($sub_units) > 0)
-			<div class="pos-subunit-wrap">
-			<select name="products[{{$row_count}}][sub_unit_id]" class="form-control input-sm sub_unit">
-                @foreach($sub_units as $key => $value)
-                    <option value="{{$key}}" data-multiplier="{{$value['multiplier']}}" data-unit_name="{{$value['name']}}" data-allow_decimal="{{$value['allow_decimal']}}" @if(!empty($product->sub_unit_id) && $product->sub_unit_id == $key) selected @endif>
-                        {{$value['name']}}
-                    </option>
-                @endforeach
-           </select>
-			</div>
-		@else
-			<div class="pos-subunit-label">{{$product->unit}}</div>
+		@if(empty($bc_line_layout))
+			@include('sale_pos.partials.line_unit_selector')
 		@endif
 
 		@if(!empty($product->second_unit))
@@ -280,6 +285,7 @@
             name="products[{{$row_count}}][secondary_unit_quantity]" 
             value="{{@format_quantity($product->secondary_unit_quantity)}}"
             class="form-control input-sm input_number"
+            @if(!empty($bc_line_layout)) readonly @endif
             required>
         @endif
 
@@ -346,7 +352,7 @@
 			<td>
 				<div class="form-group">
 					<div class="input-group">
-						{!! Form::select("products[" . $row_count . "][res_service_staff_id]", $waiters, !empty($product->res_service_staff_id) ? $product->res_service_staff_id : null, ['class' => 'form-control select2 order_line_service_staff', 'placeholder' => __('restaurant.select_service_staff'), 'required' => (!empty($pos_settings['is_service_staff_required']) && $pos_settings['is_service_staff_required'] == 1) ? true : false ]); !!}
+						{!! Form::select("products[" . $row_count . "][res_service_staff_id]", $waiters, !empty($product->res_service_staff_id) ? $product->res_service_staff_id : null, ['class' => 'form-control select2 order_line_service_staff', 'placeholder' => __('restaurant.select_service_staff'), 'required' => (!empty($pos_settings['is_service_staff_required']) && $pos_settings['is_service_staff_required'] == 1) ? true : false, 'disabled' => !empty($bc_line_layout) ]); !!}
 					</div>
 				</div>
 			</td>
@@ -365,9 +371,25 @@
 				<small class="text-muted pos-inline-meta">@lang('lang_v1.prev_unit_price'): @format_currency($last_sell_line->unit_price_before_discount)</small>
 			@endif
 		</td>
-		<td class="pos-discount-cell @if(!$edit_discount) hide @endif">
-			{!! Form::text("products[$row_count][line_discount_amount]", @num_format($discount_amount), ['class' => 'form-control input_number row_discount_amount']); !!}<br>
-			{!! Form::select("products[$row_count][line_discount_type]", ['fixed' => __('lang_v1.fixed'), 'percentage' => __('lang_v1.percentage')], $discount_type , ['class' => 'form-control row_discount_type']); !!}
+		<td class="pos-discount-cell @if(!$edit_discount && empty($bc_line_layout)) hide @endif">
+			@php
+				// In BC layout the discount is shown read-only: it is applied
+				// automatically and synced to Business Central as-is
+				$discount_amount_attrs = ['class' => 'form-control input_number row_discount_amount'];
+				$discount_type_attrs = ['class' => 'form-control row_discount_type'];
+				if (!empty($bc_line_layout)) {
+					$discount_amount_attrs['readonly'] = 'readonly';
+					// Keep the type select in the DOM for JS calculations but hidden
+					$discount_type_attrs['disabled'] = 'disabled';
+					$discount_type_attrs['class'] .= ' hide';
+				}
+			@endphp
+			{!! Form::text("products[$row_count][line_discount_amount]", @num_format($discount_amount), $discount_amount_attrs); !!}@if(empty($bc_line_layout))<br>@endif
+			{!! Form::select("products[$row_count][line_discount_type]", ['fixed' => __('lang_v1.fixed'), 'percentage' => __('lang_v1.percentage')], $discount_type , $discount_type_attrs); !!}
+			@if(!empty($bc_line_layout))
+				{{-- disabled selects are not submitted; keep the value posted --}}
+				{!! Form::hidden("products[$row_count][line_discount_type]", $discount_type) !!}
+			@endif
 			@if(!empty($discount))
 				<p class="help-block">{!! __('lang_v1.applied_discount_text', ['discount_name' => $discount->name, 'starts_at' => $discount->formated_starts_at, 'ends_at' => $discount->formated_ends_at]) !!}</p>
 			@endif
@@ -385,8 +407,17 @@
 		</td>
 		<td class="text-center {{$hide_tax}}">
 			{!! Form::hidden("products[$row_count][item_tax]", @num_format($item_tax), ['class' => 'item_tax']); !!}
-		
-			{!! Form::select("products[$row_count][tax_id]", $tax_dropdown['tax_rates'], $tax_id, ['placeholder' => 'Select', 'class' => 'form-control tax_id'], $tax_dropdown['attributes']); !!}
+			@php
+				$tax_select_attrs = ['placeholder' => 'Select', 'class' => 'form-control tax_id'];
+				if (!empty($bc_line_layout)) {
+					$tax_select_attrs['disabled'] = 'disabled';
+				}
+			@endphp
+			{!! Form::select("products[$row_count][tax_id]", $tax_dropdown['tax_rates'], $tax_id, $tax_select_attrs, $tax_dropdown['attributes']); !!}
+			@if(!empty($bc_line_layout))
+				{{-- disabled selects are not submitted; keep the value posted --}}
+				{!! Form::hidden("products[$row_count][tax_id]", $tax_id) !!}
+			@endif
 		</td>
 
 	@else
@@ -401,20 +432,21 @@
 		@endif
 	@endif
 	<td class="pos-price-inc-tax-cell {{$hide_tax}}">
-		<input type="text" name="products[{{$row_count}}][unit_price_inc_tax]" class="form-control pos_unit_price_inc_tax input_number" value="{{@num_format($unit_price_inc_tax)}}" @if(!$edit_price) readonly @endif @if(!empty($pos_settings['enable_msp'])) data-rule-min-value="{{$unit_price_inc_tax}}" data-msg-min-value="{{__('lang_v1.minimum_selling_price_error_msg', ['price' => @num_format($unit_price_inc_tax)])}}" @endif>
+		<input type="text" name="products[{{$row_count}}][unit_price_inc_tax]" class="form-control pos_unit_price_inc_tax input_number" value="{{@num_format($unit_price_inc_tax)}}" @if(!$edit_price || !empty($bc_line_layout)) readonly @endif @if(!empty($pos_settings['enable_msp'])) data-rule-min-value="{{$unit_price_inc_tax}}" data-msg-min-value="{{__('lang_v1.minimum_selling_price_error_msg', ['price' => @num_format($unit_price_inc_tax)])}}" @endif>
 	</td>
 	@if(!empty($common_settings['enable_product_warranty']) && !empty($is_direct_sell))
 		<td>
-			{!! Form::select("products[$row_count][warranty_id]", $warranties, $warranty_id, ['placeholder' => __('messages.please_select'), 'class' => 'form-control']); !!}
+			{!! Form::select("products[$row_count][warranty_id]", $warranties, $warranty_id, ['placeholder' => __('messages.please_select'), 'class' => 'form-control', 'disabled' => !empty($bc_line_layout)]); !!}
 		</td>
 	@endif
 	<td class="text-center pos-subtotal-cell">
 		@php
-			$subtotal_type = !empty($pos_settings['is_pos_subtotal_editable']) ? 'text' : 'hidden';
+			$is_subtotal_editable = !empty($pos_settings['is_pos_subtotal_editable']) && empty($bc_line_layout);
+			$subtotal_type = $is_subtotal_editable ? 'text' : 'hidden';
 
 		@endphp
-		<input type="{{$subtotal_type}}" class="form-control pos_line_total @if(!empty($pos_settings['is_pos_subtotal_editable'])) input_number @endif" value="{{@num_format($product->quantity_ordered*$unit_price_inc_tax )}}">
-		<span class="display_currency pos_line_total_text @if(!empty($pos_settings['is_pos_subtotal_editable'])) hide @endif" data-currency_symbol="true">{{$product->quantity_ordered*$unit_price_inc_tax}}</span>
+		<input type="{{$subtotal_type}}" class="form-control pos_line_total @if($is_subtotal_editable) input_number @endif" value="{{@num_format($product->quantity_ordered*$unit_price_inc_tax )}}">
+		<span class="display_currency pos_line_total_text @if($is_subtotal_editable) hide @endif" data-currency_symbol="true">{{$product->quantity_ordered*$unit_price_inc_tax}}</span>
 	</td>
 	<td class="text-center v-center">
 		<i class="fa fa-times text-danger pos_remove_row cursor-pointer" aria-hidden="true"></i>

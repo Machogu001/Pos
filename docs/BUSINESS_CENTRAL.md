@@ -2,7 +2,7 @@
 
 ## Overview
 
-BreMac POS can connect to Business Central 240 without changing normal POS behavior when the integration is disabled.
+BreMac POS can connect to Dynamics 365 Business Central without changing normal POS behavior when the integration is disabled.
 
 When enabled:
 

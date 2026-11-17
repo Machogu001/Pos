@@ -1701,6 +1701,12 @@ $(document).ready(function() {
         updateProfitLoss(start, end, location_id, $('#todays_profit'));
     });
 
+    //Print the BC posted invoice in-page (print dialog, no new tab).
+    $(document).on('click', 'a.print-bc-invoice', function(e) {
+        e.preventDefault();
+        __print_bc_invoice($(this).data('href'));
+    });
+
     //Used for Purchase & Sell invoice.
     $(document).on('click', 'a.print-invoice', function(e) {
         e.preventDefault();
@@ -1711,29 +1717,43 @@ $(document).ready(function() {
             url: href,
             dataType: 'json',
             success: function(result) {
-                if (result.success == 1 && result.receipt.html_content != '') {
-                    $('#receipt_section').html(result.receipt.html_content);
-                    __currency_convert_recursively($('#receipt_section'));
-
-                    var title = document.title;
-                    if (typeof result.receipt.print_title != 'undefined') {
-                        document.title = result.receipt.print_title;
-                    }
-                    if (typeof result.print_title != 'undefined') {
-                        document.title = result.print_title;
-                    }
-
-                    __print_receipt('receipt_section');
-
-                    setTimeout(function() {
-                        document.title = title;
-                    }, 1200);
+                if (result.success == 1 && result.receipt.bc_invoice_url) {
+                    //Print the posted Business Central invoice (pure BC report
+                    //layout). On BC refusal the BC error is shown instead of
+                    //printing a different layout.
+                    __print_bc_invoice(result.receipt.bc_invoice_url);
+                } else if (result.success == 1 && result.receipt.html_content != '') {
+                    __print_invoice_html(result);
                 } else {
                     toastr.error(result.msg);
                 }
             },
         });
     });
+
+    function __print_invoice_html(result) {
+        if (result.receipt.html_content == '') {
+            toastr.error(result.msg);
+            return;
+        }
+
+        $('#receipt_section').html(result.receipt.html_content);
+        __currency_convert_recursively($('#receipt_section'));
+
+        var title = document.title;
+        if (typeof result.receipt.print_title != 'undefined') {
+            document.title = result.receipt.print_title;
+        }
+        if (typeof result.print_title != 'undefined') {
+            document.title = result.print_title;
+        }
+
+        __print_receipt('receipt_section');
+
+        setTimeout(function() {
+            document.title = title;
+        }, 1200);
+    }
 
     //Sales commission agent
     var sales_commission_agent_table = $('#sales_commission_agent_table').DataTable({

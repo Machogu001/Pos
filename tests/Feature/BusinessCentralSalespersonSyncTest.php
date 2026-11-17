@@ -655,6 +655,174 @@ class BusinessCentralSalespersonSyncTest extends TestCase
         $this->assertSame(100.0, $subUnits[$wholesaleUnit->id]['multiplier']);
     }
 
+    public function test_receipt_uses_posted_bc_invoice_layout_only_for_synced_sales(): void
+    {
+        $business = $this->configureIntegration();
+
+        $controller = app(\App\Http\Controllers\SellPosController::class);
+        $resolveUrl = new \ReflectionMethod($controller, 'businessCentralInvoiceUrl');
+        $resolveUrl->setAccessible(true);
+
+        // No synced BC invoice yet: printing must keep the POS receipt.
+        $this->assertNull($resolveUrl->invoke($controller, $business->id, 4242));
+
+        BusinessCentralMapping::create([
+            'business_id' => $business->id,
+            'entity_type' => 'sale',
+            'local_id' => 4242,
+            'bc_id' => 'posted-invoice-guid',
+            'bc_number' => 'PSI-0001',
+            'status' => 'synced',
+        ]);
+
+        $this->assertSame(
+            route('sell.printBusinessCentralInvoice', ['transaction_id' => 4242]),
+            $resolveUrl->invoke($controller, $business->id, 4242)
+        );
+
+        // Disabled integration must never route printing through BC.
+        AdminSetting::first()->update(['business_central_enabled' => false]);
+        $this->assertNull($resolveUrl->invoke($controller, $business->id, 4242));
+    }
+
+    public function test_invoice_report_pdf_renders_through_the_sales_codeunit(): void
+    {
+        $this->configureIntegration();
+        $settings = AdminSetting::first();
+        $settings->update([
+            'business_central_sales_codeunit_url' => 'https://bc.test/BC240/WS/Company/Codeunit/BreMacPOSSalesIntegration',
+        ]);
+
+        $resultJson = json_encode([
+            'success' => true,
+            'id' => '956a7092-ece0-f111-a3fc-f403435b034b',
+            'number' => 'PSI-0001',
+            'pdfBase64' => base64_encode('%PDF-1.7 fake-bc-report'),
+        ]);
+        Http::fake([
+            'https://bc.test/BC240/WS/Company/Codeunit/BreMacPOSSalesIntegration' => Http::response(
+                '<Soap:Envelope xmlns:Soap="http://schemas.xmlsoap.org/soap/envelope/"><Soap:Body>'
+                .'<GetPostedInvoicePdf_Result xmlns="urn:microsoft-dynamics-schemas/codeunit/BreMacPOSSalesIntegration">'
+                .'<return_value>'.htmlspecialchars($resultJson, ENT_XML1).'</return_value>'
+                .'</GetPostedInvoicePdf_Result></Soap:Body></Soap:Envelope>',
+                200,
+                ['Content-Type' => 'text/xml; charset=utf-8']
+            ),
+        ]);
+
+        $pdf = (new \App\Services\BusinessCentralClient($settings->fresh()))
+            ->salesInvoiceReportPdf('{956A7092-ECE0-F111-A3FC-F403435B034B}');
+
+        $this->assertSame('%PDF-1.7 fake-bc-report', $pdf);
+
+        Http::assertSent(function ($request) {
+            return str_contains($request->body(), ':GetPostedInvoicePdf')
+                && str_contains($request->body(), '<invoiceId>{956A7092-ECE0-F111-A3FC-F403435B034B}</invoiceId>')
+                && $request->header('SOAPAction')[0] === 'urn:microsoft-dynamics-schemas/codeunit/BreMacPOSSalesIntegration:GetPostedInvoicePdf';
+        });
+
+        //A configured report id must render that exact BC report via V2.
+        $settings->fresh()->update(['business_central_invoice_report_id' => 50100]);
+        (new \App\Services\BusinessCentralClient(AdminSetting::first()))
+            ->salesInvoiceReportPdf('{956A7092-ECE0-F111-A3FC-F403435B034B}');
+
+        Http::assertSent(function ($request) {
+            return str_contains($request->body(), ':GetPostedInvoicePdfV2')
+                && str_contains($request->body(), '<reportId>50100</reportId>')
+                && $request->header('SOAPAction')[0] === 'urn:microsoft-dynamics-schemas/codeunit/BreMacPOSSalesIntegration:GetPostedInvoicePdfV2';
+        });
+
+        //With an unregistered report id, BC chooses per customer via V3.
+        AdminSetting::first()->update(['business_central_unregistered_invoice_report_id' => 50101]);
+        (new \App\Services\BusinessCentralClient(AdminSetting::first()))
+            ->salesInvoiceReportPdf('{956A7092-ECE0-F111-A3FC-F403435B034B}');
+
+        Http::assertSent(function ($request) {
+            return str_contains($request->body(), ':GetPostedInvoicePdfV3')
+                && str_contains($request->body(), '<registeredReportId>50100</registeredReportId>')
+                && str_contains($request->body(), '<unregisteredReportId>50101</unregisteredReportId>')
+                && $request->header('SOAPAction')[0] === 'urn:microsoft-dynamics-schemas/codeunit/BreMacPOSSalesIntegration:GetPostedInvoicePdfV3';
+        });
+    }
+
+    public function test_invoice_reprint_is_registered_before_a_fresh_report_is_rendered(): void
+    {
+        $this->configureIntegration();
+        $settings = AdminSetting::first();
+        $settings->update([
+            'business_central_sales_codeunit_url' => 'https://bc.test/BC240/WS/Company/Codeunit/BreMacPOSSalesIntegration',
+        ]);
+
+        $operations = [];
+        Http::fake(function ($request) use (&$operations) {
+            if (str_contains($request->body(), ':AuthorizePostedInvoiceReprint')) {
+                $operations[] = 'authorize';
+                $result = json_encode(['success' => true, 'noPrinted' => 2]);
+                $operation = 'AuthorizePostedInvoiceReprint';
+            } else {
+                $operations[] = 'render';
+                $result = json_encode([
+                    'success' => true,
+                    'pdfBase64' => base64_encode('%PDF-1.7 copy-2'),
+                ]);
+                $operation = 'GetPostedInvoicePdf';
+            }
+
+            return Http::response(
+                '<Soap:Envelope xmlns:Soap="http://schemas.xmlsoap.org/soap/envelope/"><Soap:Body>'
+                .'<'.$operation.'_Result xmlns="urn:microsoft-dynamics-schemas/codeunit/BreMacPOSSalesIntegration">'
+                .'<return_value>'.htmlspecialchars($result, ENT_XML1).'</return_value>'
+                .'</'.$operation.'_Result></Soap:Body></Soap:Envelope>',
+                200,
+                ['Content-Type' => 'text/xml; charset=utf-8']
+            );
+        });
+
+        $pdf = (new \App\Services\BusinessCentralClient($settings->fresh()))
+            ->reprintSalesInvoiceReportPdf('{956A7092-ECE0-F111-A3FC-F403435B034B}');
+
+        $this->assertSame(['authorize', 'render'], $operations);
+        $this->assertSame('%PDF-1.7 copy-2', $pdf);
+    }
+
+    public function test_sale_location_follows_the_customers_bc_location_mapping(): void
+    {
+        $business = $this->configureIntegration();
+
+        $contact = Contact::create([
+            'business_id' => $business->id,
+            'type' => 'customer',
+            'name' => 'Branch Customer',
+            'mobile' => '-',
+            'created_by' => $business->owner_id,
+            'contact_status' => 'active',
+            'contact_id' => 'CUS003018',
+            'custom_field1' => 'CUS003018',
+            'bc_location_code' => 'hq',
+        ]);
+        BusinessCentralLocationMapping::create([
+            'business_id' => $business->id,
+            'pos_location_id' => 77,
+            'bc_location_code' => 'HQ',
+            'enabled' => true,
+        ]);
+
+        //Case-insensitive match against the enabled mapping wins.
+        $this->assertSame(77, app(BusinessCentralSyncService::class)
+            ->posLocationIdForContact($business->id, $contact->id));
+
+        //Customers without a BC location keep the POS-selected location.
+        $contact->update(['bc_location_code' => null]);
+        $this->assertNull(app(BusinessCentralSyncService::class)
+            ->posLocationIdForContact($business->id, $contact->id));
+
+        //A disabled integration never overrides the sale location.
+        $contact->update(['bc_location_code' => 'HQ']);
+        AdminSetting::first()->update(['business_central_enabled' => false]);
+        $this->assertNull(app(BusinessCentralSyncService::class)
+            ->posLocationIdForContact($business->id, $contact->id));
+    }
+
     protected function configureIntegration(): Business
     {
         $owner = User::factory()->create();

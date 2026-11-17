@@ -890,6 +890,8 @@ class AdminController extends Controller
             'business_central_inventory_url' => 'nullable|required_if:business_central_enabled,1|url|max:500',
             'business_central_salespeople_url' => 'nullable|url|max:500',
             'business_central_sales_codeunit_url' => 'nullable|url|max:500',
+            'business_central_invoice_report_id' => 'nullable|integer|min:1|max:2000000000',
+            'business_central_unregistered_invoice_report_id' => 'nullable|integer|min:1|max:2000000000',
             'business_central_company_id' => 'nullable|required_if:business_central_enabled,1|string|max:100',
             'business_central_company_name' => 'nullable|string|max:255',
             'business_central_location_code' => 'nullable|string|max:20',
@@ -1018,6 +1020,21 @@ class AdminController extends Controller
             'business_central_client_id',
             'business_central_scope',
         ]));
+
+        if ($request->has('business_central_invoice_report_id')) {
+            //Normalize to int or null so the nullable integer column never gets ''.
+            $settings->business_central_invoice_report_id = $request->filled('business_central_invoice_report_id')
+                ? (int) $request->input('business_central_invoice_report_id')
+                : null;
+            $settings->save();
+        }
+
+        if ($request->has('business_central_unregistered_invoice_report_id')) {
+            $settings->business_central_unregistered_invoice_report_id = $request->filled('business_central_unregistered_invoice_report_id')
+                ? (int) $request->input('business_central_unregistered_invoice_report_id')
+                : null;
+            $settings->save();
+        }
 
         if ($request->filled('business_central_secret')) {
             $settings->business_central_secret = $request->input('business_central_secret');
