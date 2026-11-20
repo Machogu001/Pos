@@ -2,16 +2,32 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up()
     {
-        Schema::create('mpesa_payments', function (Blueprint $table) {
+        // subscriptions.id is INT UNSIGNED when created by the Superadmin module,
+        // BIGINT UNSIGNED otherwise — match it so the foreign key is compatible.
+        $subscriptionsIdIsBigInt = true;
+        if (Schema::hasTable('subscriptions')) {
+            $col = DB::selectOne(
+                "SELECT DATA_TYPE AS t FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'subscriptions' AND COLUMN_NAME = 'id'"
+            );
+            $subscriptionsIdIsBigInt = $col && strtolower($col->t) === 'bigint';
+        }
+
+        Schema::create('mpesa_payments', function (Blueprint $table) use ($subscriptionsIdIsBigInt) {
             $table->id();            
             $table->unsignedInteger('user_id')->nullable(); // match users.id
-            $table->unsignedBigInteger('subscription_id')->nullable(); // match subscriptions.id
+            if ($subscriptionsIdIsBigInt) {
+                $table->unsignedBigInteger('subscription_id')->nullable(); // match subscriptions.id
+            } else {
+                $table->unsignedInteger('subscription_id')->nullable(); // match subscriptions.id
+            }
             $table->string('payer_name')->nullable();
             $table->string('first_name')->nullable();
             $table->string('middle_name')->nullable();
